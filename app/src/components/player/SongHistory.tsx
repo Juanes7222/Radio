@@ -6,6 +6,7 @@ import type { SongHistory as SongHistoryType } from '@/types/azuracast';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -43,6 +44,9 @@ export function SongHistory({
             <History className="w-5 h-5" />
             Historial de reproducción
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Lista de canciones reproducidas recientemente en la estación
+          </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh]">

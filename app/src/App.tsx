@@ -159,6 +159,7 @@ function App() {
 
       <SongRequest
         stationUrl={STATION_URL}
+        stationId={STATION_ID}
         isOpen={showRequests}
         onClose={() => setShowRequests(false)}
         theme={resolvedTheme}

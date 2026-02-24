@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { ThemeToggle } from './ThemeToggle';
@@ -80,6 +83,10 @@ export function Header({ stationName = 'RadioStream' }: HeaderProps) {
             <SheetContent side="right" className={
               resolvedTheme === 'dark' ? 'bg-slate-900 border-slate-800' : ''
             }>
+              <SheetHeader className="sr-only">
+                <SheetTitle>Menú</SheetTitle>
+                <SheetDescription>Opciones de la aplicación de radio</SheetDescription>
+              </SheetHeader>
               <div className="flex flex-col gap-4 mt-8">
                 <Button variant="ghost" className="justify-start" onClick={shareApp}>
                   <Share2 className="w-5 h-5 mr-2" />

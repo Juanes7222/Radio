@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -28,12 +29,13 @@ interface SongRequestItem {
 
 interface SongRequestProps {
   stationUrl: string;
+  stationId?: string;
   isOpen: boolean;
   onClose: () => void;
   theme: 'dark' | 'light';
 }
 
-export function SongRequest({ stationUrl, isOpen, onClose, theme }: SongRequestProps) {
+export function SongRequest({ stationUrl, stationId = '', isOpen, onClose, theme }: SongRequestProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SongRequestItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -44,7 +46,7 @@ export function SongRequest({ stationUrl, isOpen, onClose, theme }: SongRequestP
     message: string;
   } | null>(null);
 
-  const { requestSong } = useAzuraCast({ stationUrl });
+  const { requestSong } = useAzuraCast({ stationUrl, stationId });
 
   // Buscar canciones
   useEffect(() => {
@@ -111,6 +113,9 @@ export function SongRequest({ stationUrl, isOpen, onClose, theme }: SongRequestP
             <Send className="w-5 h-5" />
             Solicitar canción
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Busca y solicita una canción para que suene en la radio
+          </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 pb-4">
