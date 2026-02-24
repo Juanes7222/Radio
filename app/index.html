@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    <meta name="theme-color" content="#3b82f6" />
+    <meta name="color-scheme" content="dark light" />
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192x192.png" />
+    
+    <!-- SEO -->
+    <title>RadioStream - Tu Emisora Online 24/7</title>
+    <meta name="description" content="Escucha nuestra emisora de radio online 24/7 con la mejor música. Disponible en múltiples calidades y con solicitudes de canciones." />
+    <meta name="keywords" content="radio, online, streaming, música, emisora, 24/7" />
+    <meta name="author" content="RadioStream" />
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="RadioStream - Tu Emisora Online 24/7" />
+    <meta property="og:description" content="Escucha nuestra emisora de radio online 24/7 con la mejor música." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/icon-512x512.png" />
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="RadioStream - Tu Emisora Online 24/7" />
+    <meta name="twitter:description" content="Escucha nuestra emisora de radio online 24/7 con la mejor música." />
+    <meta name="twitter:image" content="/icon-512x512.png" />
+    
+    <!-- iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="RadioStream" />
+    
+    <!-- Preconnect -->
+    <link rel="preconnect" href="https://demo.azuracast.com" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-72x72.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icon-72x72.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered:', registration);
+            })
+            .catch((error) => {
+              console.log('SW registration failed:', error);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>
