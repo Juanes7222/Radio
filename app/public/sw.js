@@ -1,4 +1,4 @@
-const CACHE_NAME = 'radiostream-v3';
+const CACHE_NAME = 'radiostream-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -27,8 +27,9 @@ self.addEventListener('activate', (event) => {
           .map((name) => caches.delete(name))
       );
     })
+    // NO usamos clients.claim() — evita tomar control de páginas activas
+    // y cortarles el audio. El SW toma control en la próxima carga de página.
   );
-  self.clients.claim();
 });
 
 // Fetch: estrategia stale-while-revalidate para assets, network-first para API
@@ -39,10 +40,25 @@ self.addEventListener('fetch', (event) => {
   // Solo interceptar http/https — ignorar chrome-extension://, data:, blob:, etc.
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
 
-  // No interceptar requests de streaming ni WebSocket
-  if (request.headers.get('Accept')?.includes('audio') ||
-      url.protocol === 'ws:' || 
-      url.protocol === 'wss:') {
+  // No interceptar requests del servidor de desarrollo de Vite (HMR, módulos, source files)
+  // Evita que el SW sirva versiones cacheadas de módulos y rompa el hot-reload
+  if (
+    url.pathname.startsWith('/@') ||
+    url.pathname.startsWith('/src/') ||
+    url.pathname.startsWith('/node_modules/') ||
+    url.pathname.includes('__vite') ||
+    url.pathname.includes('?t=') ||
+    url.searchParams.has('t')
+  ) return;
+
+  // No interceptar requests de streaming de audio ni WebSocket
+  if (
+    request.headers.get('Accept')?.includes('audio') ||
+    url.pathname.includes('/listen/') ||
+    url.pathname.includes('/radio/') ||
+    url.protocol === 'ws:' ||
+    url.protocol === 'wss:'
+  ) {
     return;
   }
 
