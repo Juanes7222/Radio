@@ -11,6 +11,8 @@ import type { ScheduleItem } from '@/types/admin';
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
+const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
+
 export default function AdminSchedule() {
   const { getSchedule } = useAdminApi();
   const { resolvedTheme } = useTheme();
@@ -75,7 +77,7 @@ export default function AdminSchedule() {
             Actualizar
           </Button>
           <a
-            href="http://localhost/station/1/playlists"
+            href={`${AZURACAST_URL}/station/1/playlists`}
             target="_blank"
             rel="noopener noreferrer"
           >

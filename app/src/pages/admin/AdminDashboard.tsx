@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Radio, Music, Wifi, RefreshCw, ExternalLink } from 'lucide-react';
+import { Users, Radio, Music, Wifi, RefreshCw, ExternalLink, SkipForward, RotateCcw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,8 +46,10 @@ function StatCard({ title, value, icon: Icon, description, accent }: StatCardPro
   );
 }
 
+const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
+
 export default function AdminDashboard() {
-  const { getStatus, getListeners, getNowPlaying } = useAdminApi();
+  const { getStatus, getListeners, getNowPlaying, skipCurrentTrack, restartStation } = useAdminApi();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
@@ -55,6 +57,8 @@ export default function AdminDashboard() {
   const [listeners, setListeners] = useState<ListenerDetail[]>([]);
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const [skipLoading, setSkipLoading] = useState(false);
+  const [restartLoading, setRestartLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
   const loadData = useCallback(async () => {
@@ -84,6 +88,18 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [loadData]);
 
+  const handleSkip = useCallback(async () => {
+    if (!confirm('¿Saltar la canción actual?')) return;
+    setSkipLoading(true);
+    try { await skipCurrentTrack(); await loadData(); } finally { setSkipLoading(false); }
+  }, [skipCurrentTrack, loadData]);
+
+  const handleRestart = useCallback(async () => {
+    if (!confirm('¿Reiniciar la estación? Los oyentes serán desconectados momentáneamente.')) return;
+    setRestartLoading(true);
+    try { await restartStation(); await loadData(); } finally { setRestartLoading(false); }
+  }, [restartStation, loadData]);
+
   const song = nowPlaying?.now_playing?.song;
   const elapsed = nowPlaying?.now_playing?.elapsed ?? 0;
   const duration = nowPlaying?.now_playing?.duration ?? 0;
@@ -99,10 +115,34 @@ export default function AdminDashboard() {
             Última actualización: {lastRefresh.toLocaleTimeString()}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSkip}
+            disabled={loading || skipLoading}
+            className="gap-1.5"
+            title="Saltar canción actual"
+          >
+            <SkipForward className={`w-4 h-4 ${skipLoading ? 'animate-pulse' : ''}`} />
+            <span className="hidden sm:inline">Saltar</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRestart}
+            disabled={loading || restartLoading}
+            className="gap-1.5 text-orange-500 border-orange-500/40 hover:bg-orange-500/10"
+            title="Reiniciar la estación (desconecta oyentes momentáneamente)"
+          >
+            <RotateCcw className={`w-4 h-4 ${restartLoading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Reiniciar</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-1.5">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Actualizar</span>
+          </Button>
+        </div>
       </div>
 
       {/* Tarjetas de estadísticas */}
@@ -202,7 +242,7 @@ export default function AdminDashboard() {
                 <Badge variant="secondary">{listeners.length}</Badge>
               </CardTitle>
               <a
-                href="http://localhost/station/1/reports/listeners"
+                href={`${AZURACAST_URL}/station/1/reports/listeners`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-primary hover:underline flex items-center gap-1"

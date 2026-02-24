@@ -292,7 +292,7 @@ export default function AdminStreaming() {
 
                   <div className="flex items-center justify-between">
                     <a
-                      href={`http://localhost/station/1/streamers/${s.id}`}
+                      href={`${STATION_URL}/station/1/streamers/${s.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-primary hover:underline flex items-center gap-1"

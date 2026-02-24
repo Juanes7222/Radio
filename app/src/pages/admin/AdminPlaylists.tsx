@@ -1,21 +1,34 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ListMusic, Power, Trash2, RefreshCw, Music2, ExternalLink } from 'lucide-react';
+import { ListMusic, Power, Trash2, RefreshCw, Music2, ExternalLink, Plus, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { useTheme } from '@/hooks';
 import type { AdminPlaylist } from '@/types/admin';
 
+const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
+
 export default function AdminPlaylists() {
-  const { getPlaylists, togglePlaylist, deletePlaylist } = useAdminApi();
+  const { getPlaylists, createPlaylist, togglePlaylist, deletePlaylist } = useAdminApi();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
   const [playlists, setPlaylists] = useState<AdminPlaylist[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<number | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    type: 'default',
+    is_enabled: true,
+    include_in_requests: false,
+    order: 'shuffle',
+  });
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,6 +63,23 @@ export default function AdminPlaylists() {
     }
   };
 
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createForm.name.trim()) { setCreateError('El nombre es obligatorio.'); return; }
+    setCreateLoading(true);
+    setCreateError('');
+    try {
+      await createPlaylist(createForm);
+      setCreateForm({ name: '', type: 'default', is_enabled: true, include_in_requests: false, order: 'shuffle' });
+      setShowCreateForm(false);
+      await load();
+    } catch {
+      setCreateError('No se pudo crear la playlist. Verifica que tu clave API tenga permisos.');
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
   const playlistTypeLabel = (type: string) => {
     const types: Record<string, string> = {
       default: 'Estándar',
@@ -74,18 +104,94 @@ export default function AdminPlaylists() {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>
-          <a
-            href="http://localhost/station/1/playlists"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button size="sm" className="gap-2">
-              <ExternalLink className="w-4 h-4" />
-              Gestionar en AzuraCast
-            </Button>
-          </a>
+          <Button size="sm" className="gap-2" onClick={() => setShowCreateForm((v) => !v)}>
+            {showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {showCreateForm ? 'Cancelar' : 'Nueva playlist'}
+          </Button>
         </div>
       </div>
+
+      {/* Formulario crear playlist */}
+      {showCreateForm && (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className={isDark ? 'border-primary/40 bg-slate-800/60' : 'border-primary/40'}>
+            <CardHeader>
+              <CardTitle className="text-base">Nueva playlist</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreate} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="text-xs font-medium">Nombre *</label>
+                    <Input
+                      placeholder="Ej: Música cristiana"
+                      value={createForm.name}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                      className={isDark ? 'bg-slate-900 border-slate-600' : ''}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Tipo</label>
+                    <select
+                      value={createForm.type}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, type: e.target.value }))}
+                      className={`w-full h-9 rounded-md border px-3 text-sm ${
+                        isDark ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      <option value="default">Estándar</option>
+                      <option value="scheduled">Programada</option>
+                      <option value="once">Una vez</option>
+                      <option value="on_request">Por solicitud</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Orden de reproducción</label>
+                    <select
+                      value={createForm.order}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, order: e.target.value }))}
+                      className={`w-full h-9 rounded-md border px-3 text-sm ${
+                        isDark ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      <option value="shuffle">Aleatoria</option>
+                      <option value="sequential">Secuencial</option>
+                      <option value="random">Random ponderado</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="is_enabled"
+                      checked={createForm.is_enabled}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, is_enabled: e.target.checked }))}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="is_enabled" className="text-sm">Activa al crear</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="include_requests"
+                      checked={createForm.include_in_requests}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, include_in_requests: e.target.checked }))}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="include_requests" className="text-sm">Permitir solicitudes de oyentes</label>
+                  </div>
+                </div>
+                {createError && <p className="text-xs text-destructive">{createError}</p>}
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setShowCreateForm(false)}>Cancelar</Button>
+                  <Button type="submit" size="sm" disabled={createLoading}>
+                    {createLoading ? 'Creando...' : 'Crear playlist'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {loading && playlists.length === 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -105,10 +211,10 @@ export default function AdminPlaylists() {
             <p className={isDark ? 'text-slate-400' : 'text-slate-500'}>
               No hay playlists configuradas.
             </p>
-            <a href="http://localhost/station/1/playlists" target="_blank" rel="noopener noreferrer">
+            <a href={`${AZURACAST_URL}/station/1/playlists`} target="_blank" rel="noopener noreferrer">
               <Button variant="outline" size="sm" className="gap-2">
                 <ExternalLink className="w-4 h-4" />
-                Crear en AzuraCast
+                Gestionar en AzuraCast
               </Button>
             </a>
           </CardContent>

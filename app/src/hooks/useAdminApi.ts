@@ -124,11 +124,39 @@ export function useAdminApi() {
     [request, stationId]
   );
 
+  const createPlaylist = useCallback(
+    (data: {
+      name: string;
+      type: string;
+      is_enabled: boolean;
+      include_in_requests: boolean;
+      order: string;
+    }) =>
+      request({
+        method: 'POST',
+        url: `/api/station/${stationId}/playlists`,
+        data,
+      }),
+    [request, stationId]
+  );
+
+  // ── Controles de estación ─────────────────────────────────────
+  const skipCurrentTrack = useCallback(
+    () => request({ method: 'POST', url: `/api/station/${stationId}/backend/skip` }),
+    [request, stationId]
+  );
+
+  const restartStation = useCallback(
+    () => request({ method: 'POST', url: `/api/station/${stationId}/restart` }),
+    [request, stationId]
+  );
+
   return {
     getStatus,
     getListeners,
     getNowPlaying,
     getPlaylists,
+    createPlaylist,
     togglePlaylist,
     deletePlaylist,
     getPendingRequests,
@@ -138,6 +166,8 @@ export function useAdminApi() {
     deleteStreamer,
     getSchedule,
     getMedia,
+    skipCurrentTrack,
+    restartStation,
     stationId,
   };
 }

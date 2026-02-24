@@ -8,6 +8,8 @@ import { useAdminApi } from '@/hooks/useAdminApi';
 import { useTheme } from '@/hooks';
 import type { SongRequest } from '@/types/admin';
 
+const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
+
 export default function AdminRequests() {
   const { getPendingRequests, approveRequest } = useAdminApi();
   const { resolvedTheme } = useTheme();
@@ -49,9 +51,7 @@ export default function AdminRequests() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Solicitudes de canciones</h1>
-          <p className={`text-sm mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Se actualiza automáticamente cada 20 segundos
-          </p>
+          
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
@@ -59,7 +59,7 @@ export default function AdminRequests() {
             Actualizar
           </Button>
           <a
-            href="http://localhost/station/1/reports/requests"
+            href={`${AZURACAST_URL}/station/1/reports/requests`}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -159,7 +159,7 @@ export default function AdminRequests() {
           <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
             💡 Las solicitudes aprobadas por AzuraCast se reproducen automáticamente según la configuración de la playlist. Para habilitar/deshabilitar solicitudes ve a{' '}
             <a
-              href="http://localhost/station/1/playlists"
+              href={`${AZURACAST_URL}/station/1/playlists`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline"
