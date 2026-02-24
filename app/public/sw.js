@@ -1,4 +1,4 @@
-const CACHE_NAME = 'radiostream-v2';
+const CACHE_NAME = 'radiostream-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -46,8 +46,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API de AzuraCast: network-first (sin cachear errores)
+  // API de AzuraCast: network-first, solo cachear GET exitosos
   if (url.pathname.includes('/api/')) {
+    // No cachear POST/PUT/DELETE — cache solo acepta GET
+    if (request.method !== 'GET') return;
     event.respondWith(
       fetch(request)
         .then((response) => {

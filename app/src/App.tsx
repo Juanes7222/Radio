@@ -4,17 +4,12 @@ import {
   RadioPlayer, 
   SongHistory, 
   SongRequest, 
-  ListenerStats 
 } from '@/components/player';
 import { Header, PWAInstall } from '@/components/ui-custom';
 import { useAzuraCast, useTheme } from '@/hooks';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
   Radio, 
-  Music, 
-  Users, 
-  Headphones, 
-  Settings,
   Info
 } from 'lucide-react';
 import type { StreamQuality } from '@/types/azuracast';
@@ -106,7 +101,7 @@ function App() {
                 <Info className="w-5 h-5" />
                 <span className="font-medium">¿Cómo escuchar?</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <strong className="block mb-1">Desde el navegador</strong>
                   <span className="text-muted-foreground">Reproduce directamente desde esta página</span>

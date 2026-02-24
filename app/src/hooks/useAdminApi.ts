@@ -108,7 +108,7 @@ export function useAdminApi() {
   const getSchedule = useCallback(
     () =>
       request<unknown[]>({
-        url: `/api/station/${stationId}/schedules`,
+        url: `/api/station/${stationId}/schedule`,
         params: { now: Math.floor(Date.now() / 1000) },
       }),
     [request, stationId]

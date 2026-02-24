@@ -17,14 +17,23 @@ export default function AdminRequests() {
 
   const [requests, setRequests] = useState<SongRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await getPendingRequests();
       const rows = (data as { rows?: SongRequest[] })?.rows ?? [];
       setRequests(rows);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 500) {
+        setError('Las solicitudes de canciones no están habilitadas en esta estación o la clave API no tiene permisos suficientes.');
+      } else {
+        setError('Error al obtener solicitudes. Verifica la conexión con AzuraCast.');
+      }
     } finally {
       setLoading(false);
     }
@@ -84,7 +93,16 @@ export default function AdminRequests() {
           </div>
         </CardHeader>
         <CardContent>
-          {loading && requests.length === 0 ? (
+          {error ? (
+            <div className={`py-8 text-center space-y-2`}>
+              <XCircle className="w-8 h-8 mx-auto text-destructive opacity-60" />
+              <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{error}</p>
+              <Button variant="outline" size="sm" onClick={load} className="mt-2 gap-2">
+                <RefreshCw className="w-3 h-3" />
+                Reintentar
+              </Button>
+            </div>
+          ) : loading && requests.length === 0 ? (
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => (
                 <div

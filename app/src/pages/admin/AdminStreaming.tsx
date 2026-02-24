@@ -49,6 +49,7 @@ export default function AdminStreaming() {
 
   const [streamers, setStreamers] = useState<Streamer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [streamersError, setStreamersError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<number | null>(null);
   const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({});
   const [showForm, setShowForm] = useState(false);
@@ -65,9 +66,17 @@ export default function AdminStreaming() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setStreamersError(null);
     try {
       const data = await getStreamers();
       setStreamers(data as Streamer[]);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 500) {
+        setStreamersError('Los streamers no están disponibles o la clave API no tiene permisos de administrador.');
+      } else {
+        setStreamersError('Error al conectar con AzuraCast. Verifica que el servidor esté en línea.');
+      }
     } finally {
       setLoading(false);
     }
@@ -220,7 +229,18 @@ export default function AdminStreaming() {
       )}
 
       {/* Lista de DJs */}
-      {loading && streamers.length === 0 ? (
+      {streamersError ? (
+        <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+          <CardContent className="pt-10 pb-10 text-center space-y-3">
+            <Mic2 className="w-10 h-10 mx-auto text-slate-400 opacity-50" />
+            <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{streamersError}</p>
+            <Button variant="outline" size="sm" onClick={load} className="gap-2">
+              <RefreshCw className="w-3 h-3" />
+              Reintentar
+            </Button>
+          </CardContent>
+        </Card>
+      ) : loading && streamers.length === 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[...Array(3)].map((_, i) => (
             <Card key={i} className={`animate-pulse ${isDark ? 'border-slate-700 bg-slate-800/60' : ''}`}>
