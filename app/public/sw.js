@@ -1,4 +1,4 @@
-const CACHE_NAME = 'radiostream-v1';
+const CACHE_NAME = 'radiostream-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -36,6 +36,9 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Solo interceptar http/https — ignorar chrome-extension://, data:, blob:, etc.
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
   // No interceptar requests de streaming ni WebSocket
   if (request.headers.get('Accept')?.includes('audio') ||
       url.protocol === 'ws:' || 
@@ -43,18 +46,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API de AzuraCast: network-first
+  // API de AzuraCast: network-first (sin cachear errores)
   if (url.pathname.includes('/api/')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, clone);
-          });
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, clone);
+            });
+          }
           return response;
         })
-        .catch(() => caches.match(request))
+        .catch(() => caches.match(request).then((cached) => cached ?? Response.error()))
     );
     return;
   }
@@ -72,7 +77,7 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => cached);
+        .catch(() => cached ?? Response.error());
 
       return cached || fetchPromise;
     })
