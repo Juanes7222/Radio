@@ -75,7 +75,7 @@ function App() {
             {data?.station?.name || 'RadioStream'}
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {data?.station?.description || 'Tu emisora online 24/7 con la mejor música'}
+            {data?.station?.description || 'La Voz de la Verdad es una emisora cristiana online donde proclamamos el mensaje de Jesucristo y la obra del Padre, del Hijo y del Espíritu Santo'}
           </p>
         </motion.section>
 
@@ -91,56 +91,7 @@ function App() {
             onShowRequests={() => setShowRequests(true)}
           />
         </section>
-
-        {/* Estadísticas */}
-        {data && (
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mb-8"
-          >
-            <ListenerStats
-              listeners={data.listeners}
-              isLive={data.live.is_live}
-              streamerName={data.live.streamer_name}
-              theme={resolvedTheme}
-            />
-          </motion.section>
-        )}
-
-        {/* Features Grid */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
-        >
-          <FeatureCard
-            icon={Music}
-            title="Música 24/7"
-            description="Programación automática con AutoDJ que nunca se detiene"
-            theme={resolvedTheme}
-          />
-          <FeatureCard
-            icon={Headphones}
-            title="Alta Calidad"
-            description="Stream en múltiples calidades: 64, 128 y 320 kbps"
-            theme={resolvedTheme}
-          />
-          <FeatureCard
-            icon={Users}
-            title="En Vivo"
-            description="Transmisiones en directo con DJs en vivo"
-            theme={resolvedTheme}
-          />
-          <FeatureCard
-            icon={Settings}
-            title="Controles Pro"
-            description="Visualizador de onda, historial y solicitudes"
-            theme={resolvedTheme}
-          />
-        </motion.section>
+        
 
         {/* Info Section */}
         <motion.section
@@ -164,10 +115,7 @@ function App() {
                   <strong className="block mb-1">En tu móvil</strong>
                   <span className="text-muted-foreground">Instala la app PWA para acceso rápido</span>
                 </div>
-                <div>
-                  <strong className="block mb-1">Reproductor externo</strong>
-                  <span className="text-muted-foreground">Usa VLC, Winamp o cualquier reproductor</span>
-                </div>
+
               </div>
             </CardContent>
           </Card>
