@@ -12,4 +12,13 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      // Redirige llamadas /api al servidor AzuraCast local
+      '/api': {
+        target: 'http://localhost',
+        changeOrigin: true,
+      },
+    },
+  },
 });

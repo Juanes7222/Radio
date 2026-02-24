@@ -20,8 +20,8 @@ import {
 import type { StreamQuality } from '@/types/azuracast';
 
 // Configuración de la estación
-// TODO: Cambiar esta URL por la de tu servidor AzuraCast
-const STATION_URL = import.meta.env.VITE_STATION_URL || 'https://demo.azuracast.com';
+const STATION_URL = import.meta.env.VITE_STATION_URL || '';
+const STATION_ID = import.meta.env.VITE_STATION_ID || 'la_voz_de_la_verdad';
 
 function App() {
   const { resolvedTheme } = useTheme();
@@ -37,6 +37,7 @@ function App() {
     getStreamUrl,
   } = useAzuraCast({ 
     stationUrl: STATION_URL,
+    stationId: STATION_ID,
     pollInterval: 15000,
   });
 

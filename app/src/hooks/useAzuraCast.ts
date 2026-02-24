@@ -4,6 +4,7 @@ import type { NowPlayingData, SongHistory, StreamQuality } from '@/types/azuraca
 
 interface UseAzuraCastProps {
   stationUrl: string;
+  stationId: string;
   pollInterval?: number;
 }
 
@@ -19,6 +20,7 @@ interface UseAzuraCastReturn {
 
 export function useAzuraCast({ 
   stationUrl, 
+  stationId,
   pollInterval = 15000 
 }: UseAzuraCastProps): UseAzuraCastReturn {
   const [data, setData] = useState<NowPlayingData | null>(null);
@@ -28,7 +30,7 @@ export function useAzuraCast({
 
   const fetchNowPlaying = useCallback(async () => {
     try {
-      const apiUrl = `${stationUrl}/api/nowplaying`;
+      const apiUrl = `${stationUrl}/api/nowplaying/${stationId}`;
       const response = await axios.get<NowPlayingData>(apiUrl, {
         timeout: 10000,
         headers: {
@@ -53,7 +55,7 @@ export function useAzuraCast({
     } finally {
       setIsLoading(false);
     }
-  }, [stationUrl]);
+  }, [stationUrl, stationId]);
 
   // Polling automático
   useEffect(() => {
@@ -71,14 +73,14 @@ export function useAzuraCast({
   // Request de canción
   const requestSong = useCallback(async (songId: string): Promise<boolean> => {
     try {
-      const requestUrl = `${stationUrl}/api/station/1/request/${songId}`;
+      const requestUrl = `${stationUrl}/api/station/${stationId}/request/${songId}`;
       await axios.post(requestUrl);
       return true;
     } catch (err) {
       console.error('Error requesting song:', err);
       return false;
     }
-  }, [stationUrl]);
+  }, [stationUrl, stationId]);
 
   // Obtener URL del stream según calidad
   const getStreamUrl = useCallback((quality: StreamQuality): string => {
