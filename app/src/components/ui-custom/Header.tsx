@@ -1,6 +1,6 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Radio, Menu, Share2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/sheet';
 import { ThemeToggle } from './ThemeToggle';
 import { useTheme } from '@/hooks';
-
+import { ShareModal } from './SharedModla';
 interface HeaderProps {
   stationName?: string;
 }
@@ -20,36 +20,17 @@ interface HeaderProps {
 export function Header({ stationName = 'RadioStream' }: HeaderProps) {
   const { resolvedTheme } = useTheme();
 
-  const shareApp = async () => {
-    const shareData = {
-      title: stationName,
-      text: `Escucha ${stationName} - Tu emisora online 24/7`,
-      url: window.location.href,
-    };
-
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-      } catch (err: unknown) {
-        if ((err as Error)?.name !== 'AbortError') {
-          await copyToClipboard(shareData.url);
-        }
-      }
-    } else {
-      await copyToClipboard(shareData.url);
-    }
-  };
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success('Enlace copiado al portapapeles');
-    } catch {
-      toast.error('No se pudo copiar. URL: ' + text);
-    }
-  };
+  const [shareOpen, setShareOpen] = useState(false);
 
   return (
+
+    <>
+      <ShareModal
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        stationName={stationName}
+      />
+
     <motion.header
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -77,7 +58,7 @@ export function Header({ stationName = 'RadioStream' }: HeaderProps) {
 
         {/* Desktop actions */}
         <div className="hidden md:flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={shareApp}>
+          <Button variant="ghost" size="icon" onClick={() => setShareOpen(true)}>
             <Share2 className="w-5 h-5" />
           </Button>
           <ThemeToggle />
@@ -100,7 +81,7 @@ export function Header({ stationName = 'RadioStream' }: HeaderProps) {
                 <SheetDescription>Opciones de la aplicación de radio</SheetDescription>
               </SheetHeader>
               <div className="flex flex-col gap-4 mt-8">
-                <Button variant="ghost" className="justify-start" onClick={shareApp}>
+                <Button variant="ghost" className="justify-start" onClick={() => setShareOpen(true)}>
                   <Share2 className="w-5 h-5 mr-2" />
                   Compartir
                 </Button>
@@ -115,8 +96,10 @@ export function Header({ stationName = 'RadioStream' }: HeaderProps) {
               </div>
             </SheetContent>
           </Sheet>
+          <ShareModal open={shareOpen} onOpenChange={setShareOpen} stationName={stationName} />
         </div>
       </div>
     </motion.header>
+    </>
   );
 }

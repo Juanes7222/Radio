@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
 import { 
   Play, 
   Pause, 
@@ -35,6 +34,7 @@ import type { NowPlayingData, StreamQuality } from '@/types/azuracast';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { SongInfo } from './SongInfo';
 import { formatTime } from '@/lib/utils';
+import { ShareModal } from '../ui-custom/SharedModla';
 
 interface RadioPlayerProps {
   stationData: NowPlayingData | null;
@@ -109,44 +109,24 @@ export function RadioPlayer({
     setIsFavorite(!isFavorite);
   };
 
-  const shareStation = async () => {
-    const shareData = {
-      title: stationData?.station?.name || 'Radio Stream',
-      text: `Escuchando ${stationData?.now_playing?.song?.title} en ${stationData?.station?.name}`,
-      url: window.location.href,
-    };
 
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-      } catch (err: unknown) {
-        if ((err as Error)?.name !== 'AbortError') {
-          // Si share falla por algún motivo, copiar al portapapeles
-          await copyToClipboard(`${shareData.title} — ${shareData.text}\n${shareData.url}`);
-        }
-      }
-    } else {
-      await copyToClipboard(`${shareData.title} — ${shareData.text}\n${shareData.url}`);
-    }
-  };
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success('Enlace copiado al portapapeles');
-    } catch {
-      toast.error('No se pudo copiar. Copia manualmente: ' + window.location.href);
-    }
-  };
 
   const isLive = stationData?.live?.is_live || false;
   const listeners = stationData?.listeners?.current || 0;
   const currentSong = stationData?.now_playing || null;
   const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 
+  const [shareOpen, setShareOpen] = useState(false);
+
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      {/* Card principal del reproductor */}
+
+    <>
+    <ShareModal
+      open={shareOpen}
+      onOpenChange={setShareOpen}
+      stationName={stationData?.station?.name || 'Radio Stream'}
+    />
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -206,7 +186,7 @@ export function RadioPlayer({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={shareStation}>
+                  <Button variant="ghost" size="icon" onClick={() => setShareOpen(true)}>
                     <Share2 className="w-5 h-5" />
                   </Button>
                 </TooltipTrigger>
@@ -243,7 +223,7 @@ export function RadioPlayer({
         {/* Visualizador de onda */}
         <div className="px-6 py-4">
           <WaveformVisualizer 
-            audioElement={audioRef.current}
+            audioElement={audioRef}
             isPlaying={state.isPlaying}
             theme={theme}
           />
@@ -379,6 +359,6 @@ export function RadioPlayer({
           </div>
         )}
       </motion.div>
-    </div>
+      </>
   );
 }

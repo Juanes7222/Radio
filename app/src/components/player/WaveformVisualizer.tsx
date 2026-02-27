@@ -1,8 +1,9 @@
 import { useEffect, useRef, useCallback } from 'react';
+import type { RefObject }  from 'react';
 import { motion } from 'framer-motion';
 
 interface WaveformVisualizerProps {
-  audioElement: HTMLAudioElement | null;
+  audioElement: RefObject<HTMLAudioElement | null>;
   isPlaying: boolean;
   theme: 'dark' | 'light';
 }
@@ -27,7 +28,7 @@ export function WaveformVisualizer({
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;
       
-      const source = audioContext.createMediaElementSource(audioElement);
+      const source = audioContext.createMediaElementSource(audioElement.current!);
       source.connect(analyser);
       analyser.connect(audioContext.destination);
       
@@ -43,7 +44,7 @@ export function WaveformVisualizer({
         audioContextRef.current?.close();
       }
     };
-  }, [audioElement]);
+  }, [audioElement, isPlaying]);
 
   // Dibujar visualización
   const draw = useCallback(() => {
