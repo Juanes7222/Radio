@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Play, 
@@ -56,7 +56,11 @@ export function RadioPlayer({
   onShowRequests,
 }: RadioPlayerProps) {
   const [quality, setQuality] = useState<StreamQuality>('128');
-  const [isFavorite, setIsFavorite] = useState(false);
+  // Derivar isFavorite directamente de localStorage para evitar setState en useEffect
+  const [localFavorites, setLocalFavorites] = useState<number[]>(() =>
+    JSON.parse(localStorage.getItem('radio-favorites') || '[]')
+  );
+  const isFavorite = localFavorites.includes(stationData?.station?.id ?? -1);
   
   const { 
     audioRef, 
@@ -81,10 +85,7 @@ export function RadioPlayer({
   });
 
   // Verificar si es favorito
-  useEffect(() => {
-    const favorites = JSON.parse(localStorage.getItem('radio-favorites') || '[]');
-    setIsFavorite(favorites.includes(stationData?.station?.id));
-  }, [stationData?.station?.id]);
+  // (derivado de localFavorites — sin useEffect)
 
   const handleQualityChange = (newQuality: StreamQuality) => {
     setQuality(newQuality);
@@ -93,20 +94,15 @@ export function RadioPlayer({
   };
 
   const toggleFavorite = () => {
-    const favorites = JSON.parse(localStorage.getItem('radio-favorites') || '[]');
     const stationId = stationData?.station?.id;
-    
     if (!stationId) return;
 
-    if (isFavorite) {
-      const newFavorites = favorites.filter((id: number) => id !== stationId);
-      localStorage.setItem('radio-favorites', JSON.stringify(newFavorites));
-    } else {
-      favorites.push(stationId);
-      localStorage.setItem('radio-favorites', JSON.stringify(favorites));
-    }
-    
-    setIsFavorite(!isFavorite);
+    const newFavorites = isFavorite
+      ? localFavorites.filter((id) => id !== stationId)
+      : [...localFavorites, stationId];
+
+    localStorage.setItem('radio-favorites', JSON.stringify(newFavorites));
+    setLocalFavorites(newFavorites);
   };
 
 

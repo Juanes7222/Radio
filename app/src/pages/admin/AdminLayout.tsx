@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui-custom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTheme } from '@/hooks';
+import type { AdminUser } from '@/types/admin';
 
 const NAV_ITEMS = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -25,26 +26,21 @@ const NAV_ITEMS = [
   { to: '/admin/schedule', label: 'Programación', icon: CalendarDays },
 ];
 
-export default function AdminLayout() {
-  const { user, logout } = useAdminAuth();
-  const { resolvedTheme } = useTheme();
-  const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 
-  const isDark = resolvedTheme === 'dark';
+interface AdminSidebarProps {
+  isDark: boolean;
+  user: AdminUser;
+  onCloseMobile: () => void;
+  onLogout: () => void;
+}
 
-  if (!user) return <Navigate to="/admin/login" replace />;
-
-  const handleLogout = () => {
-    logout();
-    navigate('/admin/login');
-  };
-
+function AdminSidebar({ isDark, user, onCloseMobile, onLogout }: AdminSidebarProps) {
   const sidebarClasses = `flex flex-col h-full ${
     isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
   } border-r`;
 
-  const Sidebar = () => (
+  return (
     <div className={sidebarClasses}>
       {/* Logo */}
       <div className={`p-5 border-b ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
@@ -67,7 +63,7 @@ export default function AdminLayout() {
           <NavLink
             key={to}
             to={to}
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => onCloseMobile()}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive
@@ -87,7 +83,7 @@ export default function AdminLayout() {
       {/* Footer */}
       <div className={`p-3 border-t space-y-1 ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
         <a
-          href="http://localhost"
+          href={AZURACAST_URL}
           target="_blank"
           rel="noopener noreferrer"
           className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-colors ${
@@ -100,7 +96,7 @@ export default function AdminLayout() {
           Panel AzuraCast
         </a>
         <button
-          onClick={handleLogout}
+          onClick={onLogout}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
             isDark
               ? 'text-slate-400 hover:bg-red-900/30 hover:text-red-400'
@@ -113,6 +109,22 @@ export default function AdminLayout() {
       </div>
     </div>
   );
+}
+
+export default function AdminLayout() {
+  const { user, logout } = useAdminAuth();
+  const { resolvedTheme } = useTheme();
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const isDark = resolvedTheme === 'dark';
+
+  if (!user) return <Navigate to="/admin/login" replace />;
+
+  const handleLogout = () => {
+    logout();
+    navigate('/admin/login');
+  };
 
   return (
     <div
@@ -122,7 +134,7 @@ export default function AdminLayout() {
     >
       {/* Sidebar escritorio */}
       <aside className="hidden md:block w-60 shrink-0 fixed inset-y-0 left-0 z-30">
-        <Sidebar />
+        <AdminSidebar isDark={isDark} user={user} onCloseMobile={() => setSidebarOpen(false)} onLogout={handleLogout} />
       </aside>
 
       {/* Sidebar móvil - overlay */}
@@ -143,7 +155,7 @@ export default function AdminLayout() {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="fixed inset-y-0 left-0 w-60 z-50 md:hidden"
             >
-              <Sidebar />
+              <AdminSidebar isDark={isDark} user={user} onCloseMobile={() => setSidebarOpen(false)} onLogout={handleLogout} />
             </motion.aside>
           </>
         )}

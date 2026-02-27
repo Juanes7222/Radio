@@ -166,30 +166,4 @@ function App() {
   );
 }
 
-// Componente Feature Card
-interface FeatureCardProps {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  theme: 'dark' | 'light';
-}
-
-function FeatureCard({ icon: Icon, title, description, theme }: FeatureCardProps) {
-  return (
-    <Card className={`${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : ''} hover:shadow-lg transition-shadow`}>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-100'}`}>
-            <Icon className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h3 className="font-semibold mb-1">{title}</h3>
-            <p className="text-sm text-muted-foreground">{description}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default App;

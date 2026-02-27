@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
 import type { RefObject }  from 'react';
-import { motion } from 'framer-motion';
 
 interface WaveformVisualizerProps {
   audioElement: RefObject<HTMLAudioElement | null>;
@@ -18,6 +17,8 @@ export function WaveformVisualizer({
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  // Ref para la función draw — evita referencia circular en requestAnimationFrame
+  const drawRef = useRef<() => void>(() => {});
 
   // Inicializar AudioContext
   useEffect(() => {
@@ -102,8 +103,13 @@ export function WaveformVisualizer({
       x += barWidth;
     }
 
-    animationRef.current = requestAnimationFrame(draw);
+    animationRef.current = requestAnimationFrame(drawRef.current);
   }, [theme]);
+
+  // Mantener drawRef actualizado
+  useEffect(() => {
+    drawRef.current = draw;
+  }, [draw]);
 
   // Iniciar/detener animación
   useEffect(() => {
@@ -138,21 +144,15 @@ export function WaveformVisualizer({
     return (
       <div className="flex items-end justify-center gap-1 h-16">
         {Array.from({ length: bars }).map((_, i) => (
-          <motion.div
+          <div
             key={i}
-            className={`w-2 rounded-t ${theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'}`}
-            animate={isPlaying ? {
-              height: [20, 40 + Math.random() * 30, 20],
-            } : {
-              height: 4,
-            }}
-            transition={isPlaying ? {
-              duration: 0.5 + Math.random() * 0.5,
-              repeat: Infinity,
-              repeatType: 'reverse',
-              delay: i * 0.05,
-            } : {
-              duration: 0.3,
+            className={`w-2 rounded-t transition-all duration-300 ${
+              isPlaying
+                ? theme === 'dark' ? 'bg-blue-400' : 'bg-blue-600'
+                : theme === 'dark' ? 'bg-slate-600' : 'bg-slate-300'
+            }`}
+            style={{
+              height: isPlaying ? `${20 + Math.sin(i * 0.5) * 16}px` : '4px',
             }}
           />
         ))}
