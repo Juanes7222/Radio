@@ -13,7 +13,7 @@ import {
   Heart,
   Share2,
   ListMusic,
-  Bell
+  Send
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -327,13 +327,13 @@ export function RadioPlayer({
                 Historial
               </Button>
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
                 onClick={onShowRequests}
                 className="gap-2"
               >
-                <Bell className="w-4 h-4" />
-                Pedir
+                <Send className="w-4 h-4" />
+                Pedir canción
               </Button>
             </div>
           </div>
