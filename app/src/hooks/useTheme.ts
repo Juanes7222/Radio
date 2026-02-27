@@ -1,15 +1,24 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext, createContext } from 'react';
 
 type Theme = 'dark' | 'light' | 'system';
 
-interface UseThemeReturn {
+interface ThemeContextValue {
   theme: Theme;
   resolvedTheme: 'dark' | 'light';
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
 }
 
-export function useTheme(): UseThemeReturn {
+export const ThemeContext = createContext<ThemeContextValue | null>(null);
+
+export function useTheme(): ThemeContextValue {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error('useTheme debe usarse dentro de <ThemeProvider>');
+  return ctx;
+}
+
+// Lógica real del tema — solo se ejecuta una vez en ThemeProvider
+export function useThemeProvider(): ThemeContextValue {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem('theme') as Theme) || 'system';
@@ -17,22 +26,25 @@ export function useTheme(): UseThemeReturn {
     return 'system';
   });
 
-  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('dark');
+  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    const saved = localStorage.getItem('theme') as Theme | null;
+    if (saved === 'dark') return 'dark';
+    if (saved === 'light') return 'light';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
 
   useEffect(() => {
     const root = window.document.documentElement;
-    
+
     const applyTheme = () => {
       let resolved: 'dark' | 'light';
-      
       if (theme === 'system') {
         resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       } else {
         resolved = theme;
       }
-      
       setResolvedTheme(resolved);
-      
       if (resolved === 'dark') {
         root.classList.add('dark');
       } else {
@@ -42,12 +54,10 @@ export function useTheme(): UseThemeReturn {
 
     applyTheme();
 
-    // Escuchar cambios en preferencias del sistema
     if (theme === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = () => applyTheme();
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
+      mediaQuery.addEventListener('change', applyTheme);
+      return () => mediaQuery.removeEventListener('change', applyTheme);
     }
   }, [theme]);
 
@@ -64,10 +74,5 @@ export function useTheme(): UseThemeReturn {
     });
   }, []);
 
-  return {
-    theme,
-    resolvedTheme,
-    setTheme,
-    toggleTheme,
-  };
+  return { theme, resolvedTheme, setTheme, toggleTheme };
 }

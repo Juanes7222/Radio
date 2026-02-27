@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
-import { AdminAuthProvider } from './hooks/useAdminAuth.tsx'
+import { AdminAuthProvider, ThemeProvider } from './hooks/index.ts'
 import { Toaster } from './components/ui/sonner.tsx'
 import {
   AdminLogin,
@@ -17,7 +17,8 @@ import {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AdminAuthProvider>
+    <ThemeProvider>
+      <AdminAuthProvider>
       <BrowserRouter>
         <Toaster richColors position="bottom-center" />
         <Routes>
@@ -39,6 +40,5 @@ createRoot(document.getElementById('root')!).render(
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-    </AdminAuthProvider>
-  </StrictMode>,
+    </AdminAuthProvider>    </ThemeProvider>  </StrictMode>,
 )
