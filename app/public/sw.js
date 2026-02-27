@@ -51,6 +51,9 @@ self.addEventListener('fetch', (event) => {
     url.searchParams.has('t')
   ) return;
 
+  // No interceptar rutas del backend admin (contienen auth, pueden ser POST/PUT/DELETE)
+  if (url.pathname.startsWith('/admin-api/')) return;
+
   // No interceptar requests de streaming de audio ni WebSocket
   if (
     request.headers.get('Accept')?.includes('audio') ||
@@ -87,7 +90,8 @@ self.addEventListener('fetch', (event) => {
     caches.match(request).then((cached) => {
       const fetchPromise = fetch(request)
         .then((networkResponse) => {
-          if (networkResponse.ok) {
+          // cache.put() solo acepta GET — ignorar otros métodos
+          if (networkResponse.ok && request.method === 'GET') {
             const clone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, clone);

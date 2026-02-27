@@ -11,6 +11,7 @@ import {
   Radio,
   Menu,
   ExternalLink,
+  UploadCloud,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui-custom';
@@ -20,6 +21,7 @@ import type { AdminUser } from '@/types/admin';
 
 const NAV_ITEMS = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/admin/upload', label: 'Subir archivo', icon: UploadCloud },
   { to: '/admin/playlists', label: 'Playlists', icon: ListMusic },
   { to: '/admin/requests', label: 'Solicitudes', icon: MessageSquare },
   { to: '/admin/streaming', label: 'Streaming / DJs', icon: Mic2 },
@@ -51,7 +53,7 @@ function AdminSidebar({ isDark, user, onCloseMobile, onLogout }: AdminSidebarPro
           <div className="min-w-0">
             <p className="font-semibold text-sm truncate">{user.stationName || 'Radio'}</p>
             <p className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Panel de administración
+              {user.name || user.email}
             </p>
           </div>
         </div>

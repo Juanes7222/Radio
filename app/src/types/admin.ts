@@ -1,9 +1,17 @@
 // Tipos para el panel de administración
 
 export interface AdminUser {
-  apiKey: string;
+  /** Correo de Google del administrador */
+  email: string;
+  /** Nombre visible de la cuenta Google */
+  name: string;
+  /** URL del avatar de Google */
+  picture: string;
+  /** ID/shortcode de la estación en AzuraCast */
   stationId: string;
   stationName?: string;
+  /** JWT de sesión emitido por nuestro backend */
+  token: string;
 }
 
 export interface StationStatus {

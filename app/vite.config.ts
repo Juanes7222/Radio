@@ -14,7 +14,12 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // Redirige llamadas /api al servidor AzuraCast local
+      // Panel admin → backend seguro (nunca expone el API key de AzuraCast)
+      '/admin-api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      // Reproductor público → AzuraCast directo
       '/api': {
         target: 'http://localhost',
         changeOrigin: true,

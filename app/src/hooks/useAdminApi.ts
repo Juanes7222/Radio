@@ -2,85 +2,88 @@ import { useCallback } from 'react';
 import axios, { type AxiosRequestConfig } from 'axios';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 
-const STATION_URL = import.meta.env.VITE_STATION_URL || '';
+const STATION_ID = import.meta.env.VITE_STATION_ID || 'la_voz_de_la_verdad';
 
 export function useAdminApi() {
-  const { apiKey, user } = useAdminAuth();
-  const stationId = user?.stationId ?? import.meta.env.VITE_STATION_ID;
+  const { token, user } = useAdminAuth();
+  const stationId = user?.stationId ?? STATION_ID;
 
+  /**
+   * Todas las peticiones van a nuestro backend (/admin-api/...)
+   * que las proxifica a AzuraCast añadiendo el API Key de forma segura.
+   */
   const request = useCallback(
     async <T>(config: AxiosRequestConfig): Promise<T> => {
       const res = await axios<T>({
         ...config,
-        baseURL: STATION_URL,
         headers: {
           ...(config.headers ?? {}),
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${token}`,
         },
         timeout: config.timeout ?? 10000,
       });
       return res.data;
     },
-    [apiKey]
+    [token]
   );
 
   // ── Estadísticas ────────────────────────────────────────────
   const getStatus = useCallback(
-    () => request({ url: `/api/station/${stationId}/status` }),
-    [request, stationId]
+    () => request({ url: '/admin-api/station/status' }),
+    [request]
   );
 
   const getListeners = useCallback(
-    () => request<unknown[]>({ url: `/api/station/${stationId}/listeners` }),
-    [request, stationId]
+    () => request<unknown[]>({ url: '/admin-api/station/listeners' }),
+    [request]
   );
 
   const getNowPlaying = useCallback(
-    () => request({ url: `/api/nowplaying/${stationId}` }),
-    [request, stationId]
+    () => request({ url: '/admin-api/nowplaying' }),
+    [request]
   );
 
   // ── Playlists ────────────────────────────────────────────────
   const getPlaylists = useCallback(
-    () => request<unknown[]>({ url: `/api/station/${stationId}/playlists` }),
-    [request, stationId]
+    () => request<unknown[]>({ url: '/admin-api/station/playlists' }),
+    [request]
   );
 
   const togglePlaylist = useCallback(
     (id: number) =>
-      request({ method: 'PUT', url: `/api/station/${stationId}/playlist/${id}/toggle` }),
-    [request, stationId]
+      request({ method: 'PUT', url: `/admin-api/station/playlist/${id}/toggle` }),
+    [request]
   );
 
   const deletePlaylist = useCallback(
     (id: number) =>
-      request({ method: 'DELETE', url: `/api/station/${stationId}/playlist/${id}` }),
-    [request, stationId]
+      request({ method: 'DELETE', url: `/admin-api/station/playlist/${id}` }),
+    [request]
   );
 
   // ── Solicitudes de canciones ─────────────────────────────────
   const getPendingRequests = useCallback(
     () =>
       request<{ page: unknown; links: unknown; rows: unknown[] }>({
-        url: `/api/station/${stationId}/requests`,
+        url: '/admin-api/station/requests',
         params: { per_page: 50 },
       }),
-    [request, stationId]
+    [request]
   );
 
   const approveRequest = useCallback(
     (id: string) =>
       request({
         method: 'DELETE',
-        url: `/api/station/${stationId}/request/${id}`,
+        url: `/admin-api/station/request/${id}`,
       }),
-    [request, stationId]
+    [request]
   );
 
   // ── Streamers / DJs ──────────────────────────────────────────
   const getStreamers = useCallback(
-    () => request<unknown[]>({ url: `/api/station/${stationId}/streamers` }),
-    [request, stationId]
+    () => request<unknown[]>({ url: '/admin-api/station/streamers' }),
+    [request]
   );
 
   const createStreamer = useCallback(
@@ -92,36 +95,36 @@ export function useAdminApi() {
     }) =>
       request({
         method: 'POST',
-        url: `/api/station/${stationId}/streamers`,
+        url: '/admin-api/station/streamers',
         data,
       }),
-    [request, stationId]
+    [request]
   );
 
   const deleteStreamer = useCallback(
     (id: number) =>
-      request({ method: 'DELETE', url: `/api/station/${stationId}/streamer/${id}` }),
-    [request, stationId]
+      request({ method: 'DELETE', url: `/admin-api/station/streamer/${id}` }),
+    [request]
   );
 
   // ── Programación ─────────────────────────────────────────────
   const getSchedule = useCallback(
     () =>
       request<unknown[]>({
-        url: `/api/station/${stationId}/schedule`,
+        url: '/admin-api/station/schedule',
         params: { now: Math.floor(Date.now() / 1000) },
       }),
-    [request, stationId]
+    [request]
   );
 
   // ── Media ────────────────────────────────────────────────────
   const getMedia = useCallback(
     (page = 1) =>
       request<{ page: unknown; links: unknown; rows: unknown[] }>({
-        url: `/api/station/${stationId}/files`,
+        url: '/admin-api/station/files',
         params: { per_page: 50, page },
       }),
-    [request, stationId]
+    [request]
   );
 
   const createPlaylist = useCallback(
@@ -134,21 +137,21 @@ export function useAdminApi() {
     }) =>
       request({
         method: 'POST',
-        url: `/api/station/${stationId}/playlists`,
+        url: '/admin-api/station/playlists',
         data,
       }),
-    [request, stationId]
+    [request]
   );
 
   // ── Controles de estación ─────────────────────────────────────
   const skipCurrentTrack = useCallback(
-    () => request({ method: 'POST', url: `/api/station/${stationId}/backend/skip` }),
-    [request, stationId]
+    () => request({ method: 'POST', url: '/admin-api/station/backend/skip' }),
+    [request]
   );
 
   const restartStation = useCallback(
-    () => request({ method: 'POST', url: `/api/station/${stationId}/restart` }),
-    [request, stationId]
+    () => request({ method: 'POST', url: '/admin-api/station/restart' }),
+    [request]
   );
 
   return {
