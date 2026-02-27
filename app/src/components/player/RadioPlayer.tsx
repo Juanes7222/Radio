@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import { 
   Play, 
   Pause, 
@@ -118,12 +119,23 @@ export function RadioPlayer({
     if (navigator.share) {
       try {
         await navigator.share(shareData);
-      } catch (err) {
-        console.log('Share cancelled');
+      } catch (err: unknown) {
+        if ((err as Error)?.name !== 'AbortError') {
+          // Si share falla por algún motivo, copiar al portapapeles
+          await copyToClipboard(`${shareData.title} — ${shareData.text}\n${shareData.url}`);
+        }
       }
     } else {
-      // Fallback: copiar al portapapeles
-      navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
+      await copyToClipboard(`${shareData.title} — ${shareData.text}\n${shareData.url}`);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Enlace copiado al portapapeles');
+    } catch {
+      toast.error('No se pudo copiar. Copia manualmente: ' + window.location.href);
     }
   };
 

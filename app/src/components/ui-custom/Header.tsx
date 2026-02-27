@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Radio, Menu, Share2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -29,11 +30,22 @@ export function Header({ stationName = 'RadioStream' }: HeaderProps) {
     if (navigator.share) {
       try {
         await navigator.share(shareData);
-      } catch (err) {
-        console.log('Share cancelled');
+      } catch (err: unknown) {
+        if ((err as Error)?.name !== 'AbortError') {
+          await copyToClipboard(shareData.url);
+        }
       }
     } else {
-      navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
+      await copyToClipboard(shareData.url);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Enlace copiado al portapapeles');
+    } catch {
+      toast.error('No se pudo copiar. URL: ' + text);
     }
   };
 

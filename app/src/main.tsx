@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { AdminAuthProvider } from './hooks/useAdminAuth.tsx'
+import { Toaster } from './components/ui/sonner.tsx'
 import {
   AdminLogin,
   AdminLayout,
@@ -18,6 +19,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AdminAuthProvider>
       <BrowserRouter>
+        <Toaster richColors position="bottom-center" />
         <Routes>
           {/* Reproductor público */}
           <Route path="/" element={<App />} />
