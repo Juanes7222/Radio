@@ -13,7 +13,7 @@ export function SongInfo({ song, isLoading, theme }: SongInfoProps) {
   if (isLoading) {
     return (
       <div className="flex items-center gap-4">
-        <Skeleton className="w-24 h-24 rounded-xl" />
+        <Skeleton className="w-28 h-28 rounded-full" />
         <div className="flex-1 space-y-2">
           <Skeleton className="h-6 w-3/4" />
           <Skeleton className="h-4 w-1/2" />
@@ -42,12 +42,15 @@ export function SongInfo({ song, isLoading, theme }: SongInfoProps) {
       transition={{ duration: 0.3 }}
       className="flex items-start gap-4"
     >
-      {/* Carátula del álbum */}
+      {/* Carátula del álbum — disco vinilo */}
       <div className="relative flex-shrink-0">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-          className="w-24 h-24 rounded-xl overflow-hidden shadow-lg"
+          className="relative w-28 h-28 rounded-full overflow-hidden shadow-2xl"
+          style={{
+            boxShadow: '0 0 0 3px rgba(255,255,255,0.06), 0 0 0 6px rgba(0,0,0,0.35), 0 6px 24px rgba(0,0,0,0.6)',
+          }}
         >
           {songData.art ? (
             <img
@@ -65,6 +68,23 @@ export function SongInfo({ song, isLoading, theme }: SongInfoProps) {
               <Music className="w-10 h-10 opacity-50" />
             </div>
           )}
+
+          {/* Surcos del disco */}
+          <div
+            className="absolute inset-0 rounded-full pointer-events-none"
+            style={{
+              boxShadow:
+                'inset 0 0 0 8px rgba(0,0,0,0.18), inset 0 0 0 18px rgba(0,0,0,0.10), inset 0 0 0 28px rgba(0,0,0,0.06)',
+            }}
+          />
+
+          {/* Agujero central */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div
+              className="w-4 h-4 rounded-full border border-white/20"
+              style={{ background: 'radial-gradient(circle, rgba(80,80,80,0.9) 0%, rgba(20,20,20,0.95) 100%)' }}
+            />
+          </div>
         </motion.div>
         
         {/* Indicador de solicitud */}

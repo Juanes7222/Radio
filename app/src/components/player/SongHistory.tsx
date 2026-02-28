@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Music, History } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { SongHistory as SongHistoryType } from '@/types/azuracast';
 import {
@@ -36,10 +35,13 @@ export function SongHistory({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`max-w-md max-h-[80vh] p-0 ${
+      <DialogContent className={`max-w-md h-[80vh] flex flex-col gap-0 p-0 overflow-hidden ${
         theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white'
       }`}>
-        <DialogHeader className="p-6 pb-4">
+        {/* Cabecera fija */}
+        <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b ${
+          theme === 'dark' ? 'border-slate-700' : 'border-slate-200'
+        }">
           <DialogTitle className="flex items-center gap-2">
             <History className="w-5 h-5" />
             Historial de reproducción
@@ -49,43 +51,42 @@ export function SongHistory({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh]">
-          <div className="px-6 pb-6 space-y-3">
+        {/* Lista con scroll nativo — flex-1 + min-h-0 es la clave */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-2">
             {isLoading ? (
-              // Skeleton loading
               Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="w-12 h-12 rounded-lg" />
-                  <div className="flex-1 space-y-2">
+                <div key={i} className="flex items-center gap-3 p-3">
+                  <Skeleton className="w-12 h-12 rounded-lg flex-shrink-0" />
+                  <div className="flex-1 space-y-2 min-w-0">
                     <Skeleton className="h-4 w-3/4" />
                     <Skeleton className="h-3 w-1/2" />
                   </div>
                 </div>
               ))
             ) : history.length === 0 ? (
-              <div className={`text-center py-8 ${
+              <div className={`text-center py-12 ${
                 theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
               }`}>
                 <Music className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No hay historial disponible</p>
               </div>
             ) : (
-              <AnimatePresence>
+              <AnimatePresence initial={false}>
                 {history.map((item, index) => (
                   <motion.div
                     key={item.sh_id}
-                    initial={{ opacity: 0, x: -20 }}
+                    initial={{ opacity: 0, x: -16 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ delay: index * 0.05 }}
+                    exit={{ opacity: 0, x: 16 }}
+                    transition={{ delay: index * 0.04 }}
                     className={`flex items-center gap-3 p-3 rounded-lg ${
-                      theme === 'dark' 
-                        ? 'bg-slate-800/50 hover:bg-slate-800' 
+                      theme === 'dark'
+                        ? 'bg-slate-800/50 hover:bg-slate-800'
                         : 'bg-slate-50 hover:bg-slate-100'
                     } transition-colors`}
                   >
                     {/* Carátula mini */}
-                    <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                    <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0">
                       {item.song.art ? (
                         <img
                           src={item.song.art}
@@ -104,12 +105,12 @@ export function SongHistory({
                       )}
                     </div>
 
-                    {/* Info */}
+                    {/* Info — min-w-0 permite que truncate funcione */}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate" title={item.song.title}>
+                      <p className="font-medium truncate text-sm leading-snug" title={item.song.title}>
                         {item.song.title}
                       </p>
-                      <p className={`text-sm truncate ${
+                      <p className={`text-xs truncate mt-0.5 ${
                         theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
                       }`} title={item.song.artist}>
                         {item.song.artist}
@@ -123,8 +124,8 @@ export function SongHistory({
                       )}
                     </div>
 
-                    {/* Hora */}
-                    <div className={`flex items-center gap-1 text-xs ${
+                    {/* Hora — flex-shrink-0 para que no empuje al título */}
+                    <div className={`flex-shrink-0 flex items-center gap-1 text-xs ${
                       theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
                     }`}>
                       <Clock className="w-3 h-3" />
@@ -134,8 +135,7 @@ export function SongHistory({
                 ))}
               </AnimatePresence>
             )}
-          </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
