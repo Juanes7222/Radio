@@ -1,8 +1,3 @@
-/**
- * RF-4: Subida de archivos de audio.
- * Recibe multipart/form-data, forwards el archivo a AzuraCast
- * y opcionalmente lo asigna a una playlist.
- */
 import { Router } from 'express';
 import multer from 'multer';
 import axios from 'axios';
@@ -14,10 +9,14 @@ const router = Router();
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+  limits: { fileSize: 200 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = ['audio/mpeg', 'audio/mp3', 'audio/ogg', 'audio/flac', 'audio/wav', 'audio/aac'];
-    if (allowed.includes(file.mimetype)) {
+    const allowed = [
+      'audio/mpeg', 'audio/mp3', 'audio/ogg', 'audio/flac',
+      'audio/wav', 'audio/aac', 'audio/x-flac', 'audio/x-wav',
+      'audio/mp4', 'audio/x-m4a',
+    ];
+    if (allowed.includes(file.mimetype) || file.mimetype === 'application/octet-stream') {
       cb(null, true);
     } else {
       cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}`));
@@ -29,6 +28,8 @@ const upload = multer({
  * POST /admin-api/upload
  * Body: multipart/form-data
  *   - file      : archivo de audio
+ *   - path      : (opcional) ruta relativa destino, preserva estructura de carpetas
+ *                 ej. "Jesus Adrian Romero/Generacion/01 - Generacion.mp3"
  *   - playlist  : (opcional) ID de la playlist
  */
 router.post('/', requireAuth, upload.single('file'), async (req, res) => {
@@ -38,13 +39,16 @@ router.post('/', requireAuth, upload.single('file'), async (req, res) => {
   }
 
   try {
-    // AzuraCast POST /api/station/{id}/files espera JSON con:
-    //   path : ruta relativa de destino (ej. "archivo.mp3")
-    //   file : contenido del archivo codificado en base64
-    const sanitizedName = req.file.originalname.replace(/[^a-zA-Z0-9._\-() ]/g, '_');
-    const uploadPath = req.body.path
-      ? String(req.body.path).replace(/^\/+/, '')
-      : sanitizedName;
+    const sanitizedOriginal = req.file.originalname.replace(/[^a-zA-Z0-9._\-() ÁÉÍÓÚáéíóúñÑüÜ]/g, '_');
+    let uploadPath = sanitizedOriginal;
+
+    if (req.body.path && String(req.body.path).trim() !== '') {
+      uploadPath = String(req.body.path)
+        .replace(/^\/+/, '')
+        .split('/')
+        .map((seg) => seg.replace(/[^a-zA-Z0-9._\-() ÁÉÍÓÚáéíóúñÑüÜ]/g, '_'))
+        .join('/');
+    }
 
     const base64File = req.file.buffer.toString('base64');
 
@@ -56,7 +60,7 @@ router.post('/', requireAuth, upload.single('file'), async (req, res) => {
           Authorization: `Bearer ${config.azuracast.apiKey}`,
           'Content-Type': 'application/json',
         },
-        timeout: 120000,
+        timeout: 300_000, // 5 min para archivos grandes
         maxContentLength: Infinity,
         maxBodyLength: Infinity,
       }
@@ -74,7 +78,7 @@ router.post('/', requireAuth, upload.single('file'), async (req, res) => {
               Authorization: `Bearer ${config.azuracast.apiKey}`,
               'Content-Type': 'application/json',
             },
-            timeout: 10000,
+            timeout: 10_000,
           }
         );
       } catch (playlistErr) {
@@ -95,7 +99,7 @@ router.post('/', requireAuth, upload.single('file'), async (req, res) => {
 
 /**
  * GET /admin-api/upload/recent
- * Devuelve los últimos 10 archivos subidos.
+ * Devuelve los últimos 20 archivos subidos.
  */
 router.get('/recent', requireAuth, async (_req, res) => {
   try {
@@ -103,8 +107,8 @@ router.get('/recent', requireAuth, async (_req, res) => {
       `${config.azuracast.url}/api/station/${config.azuracast.stationId}/files`,
       {
         headers: { Authorization: `Bearer ${config.azuracast.apiKey}` },
-        params: { per_page: 10, page: 1 },
-        timeout: 10000,
+        params: { per_page: 20, page: 1 },
+        timeout: 15_000,
       }
     );
     res.json(response.data);
@@ -118,8 +122,40 @@ router.get('/recent', requireAuth, async (_req, res) => {
 });
 
 /**
+ * POST /admin-api/upload/rescan
+ * Ordena a AzuraCast re-escanear la biblioteca de medios.
+ * Útil tras subir archivos por SFTP directamente al VPS.
+ */
+router.post('/rescan', requireAuth, async (_req, res) => {
+  try {
+    await axios.put(
+      `${config.azuracast.url}/api/station/${config.azuracast.stationId}/files/batch`,
+      { files: [], action: 'reprocess' },
+      {
+        headers: {
+          Authorization: `Bearer ${config.azuracast.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 30_000,
+      }
+    );
+    res.json({ ok: true, message: 'Re-escaneo iniciado correctamente' });
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response) {
+      if (err.response.status < 400) {
+        res.json({ ok: true });
+        return;
+      }
+      res.status(err.response.status).json({ error: err.response.data?.message ?? 'Error al re-escanear' });
+    } else {
+      res.status(502).json({ error: 'No se pudo contactar con AzuraCast para el re-escaneo' });
+    }
+  }
+});
+
+/**
  * DELETE /admin-api/upload/:id
- * Elimina un archivo por ID.
+ * Elimina un archivo por unique_id.
  */
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
@@ -127,7 +163,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
       `${config.azuracast.url}/api/station/${config.azuracast.stationId}/file/${req.params.id}`,
       {
         headers: { Authorization: `Bearer ${config.azuracast.apiKey}` },
-        timeout: 10000,
+        timeout: 10_000,
       }
     );
     res.json({ ok: true });
