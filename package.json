@@ -1,5 +1,22 @@
 {
-  "dependencies": {
-    "@icons-pack/react-simple-icons": "^13.11.2"
-  }
+  "name": "radio-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "dev:web": "turbo dev --filter=@radio/web",
+    "dev:mobile": "turbo dev --filter=@radio/mobile",
+    "dev:backend": "turbo dev --filter=radio-admin-backend"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "npm@10.9.2"
 }

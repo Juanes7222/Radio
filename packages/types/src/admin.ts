@@ -14,7 +14,7 @@ export interface AdminUser {
   token: string;
 }
 
-export interface StationStatus {
+export interface AdminStationStatus {
   id: number;
   name: string;
   shortcode: string;
@@ -62,7 +62,7 @@ export interface MediaFile {
   links: { self: string; art: string; download: string };
 }
 
-export interface SongRequest {
+export interface AdminSongRequest {
   id: string;
   song: {
     id: string;
