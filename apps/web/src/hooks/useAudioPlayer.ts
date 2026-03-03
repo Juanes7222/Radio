@@ -41,6 +41,11 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
     }
   }
 
+  // streamUrlRef permite que play() siempre use la URL más reciente
+  // sin necesidad de incluirla en las dependencias del useCallback.
+  const streamUrlRef = useRef(streamUrl);
+  streamUrlRef.current = streamUrl;
+
   const retryRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasPlayingRef = useRef(false);
@@ -56,12 +61,10 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
   });
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
-  // Asignar src y registrar event listeners cuando cambia streamUrl
+  // Registrar event listeners. La URL NO se asigna aquí — se hace
+  // de forma perezosa en play() para evitar el error de formato al cargar.
   useEffect(() => {
     const audio = audioRef.current!;
-
-    // Asignar (o actualizar) la URL del stream
-    audio.src = streamUrl;
 
     const handlePlay = () => {
       // Reproducción exitosa: resetear contador de reintentos
@@ -103,7 +106,7 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
         const audio = audioRef.current;
         if (!audio || !wasPlayingRef.current) return;
         // Forzar recarga del stream añadiendo timestamp para evitar caché
-        const base = streamUrl.split('?')[0];
+        const base = streamUrlRef.current.split('?')[0];
         audio.src = `${base}?_r=${Date.now()}`;
         audio.play().catch(() => {
           scheduleReconnect('No se pudo reconectar.');
@@ -113,6 +116,11 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
 
     const handleError = (e: Event) => {
       const target = e.target as HTMLAudioElement;
+
+      // Ignorar errores cuando no hay src — ocurre al poner src='' en el cleanup
+      // o en React Strict Mode (desmontaje) antes de que el usuario pulse play.
+      if (!target.src || target.src === window.location.href) return;
+
       let errorMessage = 'Error al reproducir el stream';
 
       if (target.error) {
@@ -185,6 +193,9 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
     }
     wasPlayingRef.current = true;
     setState(prev => ({ ...prev, isLoading: true, error: null }));
+    // Asignar src aquí (lazy) para que el navegador no intente validar
+    // el formato al cargar la página y evitar el error prematuro.
+    audioRef.current.src = streamUrlRef.current;
     try {
       await audioRef.current.play();
     } catch (err) {
@@ -209,6 +220,9 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
     retryRef.current = 0;
     setReconnectAttempt(0);
     audioRef.current.pause();
+    // Limpiar src para que el navegador no mantenga la conexión
+    // y para que el próximo play() siempre asigne la URL más reciente.
+    audioRef.current.src = '';
   }, []);
 
   const togglePlay = useCallback(() => {
