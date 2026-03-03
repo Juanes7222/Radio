@@ -69,7 +69,8 @@ export function RadioPlayer({
   const currentSong = stationData?.now_playing || null;
   
   const { 
-    audioRef, 
+    audioRef,
+    analyserRef,
     state, 
     togglePlay, 
     setVolume, 
@@ -282,7 +283,7 @@ export function RadioPlayer({
         {/* Visualizador de onda */}
         <div className="px-6 py-4">
           <WaveformVisualizer 
-            audioElement={audioRef}
+            analyserNode={analyserRef}
             isPlaying={state.isPlaying}
             theme={theme}
           />

@@ -2,55 +2,26 @@ import { useEffect, useRef, useCallback } from 'react';
 import type { RefObject }  from 'react';
 
 interface WaveformVisualizerProps {
-  audioElement: RefObject<HTMLAudioElement | null>;
+  /** AnalyserNode creado en useAudioPlayer — ya conectado al stream. */
+  analyserNode: RefObject<AnalyserNode | null>;
   isPlaying: boolean;
   theme: 'dark' | 'light';
 }
 
 export function WaveformVisualizer({ 
-  audioElement, 
+  analyserNode, 
   isPlaying,
   theme 
 }: WaveformVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   // Ref para la función draw — evita referencia circular en requestAnimationFrame
   const drawRef = useRef<() => void>(() => {});
-
-  // Inicializar AudioContext
-  useEffect(() => {
-    if (!audioElement) return;
-
-    try {
-      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      
-      const source = audioContext.createMediaElementSource(audioElement.current!);
-      source.connect(analyser);
-      analyser.connect(audioContext.destination);
-      
-      audioContextRef.current = audioContext;
-      analyserRef.current = analyser;
-      sourceRef.current = source;
-    } catch (err) {
-      console.error('Error initializing audio context:', err);
-    }
-
-    return () => {
-      if (audioContextRef.current?.state !== 'closed') {
-        audioContextRef.current?.close();
-      }
-    };
-  }, [audioElement, isPlaying]);
 
   // Dibujar visualización
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
-    const analyser = analyserRef.current;
+    const analyser = analyserNode.current;
     
     if (!canvas || !analyser) return;
 
@@ -114,10 +85,6 @@ export function WaveformVisualizer({
   // Iniciar/detener animación
   useEffect(() => {
     if (isPlaying) {
-      // Reanudar AudioContext si está suspendido
-      if (audioContextRef.current?.state === 'suspended') {
-        audioContextRef.current.resume();
-      }
       draw();
     } else {
       if (animationRef.current) {
@@ -160,8 +127,8 @@ export function WaveformVisualizer({
     );
   };
 
-  // Si no hay audio element, mostrar fallback
-  if (!audioElement) {
+  // Si no hay analyser disponible, mostrar fallback
+  if (!analyserNode.current) {
     return renderFallback();
   }
 

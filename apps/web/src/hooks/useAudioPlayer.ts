@@ -9,7 +9,38 @@ interface UseAudioPlayerProps {
 const RECONNECT_DELAYS = [2000, 4000, 8000, 16000, 30000];
 
 export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
+  // Crear audio, AudioContext y AnalyserNode síncronamente, una sola vez.
+  // Usar refs con guard para que sean singletons aunque el componente
+  // se desmonte/monte en React Strict Mode.
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+
+  if (typeof window !== 'undefined') {
+    if (!audioRef.current) {
+      const audio = new Audio();
+      audio.crossOrigin = 'anonymous';
+      audio.preload = 'none';
+      audioRef.current = audio;
+    }
+    if (!audioContextRef.current && audioRef.current) {
+      try {
+        const AudioContextCtor = window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const audioContext = new AudioContextCtor();
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        const source = audioContext.createMediaElementSource(audioRef.current);
+        source.connect(analyser);
+        analyser.connect(audioContext.destination);
+        audioContextRef.current = audioContext;
+        analyserRef.current = analyser;
+      } catch (_) {
+        // Safari sin interacción de usuario suspende el contexto; se reanuda en play()
+      }
+    }
+  }
+
   const retryRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasPlayingRef = useRef(false);
@@ -25,12 +56,12 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
   });
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
-  // Inicializar audio element
+  // Asignar src y registrar event listeners cuando cambia streamUrl
   useEffect(() => {
-    const audio = new Audio();
-    audio.crossOrigin = 'anonymous';
-    audio.preload = 'none';
-    audioRef.current = audio;
+    const audio = audioRef.current!;
+
+    // Asignar (o actualizar) la URL del stream
+    audio.src = streamUrl;
 
     const handlePlay = () => {
       // Reproducción exitosa: resetear contador de reintentos
@@ -137,8 +168,16 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
     };
   }, [streamUrl]);
 
+  // Reanudar AudioContext si el navegador lo suspendió por política autoplay
+  const resumeAudioContext = useCallback(async () => {
+    if (audioContextRef.current?.state === 'suspended') {
+      await audioContextRef.current.resume().catch(() => {});
+    }
+  }, []);
+
   const play = useCallback(async () => {
     if (!audioRef.current) return;
+    await resumeAudioContext();
     // Cancelar reintento pendiente si el usuario pulsa play manualmente
     if (retryTimerRef.current) {
       clearTimeout(retryTimerRef.current);
@@ -201,6 +240,7 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
 
   return {
     audioRef,
+    analyserRef,
     state,
     reconnectAttempt,
     play,
