@@ -12,7 +12,10 @@ import {
   Heart,
   Share2,
   ListMusic,
-  Send
+  Send,
+  Timer,
+  Bell,
+  BellOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -22,6 +25,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   Tooltip,
@@ -29,7 +33,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useAudioPlayer, useMediaSession } from '@/hooks';
+import { useAudioPlayer, useMediaSession, useSleepTimer, SLEEP_PRESETS, useFavoriteNotify } from '@/hooks';
 import type { NowPlayingData, StreamQuality } from '@/types/azuracast';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { SongInfo } from './SongInfo';
@@ -56,11 +60,13 @@ export function RadioPlayer({
   onShowRequests,
 }: RadioPlayerProps) {
   const [quality, setQuality] = useState<StreamQuality>('128');
-  // Derivar isFavorite directamente de localStorage para evitar setState en useEffect
   const [localFavorites, setLocalFavorites] = useState<number[]>(() =>
     JSON.parse(localStorage.getItem('radio-favorites') || '[]')
   );
   const isFavorite = localFavorites.includes(stationData?.station?.id ?? -1);
+
+  // Datos de la canción actual — declarados aquí para usarlos en hooks
+  const currentSong = stationData?.now_playing || null;
   
   const { 
     audioRef, 
@@ -68,11 +74,27 @@ export function RadioPlayer({
     togglePlay, 
     setVolume, 
     toggleMute,
+    pause,
     setQuality: setPlayerQuality,
-    clearError 
-  } = useAudioPlayer({ 
-    streamUrl,
+    clearError,
+    reconnectAttempt,
+  } = useAudioPlayer({ streamUrl });
+
+  // Sleep timer: apagar tras N minutos
+  const sleepTimer = useSleepTimer(() => {
+    pause();
   });
+
+  // Notificación de canción favorita
+  const currentSongForNotify = currentSong
+    ? {
+        id: currentSong.song?.id ?? '',
+        title: currentSong.song?.title ?? '',
+        artist: currentSong.song?.artist ?? '',
+        art: currentSong.song?.art,
+      }
+    : null;
+  const favoriteNotify = useFavoriteNotify(currentSongForNotify, localFavorites);
 
   // Media Session API
   useMediaSession({
@@ -109,10 +131,8 @@ export function RadioPlayer({
 
   const isLive = stationData?.live?.is_live || false;
   const listeners = stationData?.listeners?.current || 0;
-  const currentSong = stationData?.now_playing || null;
-  const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-
   const [shareOpen, setShareOpen] = useState(false);
+  const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 
   return (
 
@@ -167,6 +187,33 @@ export function RadioPlayer({
                   <Button
                     variant="ghost"
                     size="icon"
+                    onClick={() =>
+                      favoriteNotify.isEnabled
+                        ? favoriteNotify.disable()
+                        : favoriteNotify.enable()
+                    }
+                    className={favoriteNotify.isEnabled ? 'text-yellow-500' : ''}
+                    title={favoriteNotify.isEnabled ? 'Desactivar avisos de favoritos' : 'Avisar cuando suene una favorita'}
+                  >
+                    {favoriteNotify.isEnabled ? (
+                      <Bell className="w-5 h-5 fill-current" />
+                    ) : (
+                      <BellOff className="w-5 h-5" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{favoriteNotify.isEnabled ? 'Desactivar aviso de favoritas' : 'Activar aviso de favoritas'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={toggleFavorite}
                     className={isFavorite ? 'text-red-500' : ''}
                   >
@@ -211,6 +258,22 @@ export function RadioPlayer({
                     {q} kbps {quality === q && '✓'}
                   </DropdownMenuItem>
                 ))}
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                  <Timer className="w-3 h-3 mr-1" /> Apagado automático
+                </DropdownMenuItem>
+                {sleepTimer.isActive ? (
+                  <DropdownMenuItem onClick={sleepTimer.cancel} className="text-amber-500">
+                    Cancelar ({sleepTimer.display})
+                  </DropdownMenuItem>
+                ) : (
+                  SLEEP_PRESETS.map((min) => (
+                    <DropdownMenuItem key={min} onClick={() => sleepTimer.start(min)}>
+                      En {min} min
+                    </DropdownMenuItem>
+                  ))
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -261,6 +324,27 @@ export function RadioPlayer({
               )}
             </motion.button>
           </div>
+
+          {/* Indicador de sleep timer activo */}
+          <AnimatePresence>
+            {sleepTimer.isActive && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="flex items-center justify-center gap-2 mt-3 text-sm text-amber-500"
+              >
+                <Timer className="w-4 h-4" />
+                <span>Apagado en {sleepTimer.display}</span>
+                <button
+                  onClick={sleepTimer.cancel}
+                  className="text-xs underline opacity-70 hover:opacity-100"
+                >
+                  Cancelar
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Controles secundarios */}
           <div className="flex items-center justify-between mt-6">
@@ -315,21 +399,27 @@ export function RadioPlayer({
           </div>
         </div>
 
-        {/* Error message */}
+        {/* Error / Reconexion */}
         <AnimatePresence>
-          {error && (
+          {(error || state.error) && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               className="px-6 pb-4"
             >
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 text-red-500 text-sm">
-                <WifiOff className="w-4 h-4" />
-                <span className="flex-1">{error}</span>
-                <Button variant="ghost" size="sm" onClick={clearError}>
-                  Cerrar
-                </Button>
+              <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
+                reconnectAttempt > 0
+                  ? 'bg-amber-500/10 text-amber-500'
+                  : 'bg-red-500/10 text-red-500'
+              }`}>
+                <WifiOff className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">{state.error || error}</span>
+                {reconnectAttempt === 0 && (
+                  <Button variant="ghost" size="sm" onClick={clearError}>
+                    Cerrar
+                  </Button>
+                )}
               </div>
             </motion.div>
           )}
