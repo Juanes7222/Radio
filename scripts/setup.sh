@@ -39,7 +39,7 @@ cd "$DEPLOY_DIR"
 
 # ─── 5. Install npm dependencies ──────────────────────────────────────────────
 echo ">>> Installing npm workspaces dependencies..."
-npm ci --ignore-scripts
+npm install --ignore-scripts
 
 # ─── 6. Build backend ─────────────────────────────────────────────────────────
 echo ">>> Building backend..."
