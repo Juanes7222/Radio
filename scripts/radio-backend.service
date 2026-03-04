@@ -1,0 +1,27 @@
+[Unit]
+Description=Radio - Backend API (Node.js via PM2)
+Documentation=https://github.com/Juanes7222/Radio
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+User=root
+WorkingDirectory=/var/www/radio
+
+# Start: launch PM2 with the ecosystem config
+ExecStart=/usr/bin/pm2 start /var/www/radio/ecosystem.config.cjs --env production
+# Graceful reload on systemctl reload
+ExecReload=/usr/bin/pm2 reload radio-backend
+# Clean stop: stop the process and dump the list so it survives reboots
+ExecStop=/usr/bin/pm2 stop radio-backend
+ExecStopPost=/usr/bin/pm2 save
+
+Restart=on-failure
+RestartSec=10s
+
+StandardOutput=append:/var/log/pm2/radio-backend-out.log
+StandardError=append:/var/log/pm2/radio-backend-error.log
+
+[Install]
+WantedBy=multi-user.target
