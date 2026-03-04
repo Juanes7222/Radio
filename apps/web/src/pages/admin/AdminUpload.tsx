@@ -425,7 +425,6 @@ export default function AdminUpload() {
               onChange={(e) => e.target.files && addToQueue(e.target.files)}
               onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
             />
-            {/* @ts-expect-error webkitdirectory no está en tipos estándar */}
             <input
               ref={folderInputRef}
               type="file"

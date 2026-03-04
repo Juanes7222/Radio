@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Radio",
-    "slug": "radio-app",
+    "name": "La voz de la verdad",
+    "slug": "la-voz-de-la-verdad",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -17,7 +17,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.radio.app",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
@@ -26,7 +28,11 @@
         "backgroundColor": "#0f172a"
       },
       "package": "com.radio.app",
-      "permissions": ["INTERNET", "WAKE_LOCK", "FOREGROUND_SERVICE"]
+      "permissions": [
+        "INTERNET",
+        "WAKE_LOCK",
+        "FOREGROUND_SERVICE"
+      ]
     },
     "web": {
       "bundler": "metro"
@@ -48,7 +54,8 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 200
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
