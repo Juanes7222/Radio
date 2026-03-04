@@ -69,7 +69,6 @@ export function RadioPlayer({
   const currentSong = stationData?.now_playing || null;
   
   const { 
-    audioRef,
     analyserRef,
     state, 
     togglePlay, 

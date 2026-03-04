@@ -431,7 +431,7 @@ export default function AdminUpload() {
               type="file"
               accept="audio/*"
               multiple
-              webkitdirectory=""
+              {...({ webkitdirectory: '' } as React.InputHTMLAttributes<HTMLInputElement>)}
               className="hidden"
               onChange={(e) => e.target.files && addToQueue(e.target.files)}
               onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
