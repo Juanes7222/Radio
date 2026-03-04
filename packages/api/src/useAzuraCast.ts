@@ -1,0 +1,100 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import axios from 'axios';
+import type { NowPlayingData, SongHistory, StreamQuality } from '@radio/types';
+
+export interface UseAzuraCastProps {
+  stationUrl: string;
+  stationId: string;
+  pollInterval?: number;
+}
+
+export interface UseAzuraCastReturn {
+  data: NowPlayingData | null;
+  isLoading: boolean;
+  error: string | null;
+  history: SongHistory[];
+  requestSong: (songId: string) => Promise<boolean>;
+  refresh: () => Promise<void>;
+  getStreamUrl: (quality: StreamQuality) => string;
+}
+
+export function useAzuraCast({
+  stationUrl,
+  stationId,
+  pollInterval = 15000,
+}: UseAzuraCastProps): UseAzuraCastReturn {
+  const [data, setData] = useState<NowPlayingData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchNowPlaying = useCallback(async () => {
+    try {
+      const apiUrl = `${stationUrl}/api/nowplaying/${stationId}`;
+      const response = await axios.get<NowPlayingData>(apiUrl, {
+        timeout: 10000,
+        headers: { Accept: 'application/json' },
+      });
+      setData(response.data);
+      setError(null);
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.code === 'ECONNABORTED') {
+          setError('Tiempo de espera agotado. Verifica la URL de la estación.');
+        } else if (err.response?.status === 404) {
+          setError('Estación no encontrada. Verifica la URL.');
+        } else {
+          setError('Error al conectar con el servidor de radio.');
+        }
+      } else {
+        setError('Error desconocido al obtener datos.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [stationUrl, stationId]);
+
+  useEffect(() => {
+    fetchNowPlaying();
+    intervalRef.current = setInterval(fetchNowPlaying, pollInterval);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [fetchNowPlaying, pollInterval]);
+
+  const requestSong = useCallback(
+    async (songId: string): Promise<boolean> => {
+      try {
+        const requestUrl = `${stationUrl}/api/station/${stationId}/request/${songId}`;
+        await axios.post(requestUrl);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [stationUrl, stationId]
+  );
+
+  const getStreamUrl = useCallback(
+    (quality: StreamQuality): string => {
+      if (!data?.station) return '';
+      const mounts = data.station.mounts;
+      const defaultMount = mounts.find((m) => m.is_default) || mounts[0];
+      if (!defaultMount) return '';
+      const qualityNum = parseInt(quality);
+      const matchingMount = mounts.find((m) => m.bitrate === qualityNum);
+      return matchingMount ? matchingMount.url : defaultMount.url;
+    },
+    [data]
+  );
+
+  return {
+    data,
+    isLoading,
+    error,
+    history: data?.song_history || [],
+    requestSong,
+    refresh: fetchNowPlaying,
+    getStreamUrl,
+  };
+}
