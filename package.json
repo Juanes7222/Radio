@@ -23,9 +23,7 @@
   "overrides": {
     "expo": "~53.0.0",
     "expo-router": "~5.1.11",
-    "react-native": "0.79.6",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-native": "0.79.6"
   },
   "packageManager": "npm@10.9.2"
 }
