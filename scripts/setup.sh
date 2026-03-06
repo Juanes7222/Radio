@@ -81,6 +81,8 @@ server {
     listen 80;
     server_name panel.lavozverdad.com;
 
+    client_max_body_size 512M;
+
     auth_basic "Acceso restringido";
     auth_basic_user_file /etc/nginx/.htpasswd;
 
@@ -89,6 +91,8 @@ server {
         proxy_http_version 1.1;
         proxy_set_header   Host $host;
         proxy_set_header   X-Real-IP $remote_addr;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
     }
 }
 NGINX
