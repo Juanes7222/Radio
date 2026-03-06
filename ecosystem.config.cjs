@@ -12,7 +12,7 @@ module.exports = {
       env: {
         NODE_ENV: "production",
       },
-      env_file: "./backend/.env",
+      env_file: "/var/www/radio/backend/.env",
       error_file: "/var/log/pm2/radio-backend-error.log",
       out_file: "/var/log/pm2/radio-backend-out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss",
