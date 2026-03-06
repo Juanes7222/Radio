@@ -30,7 +30,7 @@ export function useAzuraCast({
 
   const fetchNowPlaying = useCallback(async () => {
     try {
-      const apiUrl = `${stationUrl}/api/nowplaying/${stationId}`;
+      const apiUrl = `${stationUrl}/nowplaying/${stationId}`;
       const response = await axios.get<NowPlayingData>(apiUrl, {
         timeout: 10000,
         headers: { Accept: 'application/json' },
@@ -65,7 +65,7 @@ export function useAzuraCast({
   const requestSong = useCallback(
     async (songId: string): Promise<boolean> => {
       try {
-        const requestUrl = `${stationUrl}/api/station/${stationId}/request/${songId}`;
+        const requestUrl = `${stationUrl}/station/${stationId}/request/${songId}`;
         await axios.post(requestUrl);
         return true;
       } catch {
