@@ -1,4 +1,4 @@
-const CACHE_NAME = 'radiostream-v4';
+const CACHE_NAME = 'radiostream-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -51,8 +51,8 @@ self.addEventListener('fetch', (event) => {
     url.searchParams.has('t')
   ) return;
 
-  // No interceptar rutas del backend admin (contienen auth, pueden ser POST/PUT/DELETE)
-  if (url.pathname.startsWith('/admin-api/')) return;
+  // No interceptar rutas del backend (admin o públicas) — siempre network
+  if (url.pathname.startsWith('/admin-api/') || url.pathname.startsWith('/api/')) return;
 
   // No interceptar requests de streaming de audio ni WebSocket
   if (
@@ -62,26 +62,6 @@ self.addEventListener('fetch', (event) => {
     url.protocol === 'ws:' ||
     url.protocol === 'wss:'
   ) {
-    return;
-  }
-
-  // API de AzuraCast: network-first, solo cachear GET exitosos
-  if (url.pathname.includes('/api/')) {
-    // No cachear POST/PUT/DELETE — cache solo acepta GET
-    if (request.method !== 'GET') return;
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clone);
-            });
-          }
-          return response;
-        })
-        .catch(() => caches.match(request).then((cached) => cached ?? Response.error()))
-    );
     return;
   }
 

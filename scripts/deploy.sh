@@ -3,6 +3,7 @@
 set -euo pipefail
 
 DEPLOY_DIR="/var/www/radio"
+NGINX_CONF="/etc/nginx/sites-available/radio"
 
 cd "$DEPLOY_DIR"
 
@@ -22,7 +23,12 @@ npm run build --workspace=backend
 echo ">>> Rebuilding web app..."
 npm run build --workspace=@radio/web
 
-# ─── 5. Reload backend via systemd (zero-downtime) ────────────────────────────
+# ─── 5. Update nginx config ───────────────────────────────────────────────────
+echo ">>> Updating nginx config..."
+cp "$DEPLOY_DIR/scripts/radio.nginx.conf" "$NGINX_CONF"
+nginx -t && systemctl reload nginx
+
+# ─── 6. Reload backend via systemd (zero-downtime) ────────────────────────────
 echo ">>> Reloading backend..."
 systemctl reload-or-restart radio-backend
 

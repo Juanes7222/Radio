@@ -34,71 +34,7 @@ npm run build --workspace=@radio/web
 htpasswd -cb /etc/nginx/.htpasswd admin "$PANEL_PASS"
 
 # ─── 6. Nginx ─────────────────────────────────────────────────────────────────
-cat > "$NGINX_CONF" <<'NGINX'
-server {
-    listen 80;
-    server_name lavozverdad.com www.lavozverdad.com;
-
-    root /var/www/radio/apps/web/dist;
-    index index.html;
-
-    location /listen/la_voz_de_la_verdad/ {
-        proxy_pass         http://127.0.0.1:8080/listen/la_voz_de_la_verdad/;
-        proxy_http_version 1.1;
-        proxy_set_header   Host $host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_buffering    off;
-        proxy_read_timeout 3600s;
-    }
-
-    location /api/ {
-        proxy_pass         http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header   Connection keep-alive;
-        proxy_set_header   Host $host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    location /admin-api/ {
-        proxy_pass         http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header   Upgrade $http_upgrade;
-        proxy_set_header   Connection keep-alive;
-        proxy_set_header   Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
-        expires 30d;
-        add_header Cache-Control "public, no-transform";
-    }
-}
-
-server {
-    listen 80;
-    server_name panel.lavozverdad.com;
-
-    client_max_body_size 512M;
-
-    auth_basic "Acceso restringido";
-    auth_basic_user_file /etc/nginx/.htpasswd;
-
-    location / {
-        proxy_pass         http://127.0.0.1:8080;
-        proxy_http_version 1.1;
-        proxy_set_header   Host $host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_read_timeout 300s;
-        proxy_send_timeout 300s;
-    }
-}
-NGINX
-
+cp "$DEPLOY_DIR/scripts/radio.nginx.conf" "$NGINX_CONF"
 ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/radio
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
