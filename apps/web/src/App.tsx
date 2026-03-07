@@ -5,7 +5,7 @@ import {
   SongHistory,
   SongRequest,
 } from '@/components/player';
-import { Header, PWAInstall } from '@/components/ui-custom';
+import { Header } from '@/components/ui-custom';
 import { useAzuraCast, useTheme } from '@/hooks';
 import type { StreamQuality } from '@/types/azuracast';
 import { Facebook, Instagram, Youtube, ListMusic, Send } from 'lucide-react';
@@ -181,7 +181,7 @@ function App() {
         onClose={() => setShowRequests(false)}
         theme={resolvedTheme}
       />
-      <PWAInstall />
+      {/* <PWAInstall /> */}
     </div>
   );
 }
