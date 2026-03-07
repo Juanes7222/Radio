@@ -15,17 +15,20 @@ interface UseFavoriteNotifyReturn {
 }
 
 const STORAGE_KEY = 'radio-favorite-notify';
+export const STORAGE_KEY_SONGS = 'radio-favorite-songs';
+
+/** Returns the lowercase "artist::title" key for a song. */
+export function songKey(artist: string, title: string): string {
+  return `${artist}::${title}`.toLowerCase();
+}
 
 /**
- * Muestra una notificación del sistema cuando comienza a sonar
- * una canción que el usuario marcó como favorita.
- *
- * `favorites` debe ser el array de IDs de la estación favorita del usuario;
- * `currentSong` es la canción actualmente en reproducción.
+ * Fires a system notification when a favorited song starts playing.
+ * `favoriteSongKeys` is the array of "artist::title" keys saved by the user.
  */
 export function useFavoriteNotify(
   currentSong: SongInfo | null,
-  favorites: number[]
+  favoriteSongKeys: string[]
 ): UseFavoriteNotifyReturn {
   const [isEnabled, setIsEnabled] = useState<boolean>(() => {
     try {
@@ -64,28 +67,15 @@ export function useFavoriteNotify(
     localStorage.setItem(STORAGE_KEY, 'false');
   }, []);
 
-  // Detectar cambio de canción y notificar si es favorita
   useEffect(() => {
     if (!isEnabled) return;
     if (!currentSong) return;
     if (permissionState !== 'granted') return;
-
-    // Ya notificamos esta canción
     if (lastNotifiedSongId.current === currentSong.id) return;
-
-    // Revisar si tiene título con contenido (algunos streams dan IDs sin título)
     if (!currentSong.title || currentSong.title === 'Unknown') return;
 
-    // La lista de favoritos de esta app guarda IDs de estación, no de canción.
-    // Para notificar favoritos de canción usamos un set guardado en localStorage.
-    const favoriteSongs: string[] = JSON.parse(
-      localStorage.getItem('radio-favorite-songs') || '[]'
-    );
-
-    const songKey = `${currentSong.artist}::${currentSong.title}`.toLowerCase();
-    const isFav =
-      favoriteSongs.some((k) => k.toLowerCase() === songKey) || favorites.length > 0;
-
+    const key = songKey(currentSong.artist, currentSong.title);
+    const isFav = favoriteSongKeys.some((k) => k.toLowerCase() === key);
     if (!isFav) return;
 
     lastNotifiedSongId.current = currentSong.id;
@@ -98,13 +88,11 @@ export function useFavoriteNotify(
         tag: 'favorite-song',
         silent: false,
       });
-
-      // Auto-cerrar a los 8 segundos
       setTimeout(() => notification.close(), 8000);
     } catch {
-      // Notificaciones bloqueadas en este momento — ignorar silenciosamente
+      // Notifications blocked — ignore silently
     }
-  }, [currentSong, isEnabled, permissionState, favorites]);
+  }, [currentSong, isEnabled, permissionState, favoriteSongKeys]);
 
   return { isEnabled, permissionState, enable, disable };
 }

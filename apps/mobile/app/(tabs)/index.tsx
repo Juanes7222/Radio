@@ -87,7 +87,7 @@ export default function PlayerScreen() {
   const listenersCount = data?.listeners?.current ?? 0;
 
   const openFacebook = useCallback(() => {
-    Linking.openURL('https://www.facebook.com/lavozdlaverdad');
+    Linking.openURL('https://www.facebook.com/profile.php?id=100074024491964');
   }, []);
 
   // ── Loading / Error states ────────────────────────────────────
@@ -260,7 +260,7 @@ export default function PlayerScreen() {
         )}
 
         {/* Tarjeta de cultos presenciales */}
-        <View style={styles.card}>
+        {/* <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="calendar-outline" size={18} color="#818cf8" />
             <Text style={styles.cardTitle}>Cultos presenciales</Text>
@@ -279,7 +279,7 @@ export default function PlayerScreen() {
             <Ionicons name="location-outline" size={14} color="#6b7280" />
             <Text style={styles.scheduleText}>Cra 7 #13-35, Barrio La Libertad</Text>
           </View>
-        </View>
+        </View> */}
 
         {/* Botón Facebook */}
         <TouchableOpacity onPress={openFacebook} style={styles.facebookBtn} activeOpacity={0.8}>

@@ -64,10 +64,22 @@ export function RadioPlayer({
   compact = false,
 }: RadioPlayerProps) {
   const [quality, setQuality] = useState<StreamQuality>('128');
-  const [localFavorites, setLocalFavorites] = useState<number[]>(() =>
-    JSON.parse(localStorage.getItem('radio-favorites') || '[]')
-  );
-  const isFavorite = localFavorites.includes(stationData?.station?.id ?? -1);
+  const [favoriteSongKeys, setFavoriteSongKeys] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('radio-favorite-songs') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const currentSongKey = (() => {
+    const s = stationData?.now_playing?.song;
+    if (!s?.artist || !s?.title) return null;
+    return `${s.artist}::${s.title}`.toLowerCase();
+  })();
+  const isFavorite = currentSongKey
+    ? favoriteSongKeys.some((k) => k.toLowerCase() === currentSongKey)
+    : false;
 
   // Datos de la canción actual — declarados aquí para usarlos en hooks
   const currentSong = stationData?.now_playing || null;
@@ -98,7 +110,7 @@ export function RadioPlayer({
         art: currentSong.song?.art,
       }
     : null;
-  const favoriteNotify = useFavoriteNotify(currentSongForNotify, localFavorites);
+  const favoriteNotify = useFavoriteNotify(currentSongForNotify, favoriteSongKeys);
 
   // Media Session API
   useMediaSession({
@@ -110,9 +122,6 @@ export function RadioPlayer({
     onPause: togglePlay,
   });
 
-  // Verificar si es favorito
-  // (derivado de localFavorites — sin useEffect)
-
   const handleQualityChange = (newQuality: StreamQuality) => {
     setQuality(newQuality);
     setPlayerQuality(newQuality);
@@ -120,15 +129,12 @@ export function RadioPlayer({
   };
 
   const toggleFavorite = () => {
-    const stationId = stationData?.station?.id;
-    if (!stationId) return;
-
-    const newFavorites = isFavorite
-      ? localFavorites.filter((id) => id !== stationId)
-      : [...localFavorites, stationId];
-
-    localStorage.setItem('radio-favorites', JSON.stringify(newFavorites));
-    setLocalFavorites(newFavorites);
+    if (!currentSongKey) return;
+    const next = isFavorite
+      ? favoriteSongKeys.filter((k) => k.toLowerCase() !== currentSongKey)
+      : [...favoriteSongKeys, currentSongKey];
+    localStorage.setItem('radio-favorite-songs', JSON.stringify(next));
+    setFavoriteSongKeys(next);
   };
 
 
