@@ -8,7 +8,8 @@ const router = Router();
 async function proxyToAzuraCast(
   req: Request,
   res: Response,
-  azuracastPath: string
+  azuracastPath: string,
+  transform?: (data: unknown) => unknown
 ): Promise<void> {
   try {
     const axiosConfig: AxiosRequestConfig = {
@@ -27,7 +28,8 @@ async function proxyToAzuraCast(
     }
 
     const response = await axios(axiosConfig);
-    res.status(response.status).json(response.data);
+    const body = transform ? transform(response.data) : response.data;
+    res.status(response.status).json(body);
   } catch (err) {
     if (axios.isAxiosError(err) && err.response) {
       res.status(err.response.status).json(err.response.data);
@@ -52,15 +54,23 @@ export default router;
 // Public routes — no authentication required
 export const publicRouter = Router();
 
+function rewriteInternalUrls(data: unknown): unknown {
+  if (!config.publicUrl) return data;
+  const rewritten = JSON.stringify(data)
+    .replaceAll('http://localhost', config.publicUrl)
+    .replaceAll('https://localhost', config.publicUrl);
+  return JSON.parse(rewritten);
+}
+
 publicRouter.get('/nowplaying', (req, res) => {
-  proxyToAzuraCast(req, res, `/api/nowplaying/${config.azuracast.stationId}`);
+  proxyToAzuraCast(req, res, `/api/nowplaying/${config.azuracast.stationId}`, rewriteInternalUrls);
 });
 
 publicRouter.get('/search', (req, res) => {
-  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/requests`);
+  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/requests`, rewriteInternalUrls);
 });
 
 publicRouter.post('/requests/:songId', (req, res) => {
   const { songId } = req.params;
-  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/request/${songId}`);
+  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/request/${songId}`, rewriteInternalUrls);
 });

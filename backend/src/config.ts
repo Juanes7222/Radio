@@ -24,4 +24,5 @@ export const config = {
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean),
+  publicUrl: (process.env.PUBLIC_URL ?? '').replace(/\/$/, ''),
 };
