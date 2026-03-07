@@ -27,14 +27,12 @@ interface SongRequestItem {
 }
 
 interface SongRequestProps {
-  stationUrl: string;
-  stationId?: string;
   isOpen: boolean;
   onClose: () => void;
   theme: 'dark' | 'light';
 }
 
-export function SongRequest({ stationUrl, stationId = '', isOpen, onClose, theme }: SongRequestProps) {
+export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SongRequestItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -46,7 +44,7 @@ export function SongRequest({ stationUrl, stationId = '', isOpen, onClose, theme
     message: string;
   } | null>(null);
 
-  const { requestSong } = useAzuraCast({ stationUrl, stationId });
+  const { requestSong } = useAzuraCast();
 
   // Buscar canciones
   useEffect(() => {
@@ -59,7 +57,7 @@ export function SongRequest({ stationUrl, stationId = '', isOpen, onClose, theme
       setIsSearching(true);
       try {
         const response = await fetch(
-          `${stationUrl}/api/station/1/requests?query=${encodeURIComponent(searchQuery)}`
+          `/api/search?query=${encodeURIComponent(searchQuery)}`
         );
         if (response.ok) {
           const data = await response.json();
@@ -74,7 +72,7 @@ export function SongRequest({ stationUrl, stationId = '', isOpen, onClose, theme
 
     const debounceTimer = setTimeout(searchSongs, 500);
     return () => clearTimeout(debounceTimer);
-  }, [searchQuery, stationUrl]);
+  }, [searchQuery]);
 
   // Solicitar canción
   const handleRequest = async (song: SongRequestItem) => {

@@ -48,3 +48,19 @@ router.get('/nowplaying', requireAuth, (req, res) => {
 });
 
 export default router;
+
+// Public routes — no authentication required
+export const publicRouter = Router();
+
+publicRouter.get('/nowplaying', (req, res) => {
+  proxyToAzuraCast(req, res, `/api/nowplaying/${config.azuracast.stationId}`);
+});
+
+publicRouter.get('/search', (req, res) => {
+  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/requests`);
+});
+
+publicRouter.post('/requests/:songId', (req, res) => {
+  const { songId } = req.params;
+  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/request/${songId}`);
+});

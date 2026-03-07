@@ -4,7 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config';
 import authRouter from './routes/auth';
-import proxyRouter from './routes/proxy';
+import proxyRouter, { publicRouter } from './routes/proxy';
 import uploadRouter from './routes/upload';
 
 const app = express();
@@ -23,6 +23,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use('/api', publicRouter);
 app.use('/admin-api/auth', authRouter);
 app.use('/admin-api', proxyRouter);
 app.use('/admin-api/upload', uploadRouter);

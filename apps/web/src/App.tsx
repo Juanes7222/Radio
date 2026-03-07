@@ -14,10 +14,6 @@ import {
 } from 'lucide-react';
 import type { StreamQuality } from '@/types/azuracast';
 
-// Configuración de la estación
-const STATION_URL = import.meta.env.VITE_STATION_URL || '';
-const STATION_ID = import.meta.env.VITE_STATION_ID || 'la_voz_de_la_verdad';
-
 function App() {
   const { resolvedTheme } = useTheme();
   const [showHistory, setShowHistory] = useState(false);
@@ -30,11 +26,7 @@ function App() {
     error, 
     history, 
     getStreamUrl,
-  } = useAzuraCast({ 
-    stationUrl: STATION_URL,
-    stationId: STATION_ID,
-    pollInterval: 15000,
-  });
+  } = useAzuraCast({ pollInterval: 15000 });
 
   const streamUrl = getStreamUrl(quality);
 
@@ -153,8 +145,6 @@ function App() {
       />
 
       <SongRequest
-        stationUrl={STATION_URL}
-        stationId={STATION_ID}
         isOpen={showRequests}
         onClose={() => setShowRequests(false)}
         theme={resolvedTheme}

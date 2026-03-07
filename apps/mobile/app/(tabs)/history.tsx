@@ -1,7 +1,7 @@
 import { View, Text, FlatList, StyleSheet, Image } from 'react-native';
 import { useAzuraCast } from '@radio/api';
 import type { SongHistory } from '@radio/types';
-import { STATION_URL, STATION_ID } from '@/constants/api';
+import { BACKEND_URL } from '@/constants/api';
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp * 1000);
@@ -30,8 +30,7 @@ function SongItem({ item, index }: { item: SongHistory; index: number }) {
 
 export default function HistoryScreen() {
   const { history, isLoading } = useAzuraCast({
-    stationUrl: STATION_URL,
-    stationId: STATION_ID,
+    apiBaseUrl: BACKEND_URL,
     pollInterval: 30000,
   });
 

@@ -1,6 +1,5 @@
 /**
- * Configuración de la emisora.
- * Modifica estas constantes para apuntar a tu instancia de AzuraCast.
+ * Backend base URL. Used as the API origin for all public radio data.
+ * For local dev, set EXPO_PUBLIC_BACKEND_URL in your .env file.
  */
-export const STATION_URL = process.env.EXPO_PUBLIC_STATION_URL ?? 'https://tu-vps.com';
-export const STATION_ID = process.env.EXPO_PUBLIC_STATION_ID ?? '1';
+export const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://tu-vps.com';

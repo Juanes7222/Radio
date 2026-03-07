@@ -11,13 +11,12 @@ import {
 import { Image } from 'expo-image';
 import { useAzuraCast } from '@radio/api';
 import type { SongHistory } from '@radio/types';
-import { STATION_URL, STATION_ID } from '@/constants/api';
+import { BACKEND_URL } from '@/constants/api';
 
 export default function RequestScreen() {
   const [query, setQuery] = useState('');
   const { data, requestSong } = useAzuraCast({
-    stationUrl: STATION_URL,
-    stationId: STATION_ID,
+    apiBaseUrl: BACKEND_URL,
   });
   const [requesting, setRequesting] = useState<string | null>(null);
   const [sent, setSent] = useState<Set<string>>(new Set());

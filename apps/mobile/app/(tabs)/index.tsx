@@ -25,12 +25,11 @@ import {
   loadFavoriteSongKeys,
   saveFavoriteSongKeys,
 } from '@/hooks/useFavoriteNotify';
-import { STATION_URL, STATION_ID } from '@/constants/api';
+import { BACKEND_URL } from '@/constants/api';
 
 export default function PlayerScreen() {
   const { data, isLoading, error } = useAzuraCast({
-    stationUrl: STATION_URL,
-    stationId: STATION_ID,
+    apiBaseUrl: BACKEND_URL,
     pollInterval: 15000,
   });
 

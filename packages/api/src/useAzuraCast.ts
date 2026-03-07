@@ -3,8 +3,8 @@ import axios from 'axios';
 import type { NowPlayingData, SongHistory, StreamQuality } from '@radio/types';
 
 export interface UseAzuraCastProps {
-  stationUrl: string;
-  stationId: string;
+  /** Backend base URL. Empty string uses relative paths (same-origin web). */
+  apiBaseUrl?: string;
   pollInterval?: number;
 }
 
@@ -19,8 +19,7 @@ export interface UseAzuraCastReturn {
 }
 
 export function useAzuraCast({
-  stationUrl,
-  stationId,
+  apiBaseUrl = '',
   pollInterval = 15000,
 }: UseAzuraCastProps): UseAzuraCastReturn {
   const [data, setData] = useState<NowPlayingData | null>(null);
@@ -30,8 +29,7 @@ export function useAzuraCast({
 
   const fetchNowPlaying = useCallback(async () => {
     try {
-      const apiUrl = `${stationUrl}/nowplaying/${stationId}`;
-      const response = await axios.get<NowPlayingData>(apiUrl, {
+      const response = await axios.get<NowPlayingData>(`${apiBaseUrl}/api/nowplaying`, {
         timeout: 10000,
         headers: { Accept: 'application/json' },
       });
@@ -40,9 +38,9 @@ export function useAzuraCast({
     } catch (err) {
       if (axios.isAxiosError(err)) {
         if (err.code === 'ECONNABORTED') {
-          setError('Tiempo de espera agotado. Verifica la URL de la estación.');
+          setError('Tiempo de espera agotado. Verifica la conexión.');
         } else if (err.response?.status === 404) {
-          setError('Estación no encontrada. Verifica la URL.');
+          setError('Estación no encontrada.');
         } else {
           setError('Error al conectar con el servidor de radio.');
         }
@@ -52,7 +50,7 @@ export function useAzuraCast({
     } finally {
       setIsLoading(false);
     }
-  }, [stationUrl, stationId]);
+  }, [apiBaseUrl]);
 
   useEffect(() => {
     fetchNowPlaying();
@@ -65,14 +63,13 @@ export function useAzuraCast({
   const requestSong = useCallback(
     async (songId: string): Promise<boolean> => {
       try {
-        const requestUrl = `${stationUrl}/station/${stationId}/request/${songId}`;
-        await axios.post(requestUrl);
+        await axios.post(`${apiBaseUrl}/api/requests/${songId}`);
         return true;
       } catch {
         return false;
       }
     },
-    [stationUrl, stationId]
+    [apiBaseUrl]
   );
 
   const getStreamUrl = useCallback(
