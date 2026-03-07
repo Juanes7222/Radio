@@ -31,7 +31,7 @@ export function useMediaSession({
     const artworkUrl = artwork || defaultArtwork;
 
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: title || 'Radio Stream',
+      title: title || 'La Voz de la Verdad',
       artist: artist || 'Desconocido',
       album: album || 'Radio Online',
       artwork: [
