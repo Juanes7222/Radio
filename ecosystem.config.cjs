@@ -3,8 +3,8 @@ module.exports = {
   apps: [
     {
       name: "radio-backend",
-      script: "./backend/dist/index.js",
-      cwd: "/var/www/radio",
+      script: "./dist/index.js",
+      cwd: "/var/www/radio/backend",
       instances: 1,
       autorestart: true,
       watch: false,
