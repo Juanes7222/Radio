@@ -8,12 +8,16 @@ export interface UseAzuraCastProps {
   pollInterval?: number;
 }
 
+export type SongRequestResult =
+  | { success: true }
+  | { success: false; errorMessage: string };
+
 export interface UseAzuraCastReturn {
   data: NowPlayingData | null;
   isLoading: boolean;
   error: string | null;
   history: SongHistory[];
-  requestSong: (songId: string) => Promise<boolean>;
+  requestSong: (songId: string) => Promise<SongRequestResult>;
   refresh: () => Promise<void>;
   getStreamUrl: (quality: StreamQuality) => string;
 }
@@ -61,12 +65,19 @@ export function useAzuraCast({
   }, [fetchNowPlaying, pollInterval]);
 
   const requestSong = useCallback(
-    async (songId: string): Promise<boolean> => {
+    async (songId: string): Promise<SongRequestResult> => {
       try {
         await axios.post(`${apiBaseUrl}/api/requests/${songId}`);
-        return true;
-      } catch {
-        return false;
+        return { success: true };
+      } catch (err) {
+        if (axios.isAxiosError(err)) {
+          const serverMessage: string | undefined =
+            err.response?.data?.message ?? err.response?.data?.error;
+          if (serverMessage) return { success: false, errorMessage: serverMessage };
+          if (err.code === 'ECONNABORTED')
+            return { success: false, errorMessage: 'Tiempo de espera agotado.' };
+        }
+        return { success: false, errorMessage: 'No se pudo solicitar la canción.' };
       }
     },
     [apiBaseUrl]

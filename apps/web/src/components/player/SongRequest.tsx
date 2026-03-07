@@ -81,10 +81,10 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
     if (requestedSongs.has(song.request_id) || loadingSong === song.request_id) return;
 
     setLoadingSong(song.request_id);
-    const success = await requestSong(song.request_id);
+    const result = await requestSong(song.request_id);
     setLoadingSong(null);
-    
-    if (success) {
+
+    if (result.success) {
       setRequestedSongs(prev => new Set(prev).add(song.request_id));
       setRequestStatus({
         songId: song.request_id,
@@ -95,14 +95,11 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
       setRequestStatus({
         songId: song.request_id,
         status: 'error',
-        message: 'No se pudo solicitar la canción. Inténtalo de nuevo.',
+        message: result.errorMessage,
       });
     }
 
-    // Limpiar estado después de 3 segundos
-    setTimeout(() => {
-      setRequestStatus(null);
-    }, 3000);
+    setTimeout(() => setRequestStatus(null), 4000);
   };
 
   return (

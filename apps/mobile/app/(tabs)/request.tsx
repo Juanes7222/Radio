@@ -27,6 +27,7 @@ export default function RequestScreen() {
   });
   const [requesting, setRequesting] = useState<string | null>(null);
   const [sent, setSent] = useState<Set<string>>(new Set());
+  const [requestError, setRequestError] = useState<string | null>(null);
 
   const history = data?.song_history ?? [];
   const filtered = query.trim()
@@ -39,8 +40,14 @@ export default function RequestScreen() {
 
   const handleRequest = async (item: SongHistory) => {
     setRequesting(item.song.id);
-    const ok = await requestSong(item.song.id);
-    if (ok) setSent((prev) => new Set([...prev, item.song.id]));
+    setRequestError(null);
+    const result = await requestSong(item.song.id);
+    if (result.success) {
+      setSent((prev) => new Set([...prev, item.song.id]));
+    } else {
+      setRequestError(result.errorMessage);
+      setTimeout(() => setRequestError(null), 4000);
+    }
     setRequesting(null);
   };
 
@@ -121,6 +128,13 @@ export default function RequestScreen() {
         }
         showsVerticalScrollIndicator={false}
       />
+
+      {requestError && (
+        <View style={[styles.errorBanner, { bottom: insets.bottom + TAB_BAR_HEIGHT + 12 }]}>
+          <Ionicons name="alert-circle" size={16} color="#fca5a5" />
+          <Text style={styles.errorBannerText}>{requestError}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -174,4 +188,24 @@ const styles = StyleSheet.create({
   },
   btnSent: { backgroundColor: '#16a34a' },
   btnText: { color: '#0a0a14', fontSize: 13, fontWeight: '700' },
+  errorBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(127, 29, 29, 0.92)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(252, 165, 165, 0.2)',
+  },
+  errorBannerText: {
+    color: '#fca5a5',
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
 });
