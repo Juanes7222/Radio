@@ -16,7 +16,6 @@ import {
   Timer,
   Bell,
   BellOff,
-  Music,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -39,6 +38,7 @@ import { useAudioPlayer, useMediaSession, useSleepTimer, SLEEP_PRESETS, useFavor
 import type { NowPlayingData, StreamQuality } from '@/types/azuracast';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { SongInfo } from './SongInfo';
+import { VinylDisc } from './VinylDisc';
 import { formatTime } from '@/lib/utils';
 import { ShareModal } from '../ui-custom/SharedModla';
 
@@ -157,33 +157,7 @@ export function RadioPlayer({
               <img src={artwork} alt={title} className="w-full h-full object-cover" />
             </div>
           ) : (
-            <motion.div
-              animate={{ rotate: state.isPlaying ? 360 : 0 }}
-              transition={{ duration: 20, repeat: state.isPlaying ? Infinity : 0, ease: 'linear' }}
-              className={`w-14 h-14 rounded-full overflow-hidden shadow-lg ${
-                theme === 'dark' ? 'bg-slate-700' : 'bg-slate-300'
-              }`}
-              style={{
-                boxShadow: '0 0 0 2px rgba(255,255,255,0.06), 0 0 0 4px rgba(0,0,0,0.3)',
-              }}
-            >
-              <div className="w-full h-full flex items-center justify-center relative">
-                <Music className="w-5 h-5 opacity-40" />
-                <div
-                  className="absolute inset-0 rounded-full pointer-events-none"
-                  style={{
-                    boxShadow:
-                      'inset 0 0 0 6px rgba(0,0,0,0.15), inset 0 0 0 14px rgba(0,0,0,0.08)',
-                  }}
-                />
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div
-                    className="w-3 h-3 rounded-full border border-white/20"
-                    style={{ background: 'radial-gradient(circle, rgba(80,80,80,0.9) 0%, rgba(20,20,20,0.95) 100%)' }}
-                  />
-                </div>
-              </div>
-            </motion.div>
+            <VinylDisc artworkUrl={null} isPlaying={state.isPlaying} size={56} />
           )}
         </div>
 

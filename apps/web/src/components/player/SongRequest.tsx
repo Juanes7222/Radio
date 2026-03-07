@@ -135,7 +135,7 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
         </div>
 
         {/* Lista con scroll — ocupa el espacio restante */}
-        <ScrollArea className="flex-1 overflow-hidden">
+        <ScrollArea className="flex-1 min-h-0" style={{ touchAction: 'pan-y' }}>
           <div className="px-6 pb-4 space-y-3">
             {isSearching ? (
               // Skeleton loading

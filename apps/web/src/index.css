@@ -98,9 +98,12 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Native app feel: no bounce, no horizontal scroll */
-html, body {
-  overscroll-behavior: none;
+/* Native app feel: no horizontal overscroll, no horizontal scroll */
+html {
+  overscroll-behavior-x: none;
+}
+body {
+  overscroll-behavior-x: none;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
 }
