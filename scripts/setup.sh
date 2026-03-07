@@ -51,11 +51,13 @@ server {
         proxy_read_timeout 3600s;
     }
 
-    location /azura-api/ {
-        proxy_pass         http://127.0.0.1:8080/api/;
+    location /api/ {
+        proxy_pass         http://127.0.0.1:3000;
         proxy_http_version 1.1;
+        proxy_set_header   Connection keep-alive;
         proxy_set_header   Host $host;
         proxy_set_header   X-Real-IP $remote_addr;
+        proxy_cache_bypass $http_upgrade;
     }
 
     location /admin-api/ {
@@ -121,5 +123,6 @@ echo "  Web   : http://$(hostname -I | awk '{print $1}')"
 echo "  Panel : http://panel.lavozverdad.com  (user: admin / pass: $PANEL_PASS)"
 echo ""
 echo "Next steps:"
-echo "  1. Fill /var/www/radio/apps/backend/.env with real credentials"
+echo "  1. Fill /var/www/radio/backend/.env with real credentials"
+echo "     AZURACAST_URL=http://127.0.0.1:8080   (direct, avoids panel auth)"
 echo "  2. Run: certbot --nginx -d lavozverdad.com -d www.lavozverdad.com -d panel.lavozverdad.com"
