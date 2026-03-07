@@ -16,10 +16,12 @@ import {
   Timer,
   Bell,
   BellOff,
+  Music,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +50,7 @@ interface RadioPlayerProps {
   onQualityChange?: (quality: StreamQuality) => void;
   onShowHistory?: () => void;
   onShowRequests?: () => void;
+  compact?: boolean;
 }
 
 export function RadioPlayer({
@@ -58,6 +61,7 @@ export function RadioPlayer({
   onQualityChange,
   onShowHistory,
   onShowRequests,
+  compact = false,
 }: RadioPlayerProps) {
   const [quality, setQuality] = useState<StreamQuality>('128');
   const [localFavorites, setLocalFavorites] = useState<number[]>(() =>
@@ -133,6 +137,57 @@ export function RadioPlayer({
   const listeners = stationData?.listeners?.current || 0;
   const [shareOpen, setShareOpen] = useState(false);
   const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+
+  if (compact) {
+    const artwork = stationData?.now_playing?.song?.art;
+    const title = stationData?.now_playing?.song?.title || 'Sin canción';
+    const artist = stationData?.now_playing?.song?.artist || '';
+
+    return (
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className={`w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 ${
+          theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'
+        }`}>
+          {artwork ? (
+            <img src={artwork} alt={title} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Music className="w-6 h-6 opacity-50" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          {isLoading ? (
+            <>
+              <Skeleton className="h-4 w-3/4 mb-1" />
+              <Skeleton className="h-3 w-1/2" />
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold truncate leading-tight">{title}</p>
+              <p className="text-xs text-muted-foreground truncate mt-0.5">{artist}</p>
+            </>
+          )}
+        </div>
+
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={togglePlay}
+          disabled={state.isLoading}
+          className="w-14 h-14 rounded-full flex items-center justify-center bg-indigo-600 text-white shadow-md flex-shrink-0 disabled:opacity-50 active-scale"
+        >
+          {state.isLoading ? (
+            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : state.isPlaying ? (
+            <Pause className="w-6 h-6" />
+          ) : (
+            <Play className="w-6 h-6 ml-0.5" />
+          )}
+        </motion.button>
+      </div>
+    );
+  }
 
   return (
 
