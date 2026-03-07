@@ -44,7 +44,9 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
     message: string;
   } | null>(null);
 
-  const { requestSong } = useAzuraCast();
+  const { requestSong } = useAzuraCast({
+      apiBaseUrl: ''
+  });
 
   // Buscar canciones
   useEffect(() => {
