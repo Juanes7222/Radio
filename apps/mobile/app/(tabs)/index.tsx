@@ -13,10 +13,14 @@ import {
   ScrollView,
   Modal,
   Pressable,
+  Dimensions,
+  Linking,
+  Platform,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { VinylDisc } from '@/components/VinylDisc';
 import { useAzuraCast } from '@radio/api';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useSleepTimer, SLEEP_PRESETS } from '@/hooks/useSleepTimer';
@@ -27,7 +31,13 @@ import {
 } from '@/hooks/useFavoriteNotify';
 import { BACKEND_URL } from '@/constants/api';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const ARTWORK_SIZE = SCREEN_WIDTH - 56;
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
+
 export default function PlayerScreen() {
+  const insets = useSafeAreaInsets();
+
   const { data, isLoading, error } = useAzuraCast({
     apiBaseUrl: BACKEND_URL,
     pollInterval: 15000,
@@ -73,13 +83,19 @@ export default function PlayerScreen() {
   const { isEnabled: notifyEnabled, enable: enableNotify, disable: disableNotify } =
     useFavoriteNotify(currentSongForNotify, favoriteSongKeys);
 
-  const artwork = song?.art || 'https://via.placeholder.com/400x400/1e293b/6366f1?text=Radio';
+  const artworkUri = song?.art ?? null;
   const listenersCount = data?.listeners?.current ?? 0;
 
+  const openFacebook = useCallback(() => {
+    Linking.openURL('https://www.facebook.com/lavozdlaverdad');
+  }, []);
+
+  // ── Loading / Error states ────────────────────────────────────
   if (isLoading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <LinearGradient colors={['#0a0a14', '#120828', '#0a0a14']} style={StyleSheet.absoluteFill} />
+        <ActivityIndicator size="large" color="#818cf8" />
         <Text style={styles.loadingText}>Conectando con la emisora…</Text>
       </View>
     );
@@ -87,140 +103,206 @@ export default function PlayerScreen() {
 
   if (error) {
     return (
-      <View style={styles.center}>
-        <Ionicons name="wifi-outline" size={48} color="#ef4444" />
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <LinearGradient colors={['#0a0a14', '#120828', '#0a0a14']} style={StyleSheet.absoluteFill} />
+        <Ionicons name="wifi-outline" size={52} color="#ef4444" />
         <Text style={styles.errorText}>{error}</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} bounces={false}>
-      {/* Fondo con gradiente */}
-      <LinearGradient colors={['#0f172a', '#1e1b4b', '#0f172a']} style={StyleSheet.absoluteFill} />
+    <View style={styles.container}>
+      {/* Fondo degradado inmersivo */}
+      <LinearGradient
+        colors={['#0a0a14', '#130926', '#0a0a14']}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+      />
 
-      {/* Banner de reconexión / error */}
-      {(reconnectAttempt > 0 || audioError) && (
-        <View style={[styles.banner, reconnectAttempt > 0 ? styles.bannerAmber : styles.bannerRed]}>
-          {reconnectAttempt > 0 && (
-            <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
-          )}
-          <Text style={styles.bannerText} numberOfLines={2}>
-            {audioError ?? 'Error de reproducción'}
-          </Text>
-        </View>
-      )}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 24 },
+        ]}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Banner de reconexión o error de audio */}
+        {(reconnectAttempt > 0 || audioError) && (
+          <View style={[styles.banner, reconnectAttempt > 0 ? styles.bannerAmber : styles.bannerRed]}>
+            {reconnectAttempt > 0 && (
+              <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+            )}
+            <Text style={styles.bannerText} numberOfLines={2}>
+              {audioError ?? 'Error de reproducción'}
+            </Text>
+          </View>
+        )}
 
-      {/* Barra superior: notificaciones + sleep timer */}
-      <View style={styles.topBar}>
-        {/* Botón notificaciones */}
-        <TouchableOpacity onPress={notifyEnabled ? disableNotify : () => enableNotify()} style={styles.iconBtn}>
-          <Ionicons
-            name={notifyEnabled ? 'notifications' : 'notifications-off-outline'}
-            size={22}
-            color={notifyEnabled ? '#6366f1' : '#475569'}
-          />
-        </TouchableOpacity>
-
-        {/* Botón sleep timer */}
-        <TouchableOpacity
-          onPress={() => setShowSleepMenu(true)}
-          style={[styles.iconBtn, sleepTimer.isActive && styles.iconBtnActive]}
-        >
-          <Ionicons
-            name="timer-outline"
-            size={22}
-            color={sleepTimer.isActive ? '#f59e0b' : '#475569'}
-          />
-          {sleepTimer.isActive && (
-            <Text style={styles.timerBadge}>{sleepTimer.display}</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Portada */}
-      <View style={styles.artWrapper}>
-        <Image
-          source={{ uri: artwork }}
-          style={styles.artwork}
-          contentFit="cover"
-          transition={400}
-        />
-      </View>
-
-      {/* Info canción + favorito */}
-      <View style={styles.songInfo}>
-        <View style={styles.songTitleRow}>
-          <Text style={styles.title} numberOfLines={2}>
-            {song?.title || 'Sin información'}
-          </Text>
-          <TouchableOpacity onPress={toggleFavorite} style={styles.heartBtn}>
+        {/* Barra superior */}
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={notifyEnabled ? disableNotify : () => enableNotify()}
+            style={styles.iconBtn}
+            activeOpacity={0.7}
+          >
             <Ionicons
-              name={isFavorite ? 'heart' : 'heart-outline'}
-              size={24}
-              color={isFavorite ? '#ef4444' : '#475569'}
+              name={notifyEnabled ? 'notifications' : 'notifications-off-outline'}
+              size={20}
+              color={notifyEnabled ? '#818cf8' : '#4b5563'}
             />
           </TouchableOpacity>
-        </View>
-        <Text style={styles.artist} numberOfLines={1}>
-          {song?.artist || 'Artista desconocido'}
-        </Text>
-        {song?.album ? (
-          <Text style={styles.album} numberOfLines={1}>{song.album}</Text>
-        ) : null}
-      </View>
 
-      {/* Controles */}
-      <View style={styles.controls}>
-        <TouchableOpacity
-          onPress={toggle}
-          style={styles.playButton}
-          activeOpacity={0.8}
-        >
-          {isBuffering ? (
-            <ActivityIndicator size="large" color="#fff" />
-          ) : (
-            <Ionicons name={isPlaying ? 'pause' : 'play'} size={36} color="#fff" />
-          )}
-        </TouchableOpacity>
-      </View>
+          <View style={styles.liveIndicator}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>EN VIVO</Text>
+          </View>
 
-      {/* Countdown del sleep timer */}
-      {sleepTimer.isActive && (
-        <View style={styles.sleepRow}>
-          <Ionicons name="timer-outline" size={14} color="#f59e0b" />
-          <Text style={styles.sleepText}>Apagado en {sleepTimer.display}</Text>
-          <TouchableOpacity onPress={sleepTimer.cancel} style={styles.cancelBtn}>
-            <Text style={styles.cancelBtnText}>Cancelar</Text>
+          <TouchableOpacity
+            onPress={() => setShowSleepMenu(true)}
+            style={[styles.iconBtn, sleepTimer.isActive && styles.iconBtnActive]}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="timer-outline"
+              size={20}
+              color={sleepTimer.isActive ? '#f59e0b' : '#4b5563'}
+            />
+            {sleepTimer.isActive && (
+              <Text style={styles.timerBadge}>{sleepTimer.display}</Text>
+            )}
           </TouchableOpacity>
         </View>
-      )}
 
-      {/* Oyentes */}
-      <View style={styles.listenersRow}>
-        <Ionicons name="people-outline" size={14} color="#64748b" />
-        <Text style={styles.listenersText}>{listenersCount} oyentes en vivo</Text>
-      </View>
+        {/* Vinilo giratorio */}
+        <View style={styles.artWrapper}>
+          <VinylDisc
+            artworkUri={artworkUri}
+            isPlaying={isPlaying || isBuffering}
+            size={ARTWORK_SIZE}
+          />
+        </View>
 
-      {/* Próxima canción */}
-      {data?.playing_next && (
-        <View style={styles.nextCard}>
-          <Text style={styles.nextLabel}>A continuación</Text>
-          <Text style={styles.nextTitle} numberOfLines={1}>
-            {data.playing_next.song.artist} — {data.playing_next.song.title}
+        {/* Info de la canción + corazón */}
+        <View style={styles.songInfo}>
+          <View style={styles.songTitleRow}>
+            <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+              {song?.title || 'Sin información'}
+            </Text>
+            <TouchableOpacity onPress={toggleFavorite} style={styles.heartBtn} activeOpacity={0.7}>
+              <Ionicons
+                name={isFavorite ? 'heart' : 'heart-outline'}
+                size={26}
+                color={isFavorite ? '#ef4444' : '#374151'}
+              />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.artist} numberOfLines={1}>
+            {song?.artist || 'Artista desconocido'}
+          </Text>
+          {song?.album ? (
+            <Text style={styles.album} numberOfLines={1}>{song.album}</Text>
+          ) : null}
+        </View>
+
+        {/* Controles de reproducción */}
+        <View style={styles.controls}>
+          <Pressable
+            onPress={toggle}
+            style={({ pressed }) => [
+              styles.playButton,
+              pressed && styles.playButtonPressed,
+            ]}
+          >
+            {isBuffering ? (
+              <ActivityIndicator size="large" color="#130926" />
+            ) : (
+              <Ionicons
+                name={isPlaying ? 'pause' : 'play'}
+                size={38}
+                color="#130926"
+                style={!isPlaying ? { marginLeft: 4 } : undefined}
+              />
+            )}
+          </Pressable>
+        </View>
+
+        {/* Oyentes en vivo */}
+        <View style={styles.listenersRow}>
+          <View style={styles.listeningDot} />
+          <Text style={styles.listenersText}>
+            {listenersCount} {listenersCount === 1 ? 'oyente' : 'oyentes'} en vivo
           </Text>
         </View>
-      )}
+
+        {/* Countdown del sleep timer */}
+        {sleepTimer.isActive && (
+          <View style={styles.sleepRow}>
+            <Ionicons name="timer-outline" size={14} color="#f59e0b" />
+            <Text style={styles.sleepText}>Apagado en {sleepTimer.display}</Text>
+            <TouchableOpacity onPress={sleepTimer.cancel} style={styles.cancelBtn} activeOpacity={0.7}>
+              <Text style={styles.cancelBtnText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Próxima canción */}
+        {data?.playing_next && (
+          <View style={styles.nextCard}>
+            <Ionicons name="musical-note-outline" size={14} color="#818cf8" />
+            <Text style={styles.nextLabel}>A continuación:</Text>
+            <Text style={styles.nextTitle} numberOfLines={1}>
+              {data.playing_next.song.artist} — {data.playing_next.song.title}
+            </Text>
+          </View>
+        )}
+
+        {/* Tarjeta de cultos presenciales */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="calendar-outline" size={18} color="#818cf8" />
+            <Text style={styles.cardTitle}>Cultos presenciales</Text>
+          </View>
+          {[
+            'Martes y Jueves — 7:00 PM',
+            'Sábados — 6:30 PM',
+            'Domingos — 9:00 AM',
+          ].map((schedule) => (
+            <View key={schedule} style={styles.scheduleRow}>
+              <Ionicons name="time-outline" size={14} color="#6b7280" />
+              <Text style={styles.scheduleText}>{schedule}</Text>
+            </View>
+          ))}
+          <View style={[styles.scheduleRow, styles.scheduleRowLast]}>
+            <Ionicons name="location-outline" size={14} color="#6b7280" />
+            <Text style={styles.scheduleText}>Cra 7 #13-35, Barrio La Libertad</Text>
+          </View>
+        </View>
+
+        {/* Botón Facebook */}
+        <TouchableOpacity onPress={openFacebook} style={styles.facebookBtn} activeOpacity={0.8}>
+          <Ionicons name="logo-facebook" size={20} color="#fff" />
+          <Text style={styles.facebookBtnText}>Síguenos en Facebook</Text>
+        </TouchableOpacity>
+      </ScrollView>
 
       {/* Modal sleep timer */}
-      <Modal transparent visible={showSleepMenu} animationType="fade" onRequestClose={() => setShowSleepMenu(false)}>
+      <Modal
+        transparent
+        visible={showSleepMenu}
+        animationType="fade"
+        onRequestClose={() => setShowSleepMenu(false)}
+      >
         <Pressable style={styles.modalOverlay} onPress={() => setShowSleepMenu(false)}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 24 }]}>
             <Text style={styles.modalTitle}>Temporizador de apagado</Text>
             {SLEEP_PRESETS.map((min) => (
               <TouchableOpacity
                 key={min}
                 style={styles.modalOption}
+                activeOpacity={0.7}
                 onPress={() => {
                   sleepTimer.start(min);
                   setShowSleepMenu(false);
@@ -232,127 +314,288 @@ export default function PlayerScreen() {
             {sleepTimer.isActive && (
               <TouchableOpacity
                 style={[styles.modalOption, styles.modalOptionCancel]}
+                activeOpacity={0.7}
                 onPress={() => {
                   sleepTimer.cancel();
                   setShowSleepMenu(false);
                 }}
               >
-                <Text style={[styles.modalOptionText, { color: '#ef4444' }]}>Cancelar temporizador</Text>
+                <Text style={[styles.modalOptionText, { color: '#ef4444' }]}>
+                  Cancelar temporizador
+                </Text>
               </TouchableOpacity>
             )}
           </View>
         </Pressable>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  content: { flexGrow: 1, alignItems: 'center', paddingTop: 60, paddingBottom: 40, paddingHorizontal: 24 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f172a', gap: 16 },
-  loadingText: { color: '#94a3b8', fontSize: 14, marginTop: 8 },
+  container: { flex: 1, backgroundColor: '#0a0a14' },
+  scroll: { flex: 1 },
+  content: { alignItems: 'center', paddingHorizontal: 24 },
+
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0a0a14',
+    gap: 16,
+  },
+  loadingText: { color: '#6b7280', fontSize: 15, marginTop: 12 },
   errorText: { color: '#ef4444', fontSize: 14, textAlign: 'center', maxWidth: 280 },
 
-  // Banner
+  // ── Banner ──────────────────────────────────────────────────
   banner: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 12,
   },
-  bannerAmber: { backgroundColor: '#92400e' },
-  bannerRed: { backgroundColor: '#7f1d1d' },
+  bannerAmber: { backgroundColor: 'rgba(146, 64, 14, 0.85)' },
+  bannerRed: { backgroundColor: 'rgba(127, 29, 29, 0.85)' },
   bannerText: { color: '#fef3c7', fontSize: 13, flex: 1 },
 
-  // Top bar
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, width: '100%', marginBottom: 16 },
-  iconBtn: { padding: 8, borderRadius: 20, backgroundColor: '#1e293b', flexDirection: 'row', alignItems: 'center', gap: 4 },
-  iconBtnActive: { backgroundColor: '#292524' },
-  timerBadge: { color: '#f59e0b', fontSize: 12, fontWeight: '700' },
-
-  // Artwork
-  artWrapper: {
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    overflow: 'hidden',
-    shadowColor: '#6366f1',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.4,
-    shadowRadius: 32,
-    elevation: 20,
-    marginBottom: 32,
-  },
-  artwork: { width: '100%', height: '100%' },
-
-  // Song info
-  songInfo: { alignItems: 'center', gap: 6, marginBottom: 36, width: '100%' },
-  songTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%' },
-  title: { color: '#f8fafc', fontSize: 20, fontWeight: '700', textAlign: 'center', flex: 1 },
-  heartBtn: { padding: 4 },
-  artist: { color: '#94a3b8', fontSize: 16, fontWeight: '500', textAlign: 'center' },
-  album: { color: '#475569', fontSize: 13, textAlign: 'center' },
-
-  // Controls
-  controls: { marginBottom: 16 },
-  playButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#6366f1',
+  // ── Top bar ─────────────────────────────────────────────────
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#6366f1',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-
-  // Sleep timer row
-  sleepRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  sleepText: { color: '#f59e0b', fontSize: 13, fontWeight: '600' },
-  cancelBtn: { paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#292524', borderRadius: 8 },
-  cancelBtnText: { color: '#f59e0b', fontSize: 12 },
-
-  // Listeners
-  listenersRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 24 },
-  listenersText: { color: '#64748b', fontSize: 12 },
-
-  // Next card
-  nextCard: {
     width: '100%',
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
+    marginBottom: 28,
   },
-  nextLabel: { color: '#6366f1', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  nextTitle: { color: '#cbd5e1', fontSize: 14 },
-
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalCard: {
-    backgroundColor: '#1e293b',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
+  iconBtn: {
+    padding: 10,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
-  modalTitle: { color: '#f8fafc', fontSize: 16, fontWeight: '700', marginBottom: 12, textAlign: 'center' },
-  modalOption: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: '#0f172a',
+  iconBtnActive: { backgroundColor: 'rgba(245,158,11,0.12)' },
+  timerBadge: { color: '#f59e0b', fontSize: 12, fontWeight: '700' },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
   },
-  modalOptionCancel: { marginTop: 8 },
-  modalOptionText: { color: '#e2e8f0', fontSize: 15, textAlign: 'center' },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#ef4444',
+  },
+  liveText: {
+    color: '#e5e7eb',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+  },
+
+  // ── Artwork ─────────────────────────────────────────────────
+  artWrapper: {
+    width: ARTWORK_SIZE,
+    height: ARTWORK_SIZE,
+    marginBottom: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ── Song info ────────────────────────────────────────────────
+  songInfo: {
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 36,
+    width: '100%',
+  },
+  songTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    width: '100%',
+    paddingHorizontal: 4,
+  },
+  title: {
+    color: '#f9fafb',
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+    flex: 1,
+  },
+  heartBtn: { padding: 4 },
+  artist: {
+    color: 'rgba(255,255,255,0.62)',
+    fontSize: 18,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  album: {
+    color: 'rgba(255,255,255,0.32)',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+
+  // ── Controls ─────────────────────────────────────────────────
+  controls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  playButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f9fafb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#818cf8',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.7,
+    shadowRadius: 22,
+    elevation: 14,
+  },
+  playButtonPressed: {
+    transform: [{ scale: 0.93 }],
+    backgroundColor: '#e5e7eb',
+  },
+
+  // ── Listeners ────────────────────────────────────────────────
+  listenersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 24,
+  },
+  listeningDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#22c55e',
+  },
+  listenersText: { color: '#4b5563', fontSize: 13 },
+
+  // ── Sleep row ────────────────────────────────────────────────
+  sleepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 16,
+    backgroundColor: 'rgba(245,158,11,0.1)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    width: '100%',
+  },
+  sleepText: { color: '#f59e0b', fontSize: 13, flex: 1 },
+  cancelBtn: {
+    backgroundColor: 'rgba(245,158,11,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 7,
+  },
+  cancelBtnText: { color: '#f59e0b', fontSize: 12, fontWeight: '600' },
+
+  // ── Next song card ───────────────────────────────────────────
+  nextCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+    backgroundColor: 'rgba(129,140,248,0.08)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(129,140,248,0.15)',
+  },
+  nextLabel: { color: '#818cf8', fontSize: 12, fontWeight: '700' },
+  nextTitle: { color: '#6b7280', fontSize: 13, flex: 1 },
+
+  // ── Info card (glassmorphism) ─────────────────────────────────
+  card: {
+    width: '100%',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  cardTitle: { color: '#f1f5f9', fontSize: 16, fontWeight: '700' },
+  scheduleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  scheduleRowLast: { marginBottom: 0, marginTop: 4 },
+  scheduleText: { color: '#9ca3af', fontSize: 14 },
+
+  // ── Facebook button ──────────────────────────────────────────
+  facebookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    width: '100%',
+    backgroundColor: '#1877f2',
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginBottom: 4,
+  },
+  facebookBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+
+  // ── Modal ────────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'flex-end',
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: '#111827',
+    borderRadius: 20,
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
+  modalTitle: {
+    color: '#f9fafb',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalOption: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  modalOptionText: { color: '#e5e7eb', fontSize: 16, textAlign: 'center' },
+  modalOptionCancel: { borderBottomWidth: 0, marginTop: 4 },
 });
+
+
 
 

@@ -1,7 +1,12 @@
-import { View, Text, FlatList, StyleSheet, Image } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAzuraCast } from '@radio/api';
 import type { SongHistory } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
+
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp * 1000);
@@ -15,7 +20,7 @@ function SongItem({ item, index }: { item: SongHistory; index: number }) {
         <Text style={styles.indexText}>{index + 1}</Text>
       </View>
       {item.song.art ? (
-        <Image source={{ uri: item.song.art }} style={styles.art} />
+        <Image source={{ uri: item.song.art }} style={styles.art} contentFit="cover" transition={300} />
       ) : (
         <View style={[styles.art, styles.artPlaceholder]} />
       )}
@@ -29,6 +34,7 @@ function SongItem({ item, index }: { item: SongHistory; index: number }) {
 }
 
 export default function HistoryScreen() {
+  const insets = useSafeAreaInsets();
   const { history, isLoading } = useAzuraCast({
     apiBaseUrl: BACKEND_URL,
     pollInterval: 30000,
@@ -36,12 +42,22 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Canciones recientes</Text>
+      <LinearGradient
+        colors={['#0a0a14', '#130926', '#0a0a14']}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      <Text style={[styles.heading, { paddingTop: insets.top + 20 }]}>
+        Canciones recientes
+      </Text>
       <FlatList
         data={history}
         keyExtractor={(item) => String(item.sh_id)}
         renderItem={({ item, index }) => <SongItem item={item} index={index} />}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 16 },
+        ]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <Text style={styles.empty}>
@@ -55,18 +71,30 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a', paddingTop: 60 },
-  heading: { color: '#f8fafc', fontSize: 22, fontWeight: '700', paddingHorizontal: 20, marginBottom: 16 },
-  list: { paddingHorizontal: 16, paddingBottom: 32 },
-  empty: { color: '#475569', textAlign: 'center', marginTop: 48, fontSize: 14 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12 },
-  separator: { height: 1, backgroundColor: '#1e293b' },
-  indexBadge: { width: 24, alignItems: 'center' },
-  indexText: { color: '#475569', fontSize: 12, fontWeight: '600' },
-  art: { width: 46, height: 46, borderRadius: 8 },
-  artPlaceholder: { backgroundColor: '#1e293b' },
+  container: { flex: 1, backgroundColor: '#0a0a14' },
+  heading: {
+    color: '#f9fafb',
+    fontSize: 22,
+    fontWeight: '800',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    letterSpacing: -0.3,
+  },
+  list: { paddingHorizontal: 16 },
+  empty: { color: '#4b5563', textAlign: 'center', marginTop: 48, fontSize: 14 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  separator: { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginLeft: 80 },
+  indexBadge: { width: 26, alignItems: 'center' },
+  indexText: { color: '#374151', fontSize: 12, fontWeight: '600' },
+  art: { width: 50, height: 50, borderRadius: 10 },
+  artPlaceholder: { backgroundColor: 'rgba(255,255,255,0.06)' },
   info: { flex: 1 },
   title: { color: '#f1f5f9', fontSize: 14, fontWeight: '600' },
-  artist: { color: '#64748b', fontSize: 12, marginTop: 2 },
-  time: { color: '#334155', fontSize: 11 },
+  artist: { color: '#4b5563', fontSize: 12, marginTop: 3 },
+  time: { color: '#374151', fontSize: 11, fontWeight: '500' },
 });
