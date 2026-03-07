@@ -145,15 +145,39 @@ export function RadioPlayer({
 
     return (
       <div className="flex items-center gap-3 px-4 py-3">
-        <div className={`w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 ${
-          theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'
-        }`}>
+        <div className="w-14 h-14 flex-shrink-0 relative">
           {artwork ? (
-            <img src={artwork} alt={title} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Music className="w-6 h-6 opacity-50" />
+            <div className="w-14 h-14 rounded-xl overflow-hidden">
+              <img src={artwork} alt={title} className="w-full h-full object-cover" />
             </div>
+          ) : (
+            <motion.div
+              animate={{ rotate: state.isPlaying ? 360 : 0 }}
+              transition={{ duration: 20, repeat: Infinity, ease: 'linear', paused: !state.isPlaying }}
+              className={`w-14 h-14 rounded-full overflow-hidden shadow-lg ${
+                theme === 'dark' ? 'bg-slate-700' : 'bg-slate-300'
+              }`}
+              style={{
+                boxShadow: '0 0 0 2px rgba(255,255,255,0.06), 0 0 0 4px rgba(0,0,0,0.3)',
+              }}
+            >
+              <div className="w-full h-full flex items-center justify-center relative">
+                <Music className="w-5 h-5 opacity-40" />
+                <div
+                  className="absolute inset-0 rounded-full pointer-events-none"
+                  style={{
+                    boxShadow:
+                      'inset 0 0 0 6px rgba(0,0,0,0.15), inset 0 0 0 14px rgba(0,0,0,0.08)',
+                  }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div
+                    className="w-3 h-3 rounded-full border border-white/20"
+                    style={{ background: 'radial-gradient(circle, rgba(80,80,80,0.9) 0%, rgba(20,20,20,0.95) 100%)' }}
+                  />
+                </div>
+              </div>
+            </motion.div>
           )}
         </div>
 

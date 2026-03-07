@@ -120,7 +120,7 @@ function App() {
 
         <section className="px-4 pb-8 max-w-2xl mx-auto">
           <a
-            href="https://www.facebook.com/lavozverdad"
+            href="https://www.facebook.com/profile.php?id=100074024491964"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-3 w-full px-6 py-4 rounded-2xl bg-[#1877F2] text-white font-semibold text-sm active:scale-95 transition-transform shadow-md shadow-blue-500/20"
