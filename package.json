@@ -15,12 +15,14 @@
     "dev:backend": "turbo dev --filter=radio-admin-backend"
   },
   "devDependencies": {
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
     "turbo": "^2.5.4",
     "typescript": "^5.7.2"
   },
   "overrides": {
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
     "expo": "~53.0.0",
     "expo-router": "~5.1.11",
     "react-native": "0.79.6"

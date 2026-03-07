@@ -153,7 +153,7 @@ export function RadioPlayer({
           ) : (
             <motion.div
               animate={{ rotate: state.isPlaying ? 360 : 0 }}
-              transition={{ duration: 20, repeat: Infinity, ease: 'linear', paused: !state.isPlaying }}
+              transition={{ duration: 20, repeat: state.isPlaying ? Infinity : 0, ease: 'linear' }}
               className={`w-14 h-14 rounded-full overflow-hidden shadow-lg ${
                 theme === 'dark' ? 'bg-slate-700' : 'bg-slate-300'
               }`}
