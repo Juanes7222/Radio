@@ -1,0 +1,1 @@
+export { default as AboutPage } from './who-we-are';
