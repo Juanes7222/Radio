@@ -1,12 +1,39 @@
-const CACHE_NAME = 'radiostream-v5';
+const CACHE_NAME = 'lavozverdad-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon-192x192.png',
+
+  // Favicons
+  '/favicon-16x16.png',
+  '/favicon-32x32.png',
+  '/favicon-96x96.png',
+
+  // Apple Touch Icons
+  '/apple-icon-57x57.png',
+  '/apple-icon-60x60.png',
+  '/apple-icon-72x72.png',
+  '/apple-icon-76x76.png',
+  '/apple-icon-114x114.png',
+  '/apple-icon-120x120.png',
+  '/apple-icon-144x144.png',
+  '/apple-icon-152x152.png',
+  '/apple-icon-180x180.png',
+
+  // Android / PWA Icons
+  '/android-icon-36x36.png',
+  '/android-icon-48x48.png',
+  '/android-icon-72x72.png',
+  '/android-icon-96x96.png',
+  '/android-icon-144x144.png',
+  '/android-icon-192x192.png',
+
+  // Windows
+  '/ms-icon-144x144.png',
+
+  // PWA general
   '/icon-512x512.png',
 ];
-
 // Instalación: cachear assets estáticos
 self.addEventListener('install', (event) => {
   event.waitUntil(

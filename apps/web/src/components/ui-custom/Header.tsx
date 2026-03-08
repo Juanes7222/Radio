@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Radio, Menu, Share2 } from 'lucide-react';
+import { Menu, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -13,12 +13,18 @@ import {
 import { ThemeToggle } from './ThemeToggle';
 import { useTheme } from '@/hooks';
 import { ShareModal } from './SharedModla';
+import LOGO1 from '@assets/img/LOGO_COMPLETO_SINFONDO.png';
+import LOGO2 from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
+import { useNavigate } from 'react-router-dom';
+
 interface HeaderProps {
   stationName?: string;
 }
 
-export function Header({ stationName = 'RadioStream' }: HeaderProps) {
+export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
   const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  const navigate = useNavigate();
 
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -46,9 +52,10 @@ export function Header({ stationName = 'RadioStream' }: HeaderProps) {
           <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center"
+            className="w-15 h-10 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer"
+            onClick={() => navigate('/')}
           >
-            <Radio className="w-5 h-5 text-primary-foreground" />
+            <img src={isDark ? LOGO2 : LOGO1} alt="Logo" className="w-full h-full object-cover" />
           </motion.div>
           <div className="hidden sm:block">
             <h1 className="font-bold text-lg leading-tight">{stationName}</h1>
@@ -84,6 +91,16 @@ export function Header({ stationName = 'RadioStream' }: HeaderProps) {
                 <Button variant="ghost" className="justify-start" onClick={() => setShareOpen(true)}>
                   <Share2 className="w-5 h-5 mr-2" />
                   Compartir
+                </Button>
+                <Button variant="ghost" className="justify-start" onClick={() => {
+                  navigate('/');
+                }}>
+                  Inicio
+                </Button>
+                <Button variant="ghost" className="justify-start" onClick={() => {
+                  navigate('/info/who-we-are');
+                }}>
+                  Acerca de
                 </Button>
                 <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
                   <p className="text-sm text-muted-foreground px-4">

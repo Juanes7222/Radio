@@ -71,8 +71,8 @@ export function RadioPlayer({
 
   const currentSongKey = (() => {
     const s = stationData?.now_playing?.song;
-    if (!s?.artist || !s?.title) return null;
-    return `${s.artist}::${s.title}`.toLowerCase();
+    if (!s?.title || s.title === 'Unknown') return null;
+    return `${s.artist ?? ''}::${s.title}`.toLowerCase();
   })();
   const isFavorite = currentSongKey
     ? favoriteSongKeys.some((k) => k.toLowerCase() === currentSongKey)
@@ -271,13 +271,20 @@ export function RadioPlayer({
                     variant="ghost"
                     size="icon"
                     onClick={toggleFavorite}
+                    disabled={!currentSongKey}
                     className={isFavorite ? 'text-red-500' : ''}
                   >
                     <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{isFavorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}</p>
+                  <p>
+                    {!currentSongKey
+                      ? 'No hay canción activa'
+                      : isFavorite
+                      ? 'Quitar de favoritos'
+                      : 'Añadir a favoritos'}
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
