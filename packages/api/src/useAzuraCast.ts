@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import type { NowPlayingData, SongHistory, StreamQuality } from '@radio/types';
+import type { NowPlayingData, StreamQuality } from '@radio/types';
 
 export interface UseAzuraCastProps {
   /** Backend base URL. Empty string uses relative paths (same-origin web). */
