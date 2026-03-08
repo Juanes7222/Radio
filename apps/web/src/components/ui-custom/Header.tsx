@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Radio, Menu, Share2 } from 'lucide-react';
+import { Menu, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -13,11 +13,12 @@ import {
 import { ThemeToggle } from './ThemeToggle';
 import { useTheme } from '@/hooks';
 import { ShareModal } from './SharedModla';
+import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 interface HeaderProps {
   stationName?: string;
 }
 
-export function Header({ stationName = 'RadioStream' }: HeaderProps) {
+export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
   const { resolvedTheme } = useTheme();
 
   const [shareOpen, setShareOpen] = useState(false);
@@ -46,9 +47,9 @@ export function Header({ stationName = 'RadioStream' }: HeaderProps) {
           <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center"
+            className="w-15 h-10 rounded-xl overflow-hidden flex items-center justify-center"
           >
-            <Radio className="w-5 h-5 text-primary-foreground" />
+            <img src={LOGO} alt="Logo" className="w-full h-full object-cover" />
           </motion.div>
           <div className="hidden sm:block">
             <h1 className="font-bold text-lg leading-tight">{stationName}</h1>
