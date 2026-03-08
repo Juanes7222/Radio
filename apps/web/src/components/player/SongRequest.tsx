@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAzuraCast } from '@/hooks';
 
@@ -59,7 +58,7 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
       setIsSearching(true);
       try {
         const response = await fetch(
-          `/api/search?query=${encodeURIComponent(searchQuery)}`
+          `/api/search?filter=${encodeURIComponent(searchQuery)}`
         );
         if (response.ok) {
           const data = await response.json();
@@ -135,7 +134,7 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
         </div>
 
         {/* Lista con scroll — ocupa el espacio restante */}
-        <ScrollArea className="flex-1 min-h-0" style={{ touchAction: 'pan-y' }}>
+        <div className="flex-1 min-h-0 overflow-y-auto" style={{ touchAction: 'pan-y' }}>
           <div className="px-6 pb-4 space-y-3">
             {isSearching ? (
               // Skeleton loading
@@ -249,7 +248,7 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
               </AnimatePresence>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Mensaje de estado — fijo al fondo */}
         <AnimatePresence>

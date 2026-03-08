@@ -48,7 +48,7 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
 
   const retryRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wasPlayingRef = useRef(false);
+  const wasPlayingRef = useRef(true);
 
   const [state, setState] = useState<PlayerState>({
     isPlaying: false,
