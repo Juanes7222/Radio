@@ -64,29 +64,65 @@ function App() {
       <Header stationName={data?.station?.name} />
 
       <main className="bottom-player-clearance">
-
-        <section className={`px-4 pt-8 pb-6 text-center ${
+        <section className={`px-4 pt-10 pb-8 text-center relative overflow-hidden ${
           isDark
             ? 'bg-gradient-to-b from-indigo-950/60 to-slate-950'
             : 'bg-gradient-to-b from-indigo-50 to-slate-50'
         }`}>
+
+          {/* Glow de fondo */}
+          <div className={`absolute inset-0 pointer-events-none ${
+            isDark
+              ? 'bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.15)_0%,_transparent_70%)]'
+              : 'bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08)_0%,_transparent_70%)]'
+          }`} />
+
+          {/* Línea decorativa superior */}
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="mx-auto mb-5 h-px w-24 bg-gradient-to-r from-transparent via-indigo-400 to-transparent"
+          />
+
+          {/* Título principal */}
           <motion.h1
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight mb-2"
+            transition={{ duration: 0.5 }}
+            className="relative text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight mb-3"
           >
-            {data?.station?.name || 'La Voz de la Verdad'}
+            <span className={`bg-clip-text text-transparent bg-gradient-to-r ${
+              isDark
+                ? 'from-white via-indigo-200 to-white'
+                : 'from-indigo-900 via-indigo-600 to-indigo-900'
+            }`}>
+              {data?.station?.name || 'La Voz de la Verdad'}
+            </span>
           </motion.h1>
+
+          {/* Subtítulo con icono */}
           <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.15 }}
-            className={`text-sm sm:text-base max-w-xl mx-auto ${
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className={`text-sm sm:text-base max-w-xl mx-auto flex items-center justify-center gap-2 ${
               isDark ? 'text-slate-400' : 'text-slate-500'
             }`}
           >
+            <span className="inline-block w-1 h-1 rounded-full bg-indigo-400" />
             Emisora cristiana online — proclamando el mensaje de Jesucristo 24/7
+            <span className="inline-block w-1 h-1 rounded-full bg-indigo-400" />
           </motion.p>
+
+          {/* Línea decorativa inferior */}
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 0.6, delay: 0.3, ease: 'easeOut' }}
+            className="mx-auto mt-5 h-px w-16 bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent"
+          />
+
         </section>
 
         <section className="hidden md:block max-w-2xl mx-auto px-4 py-8">

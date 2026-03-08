@@ -13,13 +13,15 @@ import {
 import { ThemeToggle } from './ThemeToggle';
 import { useTheme } from '@/hooks';
 import { ShareModal } from './SharedModla';
-import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
+import LOGO1 from '@assets/img/LOGO_COMPLETO_SINFONDO.png';
+import LOGO2 from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 interface HeaderProps {
   stationName?: string;
 }
 
 export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
   const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -49,7 +51,7 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
             whileTap={{ scale: 0.95 }}
             className="w-15 h-10 rounded-xl overflow-hidden flex items-center justify-center"
           >
-            <img src={LOGO} alt="Logo" className="w-full h-full object-cover" />
+            <img src={isDark ? LOGO2 : LOGO1} alt="Logo" className="w-full h-full object-cover" />
           </motion.div>
           <div className="hidden sm:block">
             <h1 className="font-bold text-lg leading-tight">{stationName}</h1>
