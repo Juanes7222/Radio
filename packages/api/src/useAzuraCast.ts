@@ -16,7 +16,6 @@ export interface UseAzuraCastReturn {
   data: NowPlayingData | null;
   isLoading: boolean;
   error: string | null;
-  history: SongHistory[];
   requestSong: (songId: string) => Promise<SongRequestResult>;
   refresh: () => Promise<void>;
   getStreamUrl: (quality: StreamQuality) => string;
@@ -100,7 +99,6 @@ export function useAzuraCast({
     data,
     isLoading,
     error,
-    history: data?.song_history || [],
     requestSong,
     refresh: fetchNowPlaying,
     getStreamUrl,

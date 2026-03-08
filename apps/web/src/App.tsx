@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   RadioPlayer,
-  SongHistory,
   SongRequest,
 } from '@/components/player';
 import { Header } from '@/components/ui-custom';
 import { useAzuraCast, useTheme } from '@/hooks';
 import type { StreamQuality } from '@/types/azuracast';
-import { Facebook, Instagram, Youtube, ListMusic, Send } from 'lucide-react';
+import { Facebook, Instagram, Youtube, Send } from 'lucide-react';
 
 const SOCIAL_LINKS = [
   {
@@ -48,11 +47,10 @@ const SOCIAL_LINKS = [
 function App() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
-  const [showHistory, setShowHistory]   = useState(false);
   const [showRequests, setShowRequests] = useState(false);
   const [quality, setQuality]           = useState<StreamQuality>('128');
 
-  const { data, isLoading, error, history, getStreamUrl } =
+  const { data, isLoading, error, getStreamUrl } =
     useAzuraCast({ pollInterval: 15000 });
 
   const streamUrl = getStreamUrl(quality);
@@ -96,23 +94,11 @@ function App() {
             isLoading={isLoading}
             error={error}
             onQualityChange={setQuality}
-            onShowHistory={() => setShowHistory(true)}
             onShowRequests={() => setShowRequests(true)}
           />
         </section>
 
         <section className="md:hidden flex gap-3 px-4 pt-6 pb-2">
-          <button
-            onClick={() => setShowHistory(true)}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-medium active:scale-95 transition-transform ${
-              isDark
-                ? 'bg-slate-800 text-slate-200'
-                : 'bg-white text-slate-700 shadow-sm border border-slate-200'
-            }`}
-          >
-            <ListMusic className="w-4 h-4" />
-            Historial
-          </button>
           <button
             onClick={() => setShowRequests(true)}
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-medium bg-indigo-600 text-white active:scale-95 transition-transform shadow-md"
@@ -163,19 +149,12 @@ function App() {
           isLoading={isLoading}
           error={error}
           onQualityChange={setQuality}
-          onShowHistory={() => setShowHistory(true)}
           onShowRequests={() => setShowRequests(true)}
           compact
         />
       </div>
 
-      <SongHistory
-        history={history}
-        isOpen={showHistory}
-        onClose={() => setShowHistory(false)}
-        isLoading={isLoading}
-        theme={resolvedTheme}
-      />
+      
       <SongRequest
         isOpen={showRequests}
         onClose={() => setShowRequests(false)}

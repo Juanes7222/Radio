@@ -11,7 +11,6 @@ import {
   Settings,
   Heart,
   Share2,
-  ListMusic,
   Send,
   Timer,
   Bell,
@@ -48,7 +47,6 @@ interface RadioPlayerProps {
   isLoading: boolean;
   error: string | null;
   onQualityChange?: (quality: StreamQuality) => void;
-  onShowHistory?: () => void;
   onShowRequests?: () => void;
   compact?: boolean;
 }
@@ -59,7 +57,6 @@ export function RadioPlayer({
   isLoading,
   error,
   onQualityChange,
-  onShowHistory,
   onShowRequests,
   compact = false,
 }: RadioPlayerProps) {
@@ -435,16 +432,7 @@ export function RadioPlayer({
             </div>
 
             {/* Botones adicionales */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onShowHistory}
-                className="gap-2"
-              >
-                <ListMusic className="w-4 h-4" />
-                Historial
-              </Button>
+            <div className="flex items-center gap-1">
               <Button
                 variant="default"
                 size="sm"
