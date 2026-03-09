@@ -20,5 +20,5 @@ export function useFacebookLive() {
     return () => ws.close();
   }, []);
 
-  return { liveUrl, dismiss: () => setLiveUrl(null) };
+  return { liveUrl };
 }

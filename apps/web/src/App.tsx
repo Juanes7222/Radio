@@ -5,7 +5,7 @@ import {
   SongRequest,
 } from '@/components/player';
 import { Header } from '@/components/ui-custom';
-import { useAzuraCast, useTheme, useAudioPlayer, useMediaSession, useSleepTimer } from '@/hooks';
+import { useAzuraCast, useTheme, useAudioPlayer, useMediaSession, useSleepTimer, useFacebookLive } from '@/hooks';
 import type { StreamQuality } from '@/types/azuracast';
 import { Facebook, Instagram, Youtube, Send, Music } from 'lucide-react';
 import LOGO_BLANCO from '@assets/img/LOGO_MMM_BLANCO.png';
@@ -53,7 +53,7 @@ function App() {
   const [showRequests, setShowRequests] = useState(false);
   const [quality, setQuality]           = useState<StreamQuality>('128');
   const [artworkErrorSongId, setArtworkErrorSongId] = useState<string | null>(null);
-  const { liveUrl, dismiss } = useFacebookLive();
+  const { liveUrl } = useFacebookLive();
   const socialLinks = SOCIAL_LINKS.map((link) =>
     link.label === 'Facebook' && liveUrl
       ? { ...link, href: liveUrl, isLive: true }
