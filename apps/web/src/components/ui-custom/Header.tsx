@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Menu, Share2 } from 'lucide-react';
+import { Menu, Share2, Home, CircleQuestionMark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -16,6 +16,12 @@ import { ShareModal } from './SharedModla';
 import LOGO1 from '@assets/img/LOGO_COMPLETO_SINFONDO.png';
 import LOGO2 from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 import { useNavigate } from 'react-router-dom';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface HeaderProps {
   stationName?: string;
@@ -41,7 +47,7 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       className={`sticky top-0 z-50 w-full border-b backdrop-blur-lg ${
-        resolvedTheme === 'dark'
+        isDark 
           ? 'bg-slate-900/80 border-slate-800'
           : 'bg-white/80 border-slate-200'
       }`}
@@ -64,12 +70,38 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
         </div>
 
         {/* Desktop actions */}
+        <TooltipProvider>
         <div className="hidden md:flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => setShareOpen(true)}>
-            <Share2 className="w-5 h-5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={() => setShareOpen(true)}>
+                <Share2 className="w-5 h-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Compartir</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+                <Home className="w-5 h-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Inicio</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={() => navigate('/info/who-we-are')}>
+                <CircleQuestionMark className="w-5 h-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>¿Quiénes somos?</TooltipContent>
+          </Tooltip>
+
           <ThemeToggle />
         </div>
+      </TooltipProvider>
 
         {/* Mobile menu */}
         <div className="md:hidden flex items-center gap-2">
@@ -81,7 +113,7 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className={
-              resolvedTheme === 'dark' ? 'bg-slate-900 border-slate-800' : ''
+              isDark ? 'bg-slate-900 border-slate-800' : ''
             }>
               <SheetHeader className="sr-only">
                 <SheetTitle>Menú</SheetTitle>
