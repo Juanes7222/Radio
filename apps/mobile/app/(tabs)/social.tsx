@@ -1,0 +1,145 @@
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import  FontAwesome  from '@expo/vector-icons/FontAwesome';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
+
+const SOCIAL_LINKS = [
+  {
+    id: 'facebook',
+    label: 'Facebook',
+    subtitle: 'Síguenos y comparte',
+    url: 'https://www.facebook.com/profile.php?id=100074024491964',
+    icon: 'logo-facebook' as const,
+    color: '#1877f2',
+  },
+  {
+    id: 'instagram',
+    label: 'Instagram',
+    subtitle: 'Síguenos y comparte',
+    url: 'https://www.instagram.com/iglesiacartagommm/',
+    bg: 'bg-gradient-to-br from-[#833ab4] via-[#fd1d1d] to-[#fcb045]',
+    icon: 'logo-instagram' as const,
+    color: '#e1306c',
+  },
+  {
+    id: 'youtube',
+    label: 'YouTube',
+    subtitle: 'Suscríbete a nuestro canal',
+    url: 'https://www.youtube.com/@emisoralavozdelaverdad9188',
+    bg: 'bg-[#cf0a0a]',
+    shadow: 'shadow-red-500/20',
+    icon: 'logo-youtube' as const,
+    color: '#ff0000',
+  },
+  {
+    id: 'spotify',
+    label: 'Spotify',
+    subtitle: 'Síguenos en Spotify',
+    url: 'https://open.spotify.com/show/7hSkCQDHvdjr4aYE5X6Gv4?si=a4cfd87d109543a2',
+    bg: 'bg-[#1DB954]',
+    shadow: 'shadow-green-500/20',
+    icon: null,
+    color: '#1DB954',
+  },
+] as const;
+
+export default function SocialScreen() {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#0c0c1e', '#13102a', '#0c0c1e']}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <View
+        style={[
+          styles.content,
+          {
+            paddingTop: insets.top + Spacing.xl,
+            paddingBottom: insets.bottom + TAB_BAR_HEIGHT + Spacing.lg,
+          },
+        ]}
+      >
+        <Text style={styles.heading}>Redes Sociales</Text>
+        <Text style={styles.subheading}>Conéctate con nuestra comunidad</Text>
+
+        <View style={styles.linkList}>
+          {SOCIAL_LINKS.map((link) => (
+            <TouchableOpacity
+              key={link.id}
+              style={styles.linkCard}
+              activeOpacity={0.75}
+              onPress={() => Linking.openURL(link.url)}
+              accessibilityLabel={`Abrir ${link.label}`}
+            >
+              <View style={[styles.iconCircle, { backgroundColor: link.color + '22' }]}>
+               {link.icon === null ? 
+                  <FontAwesome name="spotify" size={26} color={link.color} /> :
+                  <Ionicons name={link.icon} size={26} color={link.color} />
+               }
+              </View>
+              <View style={styles.linkTextGroup}>
+                <Text style={styles.linkLabel}>{link.label}</Text>
+                <Text style={styles.linkSubtitle}>{link.subtitle}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.textFaint} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.background },
+
+  content: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+  },
+
+  heading: {
+    ...Typography.screenTitle,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  subheading: {
+    ...Typography.body,
+    color: Colors.textMuted,
+    marginBottom: Spacing.xl,
+  },
+
+  linkList: { gap: Spacing.sm },
+
+  linkCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+
+  iconCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  linkTextGroup: { flex: 1, gap: 2 },
+  linkLabel: { ...Typography.body, color: Colors.text, fontWeight: '600' },
+  linkSubtitle: { ...Typography.caption, color: Colors.textMuted },
+});
