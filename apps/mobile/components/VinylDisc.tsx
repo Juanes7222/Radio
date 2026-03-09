@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, View, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
 import Svg, {
   Circle,
   Defs,
@@ -152,22 +151,12 @@ export function VinylDisc({ artworkUri, isPlaying, size }: VinylDiscProps) {
           borderColor: 'rgba(255,255,255,0.18)',
         }}
       >
-        {artworkUri ? (
-          <Image
-            source={{ uri: artworkUri }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            transition={500}
-          />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.labelFallback]}>
-            <Ionicons
-              name="musical-note"
-              size={labelSize * 0.38}
-              color="rgba(129,140,248,0.85)"
-            />
-          </View>
-        )}
+        <Image
+          source={artworkUri ? { uri: artworkUri } : require('../assets/default-album-art.png')}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={500}
+        />
 
         {/* Subtle darkening vignette on label edges */}
         <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.labelVignette]} />
@@ -192,11 +181,6 @@ export function VinylDisc({ artworkUri, isPlaying, size }: VinylDiscProps) {
 }
 
 const styles = StyleSheet.create({
-  labelFallback: {
-    backgroundColor: '#16102a',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   labelVignette: {
     backgroundColor: 'rgba(0,0,0,0.18)',
   },
