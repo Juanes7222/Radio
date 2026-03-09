@@ -4,7 +4,7 @@ import type { Server } from 'http';
 const clients = new Set<WebSocket>();
 
 export function initWebSocket(server: Server) {
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({ server, path: '/ws' });
 
   wss.on('connection', (ws) => {
     clients.add(ws);

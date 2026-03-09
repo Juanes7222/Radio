@@ -6,8 +6,8 @@ export function useFacebookLive() {
   useEffect(() => {
     const wsUrl = import.meta.env.VITE_API_BASE_URL
       .replace('https://', 'wss://')
-      .replace('http://', 'ws://');
-
+      .replace('http://', 'ws://') + '/ws';
+      
     const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (event) => {
