@@ -53,6 +53,12 @@ function App() {
   const [showRequests, setShowRequests] = useState(false);
   const [quality, setQuality]           = useState<StreamQuality>('128');
   const [artworkErrorSongId, setArtworkErrorSongId] = useState<string | null>(null);
+  const { liveUrl, dismiss } = useFacebookLive();
+  const socialLinks = SOCIAL_LINKS.map((link) =>
+    link.label === 'Facebook' && liveUrl
+      ? { ...link, href: liveUrl, isLive: true }
+      : { ...link, isLive: false }
+  );
 
   const { data, isLoading, error, getStreamUrl, requestSong } =
     useAzuraCast({ apiBaseUrl: import.meta.env.VITE_API_BASE_URL, pollInterval: 15000 });
@@ -248,15 +254,21 @@ function App() {
             Síguenos
           </p>
           <div className="flex items-center justify-center gap-3">
-            {SOCIAL_LINKS.map(({ label, href, bg, icon }) => (
+            {socialLinks.map(({ label, href, bg, icon, isLive }) => (
               <motion.a
                 key={label}
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
                 whileTap={{ scale: 0.9 }}
-                className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl ${bg} text-white shadow-md min-w-[60px]`}
+                className={`relative flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl ${bg} text-white shadow-md min-w-[60px]`}
               >
+                {isLive && (
+                  <span className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    EN VIVO
+                  </span>
+                )}
                 {icon}
                 <span className="text-[10px] font-semibold leading-none">{label}</span>
               </motion.a>
@@ -272,15 +284,21 @@ function App() {
             Síguenos
           </h2>
           <div className="grid grid-cols-2 gap-3">
-            {SOCIAL_LINKS.map(({ label, href, bg, shadow, icon }) => (
+            {socialLinks.map(({ label, href, bg, shadow, icon, isLive }) => (
               <motion.a
                 key={label}
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
                 whileTap={{ scale: 0.95 }}
-                className={`flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-2xl ${bg} text-white font-semibold text-sm shadow-md ${shadow} transition-opacity hover:opacity-90`}
+                className={`relative flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-2xl ${bg} text-white font-semibold text-sm shadow-md ${shadow} transition-opacity hover:opacity-90`}
               >
+                {isLive && (
+                  <span className="absolute -top-2 -right-2 flex items-center gap-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full leading-none shadow">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    EN VIVO
+                  </span>
+                )}
                 {icon}
                 {label}
               </motion.a>

@@ -2,10 +2,12 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import { createServer } from 'http';
 import { config } from './config';
 import authRouter from './routes/auth';
 import proxyRouter, { publicRouter } from './routes/proxy';
 import uploadRouter from './routes/upload';
+import { initWebSocket } from './websocket';
 
 const app = express();
 
@@ -13,8 +15,8 @@ app.use(helmet());
 app.use(
   cors({
     origin: [
-      'http://localhost:5173', // Vite dev
-      'http://localhost:4173', // Vite preview
+      'http://localhost:5173',
+      'http://localhost:4173',
       ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(s => s.trim()) : []),
     ].filter(Boolean),
     credentials: true,
@@ -32,7 +34,10 @@ app.get('/admin-api/health', (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
 
-app.listen(config.port, () => {
+const server = createServer(app);
+initWebSocket(server);
+
+server.listen(config.port, () => {
   console.log(`\n Backend admin corriendo en http://localhost:${config.port}`);
   console.log(`   Station ID : ${config.azuracast.stationId}`);
   console.log(`   AzuraCast  : ${config.azuracast.url}`);
