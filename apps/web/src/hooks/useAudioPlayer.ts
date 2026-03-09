@@ -158,7 +158,7 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
       audio.pause();
       audio.src = '';
     };
-  }, [streamUrl]);
+  }, []);
 
   // Reanudar AudioContext si el navegador lo suspendió por política autoplay
   const resumeAudioContext = useCallback(async () => {
@@ -189,18 +189,17 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
     if (!audioRef.current) return;
     initAudioGraphIfNeeded();
     await resumeAudioContext();
-    // Cancelar reintento pendiente si el usuario pulsa play manualmente
     if (retryTimerRef.current) {
       clearTimeout(retryTimerRef.current);
       retryTimerRef.current = null;
     }
     wasPlayingRef.current = true;
-    setState(prev => ({ ...prev, isLoading: true, error: null, requiresUserGesture: false }));
-    // Asignar src aquí (lazy) para que el navegador no intente validar
-    // el formato al cargar la página y evitar el error prematuro.
+    setState(prev => ({ ...prev, isLoading: true, isPlaying: false, error: null, requiresUserGesture: false }));
     audioRef.current.src = streamUrlRef.current;
     try {
       await audioRef.current.play();
+      // Confirm playing state directly — handlePlay also does this but may be delayed.
+      setState(prev => ({ ...prev, isPlaying: true, isLoading: false }));
     } catch {
       wasPlayingRef.current = false;
       setState(prev => ({
@@ -215,16 +214,15 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
   const pause = useCallback(() => {
     if (!audioRef.current) return;
     wasPlayingRef.current = false;
-    // Cancelar reintento si el usuario pausa manualmente
     if (retryTimerRef.current) {
       clearTimeout(retryTimerRef.current);
       retryTimerRef.current = null;
     }
     retryRef.current = 0;
     setReconnectAttempt(0);
+    // Update state immediately — do not rely solely on the 'pause' audio event.
+    setState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
     audioRef.current.pause();
-    // Limpiar src para que el navegador no mantenga la conexión
-    // y para que el próximo play() siempre asigne la URL más reciente.
     audioRef.current.src = '';
   }, []);
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Play, 
@@ -33,8 +33,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useAudioPlayer, useMediaSession, useSleepTimer, SLEEP_PRESETS, useFavoriteNotify } from '@/hooks';
-import type { NowPlayingData, StreamQuality } from '@/types/azuracast';
+import { useFavoriteNotify, SLEEP_PRESETS } from '@/hooks';
+import type { NowPlayingData, StreamQuality, PlayerState } from '@/types/azuracast';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { SongInfo } from './SongInfo';
 import { VinylDisc } from './VinylDisc';
@@ -43,9 +43,17 @@ import { ShareModal } from '../ui-custom/SharedModla';
 
 interface RadioPlayerProps {
   stationData: NowPlayingData | null;
-  streamUrl: string;
   isLoading: boolean;
   error: string | null;
+  playerState: PlayerState;
+  analyserRef: RefObject<AnalyserNode | null>;
+  reconnectAttempt: number;
+  onTogglePlay: () => void;
+  onSetVolume: (v: number) => void;
+  onToggleMute: () => void;
+  onSetQuality: (q: StreamQuality) => void;
+  onClearError: () => void;
+  sleepTimer: { isActive: boolean; display: string; cancel: () => void; start: (minutes: number) => void };
   onQualityChange?: (quality: StreamQuality) => void;
   onShowRequests?: () => void;
   compact?: boolean;
@@ -53,9 +61,17 @@ interface RadioPlayerProps {
 
 export function RadioPlayer({
   stationData,
-  streamUrl,
   isLoading,
   error,
+  playerState,
+  analyserRef,
+  reconnectAttempt,
+  onTogglePlay,
+  onSetVolume,
+  onToggleMute,
+  onSetQuality,
+  onClearError,
+  sleepTimer,
   onQualityChange,
   onShowRequests,
   compact = false,
@@ -81,23 +97,6 @@ export function RadioPlayer({
   // Datos de la canción actual — declarados aquí para usarlos en hooks
   const currentSong = stationData?.now_playing || null;
   
-  const { 
-    analyserRef,
-    state, 
-    togglePlay, 
-    setVolume, 
-    toggleMute,
-    pause,
-    setQuality: setPlayerQuality,
-    clearError,
-    reconnectAttempt,
-  } = useAudioPlayer({ streamUrl, autoplay: true });
-
-  // Sleep timer: apagar tras N minutos
-  const sleepTimer = useSleepTimer(() => {
-    pause();
-  });
-
   // Notificación de canción favorita
   const currentSongForNotify = currentSong
     ? {
@@ -109,19 +108,9 @@ export function RadioPlayer({
     : null;
   const favoriteNotify = useFavoriteNotify(currentSongForNotify, favoriteSongKeys);
 
-  // Media Session API
-  useMediaSession({
-    title: stationData?.now_playing?.song?.title || 'Radio Stream',
-    artist: stationData?.now_playing?.song?.artist || 'Desconocido',
-    album: stationData?.now_playing?.song?.album || '',
-    artwork: stationData?.now_playing?.song?.art || '',
-    onPlay: togglePlay,
-    onPause: togglePlay,
-  });
-
   const handleQualityChange = (newQuality: StreamQuality) => {
     setQuality(newQuality);
-    setPlayerQuality(newQuality);
+    onSetQuality(newQuality);
     onQualityChange?.(newQuality);
   };
 
@@ -155,7 +144,7 @@ export function RadioPlayer({
               <img src={artwork} alt={title} className="w-full h-full object-cover" />
             </div>
           ) : (
-            <VinylDisc artworkUrl={null} isPlaying={state.isPlaying} size={56} />
+            <VinylDisc artworkUrl={null} isPlaying={playerState.isPlaying} size={56} />
           )}
         </div>
 
@@ -175,13 +164,13 @@ export function RadioPlayer({
 
         <motion.button
           whileTap={{ scale: 0.92 }}
-          onClick={togglePlay}
-          disabled={state.isLoading}
+          onClick={onTogglePlay}
+          disabled={playerState.isLoading}
           className="w-14 h-14 rounded-full flex items-center justify-center bg-indigo-600 text-white shadow-md flex-shrink-0 disabled:opacity-50 active-scale"
         >
-          {state.isLoading ? (
+          {playerState.isLoading ? (
             <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : state.isPlaying ? (
+          ) : playerState.isPlaying ? (
             <Pause className="w-6 h-6" />
           ) : (
             <Play className="w-6 h-6 ml-0.5" />
@@ -215,13 +204,13 @@ export function RadioPlayer({
       >
         {/* Overlay toca-para-escuchar cuando el navegador bloquea el autoplay */}
         <AnimatePresence>
-          {state.requiresUserGesture && (
+          {playerState.requiresUserGesture && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={state.isLoading ? undefined : togglePlay}
-              className={`absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 backdrop-blur-sm bg-black/60 rounded-3xl ${state.isLoading ? 'cursor-wait' : 'cursor-pointer'}`}
+              onClick={playerState.isLoading ? undefined : onTogglePlay}
+              className={`absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 backdrop-blur-sm bg-black/60 rounded-3xl ${playerState.isLoading ? 'cursor-wait' : 'cursor-pointer'}`}
             >
               <motion.div
                 animate={{ scale: [1, 1.1, 1] }}
@@ -240,7 +229,7 @@ export function RadioPlayer({
           <div className="flex items-center gap-3">
             <div className="relative">
               <Radio className="w-6 h-6 text-primary" />
-              {state.isPlaying && (
+              {playerState.isPlaying && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               )}
             </div>
@@ -370,7 +359,7 @@ export function RadioPlayer({
         <div className="px-6 py-4">
           <WaveformVisualizer 
             analyserNode={analyserRef}
-            isPlaying={state.isPlaying}
+            isPlaying={playerState.isPlaying}
             theme={theme}
           />
         </div>
@@ -391,8 +380,8 @@ export function RadioPlayer({
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={togglePlay}
-              disabled={state.isLoading}
+              onClick={onTogglePlay}
+              disabled={playerState.isLoading}
               className={`
                 w-20 h-20 rounded-full flex items-center justify-center
                 ${theme === 'dark'
@@ -402,9 +391,9 @@ export function RadioPlayer({
                 shadow-lg transition-all disabled:opacity-50
               `}
             >
-              {state.isLoading ? (
+              {playerState.isLoading ? (
                 <div className="w-8 h-8 border-4 border-current border-t-transparent rounded-full animate-spin" />
-              ) : state.isPlaying ? (
+              ) : playerState.isPlaying ? (
                 <Pause className="w-8 h-8" />
               ) : (
                 <Play className="w-8 h-8 ml-1" />
@@ -440,9 +429,9 @@ export function RadioPlayer({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={toggleMute}
+                onClick={onToggleMute}
               >
-                {state.isMuted || state.volume === 0 ? (
+                {playerState.isMuted || playerState.volume === 0 ? (
                   <VolumeX className="w-5 h-5" />
                 ) : (
                   <Volume2 className="w-5 h-5" />
@@ -450,15 +439,15 @@ export function RadioPlayer({
               </Button>
               <div className="flex-1">
                 <Slider
-                  value={[state.isMuted ? 0 : state.volume]}
-                  onValueChange={([v]) => setVolume(v)}
+                  value={[playerState.isMuted ? 0 : playerState.volume]}
+                  onValueChange={([v]) => onSetVolume(v)}
                   max={100}
                   step={1}
                   className="w-full"
                 />
               </div>
               <span className="text-xs text-muted-foreground w-8">
-                {state.isMuted ? 0 : state.volume}%
+                {playerState.isMuted ? 0 : playerState.volume}%
               </span>
             </div>
 
@@ -479,7 +468,7 @@ export function RadioPlayer({
 
         {/* Error / Reconexion */}
         <AnimatePresence>
-          {(error || state.error) && (
+          {(error || playerState.error) && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
@@ -492,9 +481,9 @@ export function RadioPlayer({
                   : 'bg-red-500/10 text-red-500'
               }`}>
                 <WifiOff className="w-4 h-4 flex-shrink-0" />
-                <span className="flex-1">{state.error || error}</span>
+                <span className="flex-1">{playerState.error || error}</span>
                 {reconnectAttempt === 0 && (
-                  <Button variant="ghost" size="sm" onClick={clearError}>
+                  <Button variant="ghost" size="sm" onClick={onClearError}>
                     Cerrar
                   </Button>
                 )}

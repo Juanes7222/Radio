@@ -5,7 +5,7 @@ import {
   SongRequest,
 } from '@/components/player';
 import { Header } from '@/components/ui-custom';
-import { useAzuraCast, useTheme } from '@/hooks';
+import { useAzuraCast, useTheme, useAudioPlayer, useMediaSession, useSleepTimer } from '@/hooks';
 import type { StreamQuality } from '@/types/azuracast';
 import { Facebook, Instagram, Youtube, Send } from 'lucide-react';
 import LOGO_BLANCO from '@assets/img/LOGO_MMM_BLANCO.png';
@@ -56,6 +56,29 @@ function App() {
     useAzuraCast({ apiBaseUrl: import.meta.env.VITE_API_BASE_URL, pollInterval: 15000 });
 
   const streamUrl = getStreamUrl(quality);
+
+  const {
+    analyserRef,
+    state: playerState,
+    togglePlay,
+    setVolume,
+    toggleMute,
+    pause,
+    setQuality: setPlayerQuality,
+    clearError,
+    reconnectAttempt,
+  } = useAudioPlayer({ streamUrl, autoplay: true });
+
+  const sleepTimer = useSleepTimer(pause);
+
+  useMediaSession({
+    title: data?.now_playing?.song?.title || 'Radio Stream',
+    artist: data?.now_playing?.song?.artist || 'Desconocido',
+    album: data?.now_playing?.song?.album || '',
+    artwork: data?.now_playing?.song?.art || '',
+    onPlay: togglePlay,
+    onPause: togglePlay,
+  });
 
   return (
     <div className={`min-h-screen w-full overflow-x-hidden transition-colors duration-300 ${
@@ -128,9 +151,17 @@ function App() {
         <section className="hidden md:block max-w-2xl mx-auto px-4 py-8">
           <RadioPlayer
             stationData={data}
-            streamUrl={streamUrl}
             isLoading={isLoading}
             error={error}
+            playerState={playerState}
+            analyserRef={analyserRef}
+            reconnectAttempt={reconnectAttempt}
+            onTogglePlay={togglePlay}
+            onSetVolume={setVolume}
+            onToggleMute={toggleMute}
+            onSetQuality={setPlayerQuality}
+            onClearError={clearError}
+            sleepTimer={sleepTimer}
             onQualityChange={setQuality}
             onShowRequests={() => setShowRequests(true)}
           />
@@ -193,9 +224,17 @@ function App() {
       } backdrop-blur-xl shadow-2xl`}>
         <RadioPlayer
           stationData={data}
-          streamUrl={streamUrl}
           isLoading={isLoading}
           error={error}
+          playerState={playerState}
+          analyserRef={analyserRef}
+          reconnectAttempt={reconnectAttempt}
+          onTogglePlay={togglePlay}
+          onSetVolume={setVolume}
+          onToggleMute={toggleMute}
+          onSetQuality={setPlayerQuality}
+          onClearError={clearError}
+          sleepTimer={sleepTimer}
           onQualityChange={setQuality}
           onShowRequests={() => setShowRequests(true)}
           compact
