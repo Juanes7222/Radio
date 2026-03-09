@@ -3,12 +3,13 @@ import type { StreamQuality, PlayerState } from '@/types/azuracast';
 
 interface UseAudioPlayerProps {
   streamUrl: string;
+  autoplay?: boolean;
 }
 
 // Backoff: 2s, 4s, 8s, 16s, 30s (máx)
 const RECONNECT_DELAYS = [2000, 4000, 8000, 16000, 30000];
 
-export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
+export function useAudioPlayer({ streamUrl, autoplay = false }: UseAudioPlayerProps) {
   // Crear audio, AudioContext y AnalyserNode síncronamente, una sola vez.
   // Usar refs con guard para que sean singletons aunque el componente
   // se desmonte/monte en React Strict Mode.
@@ -35,7 +36,7 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
         analyser.connect(audioContext.destination);
         audioContextRef.current = audioContext;
         analyserRef.current = analyser;
-      } catch (_) {
+      } catch {
         // Safari sin interacción de usuario suspende el contexto; se reanuda en play()
       }
     }
@@ -53,6 +54,7 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
   const [state, setState] = useState<PlayerState>({
     isPlaying: false,
     isMuted: false,
+    requiresUserGesture: false,
     volume: 80,
     quality: '128',
     isLive: false,
@@ -198,7 +200,7 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
     audioRef.current.src = streamUrlRef.current;
     try {
       await audioRef.current.play();
-    } catch (err) {
+    } catch {
       wasPlayingRef.current = false;
       setState(prev => ({
         ...prev,
@@ -207,7 +209,7 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
         error: 'No se pudo iniciar la reproducción',
       }));
     }
-  }, []);
+  }, [resumeAudioContext]);
 
   const pause = useCallback(() => {
     if (!audioRef.current) return;
@@ -242,6 +244,38 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps) {
   const toggleMute = useCallback(() => {
     if (!audioRef.current) return;
     audioRef.current.muted = !audioRef.current.muted;
+  }, []);
+
+  // Attempt autoplay on mount. If the browser blocks it (NotAllowedError),
+  // set requiresUserGesture so the UI can show a clear click-to-play prompt.
+  useEffect(() => {
+    if (!autoplay) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const tryAutoplay = async () => {
+      if (audioContextRef.current?.state === 'suspended') {
+        await audioContextRef.current.resume().catch(() => {});
+      }
+      wasPlayingRef.current = true;
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      audio.src = streamUrlRef.current;
+      try {
+        await audio.play();
+      } catch (err) {
+        wasPlayingRef.current = false;
+        const blocked = err instanceof DOMException && err.name === 'NotAllowedError';
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          requiresUserGesture: blocked,
+        }));
+        audio.src = '';
+      }
+    };
+
+    tryAutoplay();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setQuality = useCallback((quality: StreamQuality) => {

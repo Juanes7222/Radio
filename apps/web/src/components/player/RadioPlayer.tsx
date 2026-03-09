@@ -91,7 +91,7 @@ export function RadioPlayer({
     setQuality: setPlayerQuality,
     clearError,
     reconnectAttempt,
-  } = useAudioPlayer({ streamUrl });
+  } = useAudioPlayer({ streamUrl, autoplay: true });
 
   // Sleep timer: apagar tras N minutos
   const sleepTimer = useSleepTimer(() => {
@@ -147,6 +147,7 @@ export function RadioPlayer({
     const artist = stationData?.now_playing?.song?.artist || '';
 
     return (
+      <>
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="w-14 h-14 flex-shrink-0 relative">
           {artwork ? (
@@ -187,6 +188,7 @@ export function RadioPlayer({
           )}
         </motion.button>
       </div>
+      </>
     );
   }
 
@@ -211,6 +213,28 @@ export function RadioPlayer({
           shadow-2xl border ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}
         `}
       >
+        {/* Overlay toca-para-escuchar cuando el navegador bloquea el autoplay */}
+        <AnimatePresence>
+          {state.requiresUserGesture && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={togglePlay}
+              className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 cursor-pointer backdrop-blur-sm bg-black/60 rounded-3xl"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center"
+              >
+                <Play className="w-10 h-10 text-white ml-1" />
+              </motion.div>
+              <p className="text-white font-semibold text-lg">Toca para escuchar</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Header con estado */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/30">
           <div className="flex items-center gap-3">

@@ -125,6 +125,7 @@ export type StreamQuality = '64' | '128' | '320';
 export interface PlayerState {
   isPlaying: boolean;
   isMuted: boolean;
+  requiresUserGesture: boolean;
   volume: number;
   quality: StreamQuality;
   isLive: boolean;
