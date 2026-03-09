@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAzuraCast } from '@radio/api';
-import type { SongHistory } from '@radio/types';
+import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
@@ -22,28 +22,43 @@ const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 export default function RequestScreen() {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
-  const { data, requestSong } = useAzuraCast({
+  const { requestSong, fetchRequestableSongs } = useAzuraCast({
     apiBaseUrl: BACKEND_URL,
   });
+  const [allSongs, setAllSongs] = useState<SongRequest[]>([]);
+  const [isFetchingSongs, setIsFetchingSongs] = useState(true);
   const [requesting, setRequesting] = useState<string | null>(null);
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [requestError, setRequestError] = useState<string | null>(null);
 
-  const history = data?.song_history ?? [];
-  const filtered = query.trim()
-    ? history.filter(
+  const loadSongs = useCallback(async () => {
+    setIsFetchingSongs(true);
+    try {
+      const songs = await fetchRequestableSongs();
+      setAllSongs(songs);
+    } catch {
+      // keep existing list on network error
+    } finally {
+      setIsFetchingSongs(false);
+    }
+  }, [fetchRequestableSongs]);
+
+  useEffect(() => { loadSongs(); }, [loadSongs]);
+
+  const filteredSongs = query.trim()
+    ? allSongs.filter(
         (s) =>
           s.song.title.toLowerCase().includes(query.toLowerCase()) ||
-          s.song.artist.toLowerCase().includes(query.toLowerCase())
+          s.song.artist.toLowerCase().includes(query.toLowerCase()),
       )
-    : history;
+    : allSongs;
 
-  const handleRequest = async (item: SongHistory) => {
-    setRequesting(item.song.id);
+  const handleRequest = async (item: SongRequest) => {
+    setRequesting(item.request_id);
     setRequestError(null);
-    const result = await requestSong(item.song.id);
+    const result = await requestSong(item.request_id);
     if (result.success) {
-      setSent((prev) => new Set([...prev, item.song.id]));
+      setSent((prev) => new Set([...prev, item.request_id]));
     } else {
       setRequestError(result.errorMessage);
       setTimeout(() => setRequestError(null), 4000);
@@ -80,11 +95,11 @@ export default function RequestScreen() {
       </View>
 
       <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.song.id}
+        data={filteredSongs}
+        keyExtractor={(item) => item.request_id}
         renderItem={({ item }) => {
-          const isSent = sent.has(item.song.id);
-          const isLoading = requesting === item.song.id;
+          const isSent = sent.has(item.request_id);
+          const isLoading = requesting === item.request_id;
           return (
             <View style={styles.row}>
               {item.song.art ? (
@@ -124,7 +139,11 @@ export default function RequestScreen() {
         ]}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
-          <Text style={styles.empty}>No se encontraron canciones</Text>
+          isFetchingSongs ? (
+            <ActivityIndicator style={styles.loadingIndicator} color="#818cf8" />
+          ) : (
+            <Text style={styles.empty}>No se encontraron canciones</Text>
+          )
         }
         showsVerticalScrollIndicator={false}
       />
@@ -171,6 +190,7 @@ const styles = StyleSheet.create({
   },
   list: { paddingHorizontal: 16 },
   empty: { color: '#4b5563', textAlign: 'center', marginTop: 48, fontSize: 14 },
+  loadingIndicator: { marginTop: 48 },
   separator: { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginLeft: 66 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   art: { width: 50, height: 50, borderRadius: 10 },

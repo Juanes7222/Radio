@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import type { NowPlayingData, StreamQuality } from '@radio/types';
+import type { NowPlayingData, SongRequest, StreamQuality } from '@radio/types';
 
 export interface UseAzuraCastProps {
   /** Backend base URL. Empty string uses relative paths (same-origin web). */
@@ -16,7 +16,8 @@ export interface UseAzuraCastReturn {
   data: NowPlayingData | null;
   isLoading: boolean;
   error: string | null;
-  requestSong: (songId: string) => Promise<SongRequestResult>;
+  requestSong: (requestId: string) => Promise<SongRequestResult>;
+  fetchRequestableSongs: (searchQuery?: string) => Promise<SongRequest[]>;
   refresh: () => Promise<void>;
   getStreamUrl: (quality: StreamQuality) => string;
 }
@@ -64,9 +65,9 @@ export function useAzuraCast({
   }, [fetchNowPlaying, pollInterval]);
 
   const requestSong = useCallback(
-    async (songId: string): Promise<SongRequestResult> => {
+    async (requestId: string): Promise<SongRequestResult> => {
       try {
-        await axios.post(`${apiBaseUrl}/api/requests/${songId}`);
+        await axios.post(`${apiBaseUrl}/api/requests/${requestId}`);
         return { success: true };
       } catch (err) {
         if (axios.isAxiosError(err)) {
@@ -78,6 +79,19 @@ export function useAzuraCast({
         }
         return { success: false, errorMessage: 'No se pudo solicitar la canción.' };
       }
+    },
+    [apiBaseUrl]
+  );
+
+  const fetchRequestableSongs = useCallback(
+    async (searchQuery = ''): Promise<SongRequest[]> => {
+      const params = searchQuery.trim() ? { search: searchQuery.trim() } : {};
+      const response = await axios.get<SongRequest[]>(`${apiBaseUrl}/api/search`, {
+        params,
+        timeout: 10000,
+        headers: { Accept: 'application/json' },
+      });
+      return response.data;
     },
     [apiBaseUrl]
   );
@@ -100,6 +114,7 @@ export function useAzuraCast({
     isLoading,
     error,
     requestSong,
+    fetchRequestableSongs,
     refresh: fetchNowPlaying,
     getStreamUrl,
   };
