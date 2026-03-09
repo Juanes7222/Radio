@@ -220,8 +220,8 @@ export function RadioPlayer({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={togglePlay}
-              className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 cursor-pointer backdrop-blur-sm bg-black/60 rounded-3xl"
+              onClick={state.isLoading ? undefined : togglePlay}
+              className={`absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 backdrop-blur-sm bg-black/60 rounded-3xl ${state.isLoading ? 'cursor-wait' : 'cursor-pointer'}`}
             >
               <motion.div
                 animate={{ scale: [1, 1.1, 1] }}

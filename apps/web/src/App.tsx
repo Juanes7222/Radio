@@ -53,7 +53,7 @@ function App() {
   const [quality, setQuality]           = useState<StreamQuality>('128');
 
   const { data, isLoading, error, getStreamUrl } =
-    useAzuraCast({ pollInterval: 15000 });
+    useAzuraCast({ apiBaseUrl: import.meta.env.VITE_API_BASE_URL, pollInterval: 15000 });
 
   const streamUrl = getStreamUrl(quality);
 

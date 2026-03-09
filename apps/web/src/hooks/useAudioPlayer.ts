@@ -9,37 +9,19 @@ interface UseAudioPlayerProps {
 // Backoff: 2s, 4s, 8s, 16s, 30s (máx)
 const RECONNECT_DELAYS = [2000, 4000, 8000, 16000, 30000];
 
-export function useAudioPlayer({ streamUrl, autoplay = false }: UseAudioPlayerProps) {
-  // Crear audio, AudioContext y AnalyserNode síncronamente, una sola vez.
-  // Usar refs con guard para que sean singletons aunque el componente
-  // se desmonte/monte en React Strict Mode.
+export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
 
-  if (typeof window !== 'undefined') {
-    if (!audioRef.current) {
-      const audio = new Audio();
-      audio.crossOrigin = 'anonymous';
-      audio.preload = 'none';
-      audioRef.current = audio;
-    }
-    if (!audioContextRef.current && audioRef.current) {
-      try {
-        const AudioContextCtor = window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const audioContext = new AudioContextCtor();
-        const analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
-        const source = audioContext.createMediaElementSource(audioRef.current);
-        source.connect(analyser);
-        analyser.connect(audioContext.destination);
-        audioContextRef.current = audioContext;
-        analyserRef.current = analyser;
-      } catch {
-        // Safari sin interacción de usuario suspende el contexto; se reanuda en play()
-      }
-    }
+  // Create the audio element once synchronously. The AudioContext is intentionally
+  // NOT created here — it must be created inside a user gesture handler so the
+  // browser never starts it in the "suspended" state.
+  if (typeof window !== 'undefined' && !audioRef.current) {
+    const audio = new Audio();
+    audio.crossOrigin = 'anonymous';
+    audio.preload = 'none';
+    audioRef.current = audio;
   }
 
   // streamUrlRef permite que play() siempre use la URL más reciente
@@ -72,7 +54,7 @@ export function useAudioPlayer({ streamUrl, autoplay = false }: UseAudioPlayerPr
       // Reproducción exitosa: resetear contador de reintentos
       retryRef.current = 0;
       setReconnectAttempt(0);
-      setState(prev => ({ ...prev, isPlaying: true, isLoading: false, error: null }));
+      setState(prev => ({ ...prev, isPlaying: true, isLoading: false, error: null, requiresUserGesture: false }));
     };
 
     const handlePause = () => {
@@ -185,8 +167,27 @@ export function useAudioPlayer({ streamUrl, autoplay = false }: UseAudioPlayerPr
     }
   }, []);
 
+  // Initialize AudioContext and connect the analyser graph. Must be called from
+  // a user gesture so the context starts in "running" state immediately.
+  const initAudioGraphIfNeeded = useCallback(() => {
+    if (audioContextRef.current || !audioRef.current || typeof window === 'undefined') return;
+    try {
+      const AudioContextCtor = window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const audioContext = new AudioContextCtor();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      const source = audioContext.createMediaElementSource(audioRef.current);
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+    } catch { /* Safari may fail silently; audio still works without visualiser */ }
+  }, []);
+
   const play = useCallback(async () => {
     if (!audioRef.current) return;
+    initAudioGraphIfNeeded();
     await resumeAudioContext();
     // Cancelar reintento pendiente si el usuario pulsa play manualmente
     if (retryTimerRef.current) {
@@ -194,7 +195,7 @@ export function useAudioPlayer({ streamUrl, autoplay = false }: UseAudioPlayerPr
       retryTimerRef.current = null;
     }
     wasPlayingRef.current = true;
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    setState(prev => ({ ...prev, isLoading: true, error: null, requiresUserGesture: false }));
     // Asignar src aquí (lazy) para que el navegador no intente validar
     // el formato al cargar la página y evitar el error prematuro.
     audioRef.current.src = streamUrlRef.current;
@@ -209,7 +210,7 @@ export function useAudioPlayer({ streamUrl, autoplay = false }: UseAudioPlayerPr
         error: 'No se pudo iniciar la reproducción',
       }));
     }
-  }, [resumeAudioContext]);
+  }, [resumeAudioContext, initAudioGraphIfNeeded]);
 
   const pause = useCallback(() => {
     if (!audioRef.current) return;
@@ -246,22 +247,23 @@ export function useAudioPlayer({ streamUrl, autoplay = false }: UseAudioPlayerPr
     audioRef.current.muted = !audioRef.current.muted;
   }, []);
 
-  // Attempt autoplay on mount. If the browser blocks it (NotAllowedError),
-  // set requiresUserGesture so the UI can show a clear click-to-play prompt.
+  // Attempt autoplay on mount. The AudioContext is deliberately NOT involved here
+  // so the browser evaluates its native autoplay policy independently.
+  // If blocked (NotAllowedError) the UI shows a clear "tap to play" overlay.
   useEffect(() => {
     if (!autoplay) return;
     const audio = audioRef.current;
     if (!audio) return;
 
     const tryAutoplay = async () => {
-      if (audioContextRef.current?.state === 'suspended') {
-        await audioContextRef.current.resume().catch(() => {});
-      }
       wasPlayingRef.current = true;
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       audio.src = streamUrlRef.current;
       try {
         await audio.play();
+        // If autoplay succeeded the browser allowed it, so AudioContext
+        // creation is also permitted in this context.
+        initAudioGraphIfNeeded();
       } catch (err) {
         wasPlayingRef.current = false;
         const blocked = err instanceof DOMException && err.name === 'NotAllowedError';

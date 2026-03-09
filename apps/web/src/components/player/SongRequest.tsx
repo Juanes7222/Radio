@@ -44,7 +44,7 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
   } | null>(null);
 
   const { requestSong } = useAzuraCast({
-      apiBaseUrl: ''
+      apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
   });
 
   // Buscar canciones
