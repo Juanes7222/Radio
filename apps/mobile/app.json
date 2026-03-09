@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.radio.app",
+      "bundleIdentifier": "com.lavozverdad.radio",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
@@ -27,7 +27,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
       },
-      "package": "com.radio.app",
+      "package": "com.lavozverdad.radio",
       "permissions": [
         "INTERNET",
         "WAKE_LOCK",
@@ -61,6 +61,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d23a8323-db55-431c-9eb3-d9f6a75e1f50"
+      }
     }
   }
 }

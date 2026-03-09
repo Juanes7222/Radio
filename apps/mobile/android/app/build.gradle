@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.radio.app'
+    namespace 'com.lavozverdad.radio'
     defaultConfig {
-        applicationId 'com.radio.app'
+        applicationId 'com.lavozverdad.radio'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
