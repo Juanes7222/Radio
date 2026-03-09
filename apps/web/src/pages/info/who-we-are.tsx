@@ -183,24 +183,33 @@ export default function AboutPage() {
               : 'bg-indigo-50 border-indigo-200'
           }`}
         >
-          <div className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center ${
-            isDark ? 'bg-indigo-500/15' : 'bg-indigo-100'
-          }`}>
-            <MapPin className="w-5 h-5 text-indigo-400" />
-          </div>
-          <div>
-            <p className={`text-xs font-semibold uppercase tracking-wider mb-0.5 ${
-              isDark ? 'text-indigo-400' : 'text-indigo-600'
+          
+          <a href="https://maps.app.goo.gl/rvDGGceqMb1w8bgV7"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-start sm:items-center gap-4 p-5 rounded-2xl border transition-colors hover:opacity-80 ${
+              isDark ? 'bg-indigo-500/5 border-indigo-500/20' : 'bg-indigo-50 border-indigo-200'
+            }"
+          >
+            <div className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center ${
+              isDark ? 'bg-indigo-500/15' : 'bg-indigo-100'
             }`}>
-              Visítanos
-            </p>
-            <p className={`font-semibold text-sm sm:text-base ${isDark ? 'text-white' : 'text-slate-800'}`}>
-              Carrera 7 #13-35, Barrio La Libertad
-            </p>
-            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Servicios presenciales disponibles
-            </p>
-          </div>
+              <MapPin className="w-5 h-5 text-indigo-400" />
+            </div>
+            <div>
+              <p className={`text-xs font-semibold uppercase tracking-wider mb-0.5 ${
+                isDark ? 'text-indigo-400' : 'text-indigo-600'
+              }`}>
+                Visítanos
+              </p>
+              <p className={`font-semibold text-sm sm:text-base ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                Carrera 7 #13-35, Barrio La Libertad
+              </p>
+              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                Ver en Google Maps →
+              </p>
+            </div>
+          </a>
         </motion.div>
       </section>
 

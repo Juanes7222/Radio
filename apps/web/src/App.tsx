@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   RadioPlayer,
   SongRequest,
@@ -7,9 +7,10 @@ import {
 import { Header } from '@/components/ui-custom';
 import { useAzuraCast, useTheme, useAudioPlayer, useMediaSession, useSleepTimer } from '@/hooks';
 import type { StreamQuality } from '@/types/azuracast';
-import { Facebook, Instagram, Youtube, Send } from 'lucide-react';
+import { Facebook, Instagram, Youtube, Send, Music } from 'lucide-react';
 import LOGO_BLANCO from '@assets/img/LOGO_MMM_BLANCO.png';
 import LOGO_NEGRO from '@assets/img/LOGO_MMM_NEGRO.png';
+import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png'
 
 const SOCIAL_LINKS = [
   {
@@ -51,9 +52,12 @@ function App() {
   const isDark = resolvedTheme === 'dark';
   const [showRequests, setShowRequests] = useState(false);
   const [quality, setQuality]           = useState<StreamQuality>('128');
+  const [artworkErrorSongId, setArtworkErrorSongId] = useState<string | null>(null);
 
   const { data, isLoading, error, getStreamUrl } =
     useAzuraCast({ apiBaseUrl: import.meta.env.VITE_API_BASE_URL, pollInterval: 15000 });
+
+  const artworkLoadFailed = artworkErrorSongId === (data?.now_playing?.song?.id ?? null);
 
   const streamUrl = getStreamUrl(quality);
 
@@ -87,65 +91,12 @@ function App() {
       <Header stationName={data?.station?.name} />
 
       <main className="bottom-player-clearance">
-        <section className={`px-4 pt-10 pb-8 text-center relative overflow-hidden ${
-          isDark
-            ? 'bg-gradient-to-b from-indigo-950/60 to-slate-950'
-            : 'bg-gradient-to-b from-indigo-50 to-slate-50'
+
+        {/* ── DESKTOP: hero + player ── */}
+        <section className={`hidden md:block px-4 pt-10 pb-8 text-center relative overflow-hidden ${
+          isDark ? 'bg-gradient-to-b from-indigo-950/60 to-slate-950' : 'bg-gradient-to-b from-indigo-50 to-slate-50'
         }`}>
-
-          {/* Glow de fondo */}
-          <div className={`absolute inset-0 pointer-events-none ${
-            isDark
-              ? 'bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.15)_0%,_transparent_70%)]'
-              : 'bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08)_0%,_transparent_70%)]'
-          }`} />
-
-          {/* Línea decorativa superior */}
-          <motion.div
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="mx-auto mb-5 h-px w-24 bg-gradient-to-r from-transparent via-indigo-400 to-transparent"
-          />
-
-          {/* Título principal */}
-          <motion.h1
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="relative text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight mb-3"
-          >
-            <span className={`bg-clip-text text-transparent bg-gradient-to-r ${
-              isDark
-                ? 'from-white via-indigo-200 to-white'
-                : 'from-indigo-900 via-indigo-600 to-indigo-900'
-            }`}>
-              {data?.station?.name || 'La Voz de la Verdad'}
-            </span>
-          </motion.h1>
-
-          {/* Subtítulo con icono */}
-          <motion.p
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className={`text-sm sm:text-base max-w-xl mx-auto flex items-center justify-center gap-2 ${
-              isDark ? 'text-slate-400' : 'text-slate-500'
-            }`}
-          >
-            <span className="inline-block w-1 h-1 rounded-full bg-indigo-400" />
-            Emisora cristiana online — proclamando el mensaje de Jesucristo 24/7
-            <span className="inline-block w-1 h-1 rounded-full bg-indigo-400" />
-          </motion.p>
-
-          {/* Línea decorativa inferior */}
-          <motion.div
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 0.6, delay: 0.3, ease: 'easeOut' }}
-            className="mx-auto mt-5 h-px w-16 bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent"
-          />
-
+          <img src={LOGO} alt="Logo la voz de la verdad" className="mx-auto mb-6 w-96 h-auto" />
         </section>
 
         <section className="hidden md:block max-w-2xl mx-auto px-4 py-8">
@@ -167,17 +118,151 @@ function App() {
           />
         </section>
 
-        <section className="md:hidden flex gap-3 px-4 pt-6 pb-2">
+        {/* ── MOBILE: hero "now playing" ── */}
+        <section className={`md:hidden relative overflow-hidden px-5 pt-8 pb-6 ${
+          isDark ? 'bg-gradient-to-b from-indigo-950/60 to-slate-950' : 'bg-gradient-to-b from-indigo-50 to-slate-50'
+        }`}>
+          <img src={LOGO} alt="Logo la voz de la verdad" className="mx-auto mb-6 w-60 h-auto" />
+          {/* Glow de fondo ligado al artwork */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className={`absolute inset-0 ${
+              isDark
+                ? 'bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.18)_0%,_transparent_65%)]'
+                : 'bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.10)_0%,_transparent_65%)]'
+            }`} />
+          </div>
+
+          <div className="relative flex flex-col items-center gap-5">
+            {/* Artwork / disco */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={data?.now_playing?.song?.id ?? 'no-song'}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.4 }}
+                className="relative cursor-pointer select-none"
+                onClick={togglePlay}
+              >
+                {/* Glow behind artwork */}
+                {data?.now_playing?.song?.art && !artworkLoadFailed && (
+                  <div
+                    className="absolute inset-0 rounded-full blur-2xl scale-110 opacity-40"
+                    style={{ backgroundImage: `url(${data.now_playing.song.art})`, backgroundSize: 'cover' }}
+                  />
+                )}
+                <motion.div
+                  animate={playerState.isPlaying ? { rotate: 360 } : { rotate: 0 }}
+                  transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+                  className="relative w-44 h-44 rounded-full overflow-hidden shadow-2xl border-4 border-white/10"
+                >
+                  {data?.now_playing?.song?.art && !artworkLoadFailed ? (
+                    <img
+                      src={data.now_playing.song.art}
+                      alt="Caratula"
+                      className="w-full h-full object-cover"
+                      onError={() => setArtworkErrorSongId(data.now_playing.song.id)}
+                    />
+                  ) : (
+                    <div className={`w-full h-full flex items-center justify-center ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
+                      <Music className="w-16 h-16 text-indigo-400 opacity-60" />
+                    </div>
+                  )}
+                </motion.div>
+
+                {/* Play/Pause overlay — always visible on mobile (no hover) */}
+                <motion.div
+                  className="absolute inset-0 rounded-full flex items-center justify-center"
+                  animate={{
+                    backgroundColor: playerState.isPlaying
+                      ? 'rgba(0,0,0,0.25)'
+                      : 'rgba(0,0,0,0.50)',
+                  }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {playerState.isLoading ? (
+                    <div className="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : playerState.isPlaying ? (
+                    <svg className="w-12 h-12 text-white drop-shadow-lg opacity-70" fill="currentColor" viewBox="0 0 24 24">
+                      <rect x="6" y="4" width="4" height="16" rx="1" />
+                      <rect x="14" y="4" width="4" height="16" rx="1" />
+                    </svg>
+                  ) : (
+                    <svg className="w-12 h-12 text-white drop-shadow-lg ml-1" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  )}
+                </motion.div>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Info canción */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={data?.now_playing?.song?.id ?? 'no-info'}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.35 }}
+                className="text-center max-w-xs"
+              >
+                {isLoading ? (
+                  <div className="space-y-2 flex flex-col items-center">
+                    <div className={`h-5 w-48 rounded-full animate-pulse ${isDark ? 'bg-slate-700' : 'bg-slate-300'}`} />
+                    <div className={`h-4 w-32 rounded-full animate-pulse ${isDark ? 'bg-slate-700' : 'bg-slate-300'}`} />
+                  </div>
+                ) : (
+                  <>
+                    <p className={`font-bold text-lg leading-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {data?.now_playing?.song?.title || data?.station?.name || 'La Voz de la Verdad'}
+                    </p>
+                    {data?.now_playing?.song?.artist && (
+                      <p className={`text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        {data.now_playing.song.artist}
+                      </p>
+                    )}
+                  </>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </section>
+
+        {/* ── MOBILE: "Pedir canción" ── */}
+        <section className="md:hidden px-5 pt-4 pb-2">
           <button
             onClick={() => setShowRequests(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-medium bg-indigo-600 text-white active:scale-95 transition-transform shadow-md"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold bg-indigo-600 text-white active:scale-95 transition-transform shadow-md"
           >
             <Send className="w-4 h-4" />
-            Pedir cancion
+            Pedir canción
           </button>
         </section>
 
-        <section className="px-4 pt-6 pb-8 max-w-2xl mx-auto">
+        {/* ── MOBILE: redes sociales compactas ── */}
+        <section className="md:hidden px-5 pt-3 pb-4">
+          <p className={`text-xs font-medium mb-3 text-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+            Síguenos
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            {SOCIAL_LINKS.map(({ label, href, bg, icon }) => (
+              <motion.a
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileTap={{ scale: 0.9 }}
+                className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl ${bg} text-white shadow-md min-w-[60px]`}
+              >
+                {icon}
+                <span className="text-[10px] font-semibold leading-none">{label}</span>
+              </motion.a>
+            ))}
+          </div>
+        </section>
+
+        {/* ── DESKTOP: redes sociales ── */}
+        <section className="hidden md:block px-4 pt-6 pb-8 max-w-2xl mx-auto">
           <h2 className={`font-semibold text-base mb-4 flex items-center gap-2 ${
             isDark ? 'text-slate-300' : 'text-slate-700'
           }`}>
@@ -204,10 +289,9 @@ function App() {
           isDark ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'
         }`}>
           <div className="flex flex-col items-center gap-2">
-            {/* Logo */}
-            <img 
-              src={ isDark ? LOGO_BLANCO : LOGO_NEGRO }
-              alt="Logo-MMM-Blanco" 
+            <img
+              src={isDark ? LOGO_BLANCO : LOGO_NEGRO}
+              alt="Logo-MMM"
               className="h-8 w-auto object-contain opacity-70"
             />
             <span>
@@ -217,37 +301,11 @@ function App() {
         </footer>
       </main>
 
-      <div className={`md:hidden fixed bottom-0 left-0 right-0 z-50 pb-safe ${
-        isDark
-          ? 'bg-slate-900/95 border-t border-slate-800'
-          : 'bg-white/95 border-t border-slate-200'
-      } backdrop-blur-xl shadow-2xl`}>
-        <RadioPlayer
-          stationData={data}
-          isLoading={isLoading}
-          error={error}
-          playerState={playerState}
-          analyserRef={analyserRef}
-          reconnectAttempt={reconnectAttempt}
-          onTogglePlay={togglePlay}
-          onSetVolume={setVolume}
-          onToggleMute={toggleMute}
-          onSetQuality={setPlayerQuality}
-          onClearError={clearError}
-          sleepTimer={sleepTimer}
-          onQualityChange={setQuality}
-          onShowRequests={() => setShowRequests(true)}
-          compact
-        />
-      </div>
-
-      
       <SongRequest
         isOpen={showRequests}
         onClose={() => setShowRequests(false)}
         theme={resolvedTheme}
       />
-      {/* <PWAInstall /> */}
     </div>
   );
 }

@@ -58,7 +58,11 @@ function rewriteInternalUrls(data: unknown): unknown {
   if (!config.publicUrl) return data;
   const rewritten = JSON.stringify(data)
     .replaceAll('http://localhost', config.publicUrl)
-    .replaceAll('https://localhost', config.publicUrl);
+    .replaceAll('https://localhost', config.publicUrl)
+    .replaceAll(
+      `${config.azuracast.url}/api/station`,
+      `${config.publicUrl}/api/station`,
+    );
   return JSON.parse(rewritten);
 }
 

@@ -15,7 +15,7 @@ import { useTheme } from '@/hooks';
 import { ShareModal } from './SharedModla';
 import LOGO1 from '@assets/img/LOGO_COMPLETO_SINFONDO.png';
 import LOGO2 from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Tooltip,
   TooltipContent,
@@ -31,6 +31,8 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const navigate = useNavigate();
+  const location = useLocation();
+  const isHome = location.pathname === '/';
 
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -55,20 +57,21 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="w-15 h-10 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer"
-            onClick={() => navigate('/')}
-          >
-            <img src={isDark ? LOGO2 : LOGO1} alt="Logo" className="w-full h-full object-cover" />
-          </motion.div>
+          {!isHome && (
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-15 h-10 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer"
+              onClick={() => navigate('/')}
+            >
+              <img src={isDark ? LOGO2 : LOGO1} alt="Logo" className="w-full h-full object-cover" />
+            </motion.div>
+          )}
           <div className="hidden sm:block">
             <h1 className="font-bold text-lg leading-tight">{stationName}</h1>
             <p className="text-xs text-muted-foreground">24/7 Online Radio</p>
           </div>
         </div>
-
         {/* Desktop actions */}
         <TooltipProvider>
         <div className="hidden md:flex items-center gap-2">

@@ -61,7 +61,6 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
         const response = await fetch(
           `${apiBaseUrl}/api/search?filter=${encodeURIComponent(searchQuery)}`
         );
-        console.log('Search response:', response);
         if (response.ok) {
           const data = await response.json();
           const allItems: SongRequestItem[] = Array.isArray(data)
@@ -77,7 +76,6 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
               item.song.text?.toLowerCase().includes(query)
           );
           setSearchResults(filteredItems);
-          console.log('Search results:', filteredItems);
         }
       } catch (err) {
         console.error('Error searching songs:', err);
