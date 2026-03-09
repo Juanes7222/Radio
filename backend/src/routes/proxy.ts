@@ -70,9 +70,26 @@ publicRouter.get('/search', (req, res) => {
   proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/requests`, rewriteInternalUrls);
 });
 
-publicRouter.get('/station/:stationId/art/:artId', (req, res) => {
+publicRouter.get('/station/:stationId/art/:artId', async (req, res) => {
   const { stationId, artId } = req.params;
-  proxyToAzuraCast(req, res, `/api/station/${stationId}/art/${artId}`);
+  try {
+    const azuraCastResponse = await axios({
+      method: 'GET',
+      url: `${config.azuracast.url}/api/station/${stationId}/art/${artId}`,
+      headers: { Authorization: `Bearer ${config.azuracast.apiKey}` },
+      responseType: 'stream',
+      timeout: 15000,
+    });
+    res.setHeader('Content-Type', azuraCastResponse.headers['content-type'] ?? 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    azuraCastResponse.data.pipe(res);
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response) {
+      res.status(err.response.status).send();
+    } else {
+      res.status(502).send();
+    }
+  }
 });
 
 publicRouter.post('/requests/:songId', (req, res) => {

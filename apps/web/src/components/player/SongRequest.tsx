@@ -49,6 +49,7 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
 
   // Buscar canciones
   useEffect(() => {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
     const searchSongs = async () => {
       if (searchQuery.length < 3) {
         setSearchResults([]);
@@ -58,16 +59,25 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
       setIsSearching(true);
       try {
         const response = await fetch(
-          `/api/search?filter=${encodeURIComponent(searchQuery)}`
+          `${apiBaseUrl}/api/search?filter=${encodeURIComponent(searchQuery)}`
         );
+        console.log('Search response:', response);
         if (response.ok) {
           const data = await response.json();
-          const items: SongRequestItem[] = Array.isArray(data)
+          const allItems: SongRequestItem[] = Array.isArray(data)
             ? data
             : Array.isArray(data?.result)
             ? data.result
             : [];
-          setSearchResults(items);
+          const query = searchQuery.toLowerCase();
+          const filteredItems = allItems.filter(
+            (item) =>
+              item.song.title.toLowerCase().includes(query) ||
+              item.song.artist.toLowerCase().includes(query) ||
+              item.song.text?.toLowerCase().includes(query)
+          );
+          setSearchResults(filteredItems);
+          console.log('Search results:', filteredItems);
         }
       } catch (err) {
         console.error('Error searching songs:', err);
