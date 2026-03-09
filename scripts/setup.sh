@@ -11,10 +11,8 @@ apt-get update -y
 apt-get install -y curl git nginx apache2-utils
 
 # ─── 2. Node.js 22 ────────────────────────────────────────────────────────────
-if ! command -v node &>/dev/null; then
-  curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-  apt-get install -y nodejs
-fi
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+apt-get install -y nodejs
 echo "Node: $(node -v) | npm: $(npm -v)"
 
 # ─── 3. Clone / update repo ───────────────────────────────────────────────────
@@ -26,7 +24,8 @@ fi
 cd "$DEPLOY_DIR"
 
 # ─── 4. Dependencies & build ──────────────────────────────────────────────────
-npm install --ignore-scripts
+rm -rf "$DEPLOY_DIR/node_modules" "$DEPLOY_DIR/package-lock.json"
+npm install
 npm run build --workspace=backend
 npm run build --workspace=@radio/web
 
