@@ -36,3 +36,5 @@ router.post('/webhook/facebook', (req, res) => {
 
   res.sendStatus(200); // siempre responder 200 rápido
 });
+
+export default router;

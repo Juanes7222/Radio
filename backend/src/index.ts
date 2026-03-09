@@ -7,6 +7,7 @@ import { config } from './config';
 import authRouter from './routes/auth';
 import proxyRouter, { publicRouter } from './routes/proxy';
 import uploadRouter from './routes/upload';
+import webhookRouter from './routes/webhook';
 import { initWebSocket } from './websocket';
 
 const app = express();
@@ -29,6 +30,7 @@ app.use('/api', publicRouter);
 app.use('/admin-api/auth', authRouter);
 app.use('/admin-api', proxyRouter);
 app.use('/admin-api/upload', uploadRouter);
+app.use('/webhook', webhookRouter);
 
 app.get('/admin-api/health', (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
