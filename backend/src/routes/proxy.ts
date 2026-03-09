@@ -70,6 +70,11 @@ publicRouter.get('/search', (req, res) => {
   proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/requests`, rewriteInternalUrls);
 });
 
+publicRouter.get('/station/:stationId/art/:artId', (req, res) => {
+  const { stationId, artId } = req.params;
+  proxyToAzuraCast(req, res, `/api/station/${stationId}/art/${artId}`);
+});
+
 publicRouter.post('/requests/:songId', (req, res) => {
   const { songId } = req.params;
   proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/request/${songId}`, rewriteInternalUrls);

@@ -62,7 +62,12 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
         );
         if (response.ok) {
           const data = await response.json();
-          setSearchResults(data);
+          const items: SongRequestItem[] = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.result)
+            ? data.result
+            : [];
+          setSearchResults(items);
         }
       } catch (err) {
         console.error('Error searching songs:', err);
