@@ -15,7 +15,7 @@ app.use(
     origin: [
       'http://localhost:5173', // Vite dev
       'http://localhost:4173', // Vite preview
-      process.env.FRONTEND_URL ?? '',
+      ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(s => s.trim()) : []),
     ].filter(Boolean),
     credentials: true,
   })
