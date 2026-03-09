@@ -231,10 +231,14 @@ export default function PlayerScreen() {
 
         {data?.playing_next && (
           <View style={styles.nextCard}>
-            <Ionicons name="musical-note-outline" size={14} color={Colors.accent} />
-            <Text style={styles.nextLabel}>A continuación:</Text>
+            <Ionicons name="play-skip-forward" size={13} color={Colors.accent} />
+            <Text style={styles.nextLabel}>A continuación: </Text>
+            <Text style={styles.nextArtist} numberOfLines={1}>
+              {data.playing_next.song.artist}
+            </Text>
+            <Text style={styles.nextSeparator}>·</Text>
             <Text style={styles.nextTitle} numberOfLines={1}>
-              {data.playing_next.song.artist} — {data.playing_next.song.title}
+              {data.playing_next.song.title}
             </Text>
           </View>
         )}
@@ -388,20 +392,38 @@ const styles = StyleSheet.create({
   cancelButtonText: { ...Typography.caption, color: Colors.warning, fontWeight: '600' },
 
   // ── Next card ────────────────────────────────────────────────
-  nextCard: {
+    nextCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
     width: '100%',
     backgroundColor: Colors.accentMuted,
     borderRadius: Radii.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: 'rgba(99,102,241,0.15)',
+    borderColor: 'rgba(99,102,241,0.2)',
   },
-  nextLabel: { ...Typography.caption, color: Colors.accent, fontWeight: '600' },
-  nextTitle: { ...Typography.caption, color: Colors.textMuted, flex: 1 },
+  nextLabel: {
+    ...Typography.caption,
+    color: Colors.accent,
+    fontWeight: '700',
+  },
+  nextArtist: {
+    ...Typography.caption,
+    color: Colors.text,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  nextSeparator: {
+    ...Typography.caption,
+    color: Colors.textFaint,
+  },
+  nextTitle: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    flexShrink: 1,
+  },
 
   // ── Bottom section: controles ────────────────────────────────
   bottomSection: {

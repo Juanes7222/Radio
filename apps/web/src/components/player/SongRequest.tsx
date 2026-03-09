@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Music, Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAzuraCast } from '@/hooks';
+import type { UseAzuraCastReturn } from '@/hooks';
 
 interface SongRequestItem {
   request_id: string;
@@ -29,9 +29,10 @@ interface SongRequestProps {
   isOpen: boolean;
   onClose: () => void;
   theme: 'dark' | 'light';
+  requestSong: UseAzuraCastReturn['requestSong'];
 }
 
-export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
+export const SongRequest = memo(function SongRequest({ isOpen, onClose, theme, requestSong }: SongRequestProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SongRequestItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -43,9 +44,7 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
     message: string;
   } | null>(null);
 
-  const { requestSong } = useAzuraCast({
-      apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
-  });
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Buscar canciones
   useEffect(() => {
@@ -81,6 +80,7 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
         console.error('Error searching songs:', err);
       } finally {
         setIsSearching(false);
+        requestAnimationFrame(() => inputRef.current?.focus());
       }
     };
 
@@ -89,7 +89,7 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
   }, [searchQuery]);
 
   // Solicitar canción
-  const handleRequest = async (song: SongRequestItem) => {
+  const handleRequest = useCallback(async (song: SongRequestItem) => {
     if (requestedSongs.has(song.request_id) || loadingSong === song.request_id) return;
 
     setLoadingSong(song.request_id);
@@ -112,13 +112,19 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
     }
 
     setTimeout(() => setRequestStatus(null), 4000);
-  };
+  }, [requestSong, loadingSong, requestedSongs]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`max-w-md w-full flex flex-col gap-0 p-0 max-h-[85vh] overflow-hidden ${
-        theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white'
-      }`}>
+      <DialogContent
+        className={`max-w-md w-full flex flex-col gap-0 p-0 max-h-[85vh] overflow-hidden ${
+          theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white'
+        }`}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          inputRef.current?.focus();
+        }}
+      >
         {/* Cabecera fija */}
         <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
           <DialogTitle className="flex items-center gap-2">
@@ -135,6 +141,7 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
+              ref={inputRef}
               placeholder="Buscar canción o artista..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -288,4 +295,4 @@ export function SongRequest({ isOpen, onClose, theme }: SongRequestProps) {
       </DialogContent>
     </Dialog>
   );
-}
+});

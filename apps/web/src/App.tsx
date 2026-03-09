@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RadioPlayer,
@@ -54,7 +54,7 @@ function App() {
   const [quality, setQuality]           = useState<StreamQuality>('128');
   const [artworkErrorSongId, setArtworkErrorSongId] = useState<string | null>(null);
 
-  const { data, isLoading, error, getStreamUrl } =
+  const { data, isLoading, error, getStreamUrl, requestSong } =
     useAzuraCast({ apiBaseUrl: import.meta.env.VITE_API_BASE_URL, pollInterval: 15000 });
 
   const artworkLoadFailed = artworkErrorSongId === (data?.now_playing?.song?.id ?? null);
@@ -74,6 +74,9 @@ function App() {
   } = useAudioPlayer({ streamUrl, autoplay: true });
 
   const sleepTimer = useSleepTimer(pause);
+
+  const closeRequests = useCallback(() => setShowRequests(false), []);
+  const openRequests = useCallback(() => setShowRequests(true), []);
 
   useMediaSession({
     title: data?.now_playing?.song?.title || 'Radio Stream',
@@ -114,7 +117,7 @@ function App() {
             onClearError={clearError}
             sleepTimer={sleepTimer}
             onQualityChange={setQuality}
-            onShowRequests={() => setShowRequests(true)}
+            onShowRequests={openRequests}
           />
         </section>
 
@@ -231,7 +234,7 @@ function App() {
         {/* ── MOBILE: "Pedir canción" ── */}
         <section className="md:hidden px-5 pt-4 pb-2">
           <button
-            onClick={() => setShowRequests(true)}
+            onClick={openRequests}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold bg-indigo-600 text-white active:scale-95 transition-transform shadow-md"
           >
             <Send className="w-4 h-4" />
@@ -303,8 +306,9 @@ function App() {
 
       <SongRequest
         isOpen={showRequests}
-        onClose={() => setShowRequests(false)}
+        onClose={closeRequests}
         theme={resolvedTheme}
+        requestSong={requestSong}
       />
     </div>
   );
