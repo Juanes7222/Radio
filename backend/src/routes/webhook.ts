@@ -4,7 +4,7 @@ import { notifyFrontend } from '../websocket';
 
 const router = Router();
 
-router.get('/webhook/facebook', (req, res) => {
+router.get('/facebook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
@@ -16,7 +16,7 @@ router.get('/webhook/facebook', (req, res) => {
   }
 });
 
-router.post('/webhook/facebook', (req, res) => {
+router.post('/facebook', (req, res) => {
   const body = req.body;
 
   if (body.object !== 'page') return res.sendStatus(404);
