@@ -12,12 +12,9 @@ export function initWebSocket(server: Server) {
   });
 }
 
-export function notifyFrontend(permalinkUrl: string) {
+export function notifyFrontend(permalinkUrl: string | null) {
   const payload = JSON.stringify({ type: 'facebook_live', url: permalinkUrl });
-
   for (const client of clients) {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(payload);
-    }
+    if (client.readyState === WebSocket.OPEN) client.send(payload);
   }
 }

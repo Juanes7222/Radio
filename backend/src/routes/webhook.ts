@@ -31,6 +31,10 @@ router.post('/facebook', (req, res) => {
         console.log('Live iniciado:', permalink_url);
         notifyFrontend(permalink_url);
       }
+      else if (status === 'live_stopped' || status === 'VOD') {
+        console.log('Live detenido:', permalink_url);
+        notifyFrontend(null);
+      }
     }
   }
 

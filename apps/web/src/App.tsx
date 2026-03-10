@@ -248,6 +248,39 @@ function App() {
           </button>
         </section>
 
+        {/* ── Banner Facebook Live ── */}
+        <AnimatePresence>
+          {liveUrl && (
+            <div className="px-4 md:max-w-2xl md:mx-auto mt-4 mb-1">
+              <motion.a
+                href={liveUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                initial={{ opacity: 0, y: -12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-500 text-white shadow-lg shadow-red-500/30"
+              >
+                <div className="relative shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                    <Facebook className="w-5 h-5" />
+                  </div>
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-white">
+                    <span className="absolute inset-0 rounded-full bg-white animate-ping opacity-75" />
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm leading-tight">¡Estamos en vivo!</p>
+                  <p className="text-xs text-white/80 truncate mt-0.5">Toca para ver la transmisión en Facebook</p>
+                </div>
+                <div className="shrink-0 bg-white/20 rounded-xl px-3 py-1.5 text-xs font-bold tracking-wide">
+                  VER →
+                </div>
+              </motion.a>
+            </div>
+          )}
+        </AnimatePresence>
+
         {/* ── MOBILE: redes sociales compactas ── */}
         <section className="md:hidden px-5 pt-3 pb-4">
           <p className={`text-xs font-medium mb-3 text-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -264,10 +297,13 @@ function App() {
                 className={`relative flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl ${bg} text-white shadow-md min-w-[60px]`}
               >
                 {isLive && (
-                  <span className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    EN VIVO
-                  </span>
+                  <>
+                    <span className="absolute inset-0 rounded-xl ring-2 ring-white animate-ping opacity-30" />
+                    <span className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 bg-white text-red-600 text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none shadow-md">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      LIVE
+                    </span>
+                  </>
                 )}
                 {icon}
                 <span className="text-[10px] font-semibold leading-none">{label}</span>
@@ -294,10 +330,13 @@ function App() {
                 className={`relative flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-2xl ${bg} text-white font-semibold text-sm shadow-md ${shadow} transition-opacity hover:opacity-90`}
               >
                 {isLive && (
-                  <span className="absolute -top-2 -right-2 flex items-center gap-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full leading-none shadow">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    EN VIVO
-                  </span>
+                  <>
+                    <span className="absolute inset-0 rounded-xl ring-2 ring-white animate-ping opacity-30" />
+                    <span className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 bg-white text-red-600 text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none shadow-md">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      LIVE
+                    </span>
+                  </>
                 )}
                 {icon}
                 {label}
