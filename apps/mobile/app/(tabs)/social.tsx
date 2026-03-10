@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import  FontAwesome  from '@expo/vector-icons/FontAwesome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { useFacebookLive } from '../../hooks/useFacebookLive';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 
@@ -49,6 +50,13 @@ const SOCIAL_LINKS = [
 
 export default function SocialScreen() {
   const insets = useSafeAreaInsets();
+  const { liveUrl } = useFacebookLive();
+
+  const socialLinks = SOCIAL_LINKS.map((link) =>
+    link.id === 'facebook' && liveUrl
+      ? { ...link, url: liveUrl, isLive: true }
+      : { ...link, isLive: false });
+
 
   return (
     <View style={styles.container}>
@@ -70,24 +78,44 @@ export default function SocialScreen() {
         <Text style={styles.heading}>Redes Sociales</Text>
         <Text style={styles.subheading}>Conéctate con nuestra comunidad</Text>
 
+        {/* Banner live */}
+        {liveUrl && (
+          <TouchableOpacity
+            style={styles.liveBanner}
+            activeOpacity={0.85}
+            onPress={() => Linking.openURL(liveUrl)}
+          >
+            <View style={styles.liveDot}>
+              <View style={styles.liveDotInner} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.liveBannerTitle}>¡Estamos en vivo!</Text>
+              <Text style={styles.liveBannerSub}>Toca para ver en Facebook</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#fff" />
+          </TouchableOpacity>
+        )}
+
         <View style={styles.linkList}>
-          {SOCIAL_LINKS.map((link) => (
+          {socialLinks.map((link) => (
             <TouchableOpacity
               key={link.id}
-              style={styles.linkCard}
+              style={[styles.linkCard, link.isLive && styles.linkCardLive]}
               activeOpacity={0.75}
               onPress={() => Linking.openURL(link.url)}
-              accessibilityLabel={`Abrir ${link.label}`}
             >
               <View style={[styles.iconCircle, { backgroundColor: link.color + '22' }]}>
-               {link.icon === null ? 
-                  <FontAwesome name="spotify" size={26} color={link.color} /> :
-                  <Ionicons name={link.icon} size={26} color={link.color} />
-               }
+                {link.isLive && <View style={styles.liveIndicator} />}
+                {link.icon === null
+                  ? <FontAwesome name="spotify" size={26} color={link.color} />
+                  : <Ionicons name={link.icon} size={26} color={link.color} />
+                }
               </View>
               <View style={styles.linkTextGroup}>
                 <Text style={styles.linkLabel}>{link.label}</Text>
-                <Text style={styles.linkSubtitle}>{link.subtitle}</Text>
+                <Text style={styles.linkSubtitle}>
+                  {link.isLive ? 'En vivo ahora' : link.subtitle}
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.textFaint} />
             </TouchableOpacity>
@@ -142,4 +170,53 @@ const styles = StyleSheet.create({
   linkTextGroup: { flex: 1, gap: 2 },
   linkLabel: { ...Typography.body, color: Colors.text, fontWeight: '600' },
   linkSubtitle: { ...Typography.caption, color: Colors.textMuted },
+
+  liveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: '#dc2626',
+    borderRadius: Radii.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  liveBannerTitle: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  liveBannerSub: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  liveDot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveDotInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#fff',
+  },
+  linkCardLive: {
+    borderColor: '#1877f2',
+    borderWidth: 1.5,
+  },
+  liveIndicator: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ef4444',
+    zIndex: 1,
+  },
 });

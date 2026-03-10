@@ -1,11 +1,14 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
+import { useFacebookLive } from '@/hooks/useFacebookLive';
 
 const ACCENT = '#6366f1';
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 
 export default function TabLayout() {
+  const { liveUrl } = useFacebookLive();
+
   return (
     <Tabs
       screenOptions={{
@@ -50,7 +53,22 @@ export default function TabLayout() {
         options={{
           title: 'Redes',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="earth-outline" size={size} color={color} />
+            <View>
+              <Ionicons name="earth-outline" size={size} color={color} />
+              {liveUrl && (
+                <View style={{
+                  position: 'absolute',
+                  top: -2,
+                  right: -4,
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: '#ef4444',
+                  borderWidth: 1.5,
+                  borderColor: 'rgba(12, 12, 30, 0.97)',
+                }} />
+              )}
+            </View>
           ),
         }}
       />
