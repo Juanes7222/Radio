@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAzuraCast } from '@radio/api';
 import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
+import { formatMediaTitle } from '@/lib/formatMedia';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 
@@ -100,6 +101,11 @@ export default function RequestScreen() {
         renderItem={({ item }) => {
           const isSent = sent.has(item.request_id);
           const isLoading = requesting === item.request_id;
+          const { title, artist, isPreaching } = formatMediaTitle(
+            item.song.title,
+            item.song.artist,
+          );
+
           return (
             <View style={styles.row}>
               {item.song.art ? (
@@ -113,8 +119,13 @@ export default function RequestScreen() {
                 <View style={[styles.art, styles.artFallback]} />
               )}
               <View style={styles.info}>
-                <Text style={styles.title} numberOfLines={1}>{item.song.title}</Text>
-                <Text style={styles.artist} numberOfLines={1}>{item.song.artist}</Text>
+                {isPreaching && (
+                  <Text style={styles.preachingBadge}>Prédica</Text>
+                )}
+                <Text style={styles.title} numberOfLines={1}>{title}</Text>
+                {artist ? (
+                  <Text style={styles.artist} numberOfLines={1}>{artist}</Text>
+                ) : null}
               </View>
               <TouchableOpacity
                 onPress={() => handleRequest(item)}
@@ -227,5 +238,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flex: 1,
     lineHeight: 18,
+  },
+
+  preachingBadge: {
+    color: '#818cf8',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 2,
   },
 });

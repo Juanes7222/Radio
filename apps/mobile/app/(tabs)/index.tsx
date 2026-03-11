@@ -29,10 +29,11 @@ import {
 } from '@/hooks/useFavoriteNotify';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { formatMediaTitle } from '@/lib/formatMedia';
 import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 18;
 // Reserve ~260pt for top bar + song info + controls + tab bar
 const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 252);
 
@@ -65,6 +66,11 @@ export default function PlayerScreen() {
   const isFavorite = currentSongKey
     ? favoriteSongKeys.some((k) => k.toLowerCase() === currentSongKey)
     : false;
+
+  const { title, artist, isPreaching } = formatMediaTitle(
+    song?.title ?? '',
+    song?.artist ?? '',
+  );
 
   const toggleFavorite = useCallback(async () => {
     if (!currentSongKey) return;
@@ -205,12 +211,17 @@ export default function PlayerScreen() {
         </View>
 
         <View style={styles.songInfo}>
+          {isPreaching && (
+            <View style={styles.preachingBadge}>
+              <Text style={styles.preachingBadgeText}>Prédica</Text>
+            </View>
+          )}
           <Text style={styles.songTitle} numberOfLines={2}>
-            {song?.title ?? 'Sin información'}
+            {title}
           </Text>
-          <Text style={styles.artistName} numberOfLines={1}>
-            {song?.artist ?? 'Artista desconocido'}
-          </Text>
+          {artist ? (
+            <Text style={styles.artistName} numberOfLines={1}>{artist}</Text>
+          ) : null}
           {song?.album ? (
             <Text style={styles.albumName} numberOfLines={1}>{song.album}</Text>
           ) : null}
@@ -234,11 +245,11 @@ export default function PlayerScreen() {
             <Ionicons name="play-skip-forward" size={13} color={Colors.accent} />
             <Text style={styles.nextLabel}>A continuación: </Text>
             <Text style={styles.nextArtist} numberOfLines={1}>
-              {data.playing_next.song.artist}
+              {formatMediaTitle(data.playing_next.song.title, data.playing_next.song.artist).artist}
             </Text>
             <Text style={styles.nextSeparator}>·</Text>
             <Text style={styles.nextTitle} numberOfLines={1}>
-              {data.playing_next.song.title}
+              {formatMediaTitle(data.playing_next.song.title, data.playing_next.song.artist).title}
             </Text>
           </View>
         )}
@@ -432,6 +443,22 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     backgroundColor: 'rgba(12,12,30,0.95)',
+  },
+
+  preachingBadge: {
+    backgroundColor: 'rgba(99,102,241,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.3)',
+    borderRadius: Radii.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+  },
+  preachingBadgeText: {
+    ...Typography.caption,
+    color: Colors.accent,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });
 
