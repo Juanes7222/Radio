@@ -17,7 +17,7 @@ export interface UseAzuraCastReturn {
   isLoading: boolean;
   error: string | null;
   requestSong: (requestId: string) => Promise<SongRequestResult>;
-  fetchRequestableSongs: (searchQuery?: string) => Promise<SongRequest[]>;
+  fetchRequestableSongs: (options?: { page?: number; perPage?: number; search?: string }) => Promise<SongRequest[]>;
   refresh: () => Promise<void>;
   getStreamUrl: (quality: StreamQuality) => string;
 }
@@ -84,14 +84,21 @@ export function useAzuraCast({
   );
 
   const fetchRequestableSongs = useCallback(
-    async (searchQuery = ''): Promise<SongRequest[]> => {
-      const params = searchQuery.trim() ? { search: searchQuery.trim() } : {};
-      const response = await axios.get<SongRequest[]>(`${apiBaseUrl}/api/search`, {
+    async ({ page = 1, perPage = 25, search = '' } = {}): Promise<SongRequest[]> => {
+      const params: Record<string, string> = {
+        page: String(page),
+        per_page: String(perPage),
+      };
+      if (search.trim()) params.search = search.trim();
+
+      const response = await axios.get(`${apiBaseUrl}/api/search`, {
         params,
         timeout: 10000,
         headers: { Accept: 'application/json' },
       });
-      return response.data;
+
+      const data = response.data;
+      return Array.isArray(data) ? data : (data.result ?? data.rows ?? data.data ?? []);
     },
     [apiBaseUrl]
   );

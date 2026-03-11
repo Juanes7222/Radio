@@ -19,47 +19,66 @@ import { BACKEND_URL } from '@/constants/api';
 import { formatMediaTitle } from '@/lib/formatMedia';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
+const PAGE_SIZE = 25;
 
 export default function RequestScreen() {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
-  const { requestSong, fetchRequestableSongs } = useAzuraCast({
-    apiBaseUrl: BACKEND_URL,
-  });
-  const [allSongs, setAllSongs] = useState<SongRequest[]>([]);
-  const [isFetchingSongs, setIsFetchingSongs] = useState(true);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [songs, setSongs] = useState<SongRequest[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingSongs, setIsFetchingSongs] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [requesting, setRequesting] = useState<string | null>(null);
-  const [sent, setSent] = useState<Set<string>>(new Set());
+  const [sent, setSent] = useState<string[]>([]);
   const [requestError, setRequestError] = useState<string | null>(null);
 
-  const loadSongs = useCallback(async () => {
-    setIsFetchingSongs(true);
+  const { requestSong, fetchRequestableSongs } = useAzuraCast({ apiBaseUrl: BACKEND_URL });
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 400);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const loadPage = useCallback(async (pageNumber: number, search: string, replace: boolean) => {
+    if (pageNumber === 1) setIsFetchingSongs(true);
+    else setIsLoadingMore(true);
+
     try {
-      const songs = await fetchRequestableSongs();
-      setAllSongs(songs);
+      const results = await fetchRequestableSongs({ page: pageNumber, perPage: PAGE_SIZE, search });
+      const safeResults = Array.isArray(results) ? results : [];
+      setSongs(prev => {
+        const merged = replace ? safeResults : [...prev, ...safeResults];
+        const seen = new Map<string, SongRequest>();
+        for (const item of merged) seen.set(item.request_id, item);
+        return Array.from(seen.values());
+      });
+      setHasMore(safeResults.length === PAGE_SIZE);
+      setPage(pageNumber);
     } catch {
-      // keep existing list on network error
+      // keep existing list
     } finally {
       setIsFetchingSongs(false);
+      setIsLoadingMore(false);
     }
   }, [fetchRequestableSongs]);
 
-  useEffect(() => { loadSongs(); }, [loadSongs]);
+  useEffect(() => {
+    loadPage(1, debouncedQuery, true);
+  }, [debouncedQuery, loadPage]);
 
-  const filteredSongs = query.trim()
-    ? allSongs.filter(
-        (s) =>
-          s.song.title.toLowerCase().includes(query.toLowerCase()) ||
-          s.song.artist.toLowerCase().includes(query.toLowerCase()),
-      )
-    : allSongs;
+  const loadMore = useCallback(() => {
+    if (isLoadingMore || !hasMore) return;
+    loadPage(page + 1, debouncedQuery, false);
+  }, [isLoadingMore, hasMore, page, debouncedQuery, loadPage]);
 
   const handleRequest = async (item: SongRequest) => {
     setRequesting(item.request_id);
     setRequestError(null);
     const result = await requestSong(item.request_id);
     if (result.success) {
-      setSent((prev) => new Set([...prev, item.request_id]));
+      setSent(prev => [...prev, item.request_id]);
     } else {
       setRequestError(result.errorMessage);
       setTimeout(() => setRequestError(null), 4000);
@@ -83,7 +102,7 @@ export default function RequestScreen() {
         <Ionicons name="search" size={16} color="#4b5563" style={styles.searchIcon} />
         <TextInput
           style={styles.search}
-          placeholder="Buscar en el historial…"
+          placeholder="Buscar canción o artista…"
           placeholderTextColor="#374151"
           value={query}
           onChangeText={setQuery}
@@ -96,11 +115,11 @@ export default function RequestScreen() {
       </View>
 
       <FlatList
-        data={filteredSongs}
+        data={songs}
         keyExtractor={(item) => item.request_id}
         renderItem={({ item }) => {
-          const isSent = sent.has(item.request_id);
-          const isLoading = requesting === item.request_id;
+          const isSent = sent.includes(item.request_id);
+          const isRequesting = requesting === item.request_id;
           const { title, artist, isPreaching } = formatMediaTitle(
             item.song.title,
             item.song.artist,
@@ -129,11 +148,11 @@ export default function RequestScreen() {
               </View>
               <TouchableOpacity
                 onPress={() => handleRequest(item)}
-                disabled={isSent || isLoading}
+                disabled={isSent || isRequesting}
                 style={[styles.btn, isSent && styles.btnSent]}
                 activeOpacity={0.8}
               >
-                {isLoading ? (
+                {isRequesting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : isSent ? (
                   <Ionicons name="checkmark" size={16} color="#fff" />
@@ -144,18 +163,23 @@ export default function RequestScreen() {
             </View>
           );
         }}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          isLoadingMore
+            ? <ActivityIndicator style={{ marginVertical: 16 }} color="#818cf8" />
+            : null
+        }
+        ListEmptyComponent={
+          isFetchingSongs
+            ? <ActivityIndicator style={styles.loadingIndicator} color="#818cf8" />
+            : <Text style={styles.empty}>No se encontraron canciones</Text>
+        }
         contentContainerStyle={[
           styles.list,
           { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 16 },
         ]}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListEmptyComponent={
-          isFetchingSongs ? (
-            <ActivityIndicator style={styles.loadingIndicator} color="#818cf8" />
-          ) : (
-            <Text style={styles.empty}>No se encontraron canciones</Text>
-          )
-        }
         showsVerticalScrollIndicator={false}
       />
 
@@ -207,6 +231,14 @@ const styles = StyleSheet.create({
   art: { width: 50, height: 50, borderRadius: 10 },
   artFallback: { backgroundColor: 'rgba(255,255,255,0.06)' },
   info: { flex: 1 },
+  preachingBadge: {
+    color: '#818cf8',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
   title: { color: '#f1f5f9', fontSize: 14, fontWeight: '600' },
   artist: { color: '#4b5563', fontSize: 12, marginTop: 3 },
   btn: {
@@ -238,14 +270,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flex: 1,
     lineHeight: 18,
-  },
-
-  preachingBadge: {
-    color: '#818cf8',
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 2,
   },
 });
