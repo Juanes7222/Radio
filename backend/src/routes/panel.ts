@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import axios from 'axios';
-import { config } from './config';
+import { config } from '../config';
 
 const router = Router();
 
