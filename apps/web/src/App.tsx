@@ -2,12 +2,13 @@ import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RadioPlayer,
+  MobilePlayerHero,
   SongRequest,
 } from '@/components/player';
 import { Header } from '@/components/ui-custom';
 import { useAzuraCast, useTheme, useAudioPlayer, useMediaSession, useSleepTimer, useFacebookLive } from '@/hooks';
 import type { StreamQuality } from '@/types/azuracast';
-import { Facebook, Instagram, Youtube, Send, Music } from 'lucide-react';
+import { Facebook, Instagram, Youtube, Send } from 'lucide-react';
 import LOGO_BLANCO from '@assets/img/LOGO_MMM_BLANCO.png';
 import LOGO_NEGRO from '@assets/img/LOGO_MMM_NEGRO.png';
 import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png'
@@ -128,114 +129,15 @@ function App() {
         </section>
 
         {/* ── MOBILE: hero "now playing" ── */}
-        <section className={`md:hidden relative overflow-hidden px-5 pt-8 pb-6 ${
-          isDark ? 'bg-gradient-to-b from-indigo-950/60 to-slate-950' : 'bg-gradient-to-b from-indigo-50 to-slate-50'
-        }`}>
-          <img src={LOGO} alt="Logo la voz de la verdad" className="mx-auto mb-6 w-60 h-auto" />
-          {/* Glow de fondo ligado al artwork */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className={`absolute inset-0 ${
-              isDark
-                ? 'bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.18)_0%,_transparent_65%)]'
-                : 'bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.10)_0%,_transparent_65%)]'
-            }`} />
-          </div>
-
-          <div className="relative flex flex-col items-center gap-5">
-            {/* Artwork / disco */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={data?.now_playing?.song?.id ?? 'no-song'}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.4 }}
-                className="relative cursor-pointer select-none"
-                onClick={togglePlay}
-              >
-                {/* Glow behind artwork */}
-                {data?.now_playing?.song?.art && !artworkLoadFailed && (
-                  <div
-                    className="absolute inset-0 rounded-full blur-2xl scale-110 opacity-40"
-                    style={{ backgroundImage: `url(${data.now_playing.song.art})`, backgroundSize: 'cover' }}
-                  />
-                )}
-                <motion.div
-                  animate={playerState.isPlaying ? { rotate: 360 } : { rotate: 0 }}
-                  transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
-                  className="relative w-44 h-44 rounded-full overflow-hidden shadow-2xl border-4 border-white/10"
-                >
-                  {data?.now_playing?.song?.art && !artworkLoadFailed ? (
-                    <img
-                      src={data.now_playing.song.art}
-                      alt="Caratula"
-                      className="w-full h-full object-cover"
-                      onError={() => setArtworkErrorSongId(data.now_playing.song.id)}
-                    />
-                  ) : (
-                    <div className={`w-full h-full flex items-center justify-center ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-                      <Music className="w-16 h-16 text-indigo-400 opacity-60" />
-                    </div>
-                  )}
-                </motion.div>
-
-                {/* Play/Pause overlay — always visible on mobile (no hover) */}
-                <motion.div
-                  className="absolute inset-0 rounded-full flex items-center justify-center"
-                  animate={{
-                    backgroundColor: playerState.isPlaying
-                      ? 'rgba(0,0,0,0.25)'
-                      : 'rgba(0,0,0,0.50)',
-                  }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {playerState.isLoading ? (
-                    <div className="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : playerState.isPlaying ? (
-                    <svg className="w-12 h-12 text-white drop-shadow-lg opacity-70" fill="currentColor" viewBox="0 0 24 24">
-                      <rect x="6" y="4" width="4" height="16" rx="1" />
-                      <rect x="14" y="4" width="4" height="16" rx="1" />
-                    </svg>
-                  ) : (
-                    <svg className="w-12 h-12 text-white drop-shadow-lg ml-1" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  )}
-                </motion.div>
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Info canción */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={data?.now_playing?.song?.id ?? 'no-info'}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.35 }}
-                className="text-center max-w-xs"
-              >
-                {isLoading ? (
-                  <div className="space-y-2 flex flex-col items-center">
-                    <div className={`h-5 w-48 rounded-full animate-pulse ${isDark ? 'bg-slate-700' : 'bg-slate-300'}`} />
-                    <div className={`h-4 w-32 rounded-full animate-pulse ${isDark ? 'bg-slate-700' : 'bg-slate-300'}`} />
-                  </div>
-                ) : (
-                  <>
-                    <p className={`font-bold text-lg leading-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {data?.now_playing?.song?.title || data?.station?.name || 'La Voz de la Verdad'}
-                    </p>
-                    {data?.now_playing?.song?.artist && (
-                      <p className={`text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                        {data.now_playing.song.artist}
-                      </p>
-                    )}
-                  </>
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </section>
+        <MobilePlayerHero
+          song={data?.now_playing ?? null}
+          isLoading={isLoading}
+          isDark={isDark}
+          playerState={playerState}
+          artworkLoadFailed={artworkLoadFailed}
+          onTogglePlay={togglePlay}
+          onArtworkError={setArtworkErrorSongId}
+        />
 
         {/* ── MOBILE: "Pedir canción" ── */}
         <section className="md:hidden px-5 pt-4 pb-2">

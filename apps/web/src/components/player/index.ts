@@ -1,4 +1,5 @@
 export { RadioPlayer } from './RadioPlayer';
+export { MobilePlayerHero } from './MobilePlayerHero';
 export { WaveformVisualizer } from './WaveformVisualizer';
 export { SongInfo } from './SongInfo';
 export { SongHistory } from './SongHistory';

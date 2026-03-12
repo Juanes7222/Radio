@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Disc, Music, User, Album, Mic2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,7 +11,7 @@ interface SongInfoProps {
   theme: 'dark' | 'light';
 }
 
-export function SongInfo({ song, isLoading, theme }: SongInfoProps) {
+function SongInfoComponent({ song, isLoading, theme }: SongInfoProps) {
   if (isLoading) {
     return (
       <div className="flex items-center gap-4">
@@ -39,6 +40,7 @@ export function SongInfo({ song, isLoading, theme }: SongInfoProps) {
     songData.title ?? '',
     songData.artist ?? '',
   );
+
 
   return (
     <motion.div
@@ -181,3 +183,11 @@ export function SongInfo({ song, isLoading, theme }: SongInfoProps) {
     </motion.div>
   );
 }
+
+export const SongInfo = memo(
+  SongInfoComponent,
+  (prev, next) =>
+    prev.isLoading === next.isLoading &&
+    prev.theme === next.theme &&
+    prev.song?.song?.id === next.song?.song?.id,
+);
