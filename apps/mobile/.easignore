@@ -1,0 +1,10 @@
+.git
+node_modules
+**/__tests__
+**/*.test.ts
+**/*.test.tsx
+android/build
+android/.gradle
+ios/build
+*.log
+.turbo
