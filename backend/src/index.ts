@@ -8,20 +8,24 @@ import authRouter from './routes/auth';
 import proxyRouter, { publicRouter } from './routes/proxy';
 import uploadRouter from './routes/upload';
 import webhookRouter from './routes/webhook';
+import panelRouter from './routes/panel';
 import { initWebSocket } from './websocket';
 
 const app = express();
 
 app.use(helmet());
 app.use(
-  cors({
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:4173',
-      ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(s => s.trim()) : []),
-    ].filter(Boolean),
-    credentials: true,
-  })
+    cors({
+        origin: [
+            'http://localhost:5173',
+            'http://localhost:4173',
+            'null', // allows file:// origin from OBS dock
+            ...(process.env.FRONTEND_URL
+                ? process.env.FRONTEND_URL.split(',').map(s => s.trim())
+                : []),
+        ].filter(Boolean),
+        credentials: true,
+    })
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -31,19 +35,20 @@ app.use('/admin-api/auth', authRouter);
 app.use('/admin-api', proxyRouter);
 app.use('/admin-api/upload', uploadRouter);
 app.use('/webhook', webhookRouter);
+app.use('/panel-api', panelRouter);
 
 app.get('/admin-api/health', (_req, res) => {
-  res.json({ ok: true, time: new Date().toISOString() });
+    res.json({ ok: true, time: new Date().toISOString() });
 });
 
 const server = createServer(app);
 initWebSocket(server);
 
 server.listen(config.port, () => {
-  console.log(`\n Backend admin corriendo en http://localhost:${config.port}`);
-  console.log(`   Station ID : ${config.azuracast.stationId}`);
-  console.log(`   AzuraCast  : ${config.azuracast.url}`);
-  console.log(
-    `   Whitelist  : ${config.whitelist.length ? config.whitelist.join(', ') : '  VACÍA — nadie puede entrar'}\n`
-  );
+    console.log(`\n Backend admin corriendo en http://localhost:${config.port}`);
+    console.log(`   Station ID : ${config.azuracast.stationId}`);
+    console.log(`   AzuraCast  : ${config.azuracast.url}`);
+    console.log(
+        `   Whitelist  : ${config.whitelist.length ? config.whitelist.join(', ') : '  VACÍA — nadie puede entrar'}\n`
+    );
 });
