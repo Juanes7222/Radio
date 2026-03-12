@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAzuraCast } from '@radio/api';
 import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
@@ -20,16 +21,17 @@ import { formatMediaTitle } from '@/lib/formatMedia';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 const PAGE_SIZE = 25;
+const ESTIMATED_TOTAL = 3000;
+const CACHE_KEY = 'requestable_songs_cache';
+const CACHE_TTL_MS = 1000 * 60 * 30;
+const FETCH_CHUNK_SIZE = 10;
 
 export default function RequestScreen() {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [songs, setSongs] = useState<SongRequest[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [isFetchingSongs, setIsFetchingSongs] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [requesting, setRequesting] = useState<string | null>(null);
   const [sent, setSent] = useState<string[]>([]);
   const [requestError, setRequestError] = useState<string | null>(null);
@@ -41,37 +43,67 @@ export default function RequestScreen() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  const loadPage = useCallback(async (pageNumber: number, search: string, replace: boolean) => {
-    if (pageNumber === 1) setIsFetchingSongs(true);
-    else setIsLoadingMore(true);
+  const filteredSongs = useMemo(() => {
+    const normalized = debouncedQuery.toLowerCase().trim();
+    if (!normalized) return songs;
+    return songs.filter(({ song }) =>
+      song.title.toLowerCase().includes(normalized) ||
+      song.artist.toLowerCase().includes(normalized)
+    );
+  }, [songs, debouncedQuery]);
 
+  const loadAll = useCallback(async () => {
+    setIsFetchingSongs(true);
     try {
-      const results = await fetchRequestableSongs({ page: pageNumber, perPage: PAGE_SIZE, search });
-      const safeResults = Array.isArray(results) ? results : [];
-      setSongs(prev => {
-        const merged = replace ? safeResults : [...prev, ...safeResults];
-        const seen = new Map<string, SongRequest>();
-        for (const item of merged) seen.set(item.request_id, item);
-        return Array.from(seen.values());
-      });
-      setHasMore(safeResults.length === PAGE_SIZE);
-      setPage(pageNumber);
+      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { songs: cachedSongs, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < CACHE_TTL_MS) {
+          setSongs(cachedSongs);
+          return;
+        }
+      }
+
+      const firstBatch = await fetchRequestableSongs({ page: 1, perPage: PAGE_SIZE, search: '' });
+      const safe = Array.isArray(firstBatch) ? firstBatch : [];
+
+      if (safe.length < PAGE_SIZE) {
+        setSongs(safe);
+        return;
+      }
+
+      const totalPages = Math.ceil(ESTIMATED_TOTAL / PAGE_SIZE);
+      const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const all = [...safe];
+
+      for (let i = 0; i < remainingPages.length; i += FETCH_CHUNK_SIZE) {
+        const chunk = remainingPages.slice(i, i + FETCH_CHUNK_SIZE);
+        const batches = await Promise.all(
+          chunk.map(p =>
+            fetchRequestableSongs({ page: p, perPage: PAGE_SIZE, search: '' })
+              .then(r => (Array.isArray(r) ? r : []))
+              .catch(() => [])
+          )
+        );
+        all.push(...batches.flat());
+      }
+
+      const seen = new Map<string, SongRequest>();
+      for (const item of all) seen.set(item.request_id, item);
+      const unique = Array.from(seen.values());
+
+      setSongs(unique);
+      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ songs: unique, timestamp: Date.now() }));
     } catch {
       // keep existing list
     } finally {
       setIsFetchingSongs(false);
-      setIsLoadingMore(false);
     }
   }, [fetchRequestableSongs]);
 
   useEffect(() => {
-    loadPage(1, debouncedQuery, true);
-  }, [debouncedQuery, loadPage]);
-
-  const loadMore = useCallback(() => {
-    if (isLoadingMore || !hasMore) return;
-    loadPage(page + 1, debouncedQuery, false);
-  }, [isLoadingMore, hasMore, page, debouncedQuery, loadPage]);
+    loadAll();
+  }, [loadAll]);
 
   const handleRequest = async (item: SongRequest) => {
     setRequesting(item.request_id);
@@ -115,7 +147,7 @@ export default function RequestScreen() {
       </View>
 
       <FlatList
-        data={songs}
+        data={filteredSongs}
         keyExtractor={(item) => item.request_id}
         renderItem={({ item }) => {
           const isSent = sent.includes(item.request_id);
@@ -163,13 +195,6 @@ export default function RequestScreen() {
             </View>
           );
         }}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.4}
-        ListFooterComponent={
-          isLoadingMore
-            ? <ActivityIndicator style={{ marginVertical: 16 }} color="#818cf8" />
-            : null
-        }
         ListEmptyComponent={
           isFetchingSongs
             ? <ActivityIndicator style={styles.loadingIndicator} color="#818cf8" />
