@@ -16,7 +16,7 @@ import {
   AdminSchedule,
   AdminUpload,
 } from './pages/admin'
-import { AboutPage } from './pages/info';
+import { AboutPage, PrivacyPolicyPage } from './pages/info';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 
@@ -32,6 +32,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/" element={<App />} />
             <Route path="/info/*" element={<Navigate to="/info/who-we-are" replace />} />
             <Route path="/info/who-we-are" element={<AboutPage />} />
+            <Route path="/info/privacy" element={<PrivacyPolicyPage />} />
 
             {/* Panel de administración */}
             <Route path="/admin/login" element={<AdminLogin />} />

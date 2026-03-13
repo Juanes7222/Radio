@@ -34,6 +34,9 @@
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "POST_NOTIFICATIONS"
+      ],
+      "blockedPermissions": [
+        "RECORD_AUDIO"
       ]
     },
     "web": {

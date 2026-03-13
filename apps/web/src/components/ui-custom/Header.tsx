@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Menu, Share2, Home, CircleQuestionMark } from 'lucide-react';
+import { Menu, Share2, Home, CircleQuestionMark, FileKey } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -102,6 +102,15 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
             <TooltipContent>¿Quiénes somos?</TooltipContent>
           </Tooltip>
 
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={() => navigate('/info/privacy')}>
+                <FileKey className="w-5 h-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Política de Privacidad</TooltipContent>
+          </Tooltip>
+
           <ThemeToggle />
         </div>
       </TooltipProvider>
@@ -130,12 +139,20 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
                 <Button variant="ghost" className="justify-start" onClick={() => {
                   navigate('/');
                 }}>
+                  <Home className="w-5 h-5 mr-2" />
                   Inicio
                 </Button>
                 <Button variant="ghost" className="justify-start" onClick={() => {
                   navigate('/info/who-we-are');
                 }}>
+                <CircleQuestionMark className="w-5 h-5" />
                   Acerca de
+                </Button>
+                <Button variant="ghost" className="justify-start" onClick={() => {
+                  navigate('/info/privacy');
+                }}>
+                  <FileKey className="w-5 h-5" />
+                  Política de Privacidad
                 </Button>
                 <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
                   <p className="text-sm text-muted-foreground px-4">
