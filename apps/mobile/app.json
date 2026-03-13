@@ -4,7 +4,7 @@
     "slug": "la-voz-de-la-verdad",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/android/mipmap-xxxhdpi/ic_launcher.png",
     "scheme": "radio",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
@@ -24,8 +24,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0f172a"
+        "foregroundImage": "./assets/android/mipmap-xxxhdpi/ic_launcher_foreground.png",
+        "backgroundColor": "#ffffff"
       },
       "package": "com.lavozverdad.radio",
       "permissions": [
