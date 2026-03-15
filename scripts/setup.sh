@@ -5,6 +5,7 @@ set -euo pipefail
 DEPLOY_DIR="/var/www/radio"
 NGINX_CONF="/etc/nginx/sites-available/radio"
 SSH_PORT="${SSH_PORT:-2222}"
+DOMAINS="lavozverdad.com,www.lavozverdad.com,panel.lavozverdad.com"
 
 # PANEL_PASS must be provided via environment — no insecure default
 if [[ -z "${PANEL_PASS:-}" ]]; then
@@ -18,6 +19,7 @@ apt-get update -y
 apt-get install -y \
   curl git nginx apache2-utils ufw fail2ban \
   unattended-upgrades apt-listchanges \
+  certbot python3-certbot-nginx \
   aide
 
 # ─── 2. Node.js 22 ────────────────────────────────────────────────────────────
@@ -43,7 +45,7 @@ npm run build --workspace=@radio/web
 htpasswd -cb /etc/nginx/.htpasswd admin "$PANEL_PASS"
 chmod 640 /etc/nginx/.htpasswd
 
-# ─── 6. Nginx ─────────────────────────────────────────────────────────────────
+# ─── 6. Nginx + SSL certificates ─────────────────────────────────────────────
 
 # Global rate-limiting and SSL directives go into conf.d so they are loaded
 # automatically inside nginx's http{} block without editing nginx.conf directly.
@@ -55,9 +57,49 @@ ssl_session_cache   shared:SSL:10m;
 ssl_session_timeout 10m;
 EOF
 
-cp "$DEPLOY_DIR/scripts/radio.nginx.conf" "$NGINX_CONF"
+# Phase 1: deploy a minimal HTTP-only config so Certbot can complete its ACME
+# challenge without needing certificates that do not exist yet.
+mkdir -p /var/www/html
+cat > "$NGINX_CONF" <<'EOF'
+server {
+    listen 80;
+    server_name lavozverdad.com www.lavozverdad.com panel.lavozverdad.com;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        return 200 'ok';
+        add_header Content-Type text/plain;
+    }
+}
+EOF
+
 ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/radio
 rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl reload nginx
+
+# Phase 2: obtain certificates non-interactively
+certbot certonly --nginx \
+  --non-interactive \
+  --agree-tos \
+  --register-unsafely-without-email \
+  -d lavozverdad.com \
+  -d www.lavozverdad.com \
+  -d panel.lavozverdad.com
+
+# Auto-renewal hook: reloads Nginx after each renewal so new certificates are
+# picked up without dropping active stream connections.
+mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh <<'EOF'
+#!/usr/bin/env bash
+systemctl reload nginx
+EOF
+chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+
+# Phase 3: deploy the full HTTPS config now that certificates exist
+cp "$DEPLOY_DIR/scripts/radio.nginx.conf" "$NGINX_CONF"
 nginx -t && systemctl reload nginx
 
 # ─── 7. Systemd service ───────────────────────────────────────────────────────
@@ -205,14 +247,14 @@ echo "Next steps:"
 echo "  1. Add your public SSH key before closing this session:"
 echo "     ssh-copy-id -p $SSH_PORT user@$SERVER_IP"
 echo ""
-echo "  2. Obtain SSL certificates:"
-echo "     certbot --nginx -d lavozverdad.com -d www.lavozverdad.com -d panel.lavozverdad.com"
-echo ""
-echo "  3. Fill in /var/www/radio/backend/.env:"
+echo "  2. Fill in /var/www/radio/backend/.env:"
 echo "     AZURACAST_URL=http://127.0.0.1:8080"
 echo ""
-echo "  4. Verify Fail2ban:"
+echo "  3. Verify Fail2ban:"
 echo "     fail2ban-client status"
+echo ""
+echo "  4. Verify certificate auto-renewal:"
+echo "     certbot renew --dry-run"
 echo ""
 echo "  WARNING: do NOT close this SSH session until you have verified"
 echo "  you can connect on port $SSH_PORT in a second terminal."
