@@ -54,24 +54,32 @@ export default router;
 // Public routes — no authentication required
 export const publicRouter = Router();
 
-function rewriteInternalUrls(data: unknown): unknown {
-  if (!config.publicUrl) return data;
+function buildPublicUrl(req: Request): string {
+  const host = req.headers['x-forwarded-host'] ?? req.headers['host'] ?? '';
+  const protocol = req.headers['x-forwarded-proto'] ?? 'https';
+  return `${protocol}://${host}`;
+}
+
+function rewriteInternalUrls(data: unknown, publicUrl: string): unknown {
   const rewritten = JSON.stringify(data)
-    .replaceAll('http://localhost', config.publicUrl)
-    .replaceAll('https://localhost', config.publicUrl)
+    .replaceAll('http://localhost', publicUrl)
+    .replaceAll('https://localhost', publicUrl)
     .replaceAll(
       `${config.azuracast.url}/api/station`,
-      `${config.publicUrl}/api/station`,
+      `${publicUrl}/api/station`,
     );
   return JSON.parse(rewritten);
 }
-
 publicRouter.get('/nowplaying', (req, res) => {
-  proxyToAzuraCast(req, res, `/api/nowplaying/${config.azuracast.stationId}`, rewriteInternalUrls);
+  const publicUrl = buildPublicUrl(req);
+  proxyToAzuraCast(req, res, `/api/nowplaying/${config.azuracast.stationId}`, 
+    (data) => rewriteInternalUrls(data, publicUrl));
 });
 
 publicRouter.get('/search', (req, res) => {
-  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/requests`, rewriteInternalUrls);
+  const publicUrl = buildPublicUrl(req);
+  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/requests`, 
+    (data) => rewriteInternalUrls(data, publicUrl));
 });
 
 publicRouter.get('/station/:stationId/art/:artId', async (req, res) => {
@@ -98,5 +106,7 @@ publicRouter.get('/station/:stationId/art/:artId', async (req, res) => {
 
 publicRouter.post('/requests/:songId', (req, res) => {
   const { songId } = req.params;
-  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/request/${songId}`, rewriteInternalUrls);
+  const publicUrl = buildPublicUrl(req);
+  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/request/${songId}`, 
+    (data) => rewriteInternalUrls(data, publicUrl));
 });
