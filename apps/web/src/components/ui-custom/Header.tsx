@@ -10,7 +10,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { ThemeToggle } from './ThemeToggle';
 import { useTheme } from '@/hooks';
 import { ShareModal } from './SharedModla';
 import LOGO1 from '@assets/img/LOGO_COMPLETO_SINFONDO.png';
@@ -48,11 +47,7 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
     <motion.header
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`sticky top-0 z-50 w-full border-b backdrop-blur-lg ${
-        isDark 
-          ? 'bg-slate-900/80 border-slate-800'
-          : 'bg-white/80 border-slate-200'
-      }`}
+      className={`sticky top-0 z-50 w-full border-b backdrop-blur-lg bg-slate-900/80 border-slate-800`}
     >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
@@ -111,13 +106,11 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
             <TooltipContent>Política de Privacidad</TooltipContent>
           </Tooltip>
 
-          <ThemeToggle />
         </div>
       </TooltipProvider>
 
         {/* Mobile menu */}
         <div className="md:hidden flex items-center gap-2">
-          <ThemeToggle />
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">

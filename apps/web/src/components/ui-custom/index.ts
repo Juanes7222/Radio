@@ -1,3 +1,8 @@
 export { ThemeToggle } from './ThemeToggle';
 export { PWAInstall } from './PWAInstall';
 export { Header } from './Header';
+export { DesktopSocialLinks, MobileSocialLinks } from './SocialLinksSection';
+export { FacebookLiveBanner } from './FacebookLiveBanner';
+export { DesktopHeroSection } from './DesktopHeroSection';
+export { SongRequestButton } from './SongRequestButton';
+export { AppFooter } from './AppFooter';
