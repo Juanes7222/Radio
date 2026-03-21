@@ -20,9 +20,9 @@ export function useTheme(): ThemeContextValue {
 // Lógica real del tema — solo se ejecuta una vez en ThemeProvider
 export function useThemeProvider(): ThemeContextValue {
   const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('theme') as Theme) || 'dark';
-    }
+    // if (typeof window !== 'undefined') {
+    //   return (localStorage.getItem('theme') as Theme) || 'dark';
+    // }
     return 'dark';
   });
 
