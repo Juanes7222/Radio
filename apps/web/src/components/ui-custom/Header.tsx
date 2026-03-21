@@ -138,21 +138,18 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
                 <Button variant="ghost" className="justify-start" onClick={() => {
                   navigate('/info/who-we-are');
                 }}>
-                <CircleQuestionMark className="w-5 h-5" />
+                <CircleQuestionMark className="w-5 h-5 mr-2" />
                   Acerca de
                 </Button>
                 <Button variant="ghost" className="justify-start" onClick={() => {
                   navigate('/info/privacy');
                 }}>
-                  <FileKey className="w-5 h-5" />
+                  <FileKey className="w-5 h-5 mr-2" />
                   Política de Privacidad
                 </Button>
                 <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
                   <p className="text-sm text-muted-foreground px-4">
                     {stationName}
-                  </p>
-                  <p className="text-xs text-muted-foreground px-4 mt-1">
-                    Versión 1.0.0
                   </p>
                 </div>
               </div>
