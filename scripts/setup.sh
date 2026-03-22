@@ -5,7 +5,7 @@ set -euo pipefail
 DEPLOY_DIR="/var/www/radio"
 NGINX_CONF="/etc/nginx/sites-available/radio"
 SSH_PORT="${SSH_PORT:-2222}"
-DOMAINS="lavozverdad.com,www.lavozverdad.com,panel.lavozverdad.com"
+DOMAINS="lavozverdad.com,www.lavozverdad.com,panel.lavozverdad.com,vozyverdad.com,www.vozyverdad.com"
 
 # PANEL_PASS must be provided via environment — no insecure default
 if [[ -z "${PANEL_PASS:-}" ]]; then
@@ -63,7 +63,7 @@ mkdir -p /var/www/html
 cat > "$NGINX_CONF" <<'EOF'
 server {
     listen 80;
-    server_name lavozverdad.com www.lavozverdad.com panel.lavozverdad.com;
+    server_name lavozverdad.com www.lavozverdad.com panel.lavozverdad.com vozyverdad.com www.vozyverdad.com;
 
     location /.well-known/acme-challenge/ {
         root /var/www/html;
@@ -88,6 +88,13 @@ certbot certonly --nginx \
   -d lavozverdad.com \
   -d www.lavozverdad.com \
   -d panel.lavozverdad.com
+
+certbot certonly --nginx \
+  --non-interactive \
+  --agree-tos \
+  --register-unsafely-without-email \
+  -d vozyverdad.com \
+  -d www.vozyverdad.com
 
 # Auto-renewal hook: reloads Nginx after each renewal so new certificates are
 # picked up without dropping active stream connections.
