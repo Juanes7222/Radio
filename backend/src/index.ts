@@ -2,14 +2,13 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { createServer } from 'http';
 import { config } from './config';
 import authRouter from './routes/auth';
 import proxyRouter, { publicRouter } from './routes/proxy';
 import uploadRouter from './routes/upload';
 import webhookRouter from './routes/webhook';
 import panelRouter from './routes/panel';
-import { initWebSocket } from './websocket';
+import liveStatusRouter from './routes/live-status';
 
 const app = express();
 
@@ -36,15 +35,13 @@ app.use('/admin-api', proxyRouter);
 app.use('/admin-api/upload', uploadRouter);
 app.use('/webhook', webhookRouter);
 app.use('/panel-api', panelRouter);
+app.use('/live-status', liveStatusRouter);
 
 app.get('/admin-api/health', (_req, res) => {
     res.json({ ok: true, time: new Date().toISOString() });
 });
 
-const server = createServer(app);
-initWebSocket(server);
-
-server.listen(config.port, () => {
+app.listen(config.port, () => {
     console.log(`\n Backend admin corriendo en http://localhost:${config.port}`);
     console.log(`   Station ID : ${config.azuracast.stationId}`);
     console.log(`   AzuraCast  : ${config.azuracast.url}`);
