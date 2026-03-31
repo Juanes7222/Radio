@@ -8,7 +8,7 @@ import {
   Header,
   DesktopSocialLinks,
   MobileSocialLinks,
-  FacebookLiveBanner,
+  FacebookLivePlayer,
   DesktopHeroSection,
   SongRequestButton,
   AppFooter,
@@ -95,7 +95,7 @@ function App() {
 
         <SongRequestButton onClick={openRequests} />
 
-        <FacebookLiveBanner liveUrl={liveUrl} />
+        <FacebookLivePlayer liveUrl={liveUrl} />
 
         <MobileSocialLinks links={socialLinks} isDark={isDark} />
 
