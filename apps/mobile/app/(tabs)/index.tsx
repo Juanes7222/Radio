@@ -42,7 +42,7 @@ export default function PlayerScreen() {
 
   const { data, isLoading, error } = useAzuraCast({
     apiBaseUrl: BACKEND_URL,
-    pollInterval: 15000,
+    pollInterval: 3000,
   });
 
   const { isPlaying, isBuffering, error: audioError, reconnectAttempt, toggle, pause } =
