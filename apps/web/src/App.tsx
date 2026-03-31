@@ -13,49 +13,39 @@ import {
   SongRequestButton,
   AppFooter,
 } from '@/components/ui-custom';
-import { useAzuraCast, useTheme, useAudioPlayer, useMediaSession, useSleepTimer, useFacebookLive } from '@/hooks';
-import type { StreamQuality } from '@/types/azuracast';
+import { useTheme } from '@/hooks';
+import { useGlobalAudio } from '@/hooks/useGlobalAudio';
 import { getSocialLinksWithLiveStatus } from '@/utils/socialLinks';
 
 function App() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
-  const [showRequests, setShowRequests] = useState(false);
-  const [quality, setQuality] = useState<StreamQuality>('128');
   const [artworkErrorSongId, setArtworkErrorSongId] = useState<string | null>(null);
-  const { liveUrl } = useFacebookLive();
-
-  const { data, isLoading, error, getStreamUrl, requestSong } =
-    useAzuraCast({ apiBaseUrl: import.meta.env.VITE_API_BASE_URL, pollInterval: 15000 });
-
-  const artworkLoadFailed = artworkErrorSongId === (data?.now_playing?.song?.id ?? null);
-  const streamUrl = getStreamUrl(quality);
-  const socialLinks = getSocialLinksWithLiveStatus(liveUrl);
-
+  
   const {
-    analyserRef,
-    state: playerState,
+    data,
+    isLoading,
+    error,
+    playerState,
+    setQuality,
     togglePlay,
     setVolume,
     toggleMute,
-    pause,
-    setQuality: setPlayerQuality,
     clearError,
     reconnectAttempt,
-  } = useAudioPlayer({ streamUrl, autoplay: true });
+    analyserRef,
+    liveUrl,
+    sleepTimer,
+    showRequests,
+    setShowRequests,
+    requestSong,
+  } = useGlobalAudio();
 
-  const sleepTimer = useSleepTimer(pause);
-  const closeRequests = useCallback(() => setShowRequests(false), []);
-  const openRequests = useCallback(() => setShowRequests(true), []);
+  const artworkLoadFailed = artworkErrorSongId === (data?.now_playing?.song?.id ?? null);
+  const socialLinks = getSocialLinksWithLiveStatus(liveUrl);
 
-  useMediaSession({
-    title: data?.now_playing?.song?.title || 'Radio Stream',
-    artist: data?.now_playing?.song?.artist || 'Desconocido',
-    album: data?.now_playing?.song?.album || '',
-    artwork: data?.now_playing?.song?.art || '',
-    onPlay: togglePlay,
-    onPause: togglePlay,
-  });
+  const closeRequests = useCallback(() => setShowRequests(false), [setShowRequests]);
+  const openRequests = useCallback(() => setShowRequests(true), [setShowRequests]);
 
   return (
     <div className={`min-h-screen w-full overflow-x-hidden transition-colors duration-300 bg-slate-950 text-white-900`}>
@@ -75,7 +65,7 @@ function App() {
             onTogglePlay={togglePlay}
             onSetVolume={setVolume}
             onToggleMute={toggleMute}
-            onSetQuality={setPlayerQuality}
+            onSetQuality={setQuality}
             onClearError={clearError}
             sleepTimer={sleepTimer}
             onQualityChange={setQuality}

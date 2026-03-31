@@ -5,6 +5,8 @@ import { GoogleOAuthProvider } from '@react-oauth/google'
 import './index.css'
 import App from './App.tsx'
 import { AdminAuthProvider, ThemeProvider } from './hooks/index.ts'
+import { AudioPlayerProvider } from './contexts/AudioPlayerContext.tsx'
+import { PublicLayout } from './components/layout/PublicLayout.tsx'
 import { Toaster } from './components/ui/sonner.tsx'
 import {
   AdminLogin,
@@ -25,30 +27,38 @@ createRoot(document.getElementById('root')!).render(
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <ThemeProvider>
         <AdminAuthProvider>
-        <BrowserRouter>
-          <Toaster richColors position="bottom-center" />
-          <Routes>
-            {/* Reproductor público */}
-            <Route path="/" element={<App />} />
-            <Route path="/info/*" element={<Navigate to="/info/who-we-are" replace />} />
-            <Route path="/info/who-we-are" element={<AboutPage />} />
-            <Route path="/info/privacy" element={<PrivacyPolicyPage />} />
+          <AudioPlayerProvider>
+            <BrowserRouter>
+              <Toaster richColors position="bottom-center" />
+              <Routes>
+                {/* Rutas Públicas con Layout (incluye MiniPlayer) */}
+                <Route element={<PublicLayout />}>
+                  <Route path="/" element={<App />} />
+                  <Route path="/info/who-we-are" element={<AboutPage />} />
+                  <Route path="/info/privacy" element={<PrivacyPolicyPage />} />
+                </Route>
 
-            {/* Panel de administración */}
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<Navigate to="/admin/dashboard" replace />} />
-              <Route path="dashboard" element={<AdminDashboard />} />
-              <Route path="playlists" element={<AdminPlaylists />} />
-              <Route path="requests" element={<AdminRequests />} />
-              <Route path="streaming" element={<AdminStreaming />} />
-              <Route path="schedule" element={<AdminSchedule />} />
-              <Route path="upload" element={<AdminUpload />} />
-            </Route>
+                <Route path="/info/*" element={<Navigate to="/info/who-we-are" replace />} />
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </AdminAuthProvider>    </ThemeProvider>  </GoogleOAuthProvider></StrictMode>,
+                {/* Panel de administración */}
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                  <Route path="dashboard" element={<AdminDashboard />} />
+                  <Route path="playlists" element={<AdminPlaylists />} />
+                  <Route path="requests" element={<AdminRequests />} />
+                  <Route path="streaming" element={<AdminStreaming />} />
+                  <Route path="schedule" element={<AdminSchedule />} />
+                  <Route path="upload" element={<AdminUpload />} />
+                </Route>
+
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </BrowserRouter>
+          </AudioPlayerProvider>
+        </AdminAuthProvider>
+      </ThemeProvider>
+    </GoogleOAuthProvider>
+  </StrictMode>,
 )
