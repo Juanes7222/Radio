@@ -95,7 +95,6 @@ function App() {
 
         <SongRequestButton onClick={openRequests} />
 
-        {/* Facebook Live Player - replaces the banner */}
         <FacebookLivePlayer liveUrl={liveUrl} />
 
         <MobileSocialLinks links={socialLinks} isDark={isDark} />

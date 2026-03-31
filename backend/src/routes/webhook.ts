@@ -18,10 +18,8 @@ router.get('/facebook', (req, res) => {
 router.post('/facebook', (req, res) => {
   const body = req.body;
 
-  // Always respond 200 immediately to Facebook
   res.sendStatus(200);
 
-  // Process webhook safely
   try {
     if (body?.object !== 'page') return;
 

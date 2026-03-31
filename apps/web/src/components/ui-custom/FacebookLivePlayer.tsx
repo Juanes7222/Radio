@@ -71,7 +71,7 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
                       </span>
                     </div>
                     <span className="text-white font-bold text-sm md:text-base tracking-wide">
-                      🔴 EN VIVO
+                      EN VIVO
                     </span>
                     <Facebook className="w-4 h-4 md:w-5 md:h-5 text-white" />
                   </div>

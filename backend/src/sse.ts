@@ -27,16 +27,13 @@ function saveState(url: string | null) {
 let currentLiveUrl: string | null = loadState();
 
 export function addSSEClient(res: Response) {
-  // Set headers for SSE
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+  res.setHeader('X-Accel-Buffering', 'no');
 
-  // Add client to set
   clients.add(res);
 
-  // Send current state immediately if there's an active live
   if (currentLiveUrl !== null) {
     const data = JSON.stringify({ status: 'live', url: currentLiveUrl });
     res.write(`event: live_start\ndata: ${data}\n\n`);
@@ -45,12 +42,10 @@ export function addSSEClient(res: Response) {
     res.write(`event: live_end\ndata: ${data}\n\n`);
   }
 
-  // Send heartbeat every 30 seconds to keep connection alive
   const heartbeat = setInterval(() => {
     res.write(`:heartbeat\n\n`);
   }, 30000);
 
-  // Remove client on close
   res.on('close', () => {
     clearInterval(heartbeat);
     clients.delete(res);
