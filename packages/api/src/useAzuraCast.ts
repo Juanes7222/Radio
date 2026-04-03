@@ -36,9 +36,14 @@ export function useAzuraCast({
         timeout: 10000,
         headers: { Accept: 'application/json' },
       });
-      setData(response.data);
+      let responseData = response.data;
+      if (typeof window !== "undefined") {
+        const urlBase = apiBaseUrl || window.location.origin;
+        responseData = JSON.parse(JSON.stringify(responseData).replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, urlBase));
+      }
+      setData(responseData);
       setError(null);
-      return response.data;
+      return responseData;
     } catch (err) {
       if (axios.isAxiosError(err)) {
         if (err.code === 'ECONNABORTED') {
@@ -221,8 +226,12 @@ export function useAzuraCast({
         headers: { Accept: 'application/json' },
       });
 
-      const data = response.data;
-      return Array.isArray(data) ? data : (data.result ?? data.rows ?? data.data ?? []);
+      let responseData = response.data;
+      if (typeof window !== "undefined") {
+        const urlBase = apiBaseUrl || window.location.origin;
+        responseData = JSON.parse(JSON.stringify(responseData).replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, urlBase));
+      }
+      return Array.isArray(responseData) ? responseData : (responseData.result ?? responseData.rows ?? responseData.data ?? []);
     },
     [apiBaseUrl]
   );
@@ -234,8 +243,12 @@ export function useAzuraCast({
           timeout: 10000,
           headers: { Accept: 'application/json' },
         });
-        const data = response.data;
-        return Array.isArray(data) ? data : (data.result ?? data.rows ?? data.data ?? null);
+        let responseData = response.data;
+        if (typeof window !== "undefined") {
+          const urlBase = apiBaseUrl || window.location.origin;
+          responseData = JSON.parse(JSON.stringify(responseData).replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, urlBase));
+        }
+        return Array.isArray(responseData) ? responseData : (responseData.result ?? responseData.rows ?? responseData.data ?? null);
       } catch {
         return null;
       }
@@ -251,9 +264,17 @@ export function useAzuraCast({
       if (!defaultMount) return '';
       const qualityNum = parseInt(quality);
       const matchingMount = mounts.find((m) => m.bitrate === qualityNum);
-      return matchingMount ? matchingMount.url : defaultMount.url;
+      let streamUrl = matchingMount ? matchingMount.url : defaultMount.url;
+
+      // Fix mixed content or localhost URLs coming natively from AzuraCast
+      const baseUrl = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+      if (baseUrl) {
+        streamUrl = streamUrl.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl);
+      }
+      
+      return streamUrl;
     },
-    [data]
+    [data, apiBaseUrl]
   );
 
   return {

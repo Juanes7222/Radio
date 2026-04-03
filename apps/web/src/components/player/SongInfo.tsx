@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { Disc, Music, User, Album, Mic2 } from 'lucide-react';
+import { Disc, Music, User } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import type { NowPlaying } from '@/types/azuracast';
@@ -139,7 +139,7 @@ function SongInfoComponent({ song, isLoading, theme }: SongInfoProps) {
         </motion.div>
       )}
 
-      {songData.album && (
+      {/* {songData.album && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -161,7 +161,7 @@ function SongInfoComponent({ song, isLoading, theme }: SongInfoProps) {
           <Mic2 className="w-4 h-4" />
           <span>{songData.genre}</span>
         </motion.div>
-      )}
+      )} */}
 
       {playlist && (
         <motion.div
