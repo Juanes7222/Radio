@@ -79,7 +79,7 @@ self.addEventListener('fetch', (event) => {
   ) return;
 
   // No interceptar rutas del backend (admin o públicas) — siempre network
-  if (url.pathname.startsWith('/admin-api/') || url.pathname.startsWith('/api/')) return;
+  if (url.pathname.startsWith('/admin-api/') || url.pathname.startsWith('/api/') || url.pathname.startsWith('/live-status/')) return;
 
   // No interceptar requests de streaming de audio ni WebSocket
   if (

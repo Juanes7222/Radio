@@ -85,7 +85,12 @@ export function useAzuraCast({
         eventSource.onmessage = (event) => {
           if (!event.data) return;
           try {
-            const parsed = JSON.parse(event.data);
+            // Rewrite localhost URLs to avoid Mixed Content / CSP errors
+            const rewrittenData = event.data
+              .replace(/http:\/\/localhost/g, baseUrl)
+              .replace(/https:\/\/localhost/g, baseUrl);
+              
+            const parsed = JSON.parse(rewrittenData);
             if (parsed?.pub?.data?.np) {
               setData(parsed.pub.data.np);
               setIsLoading(false);
@@ -128,7 +133,12 @@ export function useAzuraCast({
         ws.onmessage = (event) => {
           if (!event.data) return;
           try {
-            const parsed = JSON.parse(event.data);
+            // Rewrite localhost URLs to avoid Mixed Content / CSP errors
+            const rewrittenData = event.data
+              .replace(/http:\/\/localhost/g, baseUrl)
+              .replace(/https:\/\/localhost/g, baseUrl);
+
+            const parsed = JSON.parse(rewrittenData);
             if (parsed?.pub?.data?.np) {
               setData(parsed.pub.data.np);
               setIsLoading(false);
