@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@floating-ui/dom": "^1.7.6",
+    "@floating-ui/react-dom": "^2.1.8",
     "@hookform/resolvers": "^5.2.2",
     "@icons-pack/react-simple-icons": "^13.11.2",
     "@radio/api": "*",
