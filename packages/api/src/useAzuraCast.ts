@@ -62,6 +62,8 @@ export function useAzuraCast({
     let ws: WebSocket | null = null;
     let fallbackInterval: ReturnType<typeof setInterval> | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let retryCount = 0;
+    const RECONNECT_DELAYS = [5000, 10000, 15000, 30000, 60000];
 
     const setupRealTime = (shortcode: string) => {
       let baseUrl = apiBaseUrl;
@@ -75,6 +77,10 @@ export function useAzuraCast({
       if (typeof EventSource !== 'undefined') {
         const sseUrl = `${baseUrl}/api/live/nowplaying/sse?cf_connect=${cfConnectStr}`;
         eventSource = new EventSource(sseUrl);
+
+        eventSource.onopen = () => {
+          retryCount = 0;
+        };
 
         eventSource.onmessage = (event) => {
           if (!event.data) return;
@@ -95,16 +101,17 @@ export function useAzuraCast({
           fetchNowPlaying();
           
           if (!fallbackInterval) {
-            fallbackInterval = setInterval(fetchNowPlaying, pollInterval);
+            fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 10000));
           }
           
+          const delay = RECONNECT_DELAYS[Math.min(retryCount++, RECONNECT_DELAYS.length - 1)];
           reconnectTimeout = setTimeout(() => {
             if (fallbackInterval) {
               clearInterval(fallbackInterval);
               fallbackInterval = null;
             }
             setupRealTime(shortcode);
-          }, 5000);
+          }, delay);
         };
       } else if (typeof WebSocket !== 'undefined') {
         const wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws';
@@ -114,6 +121,7 @@ export function useAzuraCast({
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
+          retryCount = 0;
           ws?.send(JSON.stringify({ subs }));
         };
 
@@ -139,19 +147,20 @@ export function useAzuraCast({
           fetchNowPlaying();
           
           if (!fallbackInterval) {
-            fallbackInterval = setInterval(fetchNowPlaying, pollInterval);
+            fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 10000));
           }
           
+          const delay = RECONNECT_DELAYS[Math.min(retryCount++, RECONNECT_DELAYS.length - 1)];
           reconnectTimeout = setTimeout(() => {
             if (fallbackInterval) {
               clearInterval(fallbackInterval);
               fallbackInterval = null;
             }
             setupRealTime(shortcode);
-          }, 5000);
+          }, delay);
         };
       } else {
-        fallbackInterval = setInterval(fetchNowPlaying, pollInterval);
+        fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 10000));
       }
     };
 
@@ -159,7 +168,7 @@ export function useAzuraCast({
       if (initialData?.station?.shortcode) {
         setupRealTime(initialData.station.shortcode);
       } else {
-        fallbackInterval = setInterval(fetchNowPlaying, pollInterval);
+        fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 10000));
       }
     });
 

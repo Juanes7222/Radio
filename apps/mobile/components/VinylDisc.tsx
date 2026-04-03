@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Easing, View, StyleSheet } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, View, StyleSheet, AppState, AppStateStatus } from 'react-native';
 import { Image } from 'expo-image';
 import Svg, {
   Circle,
@@ -23,6 +23,15 @@ export function VinylDisc({ artworkUri, isPlaying, size }: VinylDiscProps) {
   const scale   = useRef(new Animated.Value(1)).current;
   const loopRef = useRef<Animated.CompositeAnimation | null>(null);
 
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      setAppState(nextAppState);
+    });
+    return () => { subscription.remove(); };
+  }, []);
+
   useEffect(() => {
     Animated.spring(scale, {
       toValue: isPlaying ? 1 : 0.88,
@@ -36,7 +45,7 @@ export function VinylDisc({ artworkUri, isPlaying, size }: VinylDiscProps) {
     loopRef.current?.stop();
     loopRef.current = null;
 
-    if (isPlaying) {
+    if (isPlaying && appState === 'active') {
       const loop = Animated.loop(
         Animated.timing(rotation, {
           toValue: 1,
@@ -50,7 +59,7 @@ export function VinylDisc({ artworkUri, isPlaying, size }: VinylDiscProps) {
     }
 
     return () => { loopRef.current?.stop(); };
-  }, [isPlaying, rotation]);
+  }, [isPlaying, appState, rotation]);
 
   const spin = rotation.interpolate({
     inputRange: [0, 1],
