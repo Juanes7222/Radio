@@ -61,13 +61,17 @@ function buildPublicUrl(req: Request): string {
 }
 
 function rewriteInternalUrls(data: unknown, publicUrl: string): unknown {
-  const rewritten = JSON.stringify(data)
+  const azuraUrl = config.azuracast.url;
+  
+  let rewritten = JSON.stringify(data)
     .replaceAll('http://localhost', publicUrl)
     .replaceAll('https://localhost', publicUrl)
-    .replaceAll(
-      `${config.azuracast.url}/api/station`,
-      `${publicUrl}/api/station`,
-    );
+    .replaceAll(`${azuraUrl}/api/station`, `${publicUrl}/api/station`);
+    
+  if (azuraUrl && azuraUrl !== 'http://localhost' && azuraUrl !== 'https://localhost') {
+    rewritten = rewritten.replaceAll(azuraUrl, publicUrl);
+  }
+  
   return JSON.parse(rewritten);
 }
 publicRouter.get('/nowplaying', (req, res) => {

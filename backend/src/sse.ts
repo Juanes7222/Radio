@@ -27,6 +27,7 @@ function saveState(url: string | null) {
 let currentLiveUrl: string | null = loadState();
 
 export function addSSEClient(res: Response) {
+  res.status(200);
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');

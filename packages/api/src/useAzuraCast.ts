@@ -87,8 +87,7 @@ export function useAzuraCast({
           try {
             // Rewrite localhost URLs to avoid Mixed Content / CSP errors
             const rewrittenData = event.data
-              .replace(/http:\/\/localhost/g, baseUrl)
-              .replace(/https:\/\/localhost/g, baseUrl);
+              .replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl);
               
             const parsed = JSON.parse(rewrittenData);
             if (parsed?.pub?.data?.np) {
@@ -135,8 +134,7 @@ export function useAzuraCast({
           try {
             // Rewrite localhost URLs to avoid Mixed Content / CSP errors
             const rewrittenData = event.data
-              .replace(/http:\/\/localhost/g, baseUrl)
-              .replace(/https:\/\/localhost/g, baseUrl);
+              .replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl);
 
             const parsed = JSON.parse(rewrittenData);
             if (parsed?.pub?.data?.np) {
