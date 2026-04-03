@@ -6,13 +6,16 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "types": ["vite/client"],
+    "typeRoots": ["./node_modules/@types"],
     "skipLibCheck": true,
 
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"],
+      "react": ["./node_modules/@types/react"],
+      "react/*": ["./node_modules/@types/react/*"],
+      "@types/react": ["./node_modules/@types/react"],
+      "@types/react/*": ["./node_modules/@types/react/*"]
     },
     /* Bundler mode */
     "moduleResolution": "bundler",
