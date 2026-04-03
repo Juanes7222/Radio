@@ -22,6 +22,7 @@ import { SleepTimerModal } from '@/components/SleepTimerModal';
 import { useAzuraCast } from '@radio/api';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
+import { useProgramNotify } from '@/hooks/useProgramNotify';
 import {
   useFavoriteNotify,
   loadFavoriteSongKeys,
@@ -52,6 +53,8 @@ export default function PlayerScreen() {
   const sleepTimer = useSleepTimer(useCallback(async () => {
     await pause();
   }, [pause]));
+
+  useProgramNotify();
 
   const [favoriteSongKeys, setFavoriteSongKeys] = useState<string[]>([]);
 

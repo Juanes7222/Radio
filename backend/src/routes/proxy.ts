@@ -82,6 +82,12 @@ publicRouter.get('/search', (req, res) => {
     (data) => rewriteInternalUrls(data, publicUrl));
 });
 
+publicRouter.get('/schedule', (req, res) => {
+  const publicUrl = buildPublicUrl(req);
+  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/schedule`,
+    (data) => rewriteInternalUrls(data, publicUrl));
+});
+
 publicRouter.get('/station/:stationId/art/:artId', async (req, res) => {
   const { stationId, artId } = req.params;
   try {
