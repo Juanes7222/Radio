@@ -19,7 +19,8 @@ import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 import { formatMediaTitle } from '@/lib/formatMedia';
 
-const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
+import { scale, TAB_BAR_HEIGHT } from '../../lib/responsive';
+
 const PAGE_SIZE = 25;
 const ESTIMATED_TOTAL = 3000;
 const CACHE_KEY = 'requestable_songs_cache';
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
   loadingIndicator: { marginTop: 48 },
   separator: { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginLeft: 66 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
-  art: { width: 50, height: 50, borderRadius: 10 },
+  art: { width: scale(50), height: scale(50), borderRadius: 10 },
   artFallback: { backgroundColor: 'rgba(255,255,255,0.06)' },
   info: { flex: 1 },
   preachingBadge: {

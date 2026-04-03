@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Colors, Radii, Typography } from '@/constants/theme';
+import { scale } from '@/lib/responsive';
 
 interface LiveBadgeProps {
   listenersCount: number;
@@ -86,22 +87,22 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(239,68,68,0.2)',
   },
   dotContainer: {
-    width: 8,
-    height: 8,
+    width: scale(8),
+    height: scale(8),
     alignItems: 'center',
     justifyContent: 'center',
   },
   pulseDot: {
     position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: scale(8),
+    height: scale(8),
+    borderRadius: scale(4),
     backgroundColor: Colors.danger,
   },
   solidDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: scale(8),
+    height: scale(8),
+    borderRadius: scale(4),
     backgroundColor: Colors.danger,
   },
   liveLabel: {

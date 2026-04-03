@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Radii } from '@/constants/theme';
+import { scale } from '@/lib/responsive';
 
 interface PlayerControlsProps {
   isPlaying: boolean;
@@ -26,7 +27,7 @@ export function PlayerControls({
       >
         <Ionicons
           name={isFavorite ? 'heart' : 'heart-outline'}
-          size={24}
+          size={scale(24)}
           color={isFavorite ? Colors.danger : Colors.textMuted}
         />
       </Pressable>
@@ -42,9 +43,9 @@ export function PlayerControls({
         ) : (
           <Ionicons
             name={isPlaying ? 'pause' : 'play'}
-            size={36}
+            size={scale(36)}
             color={Colors.background}
-            style={!isPlaying ? { marginLeft: 4 } : undefined}
+            style={!isPlaying ? { marginLeft: scale(4) } : undefined}
           />
         )}
       </Pressable>
@@ -57,11 +58,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 40,
+    gap: scale(40),
   },
   sideButton: {
-    width: 48,
-    height: 48,
+    width: scale(48),
+    height: scale(48),
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -74,8 +75,8 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.93 }],
   },
   playButton: {
-    width: 80,
-    height: 80,
+    width: scale(80),
+    height: scale(80),
     borderRadius: Radii.full,
     backgroundColor: Colors.accent,
     alignItems: 'center',

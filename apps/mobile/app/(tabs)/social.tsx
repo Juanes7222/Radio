@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { useFacebookLive } from '../../hooks/useFacebookLive';
 
-const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
+import { scale, TAB_BAR_HEIGHT } from '../../lib/responsive';
 
 const SOCIAL_LINKS = [
   {
@@ -160,8 +160,8 @@ const styles = StyleSheet.create({
   },
 
   iconCircle: {
-    width: 50,
-    height: 50,
+    width: scale(50),
+    height: scale(50),
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -192,17 +192,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   liveDot: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   liveDotInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: scale(12),
+    height: scale(12),
+    borderRadius: scale(6),
     backgroundColor: '#fff',
   },
   linkCardLive: {

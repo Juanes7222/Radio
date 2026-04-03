@@ -6,7 +6,7 @@ import { useAzuraCast } from '@radio/api';
 import type { SongHistory } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 
-const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
+import { scale, TAB_BAR_HEIGHT } from '../../lib/responsive';
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp * 1000);
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   separator: { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginLeft: 80 },
   indexBadge: { width: 26, alignItems: 'center' },
   indexText: { color: '#374151', fontSize: 12, fontWeight: '600' },
-  art: { width: 50, height: 50, borderRadius: 10 },
+  art: { width: scale(50), height: scale(50), borderRadius: 10 },
   artPlaceholder: { backgroundColor: 'rgba(255,255,255,0.06)' },
   info: { flex: 1 },
   title: { color: '#f1f5f9', fontSize: 14, fontWeight: '600' },

@@ -19,6 +19,7 @@ import { VinylDisc } from '@/components/VinylDisc';
 import { LiveBadge } from '@/components/LiveBadge';
 import { PlayerControls } from '@/components/PlayerControls';
 import { SleepTimerModal } from '@/components/SleepTimerModal';
+import TextTicker from 'react-native-text-ticker';
 import { useAzuraCast } from '@radio/api';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
@@ -33,8 +34,9 @@ import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 
+import { scale, verticalScale, TAB_BAR_HEIGHT } from '../../lib/responsive';
+
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 18;
 // Reserve ~260pt for top bar + song info + controls + tab bar
 const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 252);
 
@@ -229,14 +231,39 @@ export default function PlayerScreen() {
               <Text style={styles.preachingBadgeText}>Prédica</Text>
             </View>
           )}
-          <Text style={styles.songTitle} numberOfLines={2}>
+          <TextTicker
+            style={styles.songTitle}
+            duration={8000}
+            loop
+            bounce={false}
+            repeatSpacer={50}
+            marqueeDelay={2000}
+          >
             {title}
-          </Text>
+          </TextTicker>
           {artist ? (
-            <Text style={styles.artistName} numberOfLines={1}>{artist}</Text>
+            <TextTicker
+              style={styles.artistName}
+              duration={8000}
+              loop
+              bounce={false}
+              repeatSpacer={50}
+              marqueeDelay={2000}
+            >
+              {artist}
+            </TextTicker>
           ) : null}
           {song?.album ? (
-            <Text style={styles.albumName} numberOfLines={1}>{song.album}</Text>
+            <TextTicker
+              style={styles.albumName}
+              duration={8000}
+              loop
+              bounce={false}
+              repeatSpacer={50}
+              marqueeDelay={2000}
+            >
+              {song.album}
+            </TextTicker>
           ) : null}
         </View>
 

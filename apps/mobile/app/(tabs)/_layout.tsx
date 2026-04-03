@@ -2,9 +2,9 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, View } from 'react-native';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
+import { TAB_BAR_HEIGHT } from '../../lib/responsive';
 
 const ACCENT = '#6366f1';
-const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 
 export default function TabLayout() {
   const { liveUrl } = useFacebookLive();
