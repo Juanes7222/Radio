@@ -95,16 +95,26 @@ export default function PlayerScreen() {
       disableNotify();
       return;
     }
-    const granted = await enableNotify();
+    const { granted, canAskAgain } = await enableNotify();
     if (!granted) {
-      Alert.alert(
-        'Activar notificaciones',
-        'Para recibir alertas cuando suene una canción favorita, activa los permisos en los ajustes de la aplicación.',
-        [
-          { text: 'Ahora no', style: 'cancel' },
-          { text: 'Abrir ajustes', onPress: () => Linking.openSettings() },
-        ]
-      );
+      if (!canAskAgain) {
+        Alert.alert(
+          'Activar notificaciones',
+          'Has denegado las notificaciones. Para recibir alertas cuando suene una canción favorita, activa los permisos en los ajustes de la aplicación.',
+          [
+            { text: 'Ahora no', style: 'cancel' },
+            { text: 'Abrir ajustes', onPress: () => Linking.openSettings() },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Notificaciones necesarias',
+          'Para saber cuando suene tu música favorita necesitamos el permiso de notificaciones.',
+          [
+            { text: 'Entendido', style: 'default' }
+          ]
+        );
+      }
     }
   }, [notifyEnabled, enableNotify, disableNotify]);
 

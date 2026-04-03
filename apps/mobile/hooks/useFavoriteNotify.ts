@@ -19,7 +19,7 @@ type PermissionState = 'granted' | 'denied' | 'undetermined';
 interface UseFavoriteNotifyReturn {
   isEnabled: boolean;
   permissionState: PermissionState;
-  enable: () => Promise<boolean>;
+  enable: () => Promise<{ granted: boolean; canAskAgain: boolean }>;
   disable: () => void;
 }
 
@@ -32,6 +32,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -63,25 +65,30 @@ export function useFavoriteNotify(
     })();
   }, []);
 
-  const enable = useCallback(async (): Promise<boolean> => {
-    const { status: existing } = await Notifications.getPermissionsAsync();
+  const enable = useCallback(async (): Promise<{ granted: boolean; canAskAgain: boolean }> => {
+    const { status: existing, canAskAgain: existingCanAskAgain } = await Notifications.getPermissionsAsync();
 
-    if (existing === 'denied') {
-      setPermissionState('denied');
-      return false;
-    }
-
-    if (existing !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      setPermissionState(status as PermissionState);
-      if (status !== 'granted') return false;
-    } else {
+    if (existing === 'granted') {
       setPermissionState('granted');
+      setIsEnabled(true);
+      await AsyncStorage.setItem(STORAGE_KEY_ENABLED, 'true');
+      return { granted: true, canAskAgain: existingCanAskAgain };
     }
 
-    setIsEnabled(true);
-    await AsyncStorage.setItem(STORAGE_KEY_ENABLED, 'true');
-    return true;
+    if (existingCanAskAgain || existing === 'undetermined') {
+      const resp = await Notifications.requestPermissionsAsync();
+      setPermissionState(resp.status as PermissionState);
+      if (resp.status === 'granted') {
+        setIsEnabled(true);
+        await AsyncStorage.setItem(STORAGE_KEY_ENABLED, 'true');
+        return { granted: true, canAskAgain: resp.canAskAgain };
+      } else {
+        return { granted: false, canAskAgain: resp.canAskAgain };
+      }
+    }
+
+    setPermissionState('denied');
+    return { granted: false, canAskAgain: false };
   }, []);
 
   const disable = useCallback(async () => {
