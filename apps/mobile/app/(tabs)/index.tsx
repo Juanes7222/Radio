@@ -38,7 +38,7 @@ import { scale, verticalScale, TAB_BAR_HEIGHT } from '../../lib/responsive';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 // Reserve ~260pt for top bar + song info + controls + tab bar
-const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 252);
+const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 232);
 
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
@@ -253,7 +253,7 @@ export default function PlayerScreen() {
               {artist}
             </TextTicker>
           ) : null}
-          {song?.album ? (
+          {/* {song?.album ? (
             <TextTicker
               style={styles.albumName}
               duration={8000}
@@ -264,7 +264,7 @@ export default function PlayerScreen() {
             >
               {song.album}
             </TextTicker>
-          ) : null}
+          ) : null} */}
         </View>
 
         {sleepTimer.isActive && (
