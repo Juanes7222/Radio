@@ -57,13 +57,11 @@ warn()  { _log WARN  "$@"; }
 error() { _log ERROR "$@"; }
 step()  { _log STEP  "$@"; }
 
-# NOTICE: Must be executed as root
 if [[ $EUID -ne 0 ]]; then
   echo -e "${RED}ERROR:${NC} This script must be run as root." >&2
   exit 1
 fi
 
-# FIX: Prevent concurrent deployments
 if [[ -f "$LOCK_FILE" ]]; then
   LOCK_PID="$(cat "$LOCK_FILE" 2>/dev/null || echo '?')"
   error "Another deploy is already running (PID: $LOCK_PID). Aborting."
@@ -73,7 +71,6 @@ echo $$ > "$LOCK_FILE"
 
 BACKUP_BACKEND=""
 BACKUP_WEB=""
-ROLLBACK_NEEDED=false
 NGINX_RELOADED=false
 
 cleanup() {
@@ -95,13 +92,15 @@ rollback() {
   if [[ -n "$BACKUP_BACKEND" ]] && [[ -d "$BACKUP_BACKEND" ]]; then
     warn "  Restoring backend build..."
     rm -rf "$DEPLOY_DIR/apps/backend/dist"
-    mv "$BACKUP_BACKEND" "$DEPLOY_DIR/apps/backend/dist"
+    mv "$BACKUP_BACKEND" "$DEPLOY_DIR/apps/backend/dist" \
+      || { warn "  mv failed; removing orphaned backup..."; rm -rf "$BACKUP_BACKEND" || true; }
   fi
 
   if [[ -n "$BACKUP_WEB" ]] && [[ -d "$BACKUP_WEB" ]]; then
     warn "  Restoring web build..."
     rm -rf "$DEPLOY_DIR/apps/web/dist"
-    mv "$BACKUP_WEB" "$DEPLOY_DIR/apps/web/dist"
+    mv "$BACKUP_WEB" "$DEPLOY_DIR/apps/web/dist" \
+      || { warn "  mv failed; removing orphaned backup..."; rm -rf "$BACKUP_WEB" || true; }
   fi
 
   if [[ "$NGINX_RELOADED" == "true" ]] && [[ -f "${NGINX_CONF}.bak" ]]; then
@@ -131,9 +130,9 @@ _apply_permissions() {
     chmod -R 750 "$DEPLOY_DIR/apps/backend/dist"
   fi
 
-  if [[ -f "$DEPLOY_DIR/backend/.env" ]]; then
-    chown "root:$SERVICE_USER" "$DEPLOY_DIR/backend/.env"
-    chmod 640 "$DEPLOY_DIR/backend/.env"
+  if [[ -f "$DEPLOY_DIR/apps/backend/.env" ]]; then
+    chown "root:$SERVICE_USER" "$DEPLOY_DIR/apps/backend/.env"
+    chmod 640 "$DEPLOY_DIR/apps/backend/.env"
   fi
 }
 
