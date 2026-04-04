@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 import { config } from './config';
 import authRouter from './routes/auth';
@@ -14,6 +15,7 @@ import swaggerFile from './swagger-output.json';
 
 const app = express();
 
+app.use(morgan('dev'));
 app.use(helmet());
 app.use(
     cors({
@@ -39,7 +41,6 @@ app.use('/webhook', webhookRouter);
 app.use('/panel-api', panelRouter);
 app.use('/live-status', liveStatusRouter);
 
-// Ruta para la documentación visual generada con Swagger
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
 app.get('/admin-api/health', (_req, res) => {
