@@ -185,9 +185,9 @@ npm ci --ignore-scripts
 
 step "4/7 — Building applications"
 
-if [[ -d "$DEPLOY_DIR/apps/backend/dist" ]]; then
+if [[ -d "$DEPLOY_DIR/backend/dist" ]]; then
   BACKUP_BACKEND="$(mktemp -d)"
-  cp -r "$DEPLOY_DIR/apps/backend/dist/." "$BACKUP_BACKEND"
+  cp -r "$DEPLOY_DIR/backend/dist/." "$BACKUP_BACKEND"
 fi
 
 if [[ -d "$DEPLOY_DIR/apps/web/dist" ]]; then
@@ -198,7 +198,7 @@ fi
 npm run build --workspace=backend
 npm run build --workspace=@radio/web
 
-if [[ ! -d "$DEPLOY_DIR/apps/backend/dist" ]] || [[ -z "$(ls -A "$DEPLOY_DIR/apps/backend/dist")" ]]; then
+if [[ ! -d "$DEPLOY_DIR/backend/dist" ]] || [[ -z "$(ls -A "$DEPLOY_DIR/backend/dist")" ]]; then
   error "Backend build produced no artifacts."
   exit 1
 fi
