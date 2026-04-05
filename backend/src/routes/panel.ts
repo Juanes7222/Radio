@@ -37,7 +37,13 @@ router.get('/status', async (_req, res) => {
             listeners:     np.listeners?.current ?? 0,
             autoDjEnabled: np.station?.backend_type !== 'none',
         });
-    } catch (err) {
+    } catch (err: any) {
+        if (err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+            console.warn('AzuraCast no disponible (ECONNRESET/ECONNREFUSED) en panel de status, abortando tick de forma segura.');
+            res.status(502).json({ error: 'AzuraCast no disponible' });
+            return;
+        }
+        
         if (axios.isAxiosError(err) && err.response) {
             res.status(err.response.status).json(err.response.data);
         } else {

@@ -30,7 +30,13 @@ async function proxyToAzuraCast(
     const response = await axios(axiosConfig);
     const body = transform ? transform(response.data) : response.data;
     res.status(response.status).json(body);
-  } catch (err) {
+  } catch (err: any) {
+    if (err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+      console.warn('AzuraCast not available (ECONNRESET/ECONNREFUSED), redirecting to 502...');
+      res.status(502).json({ error: 'AzuraCast not available yet' });
+      return;
+    }
+
     if (axios.isAxiosError(err) && err.response) {
       res.status(err.response.status).json(err.response.data);
     } else {
