@@ -91,15 +91,15 @@ rollback() {
 
   if [[ -n "$BACKUP_BACKEND" ]] && [[ -d "$BACKUP_BACKEND" ]]; then
     warn "  Restoring backend build..."
-    rm -rf "$DEPLOY_DIR/apps/backend/dist"
-    mv "$BACKUP_BACKEND" "$DEPLOY_DIR/apps/backend/dist" \
+    rm -rf "$DEPLOY_DIR/backend/dist"
+    mv "$BACKUP_BACKEND" "$DEPLOY_DIR/backend/dist" \
       || { warn "  mv failed; removing orphaned backup..."; rm -rf "$BACKUP_BACKEND" || true; }
   fi
 
   if [[ -n "$BACKUP_WEB" ]] && [[ -d "$BACKUP_WEB" ]]; then
     warn "  Restoring web build..."
-    rm -rf "$DEPLOY_DIR/apps/web/dist"
-    mv "$BACKUP_WEB" "$DEPLOY_DIR/apps/web/dist" \
+    rm -rf "$DEPLOY_DIR/backend/dist"
+    mv "$BACKUP_WEB" "$DEPLOY_DIR/backend/dist" \
       || { warn "  mv failed; removing orphaned backup..."; rm -rf "$BACKUP_WEB" || true; }
   fi
 
@@ -125,14 +125,14 @@ _apply_permissions() {
     chmod -R 750 "$DEPLOY_DIR/apps/web/dist"
   fi
 
-  if [[ -d "$DEPLOY_DIR/apps/backend/dist" ]]; then
-    chown -R "$SERVICE_USER:$SERVICE_USER" "$DEPLOY_DIR/apps/backend/dist"
-    chmod -R 750 "$DEPLOY_DIR/apps/backend/dist"
+  if [[ -d "$DEPLOY_DIR/backend/dist" ]]; then
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$DEPLOY_DIR/backend/dist"
+    chmod -R 750 "$DEPLOY_DIR/backend/dist"
   fi
 
-  if [[ -f "$DEPLOY_DIR/apps/backend/.env" ]]; then
-    chown "root:$SERVICE_USER" "$DEPLOY_DIR/apps/backend/.env"
-    chmod 640 "$DEPLOY_DIR/apps/backend/.env"
+  if [[ -f "$DEPLOY_DIR/backend/.env" ]]; then
+    chown "root:$SERVICE_USER" "$DEPLOY_DIR/backend/.env"
+    chmod 640 "$DEPLOY_DIR/backend/.env"
   fi
 }
 
