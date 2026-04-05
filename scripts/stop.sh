@@ -2,11 +2,16 @@
 # Stops all Radio services gracefully.
 set -euo pipefail
 
-echo ">>> Stopping radio-backend..."
-systemctl stop radio-backend
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
 
-echo ">>> Stopping nginx..."
+require_root
+
+info "Stopping $BACKEND_SERVICE..."
+systemctl stop "$BACKEND_SERVICE"
+
+info "Stopping nginx..."
 systemctl stop nginx
 
 echo ""
-echo "Services stopped."
+info "Services stopped."

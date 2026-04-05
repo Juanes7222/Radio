@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
-# Restarts all Radio services (useful after config changes).
 set -euo pipefail
 
-echo ">>> Restarting radio-backend..."
-systemctl restart radio-backend
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
 
-echo ">>> Reloading nginx..."
+require_root
+
+info "Restarting $BACKEND_SERVICE..."
+systemctl restart "$BACKEND_SERVICE"
+
+info "Reloading nginx..."
 systemctl reload nginx
 
 echo ""
-systemctl status radio-backend --no-pager
+systemctl status "$BACKEND_SERVICE" --no-pager
 echo ""
-echo "Services restarted."
+info "Services restarted."

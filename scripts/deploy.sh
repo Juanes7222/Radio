@@ -10,17 +10,12 @@
 #   --force        Deploy even if there are no repo changes
 # ==============================================================================
 
-
 set -euo pipefail
 IFS=$'\n\t'
 
-RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'
-CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
 
-DEPLOY_DIR="/var/www/radio"
-NGINX_CONF="/etc/nginx/sites-available/radio"
-NGINX_GLOBAL_CONF="/etc/nginx/conf.d/radio-global.conf"
-SERVICE_USER="${SERVICE_USER:-radio}"
 DEPLOY_LOG="/var/log/radio-deploy.log"
 LOCK_FILE="/tmp/radio-deploy.lock"
 HEALTH_URL="http://127.0.0.1:3000/health"
@@ -32,35 +27,12 @@ FORCE_DEPLOY=false
 for arg in "$@"; do
   case $arg in
     --skip-audit) SKIP_AUDIT=true ;;
-    --force) FORCE_DEPLOY=true ;;
+    --force)      FORCE_DEPLOY=true ;;
     *) echo "Unknown option: $arg"; exit 1 ;;
   esac
 done
 
-DEPLOY_START="$(date '+%Y-%m-%d %H:%M:%S')"
-
-_log() {
-  local level="$1"; shift
-  local msg="$*"
-  local ts; ts="$(date '+%H:%M:%S')"
-  echo "[$ts][$level] $msg" >> "$DEPLOY_LOG"
-  case $level in
-    INFO)  echo -e "${GREEN}[${ts}]${NC} $msg" ;;
-    WARN)  echo -e "${YELLOW}[${ts}] WARN${NC} $msg" ;;
-    ERROR) echo -e "${RED}[${ts}] ERROR${NC} $msg" >&2 ;;
-    STEP)  echo -e "\n${BOLD}${CYAN}══ $msg${NC}" ;;
-  esac
-}
-
-info()  { _log INFO  "$@"; }
-warn()  { _log WARN  "$@"; }
-error() { _log ERROR "$@"; }
-step()  { _log STEP  "$@"; }
-
-if [[ $EUID -ne 0 ]]; then
-  echo -e "${RED}ERROR:${NC} This script must be run as root." >&2
-  exit 1
-fi
+require_root
 
 if [[ -f "$LOCK_FILE" ]]; then
   LOCK_PID="$(cat "$LOCK_FILE" 2>/dev/null || echo '?')"
@@ -69,6 +41,7 @@ if [[ -f "$LOCK_FILE" ]]; then
 fi
 echo $$ > "$LOCK_FILE"
 
+DEPLOY_START="$(date '+%Y-%m-%d %H:%M:%S')"
 BACKUP_BACKEND=""
 BACKUP_WEB=""
 NGINX_RELOADED=false
@@ -76,7 +49,6 @@ NGINX_RELOADED=false
 cleanup() {
   local exit_code=$?
   rm -f "$LOCK_FILE"
-
   if [[ $exit_code -ne 0 ]]; then
     error "Deploy failed (exit code: $exit_code). Starting rollback..."
     echo "[$DEPLOY_START → $(date '+%Y-%m-%d %H:%M:%S')] FAILED (exit: $exit_code)" \
@@ -91,15 +63,15 @@ rollback() {
 
   if [[ -n "$BACKUP_BACKEND" ]] && [[ -d "$BACKUP_BACKEND" ]]; then
     warn "  Restoring backend build..."
-    rm -rf "$DEPLOY_DIR/backend/dist"
-    mv "$BACKUP_BACKEND" "$DEPLOY_DIR/backend/dist" \
+    rm -rf "$BACKEND_DIR/dist"
+    mv "$BACKUP_BACKEND" "$BACKEND_DIR/dist" \
       || { warn "  mv failed; removing orphaned backup..."; rm -rf "$BACKUP_BACKEND" || true; }
   fi
 
   if [[ -n "$BACKUP_WEB" ]] && [[ -d "$BACKUP_WEB" ]]; then
     warn "  Restoring web build..."
-    rm -rf "$DEPLOY_DIR/backend/dist"
-    mv "$BACKUP_WEB" "$DEPLOY_DIR/backend/dist" \
+    rm -rf "$FRONTEND_DIR/dist"
+    mv "$BACKUP_WEB" "$FRONTEND_DIR/dist" \
       || { warn "  mv failed; removing orphaned backup..."; rm -rf "$BACKUP_WEB" || true; }
   fi
 
@@ -110,29 +82,29 @@ rollback() {
   fi
 
   warn "  Restarting backend with previous version..."
-  systemctl restart radio-backend || true
+  systemctl restart "$BACKEND_SERVICE" || true
 
   _apply_permissions
 
   warn "Rollback completed. Manual verification recommended."
-  warn "  journalctl -u radio-backend -n 50"
+  warn "  journalctl -u $BACKEND_SERVICE -n 50"
   warn "═════════════════════════════════════════════════"
 }
 
 _apply_permissions() {
-  if [[ -d "$DEPLOY_DIR/apps/web/dist" ]]; then
-    chown -R www-data:www-data "$DEPLOY_DIR/apps/web/dist"
-    chmod -R 750 "$DEPLOY_DIR/apps/web/dist"
+  if [[ -d "$FRONTEND_DIR/dist" ]]; then
+    chown -R www-data:www-data "$FRONTEND_DIR/dist"
+    chmod -R 750 "$FRONTEND_DIR/dist"
   fi
 
-  if [[ -d "$DEPLOY_DIR/backend/dist" ]]; then
-    chown -R "$SERVICE_USER:$SERVICE_USER" "$DEPLOY_DIR/backend/dist"
-    chmod -R 750 "$DEPLOY_DIR/backend/dist"
+  if [[ -d "$BACKEND_DIR/dist" ]]; then
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$BACKEND_DIR/dist"
+    chmod -R 750 "$BACKEND_DIR/dist"
   fi
 
-  if [[ -f "$DEPLOY_DIR/backend/.env" ]]; then
-    chown "root:$SERVICE_USER" "$DEPLOY_DIR/backend/.env"
-    chmod 640 "$DEPLOY_DIR/backend/.env"
+  if [[ -f "$BACKEND_DIR/.env" ]]; then
+    chown "root:$SERVICE_USER" "$BACKEND_DIR/.env"
+    chmod 640 "$BACKEND_DIR/.env"
   fi
 }
 
@@ -185,25 +157,25 @@ npm ci --ignore-scripts
 
 step "4/7 — Building applications"
 
-if [[ -d "$DEPLOY_DIR/backend/dist" ]]; then
+if [[ -d "$BACKEND_DIR/dist" ]]; then
   BACKUP_BACKEND="$(mktemp -d)"
-  cp -r "$DEPLOY_DIR/backend/dist/." "$BACKUP_BACKEND"
+  cp -r "$BACKEND_DIR/dist/." "$BACKUP_BACKEND"
 fi
 
-if [[ -d "$DEPLOY_DIR/apps/web/dist" ]]; then
+if [[ -d "$FRONTEND_DIR/dist" ]]; then
   BACKUP_WEB="$(mktemp -d)"
-  cp -r "$DEPLOY_DIR/apps/web/dist/." "$BACKUP_WEB"
+  cp -r "$FRONTEND_DIR/dist/." "$BACKUP_WEB"
 fi
 
 npm run build --workspace=backend
 npm run build --workspace=@radio/web
 
-if [[ ! -d "$DEPLOY_DIR/backend/dist" ]] || [[ -z "$(ls -A "$DEPLOY_DIR/backend/dist")" ]]; then
+if [[ ! -d "$BACKEND_DIR/dist" ]] || [[ -z "$(ls -A "$BACKEND_DIR/dist")" ]]; then
   error "Backend build produced no artifacts."
   exit 1
 fi
 
-if [[ ! -d "$DEPLOY_DIR/apps/web/dist" ]] || [[ -z "$(ls -A "$DEPLOY_DIR/apps/web/dist")" ]]; then
+if [[ ! -d "$FRONTEND_DIR/dist" ]] || [[ -z "$(ls -A "$FRONTEND_DIR/dist")" ]]; then
   error "Frontend build produced no artifacts."
   exit 1
 fi
@@ -221,10 +193,10 @@ fi
 if [[ "$NGINX_CHANGED" == "true" ]] || [[ "$FORCE_DEPLOY" == "true" ]]; then
   cp "$NGINX_CONF" "${NGINX_CONF}.bak"
 
-  [[ -f "$DEPLOY_DIR/scripts/radio-global.conf" ]] && \
-    cp "$DEPLOY_DIR/scripts/radio-global.conf" "$NGINX_GLOBAL_CONF"
+  [[ -f "$SCRIPTS_DIR/radio-global.conf" ]] && \
+    cp "$SCRIPTS_DIR/radio-global.conf" "$NGINX_GLOBAL_CONF"
 
-  cp "$DEPLOY_DIR/scripts/radio.nginx.conf" "$NGINX_CONF"
+  cp "$SCRIPTS_DIR/radio.nginx.conf" "$NGINX_CONF"
 
   nginx -t && systemctl reload nginx && NGINX_RELOADED=true || {
     error "Invalid Nginx configuration. Rolling back."
@@ -240,7 +212,7 @@ _apply_permissions
 
 step "7/7 — Restarting backend and running health check"
 
-systemctl reload-or-restart radio-backend
+systemctl reload-or-restart "$BACKEND_SERVICE"
 info "Waiting for health check..."
 
 HEALTHY=false
@@ -279,7 +251,7 @@ echo -e "${GREEN}${BOLD}  Deploy completed successfully${NC}"
 echo -e "${GREEN}${BOLD}════════════════════════════════════════════════${NC}"
 echo -e "  Commit  : ${BEFORE_HASH:0:8} → ${AFTER_HASH:0:8}"
 echo -e "  Nginx   : $(systemctl is-active nginx)"
-echo -e "  Backend : $(systemctl is-active radio-backend)"
+echo -e "  Backend : $(systemctl is-active "$BACKEND_SERVICE")"
 echo -e "  Time    : $DEPLOY_END"
 echo -e "  Log     : $DEPLOY_LOG"
 echo ""

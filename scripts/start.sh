@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Starts all Radio services. Safe to call after a reboot or manual stop.
 set -euo pipefail
 
-DEPLOY_DIR="/var/www/radio"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
 
-echo ">>> Starting radio-backend..."
-systemctl start radio-backend
+require_root
 
-echo ">>> Starting nginx..."
+info "Starting $BACKEND_SERVICE..."
+systemctl start "$BACKEND_SERVICE"
+
+info "Starting nginx..."
 systemctl start nginx
 
 echo ""
-systemctl status radio-backend --no-pager
+systemctl status "$BACKEND_SERVICE" --no-pager
 echo ""
-echo "Services started."
+info "Services started."

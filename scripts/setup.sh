@@ -18,6 +18,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# setup.sh is self-contained: it runs before the repo exists and cannot source lib.sh.
 RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
@@ -30,8 +31,15 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 DEPLOY_DIR="${DEPLOY_DIR:-/var/www/radio}"
+BACKEND_DIR="$DEPLOY_DIR/apps/backend"
+FRONTEND_DIR="$DEPLOY_DIR/apps/web"
+SCRIPTS_DIR="$DEPLOY_DIR/scripts"
+
 NGINX_CONF="/etc/nginx/sites-available/radio"
 NGINX_GLOBAL_CONF="/etc/nginx/conf.d/radio-global.conf"
+BACKEND_SERVICE="radio-backend"
+SERVICE_FILE="/etc/systemd/system/${BACKEND_SERVICE}.service"
+
 SSH_PORT="${SSH_PORT:-2222}"
 SERVICE_USER="${SERVICE_USER:-radio}"
 
@@ -77,7 +85,7 @@ if ! id "$SERVICE_USER" &>/dev/null; then
 fi
 
 info "Step 4/14 — Syncing repository..."
-if [ ! -d "$DEPLOY_DIR/.git" ]; then
+if [[ ! -d "$DEPLOY_DIR/.git" ]]; then
   git clone https://github.com/Juanes7222/Radio.git "$DEPLOY_DIR"
 else
   git -C "$DEPLOY_DIR" pull --ff-only
@@ -110,7 +118,7 @@ if ! grep -q "server_tokens off" /etc/nginx/nginx.conf; then
   sed -i '/http {/a \\tserver_tokens off;' /etc/nginx/nginx.conf
 fi
 
-cp "$DEPLOY_DIR/scripts/radio-global.conf" "$NGINX_GLOBAL_CONF"
+cp "$SCRIPTS_DIR/radio-global.conf" "$NGINX_GLOBAL_CONF"
 
 mkdir -p /var/www/html
 cat > "$NGINX_CONF" <<'NGINX'
@@ -150,15 +158,14 @@ systemctl reload nginx
 HOOK
 chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 
-cp "$DEPLOY_DIR/scripts/radio.nginx.conf" "$NGINX_CONF"
+cp "$SCRIPTS_DIR/radio.nginx.conf" "$NGINX_CONF"
 nginx -t && systemctl reload nginx
 
 info "Step 8/14 — Configuring backend systemd service..."
 
-SERVICE_FILE="/etc/systemd/system/radio-backend.service"
-REPO_SERVICE="$DEPLOY_DIR/scripts/radio-backend.service"
+REPO_SERVICE="$SCRIPTS_DIR/radio-backend.service"
 
-if [ -f "$REPO_SERVICE" ]; then
+if [[ -f "$REPO_SERVICE" ]]; then
   cp "$REPO_SERVICE" "$SERVICE_FILE"
 else
   cat > "$SERVICE_FILE" <<UNIT
@@ -170,23 +177,23 @@ After=network.target
 Type=simple
 User=${SERVICE_USER}
 Group=${SERVICE_USER}
-WorkingDirectory=${DEPLOY_DIR}/apps/backend
+WorkingDirectory=${BACKEND_DIR}
 ExecStart=/usr/bin/node dist/index.js
 Restart=on-failure
 Environment=NODE_ENV=production
 NoNewPrivileges=true
 ProtectSystem=strict
 PrivateTmp=true
-ReadWritePaths=${DEPLOY_DIR} /var/log/radio-backend
+ReadWritePaths=${DEPLOY_DIR} /var/log/${BACKEND_SERVICE}
 
 [Install]
 WantedBy=multi-user.target
 UNIT
 fi
 
-mkdir -p /var/log/radio-backend
-chown "$SERVICE_USER:$SERVICE_USER" /var/log/radio-backend
+mkdir -p "/var/log/$BACKEND_SERVICE"
+chown "$SERVICE_USER:$SERVICE_USER" "/var/log/$BACKEND_SERVICE"
 
 systemctl daemon-reload
-systemctl enable radio-backend
-systemctl start radio-backend
+systemctl enable "$BACKEND_SERVICE"
+systemctl start "$BACKEND_SERVICE"
