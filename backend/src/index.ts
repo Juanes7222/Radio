@@ -22,11 +22,7 @@ app.use(
         origin: [
             'http://localhost:5173',
             'http://localhost:4173',
-            'null',
-            ...(process.env.FRONTEND_URL
-                ? process.env.FRONTEND_URL.split(',').map(s => s.trim())
-                : []),
-        ].filter(Boolean),
+        ],  
         credentials: true,
     })
 );
