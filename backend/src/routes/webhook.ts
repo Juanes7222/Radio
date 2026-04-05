@@ -16,6 +16,13 @@ router.get('/facebook', (req, res) => {
 });
 
 router.post('/facebook', (req, res) => {
+  const secret = req.headers['x-webhook-secret'] || '';
+
+  if (secret !== process.env.WEBHOOK_SECRET) {
+    console.warn('Invalid Webhook :', secret);
+    return res.sendStatus(403);
+  }
+  
   const body = req.body;
 
   res.sendStatus(200);
