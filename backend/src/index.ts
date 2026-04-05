@@ -47,6 +47,10 @@ app.get('/admin-api/health', (_req, res) => {
     res.json({ ok: true, time: new Date().toISOString() });
 });
 
+app.get('/health', (_req, res) => {
+    res.json({ ok: true, time: new Date().toISOString() });
+});
+
 app.listen(config.port, () => {
     console.log(`\n Backend admin corriendo en http://localhost:${config.port}`);
     console.log(`   Station ID : ${config.azuracast.stationId}`);
