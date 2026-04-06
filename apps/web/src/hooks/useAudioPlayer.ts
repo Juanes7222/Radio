@@ -6,7 +6,6 @@ interface UseAudioPlayerProps {
   autoplay?: boolean;
 }
 
-// Backoff: 2s, 4s, 8s, 16s, 30s (máx)
 const RECONNECT_DELAYS = [2000, 4000, 8000, 16000, 30000];
 
 export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerProps) {
@@ -14,9 +13,6 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
 
-  // Create the audio element once synchronously. The AudioContext is intentionally
-  // NOT created here — it must be created inside a user gesture handler so the
-  // browser never starts it in the "suspended" state.
   if (typeof window !== 'undefined' && !audioRef.current) {
     const audio = new Audio();
     audio.crossOrigin = 'anonymous';
@@ -24,8 +20,6 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
     audioRef.current = audio;
   }
 
-  // streamUrlRef permite que play() siempre use la URL más reciente
-  // sin necesidad de incluirla en las dependencias del useCallback.
   const streamUrlRef = useRef(streamUrl);
   streamUrlRef.current = streamUrl;
 
@@ -45,13 +39,10 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
   });
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
-  // Registrar event listeners. La URL NO se asigna aquí — se hace
-  // de forma perezosa en play() para evitar el error de formato al cargar.
   useEffect(() => {
     const audio = audioRef.current!;
 
     const handlePlay = () => {
-      // Reproducción exitosa: resetear contador de reintentos
       retryRef.current = 0;
       setReconnectAttempt(0);
       setState(prev => ({ ...prev, isPlaying: true, isLoading: false, error: null, requiresUserGesture: false }));
@@ -71,14 +62,13 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
     };
 
     const handleStalled = () => {
-      // El stream se congeló mientras reproducía → intentar reconectar
       if (wasPlayingRef.current) {
         scheduleReconnect('El stream se interrumpió. Reconectando…');
       }
     };
 
     const scheduleReconnect = (msg: string) => {
-      if (retryTimerRef.current) return; // ya hay un reintento pendiente
+      if (retryTimerRef.current) return; 
       const attempt = retryRef.current;
       const delay = RECONNECT_DELAYS[Math.min(attempt, RECONNECT_DELAYS.length - 1)];
       retryRef.current += 1;
@@ -89,7 +79,6 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
         retryTimerRef.current = null;
         const audio = audioRef.current;
         if (!audio || !wasPlayingRef.current) return;
-        // Forzar recarga del stream añadiendo timestamp para evitar caché
         const base = streamUrlRef.current.split('?')[0];
         audio.src = `${base}?_r=${Date.now()}`;
         audio.play().catch(() => {
@@ -101,8 +90,6 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
     const handleError = (e: Event) => {
       const target = e.target as HTMLAudioElement;
 
-      // Ignorar errores cuando no hay src — ocurre al poner src='' en el cleanup
-      // o en React Strict Mode (desmontaje) antes de que el usuario pulse play.
       if (!target.src || target.src === window.location.href) return;
 
       let errorMessage = 'Error al reproducir el stream';
@@ -160,15 +147,12 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
     };
   }, []);
 
-  // Reanudar AudioContext si el navegador lo suspendió por política autoplay
   const resumeAudioContext = useCallback(async () => {
     if (audioContextRef.current?.state === 'suspended') {
       await audioContextRef.current.resume().catch(() => {});
     }
   }, []);
 
-  // Initialize AudioContext and connect the analyser graph. Must be called from
-  // a user gesture so the context starts in "running" state immediately.
   const initAudioGraphIfNeeded = useCallback(() => {
     if (audioContextRef.current || !audioRef.current || typeof window === 'undefined') return;
     try {
@@ -198,7 +182,6 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
     audioRef.current.src = streamUrlRef.current;
     try {
       await audioRef.current.play();
-      // Confirm playing state directly — handlePlay also does this but may be delayed.
       setState(prev => ({ ...prev, isPlaying: true, isLoading: false }));
     } catch {
       wasPlayingRef.current = false;
@@ -220,7 +203,6 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
     }
     retryRef.current = 0;
     setReconnectAttempt(0);
-    // Update state immediately — do not rely solely on the 'pause' audio event.
     setState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
     audioRef.current.pause();
     audioRef.current.src = '';
@@ -259,9 +241,19 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
       audio.src = streamUrlRef.current;
       try {
         await audio.play();
-        // If autoplay succeeded the browser allowed it, so AudioContext
-        // creation is also permitted in this context.
         initAudioGraphIfNeeded();
+        
+        if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+          wasPlayingRef.current = false;
+          audio.pause();
+          audio.src = '';
+          setState(prev => ({
+            ...prev,
+            isPlaying: false,
+            isLoading: false,
+            requiresUserGesture: true,
+          }));
+        }
       } catch (err) {
         wasPlayingRef.current = false;
         const blocked = err instanceof DOMException && err.name === 'NotAllowedError';
