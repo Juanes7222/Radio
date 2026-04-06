@@ -16,6 +16,7 @@ import {
 import { useTheme } from '@/hooks';
 import { useGlobalAudio } from '@/hooks/useGlobalAudio';
 import { getSocialLinksWithLiveStatus } from '@/utils/socialLinks';
+import MaintenancePage from '@/pages/MaintenancePage';
 
 function App() {
   const { resolvedTheme } = useTheme();
@@ -46,6 +47,11 @@ function App() {
 
   const closeRequests = useCallback(() => setShowRequests(false), [setShowRequests]);
   const openRequests = useCallback(() => setShowRequests(true), [setShowRequests]);
+
+  const MAINTENANCE = import.meta.env.VITE_MAINTENANCE === 'true';
+  if (MAINTENANCE) {
+    return <MaintenancePage />;
+  }
 
   return (
     <div className={`min-h-screen w-full overflow-x-hidden transition-colors duration-300 bg-slate-950 text-white-900`}>
