@@ -29,7 +29,6 @@ const STORAGE_KEY_SONGS = 'radio-favorite-songs';
 // Configurar comportamiento global de notificaciones
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
     shouldShowBanner: true,

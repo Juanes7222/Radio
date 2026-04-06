@@ -17,6 +17,9 @@ const RECONNECT_DELAYS = [2000, 4000, 8000, 16000, 30000];
 
 interface UseAudioPlayerProps {
   streamUrl: string;
+  title?: string;
+  artist?: string;
+  artwork?: string | null;
 }
 
 interface AudioPlayerState {
@@ -36,7 +39,7 @@ async function configureTrackPlayer(): Promise<void> {
   });
 }
 
-export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps): AudioPlayerState & {
+export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPlayerProps): AudioPlayerState & {
   play: () => Promise<void>;
   pause: () => Promise<void>;
   toggle: () => Promise<void>;
@@ -48,24 +51,37 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps): AudioPlayerS
   const streamUrlRef = useRef(streamUrl);
   streamUrlRef.current = streamUrl;
 
+  const infoRef = useRef({ title, artist, artwork });
+  infoRef.current = { title, artist, artwork };
+
   const playbackState = usePlaybackState();
   const rnState = playbackState.state;
 
   const isPlaying = rnState === State.Playing;
   const isBuffering =
     rnState === State.Buffering ||
-    rnState === State.Loading ||
-    rnState === State.Connecting;
+    (rnState as unknown as string) === 'loading' ||
+    (rnState as unknown as string) === 'connecting';
 
   const [error, setError] = useState<string | null>(null);
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
   useEffect(() => {
-    // setupPlayer returns true only on first call, false if already set up
+    if (isPlaying) {
+      TrackPlayer.updateNowPlayingMetadata({
+        title: infoRef.current.title || 'La Voz de la Verdad',
+        artist: infoRef.current.artist || 'En Vivo',
+        artwork: infoRef.current.artwork || undefined,
+      }).catch(() => {
+        // En caso de que falle por no estar listo
+      });
+    }
+  }, [title, artist, artwork, isPlaying]);
+
+  useEffect(() => {
     TrackPlayer.setupPlayer({ autoHandleInterruptions: true })
       .then(() => configureTrackPlayer())
       .catch(() => {
-        // Already set up — just re-apply options
         configureTrackPlayer();
       });
 
@@ -74,7 +90,6 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps): AudioPlayerS
     };
   }, []);
 
-  // Listen for playback errors and schedule reconnect
   useEffect(() => {
     const subscription = TrackPlayer.addEventListener(Event.PlaybackError, () => {
       if (!wasPlayingRef.current) return;
@@ -95,8 +110,9 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps): AudioPlayerS
           await TrackPlayer.reset();
           await TrackPlayer.add({
             url: streamUrlRef.current,
-            title: 'La Voz de la Verdad',
-            artist: 'En Vivo',
+            title: infoRef.current.title || 'La Voz de la Verdad',
+            artist: infoRef.current.artist || 'En Vivo',
+            artwork: infoRef.current.artwork || undefined,
             isLiveStream: true,
           });
           await TrackPlayer.play();
@@ -106,7 +122,6 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps): AudioPlayerS
       }, delay);
     });
 
-    // Reset error when playback succeeds
     const playingSubscription = TrackPlayer.addEventListener(Event.PlaybackState, ({ state }) => {
       if (state === State.Playing) {
         retryRef.current = 0;
@@ -137,8 +152,9 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps): AudioPlayerS
       await TrackPlayer.reset();
       await TrackPlayer.add({
         url: streamUrlRef.current,
-        title: 'La Voz de la Verdad',
-        artist: 'En Vivo',
+        title: infoRef.current.title || 'La Voz de la Verdad',
+        artist: infoRef.current.artist || 'En Vivo',
+        artwork: infoRef.current.artwork || undefined,
         isLiveStream: true,
       });
       await TrackPlayer.play();
@@ -155,7 +171,6 @@ export function useAudioPlayer({ streamUrl }: UseAudioPlayerProps): AudioPlayerS
       retryTimerRef.current = null;
     }
     retryRef.current = 0;
-    // For live streams: reset completely instead of pausing
     await TrackPlayer.reset();
     setError(null);
     setReconnectAttempt(0);

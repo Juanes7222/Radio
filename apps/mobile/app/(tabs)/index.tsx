@@ -48,8 +48,20 @@ export default function PlayerScreen() {
     pollInterval: 3000,
   });
 
+  const song = data?.now_playing?.song;
+  const { title, artist, isPreaching } = formatMediaTitle(
+    song?.title ?? '',
+    song?.artist ?? '',
+  );
+  const artworkUri = song?.art ?? null;
+
   const { isPlaying, isBuffering, error: audioError, reconnectAttempt, toggle, pause } =
-    useAudioPlayer({ streamUrl: data?.station?.listen_url ?? '' });
+    useAudioPlayer({
+      streamUrl: data?.station?.listen_url ?? '',
+      title,
+      artist,
+      artwork: artworkUri,
+    });
 
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const sleepTimer = useSleepTimer(useCallback(async () => {
@@ -64,18 +76,12 @@ export default function PlayerScreen() {
     loadFavoriteSongKeys().then(setFavoriteSongKeys);
   }, []);
 
-  const song = data?.now_playing?.song;
   const currentSongKey = song
     ? `${song.artist}::${song.title}`.toLowerCase()
     : null;
   const isFavorite = currentSongKey
     ? favoriteSongKeys.some((k) => k.toLowerCase() === currentSongKey)
     : false;
-
-  const { title, artist, isPreaching } = formatMediaTitle(
-    song?.title ?? '',
-    song?.artist ?? '',
-  );
 
   const toggleFavorite = useCallback(async () => {
     if (!currentSongKey) return;
@@ -92,7 +98,6 @@ export default function PlayerScreen() {
   const { isEnabled: notifyEnabled, enable: enableNotify, disable: disableNotify } =
     useFavoriteNotify(currentSongForNotify, favoriteSongKeys);
 
-  const artworkUri = song?.art ?? null;
   const listenersCount = data?.listeners?.current ?? 0;
 
   const handleToggleNotify = useCallback(async () => {
@@ -299,7 +304,7 @@ export default function PlayerScreen() {
       <View
         style={[
           styles.bottomSection,
-          { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + Spacing.md },
+          { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + Spacing.md - 30},
         ]}
       >
         <PlayerControls
