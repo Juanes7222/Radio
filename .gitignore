@@ -141,3 +141,4 @@ vite.config.ts.timestamp-*
 downloads/
 secrets/
 .turbo/
+swagger-output.json
