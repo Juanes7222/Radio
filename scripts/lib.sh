@@ -4,7 +4,7 @@ RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
 DEPLOY_DIR="/var/www/radio"
-BACKEND_DIR="$DEPLOY_DIR/apps/backend"
+BACKEND_DIR="$DEPLOY_DIR/backend"
 FRONTEND_DIR="$DEPLOY_DIR/apps/web"
 SCRIPTS_DIR="$DEPLOY_DIR/scripts"
 
