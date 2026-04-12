@@ -10,8 +10,11 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
   const getEmbedUrl = (url: string | null): string | null => {
     if (!url) return null;
     try {
-      const encodedUrl = encodeURIComponent(url);
-      return `https://www.facebook.com/plugins/video.php?href=${encodedUrl}&show_text=false&width=1920`;
+      const videoId = new URL(url).searchParams.get('v');
+      const embedBase = videoId
+        ? `https://www.facebook.com/video/video.php?v=${videoId}`
+        : url;
+      return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(embedBase)}&show_text=false&width=1920`;
     } catch (error) {
       console.error('Error encoding Facebook URL:', error);
       return null;
