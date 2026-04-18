@@ -10,8 +10,11 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
   const getEmbedUrl = (url: string | null): string | null => {
     if (!url) return null;
     try {
-      const encodedUrl = encodeURIComponent(url);
-      return `https://www.facebook.com/plugins/video.php?href=${encodedUrl}&show_text=false&appId`;
+      const videoId = new URL(url).searchParams.get('v');
+      const embedBase = videoId
+        ? `https://www.facebook.com/video/video.php?v=${videoId}`
+        : url;
+      return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(embedBase)}&show_text=false&width=1920`;
     } catch (error) {
       console.error('Error encoding Facebook URL:', error);
       return null;
@@ -84,8 +87,11 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
                     <iframe
                       src={embedUrl}
                       className="absolute top-0 left-0 w-full h-full border-0"
+                      style={{ border: 'none', overflow: 'hidden' }}
+                      scrolling="no"
+                      frameBorder="0"
                       allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                      allowFullScreen
+                      allowFullScreen={true}
                       title="Facebook Live Stream"
                     />
                   </div>
