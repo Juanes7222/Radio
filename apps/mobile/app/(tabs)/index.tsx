@@ -19,9 +19,11 @@ import { VinylDisc } from '@/components/VinylDisc';
 import { LiveBadge } from '@/components/LiveBadge';
 import { PlayerControls } from '@/components/PlayerControls';
 import { SleepTimerModal } from '@/components/SleepTimerModal';
+import { FacebookLivePlayer } from '@/components/FacebookLivePlayer';
 import TextTicker from 'react-native-text-ticker';
 import { useAzuraCast } from '@radio/api';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
 import { useProgramNotify } from '@/hooks/useProgramNotify';
 import {
@@ -62,6 +64,8 @@ export default function PlayerScreen() {
       artist,
       artwork: artworkUri,
     });
+
+  const { liveUrl } = useFacebookLive();
 
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const sleepTimer = useSleepTimer(useCallback(async () => {
@@ -219,16 +223,20 @@ export default function PlayerScreen() {
 
       </View>
 
-      {/* Seccion central: vinilo + info */}
+      {/* Seccion central: vinilo/live + info */}
       <View style={styles.centerSection}>
-        <View style={styles.vinylWrapper}>
-          <View style={styles.vinylGlow} />
-          <VinylDisc
-            artworkUri={artworkUri}
-            isPlaying={isPlaying || isBuffering}
-            size={VINYL_SIZE}
-          />
-        </View>
+        {liveUrl ? (
+          <FacebookLivePlayer liveUrl={liveUrl} />
+        ) : (
+          <View style={styles.vinylWrapper}>
+            <View style={styles.vinylGlow} />
+            <VinylDisc
+              artworkUri={artworkUri}
+              isPlaying={isPlaying || isBuffering}
+              size={VINYL_SIZE}
+            />
+          </View>
+        )}
 
         <View style={styles.songInfo}>
           {isPreaching && (
