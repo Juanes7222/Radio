@@ -1,47 +1,59 @@
 import { useState, useEffect, useRef } from 'react';
 
-const RECONNECT_DELAYS = [2000, 4000, 8000, 16000, 30000];
-
 export function useFacebookLive() {
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const retryCount = useRef(0);
 
   useEffect(() => {
-    const wsUrl = process.env.EXPO_PUBLIC_BACKEND_URL!
-      .replace('https://', 'wss://')
-      .replace('http://', 'ws://') + '/ws';
+    const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const sseUrl = `${baseUrl}/live-status/stream`;
 
     const connect = () => {
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+      try {
+        const eventSource = new EventSource(sseUrl);
+        eventSourceRef.current = eventSource;
 
-      ws.onopen = () => {
-        retryCount.current = 0;
-      };
+        eventSource.addEventListener('live_start', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.url) {
+              console.log('Facebook Live started:', data.url);
+              setLiveUrl(data.url);
+            }
+          } catch (error) {
+            console.error('Error parsing live_start event:', error);
+          }
+        });
 
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'facebook_live') setLiveUrl(data.url);
-      };
+        eventSource.addEventListener('live_end', () => {
+          console.log('Facebook Live ended');
+          setLiveUrl(null);
+        });
 
-      ws.onclose = () => {
-        const delay = RECONNECT_DELAYS[Math.min(retryCount.current, RECONNECT_DELAYS.length - 1)];
-        retryCount.current += 1;
-        retryRef.current = setTimeout(connect, delay);
-      };
+        eventSource.onerror = () => {
+          console.log('SSE connection error, will retry...');
+          eventSource.close();
+          // Retry after 5 seconds
+          retryRef.current = setTimeout(connect, 5000);
+        };
 
-      ws.onerror = () => ws.close();
+        eventSource.onopen = () => {
+          console.log('SSE connection established');
+        };
+      } catch (error) {
+        console.error('Error creating EventSource:', error);
+        retryRef.current = setTimeout(connect, 5000);
+      }
     };
 
     connect();
 
     return () => {
       if (retryRef.current) clearTimeout(retryRef.current);
-      wsRef.current?.close();
+      eventSourceRef.current?.close();
     };
   }, []);
 
-  return { liveUrl };
+  return { liveUrl, dismiss: () => setLiveUrl(null) };
 }
