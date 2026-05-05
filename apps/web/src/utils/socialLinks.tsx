@@ -33,7 +33,26 @@ export const SOCIAL_LINKS = [
       </svg>
     ),
   },
+  {
+    label: 'Google Play',
+    href: 'https://play.google.com/store/apps/details?id=com.lavozverdad.radio',
+    bg: 'bg-black',
+    shadow: 'shadow-black/40',
+    icon: <GooglePlayIcon size={32} />, // ajusta tu icono para recibir size
+    featured: true,
+  }
 ] as const;
+
+function GooglePlayIcon({ size = 32 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M48 28.3L275.6 256 48 483.7C40.9 479.3 36 471.7 36 463V49C36 40.3 40.9 32.7 48 28.3Z" fill="#EA4335"/>
+      <path d="M352.3 182.7L296.8 238.2 48 28.3C54.3 24.7 62.1 24.5 68.7 28.1L352.3 182.7Z" fill="#FBBC04"/>
+      <path d="M352.3 329.3L68.7 483.9C62.1 487.5 54.3 487.3 48 483.7L296.8 273.8L352.3 329.3Z" fill="#34A853"/>
+      <path d="M476 256C476 264.8 471 272.4 463.7 276.7L352.3 329.3L296.8 256L352.3 182.7L463.7 235.3C471 239.6 476 247.2 476 256Z" fill="#4285F4"/>
+    </svg>
+  );
+}
 
 export function getSocialLinksWithLiveStatus(liveUrl: string | null) {
   return SOCIAL_LINKS.map((link) =>

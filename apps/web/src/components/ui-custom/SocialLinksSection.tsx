@@ -7,14 +7,17 @@ interface SocialLink {
   shadow?: string;
   icon: React.ReactNode;
   isLive?: boolean;
+  featured?: boolean;
 }
-
 interface SocialLinksSectionProps {
   links: SocialLink[];
   isDark: boolean;
 }
 
 export function DesktopSocialLinks({ links, isDark }: SocialLinksSectionProps) {
+  const regularLinks = links.filter(l => !l.featured);
+  const featuredLinks = links.filter(l => l.featured);
+
   return (
     <section className="hidden md:block px-4 pt-6 pb-8 max-w-2xl mx-auto">
       <h2 className={`font-semibold text-base mb-4 flex items-center gap-2 ${
@@ -23,7 +26,7 @@ export function DesktopSocialLinks({ links, isDark }: SocialLinksSectionProps) {
         Síguenos
       </h2>
       <div className="grid grid-cols-2 gap-3">
-        {links.map(({ label, href, bg, shadow = '', icon, isLive }) => (
+        {regularLinks.map(({ label, href, bg, shadow = '', icon, isLive }) => (
           <motion.a
             key={label}
             href={href}
@@ -46,18 +49,41 @@ export function DesktopSocialLinks({ links, isDark }: SocialLinksSectionProps) {
           </motion.a>
         ))}
       </div>
+      {featuredLinks.length > 0 && (
+        <div className="flex justify-center mt-3">
+          {featuredLinks.map(({ label, href, bg, shadow = '', icon }) => (
+            <motion.a
+              key={label}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              whileTap={{ scale: 0.95 }}
+              className={`flex items-center gap-4 px-6 py-3 rounded-2xl ${bg} text-white shadow-md ${shadow} transition-opacity hover:opacity-90`}
+            >
+              <span className="w-8 h-8 flex-shrink-0">{icon}</span>
+              <span className="flex flex-col leading-tight">
+                <span className="text-[10px] font-normal tracking-widest uppercase text-white/70">Disponible en</span>
+                <span className="text-lg font-bold tracking-tight">Google Play</span>
+              </span>
+            </motion.a>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
 
 export function MobileSocialLinks({ links, isDark }: SocialLinksSectionProps) {
+  const regularLinks = links.filter(l => !l.featured);
+  const featuredLinks = links.filter(l => l.featured);
+
   return (
     <section className="md:hidden px-5 pt-3 pb-4">
       <p className={`text-xs font-medium mb-3 text-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
         Síguenos
       </p>
-      <div className="flex items-center justify-center gap-3">
-        {links.map(({ label, href, bg, icon, isLive }) => (
+      <div className="flex items-center justify-center gap-3 mb-3">
+        {regularLinks.map(({ label, href, bg, icon, isLive }) => (
           <motion.a
             key={label}
             href={href}
@@ -80,6 +106,26 @@ export function MobileSocialLinks({ links, isDark }: SocialLinksSectionProps) {
           </motion.a>
         ))}
       </div>
+      {featuredLinks.length > 0 && (
+      <div className="flex justify-center mt-3">
+        {featuredLinks.map(({ label, href, bg, shadow = '', icon }) => (
+          <motion.a
+            key={label}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            whileTap={{ scale: 0.97 }}
+            className={`flex items-center gap-4 px-5 py-3 rounded-2xl ${bg} text-white shadow-md ${shadow} transition-opacity hover:opacity-90`}
+          >
+            <span className="w-8 h-8 flex-shrink-0">{icon}</span>
+            <span className="flex flex-col leading-tight">
+              <span className="text-[10px] font-normal tracking-widest uppercase text-white/70">Disponible en</span>
+              <span className="text-lg font-bold tracking-tight">Google Play</span>
+            </span>
+          </motion.a>
+        ))}
+      </div>
+    )}
     </section>
   );
 }
