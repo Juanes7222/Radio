@@ -3,11 +3,15 @@
 # deploy.sh — Zero-downtime deployment script
 #
 # USAGE:
-#   bash deploy.sh [--skip-audit] [--force]
+#   bash deploy.sh [--backend] [--frontend] [--skip-audit] [--force]
 #
 # OPTIONS:
+#   --backend      Deploy only the backend
+#   --frontend     Deploy only the frontend
 #   --skip-audit   Skip npm audit (NOT recommended in production)
 #   --force        Deploy even if there are no repo changes
+#
+# If neither --backend nor --frontend is specified, both are deployed.
 # ==============================================================================
 
 set -euo pipefail
@@ -24,13 +28,24 @@ HEALTH_INTERVAL=5
 
 SKIP_AUDIT=false
 FORCE_DEPLOY=false
+DEPLOY_BACKEND=false
+DEPLOY_FRONTEND=false
+
 for arg in "$@"; do
   case $arg in
     --skip-audit) SKIP_AUDIT=true ;;
     --force)      FORCE_DEPLOY=true ;;
+    --backend)    DEPLOY_BACKEND=true ;;
+    --frontend)   DEPLOY_FRONTEND=true ;;
     *) echo "Unknown option: $arg"; exit 1 ;;
   esac
 done
+
+# Default to full deploy when no target is specified.
+if [[ "$DEPLOY_BACKEND" == "false" ]] && [[ "$DEPLOY_FRONTEND" == "false" ]]; then
+  DEPLOY_BACKEND=true
+  DEPLOY_FRONTEND=true
+fi
 
 require_root
 
@@ -81,8 +96,10 @@ rollback() {
     nginx -t 2>/dev/null && systemctl reload nginx || true
   fi
 
-  warn "  Restarting backend with previous version..."
-  systemctl restart "$BACKEND_SERVICE" || true
+  if [[ "$DEPLOY_BACKEND" == "true" ]]; then
+    warn "  Restarting backend with previous version..."
+    systemctl restart "$BACKEND_SERVICE" || true
+  fi
 
   _apply_permissions
 
@@ -92,12 +109,12 @@ rollback() {
 }
 
 _apply_permissions() {
-  if [[ -d "$FRONTEND_DIR/dist" ]]; then
+  if [[ "$DEPLOY_FRONTEND" == "true" ]] && [[ -d "$FRONTEND_DIR/dist" ]]; then
     chown -R www-data:www-data "$FRONTEND_DIR/dist"
     chmod -R 750 "$FRONTEND_DIR/dist"
   fi
 
-  if [[ -d "$BACKEND_DIR/dist" ]]; then
+  if [[ "$DEPLOY_BACKEND" == "true" ]] && [[ -d "$BACKEND_DIR/dist" ]]; then
     chown -R "$SERVICE_USER:$SERVICE_USER" "$BACKEND_DIR/dist"
     chmod -R 750 "$BACKEND_DIR/dist"
   fi
@@ -108,9 +125,17 @@ _apply_permissions() {
   fi
 }
 
+_target_label() {
+  local labels=()
+  [[ "$DEPLOY_BACKEND"  == "true" ]] && labels+=("backend")
+  [[ "$DEPLOY_FRONTEND" == "true" ]] && labels+=("frontend")
+  echo "${labels[*]}"
+}
+
 echo "" >> "$DEPLOY_LOG"
 echo "═══════════════════════════════════════════" >> "$DEPLOY_LOG"
 info "Deploy started: $DEPLOY_START"
+info "Targets: $(_target_label)"
 
 cd "$DEPLOY_DIR"
 
@@ -128,7 +153,9 @@ if [[ "$BEFORE_HASH" == "$REMOTE_HASH" ]] && [[ "$FORCE_DEPLOY" == "false" ]]; t
   exit 0
 fi
 
-git pull --ff-only
+# Discard any local modifications and reset to the remote tracking branch.
+# This ensures manual edits on the server never block or corrupt a deploy.
+git reset --hard "@{u}"
 AFTER_HASH="$(git rev-parse HEAD)"
 info "Updated: ${BEFORE_HASH:0:8} → ${AFTER_HASH:0:8}"
 
@@ -157,27 +184,30 @@ npm ci --ignore-scripts
 
 step "4/7 — Building applications"
 
-if [[ -d "$BACKEND_DIR/dist" ]]; then
+if [[ "$DEPLOY_BACKEND" == "true" ]] && [[ -d "$BACKEND_DIR/dist" ]]; then
   BACKUP_BACKEND="$(mktemp -d)"
   cp -r "$BACKEND_DIR/dist/." "$BACKUP_BACKEND"
 fi
 
-if [[ -d "$FRONTEND_DIR/dist" ]]; then
+if [[ "$DEPLOY_FRONTEND" == "true" ]] && [[ -d "$FRONTEND_DIR/dist" ]]; then
   BACKUP_WEB="$(mktemp -d)"
   cp -r "$FRONTEND_DIR/dist/." "$BACKUP_WEB"
 fi
 
-npm run build --workspace=backend
-npm run build --workspace=@radio/web
-
-if [[ ! -d "$BACKEND_DIR/dist" ]] || [[ -z "$(ls -A "$BACKEND_DIR/dist")" ]]; then
-  error "Backend build produced no artifacts."
-  exit 1
+if [[ "$DEPLOY_BACKEND" == "true" ]]; then
+  npm run build --workspace=backend
+  if [[ ! -d "$BACKEND_DIR/dist" ]] || [[ -z "$(ls -A "$BACKEND_DIR/dist")" ]]; then
+    error "Backend build produced no artifacts."
+    exit 1
+  fi
 fi
 
-if [[ ! -d "$FRONTEND_DIR/dist" ]] || [[ -z "$(ls -A "$FRONTEND_DIR/dist")" ]]; then
-  error "Frontend build produced no artifacts."
-  exit 1
+if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
+  npm run build --workspace=@radio/web
+  if [[ ! -d "$FRONTEND_DIR/dist" ]] || [[ -z "$(ls -A "$FRONTEND_DIR/dist")" ]]; then
+    error "Frontend build produced no artifacts."
+    exit 1
+  fi
 fi
 
 npm prune --omit=dev
@@ -212,23 +242,27 @@ _apply_permissions
 
 step "7/7 — Restarting backend and running health check"
 
-systemctl reload-or-restart "$BACKEND_SERVICE"
-info "Waiting for health check..."
+if [[ "$DEPLOY_BACKEND" == "true" ]]; then
+  systemctl reload-or-restart "$BACKEND_SERVICE"
+  info "Waiting for health check..."
 
-HEALTHY=false
-for i in $(seq 1 "$HEALTH_RETRIES"); do
-  if curl -sf --max-time 3 "$HEALTH_URL" &>/dev/null; then
-    HEALTHY=true
-    info "Health check OK (attempt $i)."
-    break
+  HEALTHY=false
+  for i in $(seq 1 "$HEALTH_RETRIES"); do
+    if curl -sf --max-time 3 "$HEALTH_URL" &>/dev/null; then
+      HEALTHY=true
+      info "Health check OK (attempt $i)."
+      break
+    fi
+    info "Attempt $i/$HEALTH_RETRIES — waiting ${HEALTH_INTERVAL}s..."
+    sleep "$HEALTH_INTERVAL"
+  done
+
+  if [[ "$HEALTHY" == "false" ]]; then
+    error "Health check failed after $((HEALTH_RETRIES * HEALTH_INTERVAL)) seconds."
+    exit 1
   fi
-  info "Attempt $i/$HEALTH_RETRIES — waiting ${HEALTH_INTERVAL}s..."
-  sleep "$HEALTH_INTERVAL"
-done
-
-if [[ "$HEALTHY" == "false" ]]; then
-  error "Health check failed after $((HEALTH_RETRIES * HEALTH_INTERVAL)) seconds."
-  exit 1
+else
+  info "Backend not targeted — skipping restart and health check."
 fi
 
 if command -v aide &>/dev/null && [[ -f /var/lib/aide/aide.db ]]; then
@@ -242,13 +276,14 @@ fi
 [[ -n "$BACKUP_WEB"     ]] && rm -rf "$BACKUP_WEB"
 
 DEPLOY_END="$(date '+%Y-%m-%d %H:%M:%S')"
-echo "[$DEPLOY_START → $DEPLOY_END] SUCCESS (${BEFORE_HASH:0:8} → ${AFTER_HASH:0:8})" \
+echo "[$DEPLOY_START → $DEPLOY_END] SUCCESS (${BEFORE_HASH:0:8} → ${AFTER_HASH:0:8}) [targets: $(_target_label)]" \
   >> "$DEPLOY_LOG"
 
 echo ""
 echo -e "${GREEN}${BOLD}════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}${BOLD}  Deploy completed successfully${NC}"
 echo -e "${GREEN}${BOLD}════════════════════════════════════════════════${NC}"
+echo -e "  Targets : $(_target_label)"
 echo -e "  Commit  : ${BEFORE_HASH:0:8} → ${AFTER_HASH:0:8}"
 echo -e "  Nginx   : $(systemctl is-active nginx)"
 echo -e "  Backend : $(systemctl is-active "$BACKEND_SERVICE")"

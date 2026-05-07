@@ -88,7 +88,9 @@ info "Step 4/14 — Syncing repository..."
 if [[ ! -d "$DEPLOY_DIR/.git" ]]; then
   git clone https://github.com/Juanes7222/Radio.git "$DEPLOY_DIR"
 else
-  git -C "$DEPLOY_DIR" pull --ff-only
+  # Discard any local modifications and reset to the remote tracking branch.
+  git -C "$DEPLOY_DIR" fetch origin
+  git -C "$DEPLOY_DIR" reset --hard "@{u}"
 fi
 cd "$DEPLOY_DIR"
 
