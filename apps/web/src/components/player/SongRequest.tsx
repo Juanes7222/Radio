@@ -48,7 +48,7 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, theme, r
 
   // Buscar canciones
   useEffect(() => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
     const searchSongs = async () => {
       if (searchQuery.length < 3) {
         setSearchResults([]);

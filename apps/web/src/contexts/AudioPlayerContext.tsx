@@ -38,7 +38,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const { liveUrl } = useFacebookLive();
 
   const { data, isLoading, error, getStreamUrl, requestSong } = useAzuraCast({
-    apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
+    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
     pollInterval: 15000,
   });
 

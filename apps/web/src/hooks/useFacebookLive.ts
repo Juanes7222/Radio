@@ -6,8 +6,7 @@ export function useFacebookLive() {
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-    const sseUrl = `${baseUrl}/live-status/stream`;
+    const sseUrl = `/live-status/stream`;
 
     const connect = () => {
       try {
