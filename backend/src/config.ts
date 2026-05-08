@@ -13,6 +13,12 @@ export const config = {
         apiKey:    required('AZURACAST_API_KEY'),
         stationId: required('AZURACAST_STATION_ID'),
     },
+    locutor: {
+        kokoroUrl: process.env.KOKORO_URL || 'http://localhost:8880',
+        mediaDir: process.env.MEDIA_DIR || '/var/azuracast/stations/1/media/locutores',
+        timezone: process.env.TIMEZONE || 'America/Bogota',
+        stationName: process.env.STATION_NAME || 'Radio',
+    },
     google: {
         clientId: required('GOOGLE_CLIENT_ID'),
     },
