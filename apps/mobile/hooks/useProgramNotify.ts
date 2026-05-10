@@ -2,23 +2,33 @@ import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAzuraCast } from '@radio/api';
-import { BACKEND_URL, STATION_UTC_OFFSET_HOURS } from '@/constants/api';
+import { BACKEND_URL } from '@/constants/api';
 import { formatMediaTitle } from '@/lib/formatMedia';
+import * as Device from 'expo-device';
+import { Platform, Linking } from 'react-native';
 
 const PROGRAM_NOTIFY_MINUTES_BEFORE = 10;
 const LAST_SCHEDULE_HASH_KEY = 'radio-schedule-hash';
 
-/** Corrects AzuraCast schedule timestamps, which are in station local time
- *  instead of UTC, to proper UTC Unix seconds. */
-function toUtcTimestamp(azuracastTimestamp: number): number {
-  return azuracastTimestamp - STATION_UTC_OFFSET_HOURS * 3600;
+async function ensureExactAlarmPermission() {
+  if (Platform.OS !== 'android' || (Device.osInternalBuildId && parseInt(Platform.Version as unknown as string) < 31)) return;
+  
+  const { canScheduleExactNotifications } = await Notifications.getPermissionsAsync() as any;
+  if (canScheduleExactNotifications === false) {
+    Linking.openSettings();
+  }
 }
 
+/**
+ * Hook que se encarga de programar notificaciones locales para los programas de radio próximos.
+ * Busca la programación y avisa N minutos antes de que empiece un programa de la programación.
+ */
 export function useProgramNotify() {
   const { fetchSchedule } = useAzuraCast({ apiBaseUrl: BACKEND_URL });
 
   useEffect(() => {
     async function setupNotifications() {
+      await ensureExactAlarmPermission();
       const schedule = await fetchSchedule();
       if (!schedule || schedule.length === 0) return;
 
@@ -27,7 +37,7 @@ export function useProgramNotify() {
 
       const hash = schedule.map(i => `${i.id}-${i.start_timestamp}`).join('|');
       const savedHash = await AsyncStorage.getItem(LAST_SCHEDULE_HASH_KEY);
-
+      
       if (savedHash === hash) return;
       await AsyncStorage.setItem(LAST_SCHEDULE_HASH_KEY, hash);
 
@@ -41,15 +51,13 @@ export function useProgramNotify() {
       const nowSeconds = Math.floor(Date.now() / 1000);
 
       for (const item of schedule) {
-        const utcStartSeconds = toUtcTimestamp(item.start_timestamp);
+        if (item.start_timestamp > nowSeconds) {
+          const notifyTimeSeconds = item.start_timestamp - (PROGRAM_NOTIFY_MINUTES_BEFORE * 60);
 
-        if (utcStartSeconds > nowSeconds) {
-          const notifyTimeSeconds = utcStartSeconds - PROGRAM_NOTIFY_MINUTES_BEFORE * 60;
-
-          if (notifyTimeSeconds > nowSeconds) {
+          if (notifyTimeSeconds > nowSeconds && item.title !== 'CONTENIDO VARIADO') {
+            let notificationBody = `El programa "${item.title}" empezará en ${PROGRAM_NOTIFY_MINUTES_BEFORE} minutos.`;
+            
             const { title, artist, isPreaching } = formatMediaTitle(item.title);
-
-            let notificationBody: string;
             if (isPreaching) {
               notificationBody = `La prédica "${title}" de ${artist} empezará en ${PROGRAM_NOTIFY_MINUTES_BEFORE} minutos.`;
             } else if (artist) {
@@ -67,18 +75,16 @@ export function useProgramNotify() {
               },
               trigger: {
                 type: 'date',
-                date: new Date(notifyTimeSeconds * 1000),
+                date: new Date(notifyTimeSeconds * 1000)
               } as Notifications.NotificationTriggerInput,
             });
           }
         }
       }
-
     }
 
     setupNotifications();
     const interval = setInterval(setupNotifications, 1000 * 60 * 60);
-    
     return () => clearInterval(interval);
   }, [fetchSchedule]);
 }
