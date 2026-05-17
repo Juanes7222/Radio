@@ -1,0 +1,53 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model BibleTranslation {
+  id           String      @id @default(uuid())
+  abbreviation String      @unique // ej: "RVR60", "NVI"
+  name         String      // ej: "Reina Valera 1960"
+  books        BibleBook[]
+}
+
+model BibleBook {
+  id            String           @id @default(uuid())
+  translationId String
+  translation   BibleTranslation @relation(fields: [translationId], references: [id])
+  name          String           // "Génesis", "Éxodo"
+  abbreviation  String           // "Gen", "Ex"
+  testament     String           // "AT" o "NT"
+  order         Int              // 1 a 66
+  chapters      BibleChapter[]
+
+  @@unique([translationId, name])
+}
+
+model BibleChapter {
+  id       String       @id @default(uuid())
+  bookId   String
+  book     BibleBook    @relation(fields: [bookId], references: [id])
+  number   Int          // 1, 2, 3...
+  verses   BibleVerse[]
+
+  @@unique([bookId, number])
+}
+
+model BibleVerse {
+  id        String       @id @default(uuid())
+  chapterId String
+  chapter   BibleChapter @relation(fields: [chapterId], references: [id])
+  number    Int          // 1, 2, 3...
+  text      String       // El texto del versículo
+
+  @@unique([chapterId, number])
+}

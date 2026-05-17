@@ -11,6 +11,7 @@ import uploadRouter from './routes/upload';
 import webhookRouter from './routes/webhook';
 import panelRouter from './routes/panel';
 import liveStatusRouter from './routes/live-status';
+import bibleRouter from './routes/bible';
 import swaggerFile from './swagger-output.json';
 
 const app = express();
@@ -36,6 +37,7 @@ app.use('/admin-api/upload', uploadRouter);
 app.use('/webhook', webhookRouter);
 app.use('/panel-api', panelRouter);
 app.use('/live-status', liveStatusRouter);
+app.use('/api/bible', bibleRouter);
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
