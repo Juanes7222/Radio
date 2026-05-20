@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "dev": "turbo dev",
+    "dev:docker": "docker compose -f docker-compose.dev.yml up --build",
     "build": "turbo build",
     "lint": "turbo lint",
     "dev:web": "turbo dev --filter=@radio/web",

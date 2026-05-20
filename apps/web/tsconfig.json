@@ -14,7 +14,11 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@assets/*": ["../../packages/assets/*"],
+      "@types/*": ["../../packages/types/*"],
+      "@api/*": ["../../packages/api/*"],
+      "@radio/*": ["../../packages/*"]
     }
   }
 }

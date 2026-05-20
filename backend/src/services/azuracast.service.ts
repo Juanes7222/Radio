@@ -4,7 +4,7 @@ import FormData from 'form-data';
 import { config } from '../config';
 
 const azApi = axios.create({
-  baseURL: \`\${config.azuracast.url}/api\`,
+  baseURL: `\${config.azuracast.url}/api`,
   headers: { 'X-API-Key': config.azuracast.apiKey }
 });
 
@@ -15,18 +15,18 @@ export async function uploadMedia(filePath: string, remotePath: string): Promise
   form.append('file', fs.createReadStream(filePath));
   form.append('path', remotePath);
 
-  const { data } = await azApi.post(\`/station/\${STATION}/files\`, form, {
+  const { data } = await azApi.post(`/station/\${STATION}/files`, form, {
     headers: form.getHeaders?.() || { 'Content-Type': 'multipart/form-data' }
   });
   return data.id;
 }
 
 export async function upsertScheduledPlaylist(name: string, cronHour: number): Promise<string> {
-  const { data: playlists } = await azApi.get(\`/station/\${STATION}/playlists\`);
+  const { data: playlists } = await azApi.get(`/station/\${STATION}/playlists`);
   let playlist = playlists.find((p: any) => p.name === name);
 
   if (!playlist) {
-    const { data } = await azApi.post(\`/station/\${STATION}/playlists\`, {
+    const { data } = await azApi.post(`/station/\${STATION}/playlists`, {
       name,
       type: 'scheduled',
       is_enabled: true,
@@ -44,7 +44,7 @@ export async function upsertScheduledPlaylist(name: string, cronHour: number): P
 }
 
 export async function forcePlayAnnouncement(mediaId: string): Promise<void> {
-  await azApi.post(\`/station/\${STATION}/queue/inject_from_playlist\`, {
+  await azApi.post(`/station/\${STATION}/queue/inject_from_playlist`, {
     media_id: mediaId
   });
 }

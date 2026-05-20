@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { StreamQuality, PlayerState } from '@/types/azuracast';
+import type { StreamQuality, PlayerState } from '@types';
 
 interface UseAudioPlayerProps {
   streamUrl: string;
