@@ -32,4 +32,7 @@ export const config = {
         .filter(Boolean),
     publicUrl:   (process.env.PUBLIC_URL ?? '').replace(/\/$/, ''),
     panelSecret: required('PANEL_SECRET'),
+    youtube: {
+        channels: process.env.CHANNELS_ID?.split(',').map(c => c.trim()).filter(Boolean) || []
+    },
 };

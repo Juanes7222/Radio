@@ -15,6 +15,7 @@ import swaggerFile from './swagger-output.json';
 import { startScheduler } from './jobs/scheduler';
 
 import locutorRouter from './routes/locutor';
+import youtubeRouter from './routes/youtube';
 
 const app = express();
 
@@ -43,7 +44,7 @@ app.use('/webhook', webhookRouter);
 app.use('/panel-api', panelRouter);
 app.use('/live-status', liveStatusRouter);
 app.use('/admin-api/locutor', locutorRouter);
-
+app.use('/admin-api/youtube', youtubeRouter);
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
 app.get('/admin-api/health', (_req, res) => {
