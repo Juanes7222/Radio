@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BibleQueryResponse, BibleTranslation, BibleBook } from '@radio/types/src/bible';
+import type { BibleQueryResponse, BibleTranslation, BibleBook } from '@radio/types';
 
 const API_BASE = '/api/bible';
 
@@ -15,7 +15,22 @@ export function useBible() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Todo: we can load this dynamically with API calls from express
+  // Fetch books
+  useEffect(() => {
+    async function loadBooks() {
+      try {
+        const res = await fetch(`${API_BASE}/books?translation=${currentTranslation}`);
+        if (res.ok) {
+          const data = await res.json();
+          setBooks(data);
+        }
+      } catch (err) {
+        console.error('Error fetching books:', err);
+      }
+    }
+    loadBooks();
+  }, [currentTranslation]);
+
   useEffect(() => {
     // Initial fetch mockup since we need to seed the DB first
     async function loadData() {

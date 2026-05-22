@@ -25,6 +25,11 @@ router.get('/books', async (req, res) => {
       where: {
         translation: { abbreviation: translation as string }
       },
+      include: {
+        _count: {
+          select: { chapters: true }
+        }
+      },
       orderBy: { order: 'asc' }
     });
     res.json(books);

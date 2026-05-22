@@ -11,6 +11,9 @@ export interface BibleBook {
   abbreviation: string;
   testament: string;
   order: number;
+  _count?: {
+    chapters: number;
+  };
 }
 
 export interface BibleChapter {
