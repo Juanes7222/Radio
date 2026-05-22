@@ -38,6 +38,8 @@ import { WaveformVisualizer } from './WaveformVisualizer';
 import { SongInfo } from './SongInfo';
 import { formatTime } from '@/lib/utils';
 import { ShareModal } from '../ui-custom/SharedModla';
+import { BibleButton } from '../bible/BibleButton';
+import { BiblePanel } from '../bible/BiblePanel';
 
 interface RadioPlayerProps {
   stationData: NowPlayingData | null;
@@ -125,6 +127,7 @@ export function RadioPlayer({
   const isLive = stationData?.live?.is_live || false;
   const listeners = stationData?.listeners?.current || 0;
   const [shareOpen, setShareOpen] = useState(false);
+  const [bibleOpen, setBibleOpen] = useState(false);
   const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 
   return (
@@ -134,6 +137,12 @@ export function RadioPlayer({
       open={shareOpen}
       onOpenChange={setShareOpen}
       stationName={stationData?.station?.name || 'Radio Stream'}
+    />
+
+    <BiblePanel 
+      isOpen={bibleOpen} 
+      onClose={() => setBibleOpen(false)} 
+      theme={theme} 
     />
 
       <motion.div
@@ -398,7 +407,9 @@ export function RadioPlayer({
             </div>
 
             {/* Botones adicionales */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              <BibleButton onClick={() => setBibleOpen(true)} theme={theme} />
+              
               <Button
                 variant="default"
                 size="sm"

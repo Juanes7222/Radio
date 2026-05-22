@@ -1,0 +1,3 @@
+[submodule "packages/assets/bible/Holy-Bible-XML-Format"]
+	path = packages/assets/bible/Holy-Bible-XML-Format
+	url = https://github.com/Beblia/Holy-Bible-XML-Format.git

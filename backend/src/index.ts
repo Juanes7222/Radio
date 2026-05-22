@@ -11,6 +11,7 @@ import uploadRouter from './routes/upload';
 import webhookRouter from './routes/webhook';
 import panelRouter from './routes/panel';
 import liveStatusRouter from './routes/live-status';
+import bibleRouter from './routes/bible';
 import swaggerFile from './swagger-output.json';
 import { startScheduler } from './jobs/scheduler';
 
@@ -45,6 +46,8 @@ app.use('/panel-api', panelRouter);
 app.use('/live-status', liveStatusRouter);
 app.use('/admin-api/locutor', locutorRouter);
 app.use('/admin-api/youtube', youtubeRouter);
+app.use('/api/bible', bibleRouter);
+
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
 app.get('/admin-api/health', (_req, res) => {
