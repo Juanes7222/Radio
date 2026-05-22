@@ -1,0 +1,35 @@
+{
+  "name": "Radio Dev Environment",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20",
+      "pnpm": false,
+      "yarn": false
+    }
+  },
+  "postCreateCommand": "npm install",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnSave": true
+      },
+      "extensions": [
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-python.python",
+        "alexcvzz.vscode-sqlite",
+        "bradlc.vscode-tailwindcss",
+        "ms-vscode.live-server"
+      ]
+    }
+  },
+  "forwardPorts": [5173, 8080, 8081, 19000],
+  "portsAttributes": {
+    "5173": { "label": "Web App (Vite)", "onAutoForward": "notify" },
+    "8080": { "label": "Backend API", "onAutoForward": "notify" },
+    "8081": { "label": "Expo (Metro)", "onAutoForward": "ignore" }
+  }
+}

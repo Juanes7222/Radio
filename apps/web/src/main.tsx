@@ -8,6 +8,7 @@ import { AdminAuthProvider, ThemeProvider } from './hooks/index.ts'
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext.tsx'
 import { PublicLayout } from './components/layout/PublicLayout.tsx'
 import { Toaster } from './components/ui/sonner.tsx'
+import ProgramacionPage from './pages/ProgramacionPage.tsx';
 import {
   AdminLogin,
   AdminLayout,
@@ -34,6 +35,7 @@ createRoot(document.getElementById('root')!).render(
                 {/* Rutas Públicas con Layout (incluye MiniPlayer) */}
                 <Route element={<PublicLayout />}>
                   <Route path="/" element={<App />} />
+                  <Route path="/programacion" element={<ProgramacionPage />} />
                   <Route path="/info/who-we-are" element={<AboutPage />} />
                   <Route path="/info/privacy" element={<PrivacyPolicyPage />} />
                 </Route>

@@ -13,8 +13,15 @@ import panelRouter from './routes/panel';
 import liveStatusRouter from './routes/live-status';
 import bibleRouter from './routes/bible';
 import swaggerFile from './swagger-output.json';
+import { startScheduler } from './jobs/scheduler';
+
+import locutorRouter from './routes/locutor';
+import youtubeRouter from './routes/youtube';
 
 const app = express();
+
+// Start cron jobs
+startScheduler();
 
 app.use(morgan('dev'));
 app.use(helmet());
@@ -37,6 +44,8 @@ app.use('/admin-api/upload', uploadRouter);
 app.use('/webhook', webhookRouter);
 app.use('/panel-api', panelRouter);
 app.use('/live-status', liveStatusRouter);
+app.use('/admin-api/locutor', locutorRouter);
+app.use('/admin-api/youtube', youtubeRouter);
 app.use('/api/bible', bibleRouter);
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));

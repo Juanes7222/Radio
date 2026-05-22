@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app/backend
+      - ./packages:/app/packages
+    env_file:
+      - .env.docker
+    environment:
+      - NODE_ENV=development
+
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev:web"
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+    environment:
+      - VITE_API_URL=http://localhost:8080
+      - NODE_ENV=development

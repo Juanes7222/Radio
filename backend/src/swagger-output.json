@@ -678,6 +678,7 @@
         }
       }
     },
+    "/admin-api/locutor/templates": {
     "/api/bible/translations": {
       "get": {
         "description": "",
@@ -689,6 +690,56 @@
             "description": "Internal Server Error"
           }
         }
+      },
+      "post": {
+        "description": "",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "example": "any"
+                  },
+                  "name": {
+                    "example": "any"
+                  },
+                  "text_template": {
+                    "example": "any"
+                  },
+                  "voice": {
+                    "example": "any"
+                  },
+                  "speed": {
+                    "example": "any"
+                  },
+                  "active": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin-api/locutor/templates/{id}": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
       }
     },
     "/api/bible/books": {
@@ -710,6 +761,44 @@
           "500": {
             "description": "Internal Server Error"
           }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "example": "any"
+                  },
+                  "name": {
+                    "example": "any"
+                  },
+                  "text_template": {
+                    "example": "any"
+                  },
+                  "voice": {
+                    "example": "any"
+                  },
+                  "speed": {
+                    "example": "any"
+                  },
+                  "active": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
         }
       }
     },
@@ -736,6 +825,18 @@
           "200": {
             "description": "OK"
           },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/admin-api/locutor/audios": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
           "400": {
             "description": "Bad Request"
           },
@@ -745,6 +846,51 @@
         }
       }
     },
+    "/admin-api/locutor/audios/generate/{templateId}": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "variables": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin-api/locutor/audios/{id}": {
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
     "/api/bible/chapter": {
       "get": {
         "description": "",
@@ -775,6 +921,31 @@
           "200": {
             "description": "OK"
           },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/admin-api/locutor/status": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/admin-api/locutor/logs": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
           "400": {
             "description": "Bad Request"
           },
