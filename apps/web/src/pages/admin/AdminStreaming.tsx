@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTheme } from '@/hooks';
-import type { Streamer } from '@/types/admin';
+import type { Streamer } from '@radio/types';
 
 const STATION_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 

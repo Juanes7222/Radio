@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui-custom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTheme } from '@/hooks';
-import type { AdminUser } from '@/types/admin';
+import type { AdminUser } from '@radio/types';
 
 const NAV_ITEMS = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },

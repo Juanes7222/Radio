@@ -1,7 +1,7 @@
 import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import { VinylDisc } from '@/components/ui-custom/VinylDisc';
-import type { NowPlaying, PlayerState } from '@/types/azuracast';
+import type { NowPlaying, PlayerState } from '@radio/types';
 import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 
 interface MobilePlayerHeroProps {

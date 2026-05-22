@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Music, History } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { SongHistory as SongHistoryType } from '@/types/azuracast';
+import type { SongHistory as SongHistoryType } from '@radio/types';
 import {
   Dialog,
   DialogContent,

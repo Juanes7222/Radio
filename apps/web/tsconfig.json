@@ -18,7 +18,7 @@
       "@assets/*": ["../../packages/assets/*"],
       "@types/*": ["../../packages/types/*"],
       "@api/*": ["../../packages/api/*"],
-      "@radio/*": ["../../packages/*"]
+      "@radio/*": ["../../packages/*"],
       "@radio/types": ["../../packages/types/src/index.ts"]
     }
   }

@@ -6,7 +6,7 @@ interface BibleButtonProps {
   theme?: 'light' | 'dark';
 }
 
-export function BibleButton({ onClick, theme = 'dark' }: BibleButtonProps) {
+export function BibleButton({ onClick}: BibleButtonProps) {
   return (
     <Button
       variant="outline"

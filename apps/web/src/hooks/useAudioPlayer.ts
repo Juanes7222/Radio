@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { StreamQuality, PlayerState } from '@types';
+import type { StreamQuality, PlayerState } from '@radio/types';
 
 interface UseAudioPlayerProps {
   streamUrl: string;

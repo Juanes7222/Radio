@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
-import { Clock, Radio, Mic2, Music2, ChevronRight } from 'lucide-react';
+import { Clock, Radio, Mic2, Music2 } from 'lucide-react';
 import { useTheme, useAzuraCast } from '@/hooks';
-import type { ScheduleItem } from '@types';
+import type { ScheduleItem } from '@radio/types';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -17,9 +17,6 @@ const SLOT_ACCENTS = [
   { dot: '#e8af34', glow: 'rgba(232,175,52,0.18)',  label: 'bg-[#e8af34]' },
 ];
 
-/* ─────────────────────────────────────────────
-   Sub-components
-───────────────────────────────────────────── */
 
 /** Animated vertical timeline line */
 function TimelineLine({ count }: { count: number }) {

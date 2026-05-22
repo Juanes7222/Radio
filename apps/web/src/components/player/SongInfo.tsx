@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Disc, Music, User } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatMediaTitle } from '@/lib/formatMedia';
-import type { NowPlaying } from '@/types/azuracast';
+import type { NowPlaying } from '@radio/types';
 
 interface SongInfoProps {
   song: NowPlaying | null;

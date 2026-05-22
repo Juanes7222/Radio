@@ -18,7 +18,7 @@ export default function TemplateEditor() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const method = editingTemplate.id ? 'PUT' : 'POST';
-    const url = editingTemplate.id ? \`/admin-api/locutor/templates/\${editingTemplate.id}\` : '/admin-api/locutor/templates';
+    const url = editingTemplate.id ? `/admin-api/locutor/templates/${editingTemplate.id}` : '/admin-api/locutor/templates';
     
     await fetch(url, {
       method,
@@ -32,7 +32,7 @@ export default function TemplateEditor() {
 
   const handleGenerate = async (id: number) => {
     if (!confirm('¿Generar audio prueba para esta plantilla?')) return;
-    await fetch(\`/admin-api/locutor/audios/generate/\${id}\`, { method: 'POST', body: JSON.stringify({ variables: {} }), headers: { 'Content-Type': 'application/json' } });
+    await fetch(`/admin-api/locutor/audios/generate/${id}`, { method: 'POST', body: JSON.stringify({ variables: {} }), headers: { 'Content-Type': 'application/json' } });
     alert('Generación iniciada. Revisa el banco de audios.');
   };
 

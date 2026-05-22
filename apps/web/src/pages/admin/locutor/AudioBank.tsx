@@ -12,7 +12,7 @@ export default function AudioBank() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('¿Eliminar audio?')) return;
-    await fetch(\`/admin-api/locutor/audios/\${id}\`, { method: 'DELETE' });
+    await fetch(`/admin-api/locutor/audios/${id}`, { method: 'DELETE' });
     setAudios(a => a.filter(audio => audio.id !== id));
   };
 
@@ -39,10 +39,10 @@ export default function AudioBank() {
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">{audio.voice}</td>
                 <td className="px-4 py-3 text-sm">
-                  <span className={\`px-2 py-1 text-xs rounded-full \${
+                  <span className={`px-2 py-1 text-xs rounded-full ${
                     audio.status === 'ready' ? 'bg-green-100 text-green-800' : 
                     audio.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
-                  }\`}>
+                  }`}>
                     {audio.status}
                   </span>
                 </td>

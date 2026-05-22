@@ -33,7 +33,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useFavoriteNotify, SLEEP_PRESETS } from '@/hooks';
-import type { NowPlayingData, StreamQuality, PlayerState } from '@/types/azuracast';
+import type { NowPlayingData, StreamQuality, PlayerState } from '@radio/types';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { SongInfo } from './SongInfo';
 import { formatTime } from '@/lib/utils';

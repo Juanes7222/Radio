@@ -32,7 +32,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTheme } from '@/hooks';
-import type { AdminPlaylist, MediaFile } from '@/types/admin';
+import type { AdminPlaylist, MediaFile } from '@radio/types';
 import axios from 'axios';
 import { toast } from 'sonner';
 

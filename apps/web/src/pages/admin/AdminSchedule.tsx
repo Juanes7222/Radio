@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { useTheme } from '@/hooks';
-import type { ScheduleItem } from '@/types/admin';
+import type { ScheduleItem } from '@radio/types';
 
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);

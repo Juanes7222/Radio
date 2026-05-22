@@ -54,6 +54,28 @@ export function useBible() {
     loadData();
   }, [currentTranslation, currentBook, currentChapter]);
 
+  useEffect(() => {
+    async function loadTranslations() {
+      try {
+        const res = await fetch(`${API_BASE}/translations`);
+
+        if (res.ok) {
+          const data = await res.json();
+
+          setTranslations(data);
+
+          if (data.length > 0) {
+            setCurrentTranslation(data[0].abbreviation);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching translations:', err);
+      }
+    }
+
+    loadTranslations();
+  }, []);
+
   return {
     translations,
     books,
