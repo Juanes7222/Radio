@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { Clock, Radio, Mic2, Music2 } from 'lucide-react';
 import { useTheme, useAzuraCast } from '@/hooks';
+import { Header } from '@/components/ui-custom';
 import type { ScheduleItem } from '@radio/types';
+
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -17,6 +19,9 @@ const SLOT_ACCENTS = [
   { dot: '#e8af34', glow: 'rgba(232,175,52,0.18)',  label: 'bg-[#e8af34]' },
 ];
 
+/* ─────────────────────────────────────────────
+   Sub-components
+───────────────────────────────────────────── */
 
 /** Animated vertical timeline line */
 function TimelineLine({ count }: { count: number }) {
@@ -39,11 +44,9 @@ function TimelineLine({ count }: { count: number }) {
 function ProgramCard({
   program,
   idx,
-  isDark,
 }: {
   program: ScheduleItem;
   idx: number;
-  isDark: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-60px' });
@@ -77,14 +80,7 @@ function ProgramCard({
       <motion.div
         whileHover={{ y: -2, boxShadow: `0 8px 24px ${accent.glow}` }}
         transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-        className={`
-          flex-1 rounded-2xl overflow-hidden border
-          ${isDark
-            ? 'bg-[#1c1b19] border-[#2e2d2a]'
-            : 'bg-white border-[#e8e5e0]'}
-          transition-colors duration-200
-        `}
-        style={{ boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.25)' : '0 2px 8px rgba(0,0,0,0.06)' }}
+        className="flex-1 rounded-2xl overflow-hidden border border-border bg-card text-card-foreground transition-colors duration-200 shadow-sm"
       >
         {/* Accent strip */}
         <div className="h-1 w-full" style={{ background: accent.dot }} />
@@ -100,10 +96,7 @@ function ProgramCard({
           </div>
 
           {/* Divider */}
-          <div
-            className="hidden sm:block w-px self-stretch"
-            style={{ background: isDark ? '#2e2d2a' : '#e8e5e0' }}
-          />
+          <div className="hidden sm:block w-px self-stretch bg-border" />
 
           {/* Content */}
           <div className="flex-1 min-w-0">
@@ -132,7 +125,7 @@ function ProgramCard({
               ) : (
                 <Music2 className="w-3.5 h-3.5 opacity-50" />
               )}
-              <span className="text-xs opacity-50">
+              <span className="text-xs text-muted-foreground">
                 {isLive ? 'Programa en vivo con locutor' : 'Programa automático'}
               </span>
             </div>
@@ -148,13 +141,11 @@ function DayPill({
   label,
   isSelected,
   isToday,
-  isDark,
   onClick,
 }: {
   label: string;
   isSelected: boolean;
   isToday: boolean;
-  isDark: boolean;
   onClick: () => void;
 }) {
   return (
@@ -163,14 +154,10 @@ function DayPill({
       onClick={onClick}
       className={`
         relative h-10 px-4 rounded-xl text-sm font-medium transition-colors duration-150 outline-none
-        focus-visible:ring-2 focus-visible:ring-offset-2
+        focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
         ${isSelected
-          ? isDark
-            ? 'text-[#1c1b19] bg-[#cdccca]'
-            : 'text-white bg-[#28251d]'
-          : isDark
-            ? 'text-[#797876] hover:text-[#cdccca] hover:bg-[#252422]'
-            : 'text-[#7a7974] hover:text-[#28251d] hover:bg-[#efede8]'
+          ? 'bg-primary text-primary-foreground shadow-sm'
+          : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
         }
       `}
     >
@@ -186,28 +173,14 @@ function DayPill({
 }
 
 /** Skeleton card for loading state */
-function SkeletonCard({ isDark }: { isDark: boolean }) {
+function SkeletonCard() {
   return (
     <div className="relative flex gap-5 pl-14 pb-8">
-      <span
-        className="absolute left-[14px] top-[18px] w-[18px] h-[18px] rounded-full"
-        style={{ background: isDark ? '#2e2d2a' : '#e8e5e0' }}
-      />
-      <div
-        className={`flex-1 rounded-2xl border p-5 space-y-3 ${isDark ? 'bg-[#1c1b19] border-[#2e2d2a]' : 'bg-white border-[#e8e5e0]'}`}
-      >
-        <div
-          className="h-3 w-24 rounded animate-pulse"
-          style={{ background: isDark ? '#2e2d2a' : '#e8e5e0' }}
-        />
-        <div
-          className="h-4 w-48 rounded animate-pulse"
-          style={{ background: isDark ? '#2e2d2a' : '#e8e5e0' }}
-        />
-        <div
-          className="h-3 w-32 rounded animate-pulse"
-          style={{ background: isDark ? '#252422' : '#f3f0eb' }}
-        />
+      <span className="absolute left-[14px] top-[18px] w-[18px] h-[18px] rounded-full bg-border" />
+      <div className="flex-1 rounded-2xl border border-border bg-card p-5 space-y-3">
+        <div className="h-3 w-24 rounded animate-pulse bg-muted" />
+        <div className="h-4 w-48 rounded animate-pulse bg-muted" />
+        <div className="h-3 w-32 rounded animate-pulse bg-secondary" />
       </div>
     </div>
   );
@@ -217,6 +190,8 @@ function SkeletonCard({ isDark }: { isDark: boolean }) {
    Main Page
 ───────────────────────────────────────────── */
 export function ProgramacionPage() {
+  // Ya no dependemos de resolvedTheme para la mayoría del estilado, 
+  // pero lo mantenemos si lo necesitas para la lógica del badge "Hoy".
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
@@ -246,10 +221,8 @@ export function ProgramacionPage() {
     .sort((a, b) => a.start_timestamp - b.start_timestamp);
 
   return (
-    <div
-      className="min-h-screen transition-colors duration-300"
-      style={{ background: isDark ? '#171614' : '#f7f6f2', color: isDark ? '#cdccca' : '#28251d' }}
-    >
+    <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
+        <Header stationName="La Voz de la Verdad" />
       <div className="max-w-2xl mx-auto px-5 py-14 sm:py-20">
 
         {/* ── Header ───────────────────────────────── */}
@@ -276,21 +249,17 @@ export function ProgramacionPage() {
           >
             Programación
           </h1>
-          <p className="text-sm leading-relaxed max-w-sm" style={{ color: isDark ? '#797876' : '#7a7974' }}>
+          <p className="text-sm leading-relaxed max-w-sm text-muted-foreground">
             Todos nuestros programas, de lunes a domingo. Selecciona un día para ver los detalles.
           </p>
         </motion.header>
 
-        {/* ── Day Selector ─────────────────────────── */}
         <motion.nav
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.15 }}
           aria-label="Seleccionar día"
-          className={`
-            flex gap-1 p-1.5 rounded-2xl mb-10 overflow-x-auto no-scrollbar
-            ${isDark ? 'bg-[#1c1b19]' : 'bg-[#ededea]'}
-          `}
+          className="flex gap-1 p-1.5 rounded-2xl mb-10 overflow-x-auto no-scrollbar bg-muted"
         >
           {DAYS.map((day, i) => (
             <DayPill
@@ -298,13 +267,11 @@ export function ProgramacionPage() {
               label={day}
               isSelected={selectedDay === i}
               isToday={currentDay === i}
-              isDark={isDark}
               onClick={() => setSelectedDay(i)}
             />
           ))}
         </motion.nav>
 
-        {/* ── Day Title ────────────────────────────── */}
         <AnimatePresence mode="wait">
           <motion.div
             key={`title-${selectedDay}`}
@@ -317,7 +284,7 @@ export function ProgramacionPage() {
             <div>
               <h2 className="font-semibold text-lg">{DAYS_FULL[selectedDay]}</h2>
               {!loading && programsForDay.length > 0 && (
-                <p className="text-xs mt-0.5" style={{ color: isDark ? '#797876' : '#7a7974' }}>
+                <p className="text-xs mt-0.5 text-muted-foreground">
                   {programsForDay.length} programa{programsForDay.length !== 1 ? 's' : ''}
                 </p>
               )}
@@ -336,7 +303,6 @@ export function ProgramacionPage() {
           </motion.div>
         </AnimatePresence>
 
-        {/* ── Timeline ─────────────────────────────── */}
         <AnimatePresence mode="wait">
           <motion.div
             key={`day-${selectedDay}`}
@@ -349,7 +315,7 @@ export function ProgramacionPage() {
             {loading ? (
               /* Skeleton */
               <div>
-                {[0, 1, 2].map(i => <SkeletonCard key={i} isDark={isDark} />)}
+                {[0, 1, 2].map(i => <SkeletonCard key={i} />)}
               </div>
             ) : programsForDay.length > 0 ? (
               <div className="relative">
@@ -359,7 +325,6 @@ export function ProgramacionPage() {
                     key={`${program.id}-${program.start_timestamp}`}
                     program={program}
                     idx={idx}
-                    isDark={isDark}
                   />
                 ))}
               </div>
@@ -369,20 +334,14 @@ export function ProgramacionPage() {
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                className={`
-                  rounded-2xl border p-12 flex flex-col items-center text-center gap-4
-                  ${isDark ? 'bg-[#1c1b19] border-[#2e2d2a]' : 'bg-white border-[#e8e5e0]'}
-                `}
+                className="rounded-2xl border p-12 flex flex-col items-center text-center gap-4 bg-card border-border"
               >
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                  style={{ background: isDark ? '#252422' : '#f3f0eb' }}
-                >
-                  <Music2 className="w-5 h-5 opacity-40" />
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-secondary">
+                  <Music2 className="w-5 h-5 opacity-40 text-foreground" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-[15px] mb-1">Programación continua</h3>
-                  <p className="text-sm leading-relaxed max-w-[28ch]" style={{ color: isDark ? '#797876' : '#7a7974' }}>
+                  <p className="text-sm leading-relaxed max-w-[28ch] text-muted-foreground">
                     La radio transmite música continua este día. No hay eventos especiales agendados.
                   </p>
                 </div>

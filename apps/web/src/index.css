@@ -4,64 +4,103 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* Fondos y textos base (Slate 50 / Slate 900) */
+    --background: 210 40% 98%;
+    --foreground: 222.2 47.4% 11.2%;
+    
+    /* Tarjetas (Blanco / Slate 900) */
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    
+    /* Popovers */
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    
+    /* Colores Primarios (Indigo 600) */
+    --primary: 243 75% 59%;
+    --primary-foreground: 210 40% 98%;
+    
+    /* Colores Secundarios (Indigo 50) */
+    --secondary: 226 100% 97%;
+    --secondary-foreground: 243 75% 59%;
+    
+    /* Muted (Slate 200 / Slate 500) */
+    --muted: 214.3 31.8% 91.4%;
+    --muted-foreground: 215.3 16.3% 46.9%;
+    
+    /* Acentos (Igual a secundario para hover states) */
+    --accent: 226 100% 97%;
+    --accent-foreground: 243 75% 59%;
+    
+    /* Destructivo (Rojo) */
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Bordes y Contornos (Slate 200) */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 243 75% 59%;
+    
     --radius: 0.625rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Sidebar (Claro) */
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 222.2 47.4% 11.2%;
+    --sidebar-primary: 243 75% 59%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 214.3 31.8% 91.4%;
+    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 243 75% 59%;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    /* Fondos y textos base (Slate 950 / Blanco) */
+    --background: 222.2 84% 4.9%;
+    --foreground: 0 0% 100%;
+    
+    /* Tarjetas (Slate 800) - Coincide con tu bg-slate-800 */
+    --card: 215 28% 17%;
+    --card-foreground: 0 0% 100%;
+    
+    /* Popovers */
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 0 0% 100%;
+    
+    /* Colores Primarios (Indigo 400) */
+    --primary: 244 83% 74%;
+    --primary-foreground: 222.2 84% 4.9%;
+    
+    /* Colores Secundarios (Slate 800) */
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 244 83% 74%;
+    
+    /* Muted (Slate 800 / Slate 400) */
+    --muted: 215 28% 17%;
+    --muted-foreground: 215 20% 65%;
+    
+    /* Acentos */
+    --accent: 215 28% 17%;
+    --accent-foreground: 244 83% 74%;
+    
+    /* Destructivo (Rojo oscuro) */
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Bordes y Contornos (Slate 700) */
+    --border: 215 16% 27%;
+    --input: 215 16% 27%;
+    --ring: 244 83% 74%;
+    
+    /* Sidebar (Oscuro) */
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 244 83% 74%;
+    --sidebar-primary-foreground: 222.2 84% 4.9%;
+    --sidebar-accent: 215 28% 17%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 215 16% 27%;
+    --sidebar-ring: 244 83% 74%;
   }
 }
 
