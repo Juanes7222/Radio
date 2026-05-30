@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import type { BibleQueryResponse, BibleTranslation, BibleBook } from '@radio/types';
+import type { BibleQueryResponse, BibleTranslation, BibleBook, BibleSearchResult } from '@radio/types';
+import { BACKEND_URL } from '@/constants/api';
 
-const API_BASE = '/api/bible';
+const API_BASE = `${BACKEND_URL}/api/bible`;
 
 export function useBible() {
   const [translations, setTranslations] = useState<BibleTranslation[]>([]);
@@ -15,7 +16,7 @@ export function useBible() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const searchBible = async (query: string) => {
+  const searchBible = async (query: string): Promise<BibleSearchResult[]> => {
     try {
       const res = await fetch(`${API_BASE}/search?translation=${currentTranslation}&q=${encodeURIComponent(query)}`);
       if (res.ok) {
@@ -45,7 +46,6 @@ export function useBible() {
   }, [currentTranslation]);
 
   useEffect(() => {
-    // Initial fetch mockup since we need to seed the DB first
     async function loadData() {
       setIsLoading(true);
       try {
@@ -54,8 +54,7 @@ export function useBible() {
            const data = await res.json();
            setChapterData(data);
         } else {
-           // Si no encuentra los datos, será porque no hemos sembrado la Base de Datos
-           console.warn('DB might not be seeded yet.');
+           console.warn('DB might not be seeded yet or chapter not found.');
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error fetching bible');

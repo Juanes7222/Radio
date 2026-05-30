@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Book, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBible } from '@/hooks/useBible';
+import { BibleChapterNavigator } from './BibleChapterNavigator';
+import { BibleSearch } from './BibleSearch';
 
 interface BiblePanelProps {
   isOpen: boolean;
@@ -11,7 +14,9 @@ interface BiblePanelProps {
 
 export function BiblePanel({ isOpen, onClose, theme = 'dark' }: BiblePanelProps) {
   const isDark = theme === 'dark';
-  const { chapterData, isLoading, currentBook, currentChapter, currentTranslation, actions } = useBible();
+  const { chapterData, isLoading, currentBook, currentChapter, currentTranslation, actions, books } = useBible();
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   return (
     <AnimatePresence>
@@ -47,17 +52,17 @@ export function BiblePanel({ isOpen, onClose, theme = 'dark' }: BiblePanelProps)
 
             {/* Toolbar (Search / Navigator placeholder) */}
             <div className={`px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-4 border-b overflow-x-auto whitespace-nowrap ${isDark ? 'border-slate-800 bg-slate-900/50' : 'border-slate-100 bg-slate-50/50'}`}>
-              <Button variant="outline" size="sm" className="gap-2 shrink-0">
+              <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={() => setIsNavOpen(true)}>
                 {currentBook}
               </Button>
-              <Button variant="outline" size="sm" className="gap-2 shrink-0">
+              <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={() => setIsNavOpen(true)}>
                 Capítulo {currentChapter}
               </Button>
               <Button variant="outline" size="sm" className="gap-2 shrink-0">
                 {currentTranslation}
               </Button>
               <div className="flex-1" />
-              <Button variant="ghost" size="icon" className="shrink-0">
+              <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setIsSearchOpen(true)}>
                 <Search className="w-4 h-4" />
               </Button>
             </div>
@@ -98,6 +103,32 @@ export function BiblePanel({ isOpen, onClose, theme = 'dark' }: BiblePanelProps)
                 Siguiente <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
+
+            {/* Navigator Overlay */}
+            <BibleChapterNavigator
+              isOpen={isNavOpen}
+              onClose={() => setIsNavOpen(false)}
+              books={books}
+              currentBook={currentBook}
+              onSelect={(bookName, chapterNum) => {
+                actions.setBook(bookName);
+                actions.setChapter(chapterNum);
+              }}
+              isDark={isDark}
+            />
+
+            {/* Search Overlay */}
+            <BibleSearch
+              isOpen={isSearchOpen}
+              onClose={() => setIsSearchOpen(false)}
+              onSearch={actions.searchBible}
+              onSelect={(bookName, chapterNum) => {
+                actions.setBook(bookName);
+                actions.setChapter(chapterNum);
+              }}
+              isDark={isDark}
+            />
+
           </motion.div>
         </motion.div>
       )}

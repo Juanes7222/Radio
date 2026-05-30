@@ -108,7 +108,8 @@ publicRouter.get('/station/:stationId/art/:artId', async (req, res) => {
       responseType: 'stream',
       timeout: 15000,
     });
-    res.setHeader('Content-Type', azuraCastResponse.headers['content-type'] ?? 'image/jpeg');
+    const contentType = azuraCastResponse.headers['content-type'];
+    res.setHeader('Content-Type', typeof contentType === 'string' ? contentType : 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=86400');
     azuraCastResponse.data.pipe(res);
   } catch (err) {

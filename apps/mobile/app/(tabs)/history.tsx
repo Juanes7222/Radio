@@ -35,10 +35,12 @@ function SongItem({ item, index }: { item: SongHistory; index: number }) {
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
-  const { history, isLoading } = useAzuraCast({
+  const { data, isLoading } = useAzuraCast({
     apiBaseUrl: BACKEND_URL,
-    pollInterval: 30000,
+    pollInterval: 60000, // Menos frecuente para el historial
   });
+  
+  const history = data?.song_history || [];
 
   return (
     <View style={styles.container}>

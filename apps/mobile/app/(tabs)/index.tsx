@@ -20,6 +20,7 @@ import { LiveBadge } from '@/components/LiveBadge';
 import { PlayerControls } from '@/components/PlayerControls';
 import { SleepTimerModal } from '@/components/SleepTimerModal';
 import { FacebookLivePlayer } from '@/components/FacebookLivePlayer';
+import { BiblePanel } from '@/components/bible/BiblePanel';
 import TextTicker from 'react-native-text-ticker';
 import { useAzuraCast } from '@radio/api';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
@@ -34,6 +35,7 @@ import {
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { formatMediaTitle } from '@/lib/formatMedia';
+// @ts-ignore
 import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 
 import { scale, verticalScale, TAB_BAR_HEIGHT } from '../../lib/responsive';
@@ -67,6 +69,7 @@ export default function PlayerScreen() {
 
   const { liveUrl } = useFacebookLive();
 
+  const [showBible, setShowBible] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const sleepTimer = useSleepTimer(useCallback(async () => {
     await pause();
@@ -221,6 +224,15 @@ export default function PlayerScreen() {
           resizeMode="contain"
         />
 
+        <TouchableOpacity 
+          style={styles.bibleButton} 
+          onPress={() => setShowBible(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="book" size={18} color="#fff" />
+          <Text style={styles.bibleButtonText}>Biblia</Text>
+        </TouchableOpacity>
+
       </View>
 
       {/* Seccion central: vinilo/live + info */}
@@ -337,6 +349,11 @@ export default function PlayerScreen() {
           setShowSleepMenu(false);
         }}
       />
+
+      <BiblePanel 
+        isOpen={showBible} 
+        onClose={() => setShowBible(false)} 
+      />
     </View>
   );
 }
@@ -373,6 +390,22 @@ const styles = StyleSheet.create({
   topSection: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xs,
+  },
+  bibleButton: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radii.full,
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  bibleButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   topBar: {
     flexDirection: 'row',
