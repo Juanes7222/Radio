@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Book, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBible } from '@/hooks/useBible';
+import { BibleChapterNavigator } from './BibleChapterNavigator';
+import { BibleSearch } from './BibleSearch';
 
 interface BiblePanelProps {
   isOpen: boolean;
@@ -11,7 +14,12 @@ interface BiblePanelProps {
 
 export function BiblePanel({ isOpen, onClose, theme = 'dark' }: BiblePanelProps) {
   const isDark = theme === 'dark';
-  const { chapterData, isLoading, currentBook, currentChapter, currentTranslation, actions } = useBible();
+  const { chapterData, isLoading, currentBook, currentChapter, currentTranslation, actions, books } = useBible();
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const isFirstBookAndChapter = currentBook === books[0]?.name && currentChapter === 1;
+  const isLastBookAndChapter = currentBook === books[books.length - 1]?.name && currentChapter === (books[books.length - 1]?._count?.chapters || 1);
 
   return (
     <AnimatePresence>
@@ -47,17 +55,17 @@ export function BiblePanel({ isOpen, onClose, theme = 'dark' }: BiblePanelProps)
 
             {/* Toolbar (Search / Navigator placeholder) */}
             <div className={`px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-4 border-b overflow-x-auto whitespace-nowrap ${isDark ? 'border-slate-800 bg-slate-900/50' : 'border-slate-100 bg-slate-50/50'}`}>
-              <Button variant="outline" size="sm" className="gap-2 shrink-0">
+              <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={() => setIsNavOpen(true)}>
                 {currentBook}
               </Button>
-              <Button variant="outline" size="sm" className="gap-2 shrink-0">
+              <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={() => setIsNavOpen(true)}>
                 Capítulo {currentChapter}
               </Button>
               <Button variant="outline" size="sm" className="gap-2 shrink-0">
                 {currentTranslation}
               </Button>
               <div className="flex-1" />
-              <Button variant="ghost" size="icon" className="shrink-0">
+              <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setIsSearchOpen(true)}>
                 <Search className="w-4 h-4" />
               </Button>
             </div>
@@ -90,14 +98,40 @@ export function BiblePanel({ isOpen, onClose, theme = 'dark' }: BiblePanelProps)
 
             {/* Bottom Nav */}
             <div className={`absolute bottom-0 left-0 right-0 p-4 border-t flex justify-between items-center backdrop-blur-md ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
-              <Button variant="outline" onClick={actions.prevChapter} disabled={isLoading || currentChapter <= 1} className="gap-2">
+              <Button variant="outline" onClick={actions.prevChapter} disabled={isLoading || isFirstBookAndChapter} className="gap-2">
                 <ChevronLeft className="w-4 h-4" /> Anterior
               </Button>
               <span className="text-sm font-medium">{currentBook} {currentChapter}</span>
-              <Button variant="outline" onClick={actions.nextChapter} disabled={isLoading} className="gap-2">
+              <Button variant="outline" onClick={actions.nextChapter} disabled={isLoading || isLastBookAndChapter} className="gap-2">
                 Siguiente <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
+
+            {/* Navigator Overlay */}
+            <BibleChapterNavigator
+              isOpen={isNavOpen}
+              onClose={() => setIsNavOpen(false)}
+              books={books}
+              currentBook={currentBook}
+              onSelect={(bookName, chapterNum) => {
+                actions.setBook(bookName);
+                actions.setChapter(chapterNum);
+              }}
+              isDark={isDark}
+            />
+
+            {/* Search Overlay */}
+            <BibleSearch
+              isOpen={isSearchOpen}
+              onClose={() => setIsSearchOpen(false)}
+              onSearch={actions.searchBible}
+              onSelect={(bookName, chapterNum) => {
+                actions.setBook(bookName);
+                actions.setChapter(chapterNum);
+              }}
+              isDark={isDark}
+            />
+
           </motion.div>
         </motion.div>
       )}

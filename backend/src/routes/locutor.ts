@@ -113,7 +113,10 @@ router.get('/status', async (req, res) => {
   try {
     let kokoroOk = false;
     try {
-      const { status } = await import('axios').then(a => a.get(`${config.locutor.kokoroUrl}/health`, { timeout: 2000 }));
+      const axiosObj = await import('axios');
+      // @ts-ignore
+      const axiosGet = axiosObj.default?.get || axiosObj.get;
+      const { status } = await axiosGet(`${config.locutor.kokoroUrl}/health`, { timeout: 2000 });
       kokoroOk = status === 200;
     } catch (e) {}
 

@@ -39,21 +39,7 @@
         "description": "",
         "parameters": [
           {
-            "name": "x-forwarded-host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-forwarded-proto",
+            "name": "authorization",
             "in": "header",
             "schema": {
               "type": "string"
@@ -61,143 +47,8 @@
           }
         ],
         "responses": {
-          "default": {
-            "description": ""
-          }
-        }
-      }
-    },
-    "/api/search": {
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "x-forwarded-host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-forwarded-proto",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": ""
-          }
-        }
-      }
-    },
-    "/api/schedule": {
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "x-forwarded-host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-forwarded-proto",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": ""
-          }
-        }
-      }
-    },
-    "/api/station/{stationId}/art/{artId}": {
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "stationId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "artId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "502": {
-            "description": "Bad Gateway"
-          }
-        }
-      }
-    },
-    "/api/requests/{songId}": {
-      "post": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "songId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-forwarded-host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-forwarded-proto",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": ""
+          "401": {
+            "description": "Unauthorized"
           }
         }
       }
@@ -272,21 +123,7 @@
         "description": "",
         "parameters": [
           {
-            "name": "x-forwarded-host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-forwarded-proto",
+            "name": "authorization",
             "in": "header",
             "schema": {
               "type": "string"
@@ -294,143 +131,8 @@
           }
         ],
         "responses": {
-          "default": {
-            "description": ""
-          }
-        }
-      }
-    },
-    "/admin-api/search": {
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "x-forwarded-host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-forwarded-proto",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": ""
-          }
-        }
-      }
-    },
-    "/admin-api/schedule": {
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "x-forwarded-host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-forwarded-proto",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": ""
-          }
-        }
-      }
-    },
-    "/admin-api/station/{stationId}/art/{artId}": {
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "stationId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "artId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "502": {
-            "description": "Bad Gateway"
-          }
-        }
-      }
-    },
-    "/admin-api/requests/{songId}": {
-      "post": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "songId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-forwarded-host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "host",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-forwarded-proto",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": ""
+          "401": {
+            "description": "Unauthorized"
           }
         }
       }
@@ -679,7 +381,6 @@
       }
     },
     "/admin-api/locutor/templates": {
-    "/api/bible/translations": {
       "get": {
         "description": "",
         "responses": {
@@ -740,15 +441,6 @@
             "name": "id",
             "in": "path",
             "required": true,
-      }
-    },
-    "/api/bible/books": {
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "translation",
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -799,23 +491,6 @@
             "name": "id",
             "in": "path",
             "required": true,
-        }
-      }
-    },
-    "/api/bible/chapters": {
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "translation",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "book",
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -837,8 +512,6 @@
         "responses": {
           "200": {
             "description": "OK"
-          "400": {
-            "description": "Bad Request"
           },
           "500": {
             "description": "Internal Server Error"
@@ -891,27 +564,6 @@
             "name": "id",
             "in": "path",
             "required": true,
-    "/api/bible/chapter": {
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "translation",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "book",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "chapter",
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -946,11 +598,171 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/admin-api/youtube/webhook": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      },
+      "post": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/bible/translations": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/bible/books": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "translation",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/bible/chapters": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "translation",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "book",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/bible/chapter": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "translation",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "book",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "chapter",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
           "400": {
             "description": "Bad Request"
           },
           "404": {
             "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/bible/search": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "translation",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
           },
           "500": {
             "description": "Internal Server Error"

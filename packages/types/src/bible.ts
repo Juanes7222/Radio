@@ -35,3 +35,15 @@ export interface BibleQueryResponse {
   chapter: number;
   verses: BibleVerse[];
 }
+
+export interface BibleSearchResult {
+  id: string;
+  text: string;
+  number: number;
+  chapter: {
+    number: number;
+    book: {
+      name: string;
+    };
+  };
+}

@@ -106,4 +106,39 @@ router.get('/chapter', async (req, res) => {
   }
 });
 
+// Get search results
+router.get('/search', async (req, res) => {
+  const { translation = 'RVR1960', q } = req.query;
+  
+  if (!q || typeof q !== 'string' || q.trim() === '') {
+    return res.status(400).json({ error: 'Search query is required' });
+  }
+
+  try {
+    const verses = await prisma.bibleVerse.findMany({
+      where: {
+        text: {
+          contains: q
+        },
+        chapter: {
+          book: {
+            translation: { abbreviation: translation as string }
+          }
+        }
+      },
+      include: {
+        chapter: {
+          include: {
+            book: true
+          }
+        }
+      },
+      take: 50
+    });
+    res.json(verses);
+  } catch (error) {
+    res.status(500).json({ error: 'Error searching bible' });
+  }
+});
+
 export default router;
