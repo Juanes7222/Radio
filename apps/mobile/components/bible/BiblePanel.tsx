@@ -16,6 +16,9 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  const isFirstBookAndChapter = currentBook === books[0]?.name && currentChapter === 1;
+  const isLastBookAndChapter = currentBook === books[books.length - 1]?.name && currentChapter === (books[books.length - 1]?._count?.chapters || 1);
+
   return (
     <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -76,23 +79,23 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
           {/* Bottom Nav */}
           <View style={styles.bottomNav}>
             <TouchableOpacity 
-              style={[styles.navBtn, (isLoading || currentChapter <= 1) && styles.navBtnDisabled]}
+              style={[styles.navBtn, (isLoading || isFirstBookAndChapter) && styles.navBtnDisabled]}
               onPress={actions.prevChapter}
-              disabled={isLoading || currentChapter <= 1}
+              disabled={isLoading || isFirstBookAndChapter}
             >
-              <Ionicons name="chevron-back" size={20} color={isLoading || currentChapter <= 1 ? Colors.textMuted : Colors.text} />
-              <Text style={[styles.navBtnText, (isLoading || currentChapter <= 1) && styles.navBtnTextDisabled]}>Anterior</Text>
+              <Ionicons name="chevron-back" size={20} color={isLoading || isFirstBookAndChapter ? Colors.textMuted : Colors.text} />
+              <Text style={[styles.navBtnText, (isLoading || isFirstBookAndChapter) && styles.navBtnTextDisabled]}>Anterior</Text>
             </TouchableOpacity>
             
             <Text style={styles.navCurrentText}>{currentBook} {currentChapter}</Text>
             
             <TouchableOpacity 
-              style={[styles.navBtn, isLoading && styles.navBtnDisabled]}
+              style={[styles.navBtn, (isLoading || isLastBookAndChapter) && styles.navBtnDisabled]}
               onPress={actions.nextChapter}
-              disabled={isLoading}
+              disabled={isLoading || isLastBookAndChapter}
             >
-              <Text style={[styles.navBtnText, isLoading && styles.navBtnTextDisabled]}>Siguiente</Text>
-              <Ionicons name="chevron-forward" size={20} color={isLoading ? Colors.textMuted : Colors.text} />
+              <Text style={[styles.navBtnText, (isLoading || isLastBookAndChapter) && styles.navBtnTextDisabled]}>Siguiente</Text>
+              <Ionicons name="chevron-forward" size={20} color={isLoading || isLastBookAndChapter ? Colors.textMuted : Colors.text} />
             </TouchableOpacity>
           </View>
 

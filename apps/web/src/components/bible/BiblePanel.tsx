@@ -18,6 +18,9 @@ export function BiblePanel({ isOpen, onClose, theme = 'dark' }: BiblePanelProps)
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  const isFirstBookAndChapter = currentBook === books[0]?.name && currentChapter === 1;
+  const isLastBookAndChapter = currentBook === books[books.length - 1]?.name && currentChapter === (books[books.length - 1]?._count?.chapters || 1);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -95,11 +98,11 @@ export function BiblePanel({ isOpen, onClose, theme = 'dark' }: BiblePanelProps)
 
             {/* Bottom Nav */}
             <div className={`absolute bottom-0 left-0 right-0 p-4 border-t flex justify-between items-center backdrop-blur-md ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
-              <Button variant="outline" onClick={actions.prevChapter} disabled={isLoading || currentChapter <= 1} className="gap-2">
+              <Button variant="outline" onClick={actions.prevChapter} disabled={isLoading || isFirstBookAndChapter} className="gap-2">
                 <ChevronLeft className="w-4 h-4" /> Anterior
               </Button>
               <span className="text-sm font-medium">{currentBook} {currentChapter}</span>
-              <Button variant="outline" onClick={actions.nextChapter} disabled={isLoading} className="gap-2">
+              <Button variant="outline" onClick={actions.nextChapter} disabled={isLoading || isLastBookAndChapter} className="gap-2">
                 Siguiente <ChevronRight className="w-4 h-4" />
               </Button>
             </div>

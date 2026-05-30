@@ -102,8 +102,29 @@ export function useBible() {
       setTranslation: setCurrentTranslation,
       setBook: setCurrentBook,
       setChapter: setCurrentChapter,
-      nextChapter: () => setCurrentChapter(prev => prev + 1),
-      prevChapter: () => setCurrentChapter(prev => Math.max(1, prev - 1)),
+      nextChapter: () => {
+        const bookIndex = books.findIndex(b => b.name === currentBook);
+        if (bookIndex === -1) return;
+        const maxChapters = books[bookIndex]._count?.chapters || 1;
+        if (currentChapter < maxChapters) {
+          setCurrentChapter(currentChapter + 1);
+        } else if (bookIndex < books.length - 1) {
+          setCurrentBook(books[bookIndex + 1].name);
+          setCurrentChapter(1);
+        }
+      },
+      prevChapter: () => {
+        if (currentChapter > 1) {
+          setCurrentChapter(currentChapter - 1);
+        } else {
+          const bookIndex = books.findIndex(b => b.name === currentBook);
+          if (bookIndex > 0) {
+            const prevBook = books[bookIndex - 1];
+            setCurrentBook(prevBook.name);
+            setCurrentChapter(prevBook._count?.chapters || 1);
+          }
+        }
+      },
       searchBible,
     }
   };

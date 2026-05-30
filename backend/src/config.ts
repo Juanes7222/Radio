@@ -9,7 +9,10 @@ function required(key: string): string {
 export const config = {
     port: parseInt(process.env.PORT ?? '3001', 10),
     azuracast: {
-        url:       required('AZURACAST_URL').replace(/\/$/, ''),
+        url: (() => {
+            const u = required('AZURACAST_URL').replace(/\/$/, '');
+            return /^https?:\/\//i.test(u) ? u : `https://${u}`;
+        })(),
         apiKey:    required('AZURACAST_API_KEY'),
         stationId: required('AZURACAST_STATION_ID'),
     },
