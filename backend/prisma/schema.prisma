@@ -51,3 +51,16 @@ model BibleVerse {
 
   @@unique([chapterId, number])
 }
+
+model YouTubeVideo {
+  id          String   @id @default(uuid())
+  videoId     String   @unique
+  channelId   String
+  title       String
+  status      String   // "PENDING", "DOWNLOADED", "IGNORED", "ERROR"
+  duration    Int?     // En segundos
+  downloadUrl String?  // Ruta del archivo mp3
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

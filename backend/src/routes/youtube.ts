@@ -1,7 +1,9 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { parseStringPromise } from 'xml2js';
+import { processYouTubeVideoAsync } from '../services/youtubeProcessor.service';
 
 const router = Router();
+
 
 /**
  * GET /admin-api/youtube/webhook
@@ -26,6 +28,7 @@ router.get('/webhook', (req, res) => {
  */
 router.post(
   '/webhook',
+  express.text({ type: '*/*' }),
   async (req, res) => {
     try {
       const rawXml =
@@ -43,35 +46,21 @@ router.post(
         return;
       }
 
-      const videoId =
-        entry['yt:videoId']?.[0];
+      const videoId = entry['yt:videoId']?.[0];
+      const channelId = entry['yt:channelId']?.[0];
+      const title = entry.title?.[0];
+      const published = entry.published?.[0];
 
-      const channelId =
-        entry['yt:channelId']?.[0];
+      if (!videoId || !channelId || !title) {
+         res.sendStatus(200);
+         return;
+      }
 
-      const title =
-        entry.title?.[0];
+      console.log('[YouTube] Nuevo webhook recibido');
+      console.log({ videoId, channelId, title, published });
 
-      const published =
-        entry.published?.[0];
-
-      console.log('[YouTube] Nuevo video');
-      console.log({
-        videoId,
-        channelId,
-        title,
-        published,
-      });
-
-      /**
-       * Aquí haces lo que quieras:
-       * - Guardar DB
-       * - Discord
-       * - Telegram
-       * - Websocket
-       * - Descargar video
-       * etc.
-       */
+      // Desencadena el procesamiento en segundo plano (no bloqueamos la respuesta Webhook)
+      processYouTubeVideoAsync(videoId, title, channelId).catch(console.error);
 
       res.sendStatus(200);
     } catch (err) {
