@@ -136,7 +136,6 @@ export function RadioPlayer({
       <BiblePanel 
         isOpen={bibleOpen} 
         onClose={() => setBibleOpen(false)} 
-        theme={theme} 
       />
 
       <motion.div
@@ -377,7 +376,6 @@ export function RadioPlayer({
                 )}
               </Button>
               <div className="flex-1">
-                {/* Forzando el color blanco en el Slider de shadcn/ui */}
                 <Slider
                   value={[playerState.isMuted ? 0 : playerState.volume]}
                   onValueChange={([v]) => onSetVolume(v)}

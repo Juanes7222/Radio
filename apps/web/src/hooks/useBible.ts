@@ -15,13 +15,14 @@ export function useBible() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const searchBible = async (query: string) => {
+  const searchBible = async (query: string): Promise<BibleSearchResult[]> => {
     try {
-      const res = await fetch(`${API_BASE}/search?translation=${currentTranslation}&q=${encodeURIComponent(query)}`);
-      if (res.ok) {
-         return await res.json();
-      }
-      return [];
+      const res = await fetch(
+        `${API_BASE}/search?translation=${currentTranslation}&q=${encodeURIComponent(query)}`
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : (data.results ?? []);
     } catch (err) {
       console.error('Error searching:', err);
       return [];

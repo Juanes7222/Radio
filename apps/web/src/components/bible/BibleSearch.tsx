@@ -10,14 +10,23 @@ interface BibleSearchProps {
   onClose: () => void;
   onSelect: (bookName: string, chapterNumber: number) => void;
   onSearch: (query: string) => Promise<BibleSearchResult[]>;
-  isDark?: boolean;
 }
 
-export function BibleSearch({ isOpen, onClose, onSelect, onSearch, isDark = true }: BibleSearchProps) {
+export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<BibleSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [previewQuery, setPreviewQueryState] = useState('');
+
+  const handleClose = () => {
+    onClose();
+    setTimeout(() => {
+      setQuery('');
+      setResults([]);
+      setHasSearched(false);
+    }, 300);
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,81 +37,73 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch, isDark = true
     const data = await onSearch(query);
     setResults(data);
     setIsSearching(false);
+    setPreviewQueryState(query);
   };
-
-  const textClass = isDark ? 'text-white' : 'text-slate-900';
-  const bgClass = isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200';
-  const hoverClass = isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-50';
 
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 z-20 flex flex-col bg-black/40 backdrop-blur-sm"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          className="absolute inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-md"
         >
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className={`absolute bottom-0 left-0 right-0 h-[85%] rounded-t-3xl border-t flex flex-col ${bgClass} ${textClass} shadow-2xl`}
-          >
-            {/* Nav Header */}
-            <div className={`flex items-center px-4 py-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-              <div className="flex-1 px-2">
-                <form onSubmit={handleSearch} className="relative">
-                  <Input 
-                    autoFocus
-                    placeholder="Buscar palabra o frase..."
-                    className={`pl-10 rounded-xl ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200'} `}
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                  <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                </form>
-              </div>
-              <Button variant="ghost" size="icon" onClick={onClose} className="ml-2">
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
+          {/* Cabecera */}
+          <div className="p-6 md:p-10 border-b flex gap-4 items-center max-w-4xl mx-auto w-full">
+            <form onSubmit={handleSearch} className="relative flex-1">
+              <Search className="w-6 h-6 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input 
+                autoFocus
+                placeholder="Busca una palabra, frase o versículo..."
+                className="w-full pl-14 pr-4 py-8 text-xl md:text-2xl bg-muted/50 border-transparent focus-visible:ring-primary rounded-2xl placeholder:text-muted-foreground"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </form>
+            {/* Usamos handleClose aquí */}
+            <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full w-12 h-12 bg-muted hover:bg-destructive/10 hover:text-destructive shrink-0">
+              <X className="w-6 h-6" />
+            </Button>
+          </div>
 
-            {/* Content Area */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          {/* Área de Resultados */}
+          <div className="flex-1 overflow-y-auto p-6 md:p-10">
+            <div className="max-w-3xl mx-auto space-y-4">
               {isSearching ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-4">
-                  <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-slate-500">Buscando en las escrituras...</p>
+                <div className="flex flex-col items-center justify-center py-20 gap-4 text-muted-foreground">
+                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                  <p>Investigando las escrituras...</p>
                 </div>
               ) : hasSearched && results.length === 0 ? (
-                <div className="py-20 text-center text-slate-500">
-                  No se encontraron resultados para "{query}"
+                <div className="py-20 text-center text-lg text-muted-foreground">
+                  No encontramos nada para "<span className="text-foreground font-medium">{previewQuery}</span>".
                 </div>
               ) : (
-                <div className="max-w-3xl mx-auto space-y-3">
-                  {results.map((verse) => (
-                    <button
-                      key={verse.id}
-                      className={`w-full text-left p-4 rounded-xl border transition-colors ${hoverClass} ${isDark ? 'border-slate-800' : 'border-slate-100'}`}
-                      onClick={() => {
-                        onSelect(verse.chapter.book.name, verse.chapter.number);
-                        onClose();
-                      }}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">
-                          {verse.chapter.book.name} {verse.chapter.number}:{verse.number}
-                        </span>
-                      </div>
-                      <p className="text-sm leading-relaxed">{verse.text}</p>
-                    </button>
-                  ))}
-                </div>
+                results.map((verse) => (
+                  <motion.button
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    key={verse.id}
+                    className="w-full text-left p-6 rounded-3xl border bg-card hover:border-primary/50 hover:shadow-lg transition-all duration-300 group"
+                    onClick={() => {
+                      onSelect(verse.chapter.book.name, verse.chapter.number);
+                      handleClose(); // Usamos handleClose aquí también
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider rounded-full">
+                        {verse.chapter.book.name} {verse.chapter.number}:{verse.number}
+                      </span>
+                    </div>
+                    <p className="text-lg text-foreground/80 leading-relaxed font-serif group-hover:text-foreground transition-colors">
+                      {verse.text}
+                    </p>
+                  </motion.button>
+                ))
               )}
             </div>
-          </motion.div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

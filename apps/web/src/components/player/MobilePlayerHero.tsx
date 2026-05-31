@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import { VinylDisc } from '@/components/ui-custom/VinylDisc';
+import { BookOpen } from 'lucide-react';
+import { BiblePanel } from '@/components/bible/BiblePanel';
 import type { NowPlaying, PlayerState } from '@radio/types';
 import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 
@@ -15,7 +18,6 @@ interface MobilePlayerHeroProps {
 }
 
 const EQUALIZER_BAR_SCALES = [0.45, 0.8, 1.0, 0.65, 0.9, 0.5, 0.75, 0.6, 0.85];
-
 
 function EqualizerBars({ isPlaying }: { isPlaying: boolean }) {
   return (
@@ -87,9 +89,17 @@ export function MobilePlayerHero({
     ? { duration: 22, repeat: Infinity, ease: 'linear' }
     : { duration: 0.7, ease: 'easeOut' };
 
+  const [isBibleOpen, setIsBibleOpen] = useState(false);
+  
+
   return (
+    
     <section className="md:hidden relative overflow-hidden min-h-[420px]">
       {/* Blurred artwork background */}
+      <BiblePanel 
+            isOpen={isBibleOpen} 
+            onClose={() => setIsBibleOpen(false)} 
+          />
       <div className="absolute inset-0">
         <AnimatePresence>
           {artworkUrl && (
@@ -109,6 +119,19 @@ export function MobilePlayerHero({
       </div>
 
       <div className="relative flex flex-col items-center px-6 pt-8 pb-8 gap-6">
+        
+        {/* BOTÓN FLOTANTE DE LA BIBLIA */}
+        <motion.button
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          onClick={() => setIsBibleOpen(true)}
+          className="absolute top-8 right-6 z-20 flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 backdrop-blur-md transition-all active:scale-95"
+        >
+          <BookOpen className="w-4 h-4 text-indigo-300" />
+          <span className="text-xs font-bold text-white/90 uppercase tracking-widest">Biblia</span>
+        </motion.button>
+
         <motion.img
           src={LOGO}
           alt="La Voz de la Verdad"

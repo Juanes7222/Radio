@@ -48,6 +48,7 @@ function App() {
   const closeRequests = useCallback(() => setShowRequests(false), [setShowRequests]);
   const openRequests = useCallback(() => setShowRequests(true), [setShowRequests]);
 
+
   const MAINTENANCE = import.meta.env.VITE_MAINTENANCE === 'true';
   if (MAINTENANCE) {
     return <MaintenancePage />;
