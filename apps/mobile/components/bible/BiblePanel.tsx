@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, SafeAreaView, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons'; // Considera cambiar a lucide-react-native
 import { useBible } from '@/hooks/useBible';
 import { BibleChapterNavigator } from './BibleChapterNavigator';
 import { BibleSearch } from './BibleSearch';
@@ -19,107 +21,98 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
   const isFirstBookAndChapter = currentBook === books[0]?.name && currentChapter === 1;
   const isLastBookAndChapter = currentBook === books[books.length - 1]?.name && currentChapter === (books[books.length - 1]?._count?.chapters || 1);
 
+  const handleNextChapter = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    actions.nextChapter();
+  };
+
+  const handlePrevChapter = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    actions.prevChapter();
+  };
+
   return (
     <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <SafeAreaView style={styles.container}>
-          {/* Header */}
+          {/* Header Minimalista */}
           <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <Ionicons name="book" size={24} color={Colors.accent} />
-              <Text style={styles.headerTitle}>Santa Biblia</Text>
+            <View style={styles.headerPill}>
+              <TouchableOpacity style={styles.selectorBtn} onPress={() => setIsNavOpen(true)}>
+                <Text style={styles.selectorBookText}>{currentBook}</Text>
+                <Text style={styles.selectorChapterText}>{currentChapter}</Text>
+                <Ionicons name="chevron-down" size={16} color={Colors.textMuted} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.iconBtn}>
-              <Ionicons name="close" size={24} color={Colors.text} />
-            </TouchableOpacity>
+            
+            <View style={styles.headerActions}>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => setIsSearchOpen(true)}>
+                <Ionicons name="search" size={22} color={Colors.text} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onClose} style={styles.iconBtn}>
+                <Ionicons name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Toolbar */}
-          <View style={styles.toolbar}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarScroll}>
-              <TouchableOpacity style={styles.toolbarBtn} onPress={() => setIsNavOpen(true)}>
-                <Text style={styles.toolbarBtnText}>{currentBook}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.toolbarBtn} onPress={() => setIsNavOpen(true)}>
-                <Text style={styles.toolbarBtnText}>Capítulo {currentChapter}</Text>
-              </TouchableOpacity>
-              <View style={styles.toolbarBtn}>
-                <Text style={styles.toolbarBtnText}>{currentTranslation}</Text>
-              </View>
-            </ScrollView>
-            <TouchableOpacity style={styles.searchBtn} onPress={() => setIsSearchOpen(true)}>
-              <Ionicons name="search" size={20} color={Colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Content */}
+          {/* Área de Lectura */}
           <View style={styles.content}>
             {isLoading ? (
               <View style={styles.centerBox}>
                 <ActivityIndicator size="large" color={Colors.accent} />
-                <Text style={styles.centerText}>Cargando la palabra de Dios...</Text>
+                <Text style={styles.centerText}>Cargando capítulo...</Text>
               </View>
             ) : chapterData?.verses ? (
-              <ScrollView contentContainerStyle={styles.versesContainer}>
-                <Text style={styles.chapterTitle}>{currentBook} {currentChapter}</Text>
-                {chapterData.verses.map((verse) => (
-                  <View key={verse.id} style={styles.verseRow}>
-                    <Text style={styles.verseNumber}>{verse.number}</Text>
-                    <Text style={styles.verseText}>{verse.text}</Text>
-                  </View>
-                ))}
+              <ScrollView 
+                contentContainerStyle={styles.versesContainer}
+                showsVerticalScrollIndicator={false}
+              >
+                <Text style={styles.chapterTitle}>{currentBook}</Text>
+                <Text style={styles.chapterSubtitle}>Capítulo {currentChapter}</Text>
+                
+                <View style={styles.readingArea}>
+                  {chapterData.verses.map((verse) => (
+                    <View key={verse.id} style={styles.verseRow}>
+                      <Text style={styles.verseNumber}>{verse.number}</Text>
+                      <Text style={styles.verseText}>{verse.text}</Text>
+                    </View>
+                  ))}
+                </View>
               </ScrollView>
             ) : (
               <View style={styles.centerBox}>
-                <Text style={styles.centerText}>No se encontró el capítulo seleccionado.</Text>
+                <Text style={styles.centerText}>No se encontró el capítulo.</Text>
               </View>
             )}
           </View>
 
-          {/* Bottom Nav */}
-          <View style={styles.bottomNav}>
-            <TouchableOpacity 
-              style={[styles.navBtn, (isLoading || isFirstBookAndChapter) && styles.navBtnDisabled]}
-              onPress={actions.prevChapter}
-              disabled={isLoading || isFirstBookAndChapter}
-            >
-              <Ionicons name="chevron-back" size={20} color={isLoading || isFirstBookAndChapter ? Colors.textMuted : Colors.text} />
-              <Text style={[styles.navBtnText, (isLoading || isFirstBookAndChapter) && styles.navBtnTextDisabled]}>Anterior</Text>
-            </TouchableOpacity>
-            
-            <Text style={styles.navCurrentText}>{currentBook} {currentChapter}</Text>
-            
-            <TouchableOpacity 
-              style={[styles.navBtn, (isLoading || isLastBookAndChapter) && styles.navBtnDisabled]}
-              onPress={actions.nextChapter}
-              disabled={isLoading || isLastBookAndChapter}
-            >
-              <Text style={[styles.navBtnText, (isLoading || isLastBookAndChapter) && styles.navBtnTextDisabled]}>Siguiente</Text>
-              <Ionicons name="chevron-forward" size={20} color={isLoading || isLastBookAndChapter ? Colors.textMuted : Colors.text} />
-            </TouchableOpacity>
-          </View>
+          {/* Navegación Flotante (Glassmorphism) */}
+          <BlurView intensity={80} tint="dark" style={styles.floatingNavContainer}>
+            <View style={styles.bottomNav}>
+              <TouchableOpacity 
+                style={[styles.navBtn, (isLoading || isFirstBookAndChapter) && styles.navBtnDisabled]}
+                onPress={handlePrevChapter}
+                disabled={isLoading || isFirstBookAndChapter}
+              >
+                <Ionicons name="arrow-back" size={20} color={isLoading || isFirstBookAndChapter ? Colors.textMuted : Colors.text} />
+              </TouchableOpacity>
+              
+              <View style={styles.translationBadge}>
+                <Text style={styles.translationText}>{currentTranslation}</Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={[styles.navBtn, (isLoading || isLastBookAndChapter) && styles.navBtnDisabled]}
+                onPress={handleNextChapter}
+                disabled={isLoading || isLastBookAndChapter}
+              >
+                <Ionicons name="arrow-forward" size={20} color={isLoading || isLastBookAndChapter ? Colors.textMuted : Colors.text} />
+              </TouchableOpacity>
+            </View>
+          </BlurView>
 
-          {/* Overlays */}
-          <BibleChapterNavigator
-            isOpen={isNavOpen}
-            onClose={() => setIsNavOpen(false)}
-            books={books}
-            currentBook={currentBook}
-            onSelect={(bookName, chapterNum) => {
-              actions.setBook(bookName);
-              actions.setChapter(chapterNum);
-            }}
-          />
-
-          <BibleSearch
-            isOpen={isSearchOpen}
-            onClose={() => setIsSearchOpen(false)}
-            onSearch={actions.searchBible}
-            onSelect={(bookName, chapterNum) => {
-              actions.setBook(bookName);
-              actions.setChapter(chapterNum);
-            }}
-          />
+          <BibleChapterNavigator isOpen={isNavOpen} onClose={() => setIsNavOpen(false)} books={books} currentBook={currentBook} onSelect={(bookName, chapterNum) => { actions.setBook(bookName); actions.setChapter(chapterNum); }} />
+          <BibleSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} onSearch={actions.searchBible} onSelect={(bookName, chapterNum) => { actions.setBook(bookName); actions.setChapter(chapterNum); }} />
         </SafeAreaView>
       </View>
     </Modal>
@@ -129,144 +122,146 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: '#0c0c1e', // match radio theme
-    height: '92%',
+    backgroundColor: '#0c0c1e',
+    height: '95%', // Ligeramente más alto para dar sensación de inmersión
     borderTopLeftRadius: Radii.xl,
     borderTopRightRadius: Radii.xl,
-    borderTopWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.03)',
   },
-  headerLeft: {
+  headerPill: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: Radii.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+  },
+  selectorBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
-  headerTitle: {
-    ...Typography.screenTitle,
+  selectorBookText: {
+    ...Typography.body,
+    fontWeight: '600',
     color: Colors.text,
-    fontSize: 20,
+  },
+  selectorChapterText: {
+    ...Typography.body,
+    color: Colors.accent,
+    fontWeight: 'bold',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
   },
   iconBtn: {
     padding: Spacing.xs,
-  },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-  toolbarScroll: {
-    padding: Spacing.sm,
-    gap: Spacing.sm,
-  },
-  toolbarBtn: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radii.sm,
     backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  toolbarBtnText: {
-    ...Typography.body,
-    fontSize: 13,
-    color: Colors.text,
-  },
-  searchBtn: {
-    padding: Spacing.md,
+    borderRadius: Radii.full,
   },
   content: {
     flex: 1,
   },
-  centerBox: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xl,
-  },
-  centerText: {
-    ...Typography.body,
-    color: Colors.textMuted,
-    marginTop: Spacing.md,
-    textAlign: 'center',
-  },
   versesContainer: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xxl * 2,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
+    paddingBottom: 120, // Espacio para la barra flotante
   },
   chapterTitle: {
     ...Typography.screenTitle,
+    fontSize: 28,
     color: Colors.text,
     textAlign: 'center',
-    marginBottom: Spacing.xl,
+  },
+  chapterSubtitle: {
+    ...Typography.body,
+    fontSize: 16,
+    color: Colors.accent,
+    textAlign: 'center',
+    marginBottom: Spacing.xxl,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  readingArea: {
+    gap: Spacing.md,
   },
   verseRow: {
     flexDirection: 'row',
-    marginBottom: Spacing.md,
+    alignItems: 'flex-start', // Alinea el número arriba con la primera línea
   },
   verseNumber: {
     ...Typography.body,
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 11,
+    fontWeight: '800',
     color: Colors.accent,
-    marginRight: Spacing.sm,
-    marginTop: 3,
-    width: 20,
+    marginRight: Spacing.md,
+    marginTop: 4, // Ajuste óptico con el texto
+    width: 22,
+    opacity: 0.8,
   },
   verseText: {
     ...Typography.body,
-    fontSize: 16,
-    color: Colors.text,
-    lineHeight: 24,
+    fontSize: 18, // Texto más grande para lectura
+    color: 'rgba(255, 255, 255, 0.9)', // Blanco ligeramente suavizado
+    lineHeight: 28, // Altura de línea amplia
     flex: 1,
+  },
+  floatingNavContainer: {
+    position: 'absolute',
+    bottom: Spacing.xl,
+    alignSelf: 'center',
+    borderRadius: Radii.full,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   bottomNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: Spacing.md,
-    borderTopWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    backgroundColor: '#0c0c1e',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    width: 200,
+    backgroundColor: 'rgba(12, 12, 30, 0.5)',
   },
   navBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radii.sm,
-    gap: Spacing.xs,
+    padding: Spacing.sm,
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   navBtnDisabled: {
-    borderColor: 'rgba(255,255,255,0.05)',
+    opacity: 0.3,
   },
-  navBtnText: {
+  translationBadge: {
+    paddingHorizontal: Spacing.md,
+  },
+  translationText: {
     ...Typography.body,
-    fontSize: 14,
-    color: Colors.text,
-  },
-  navBtnTextDisabled: {
-    color: Colors.textMuted,
-  },
-  navCurrentText: {
-    ...Typography.body,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: Colors.textMuted,
+    letterSpacing: 1,
+  },
+  centerBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerText: {
+    ...Typography.body,
+    color: Colors.textMuted,
+    marginTop: Spacing.md,
   },
 });

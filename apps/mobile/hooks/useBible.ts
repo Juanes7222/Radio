@@ -18,11 +18,12 @@ export function useBible() {
 
   const searchBible = async (query: string): Promise<BibleSearchResult[]> => {
     try {
-      const res = await fetch(`${API_BASE}/search?translation=${currentTranslation}&q=${encodeURIComponent(query)}`);
-      if (res.ok) {
-         return await res.json();
-      }
-      return [];
+      const res = await fetch(
+        `${API_BASE}/search?translation=${currentTranslation}&q=${encodeURIComponent(query)}`
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : (data.results ?? []);
     } catch (err) {
       console.error('Error searching:', err);
       return [];
@@ -46,6 +47,7 @@ export function useBible() {
   }, [currentTranslation]);
 
   useEffect(() => {
+    // Initial fetch mockup since we need to seed the DB first
     async function loadData() {
       setIsLoading(true);
       try {
@@ -54,7 +56,8 @@ export function useBible() {
            const data = await res.json();
            setChapterData(data);
         } else {
-           console.warn('DB might not be seeded yet or chapter not found.');
+           // Si no encuentra los datos, será porque no hemos sembrado la Base de Datos
+           console.warn('DB might not be seeded yet.');
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error fetching bible');

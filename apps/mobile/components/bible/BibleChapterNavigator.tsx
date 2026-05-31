@@ -37,47 +37,49 @@ export function BibleChapterNavigator({ isOpen, onClose, books, currentBook, onS
             <View style={{ flex: 1 }}>
               {selectedBook ? (
                 <TouchableOpacity onPress={() => setSelectedBook(null)} style={styles.backBtn}>
-                  <Ionicons name="arrow-back" size={24} color={Colors.text} />
+                  <Ionicons name="arrow-back-outline" size={24} color={Colors.text} />
                   <Text style={styles.headerTitle}>{selectedBook}</Text>
                 </TouchableOpacity>
               ) : (
-                <Text style={styles.headerTitle}>Seleccionar</Text>
+                <Text style={styles.headerTitle}>Seleccionar Libro</Text>
               )}
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={Colors.text} />
+              <Ionicons name="close-circle" size={28} color={Colors.textMuted} />
             </TouchableOpacity>
           </View>
 
           {!selectedBook ? (
             <View style={styles.content}>
-              <View style={styles.tabsRow}>
+              {/* Modern Segmented Control */}
+              <View style={styles.segmentedControl}>
                 <TouchableOpacity
-                  style={[styles.tab, activeTab === 'AT' && styles.tabActive]}
+                  style={[styles.segmentBtn, activeTab === 'AT' && styles.segmentBtnActive]}
                   onPress={() => handleTabChange('AT')}
                 >
-                  <Text style={[styles.tabText, activeTab === 'AT' && styles.tabTextActive]}>
+                  <Text style={[styles.segmentText, activeTab === 'AT' && styles.segmentTextActive]}>
                     Antiguo Testamento
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.tab, activeTab === 'NT' && styles.tabActive]}
+                  style={[styles.segmentBtn, activeTab === 'NT' && styles.segmentBtnActive]}
                   onPress={() => handleTabChange('NT')}
                 >
-                  <Text style={[styles.tabText, activeTab === 'NT' && styles.tabTextActive]}>
+                  <Text style={[styles.segmentText, activeTab === 'NT' && styles.segmentTextActive]}>
                     Nuevo Testamento
                   </Text>
                 </TouchableOpacity>
               </View>
-              <ScrollView contentContainerStyle={styles.gridContainer}>
+
+              <ScrollView contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
                 <View style={styles.grid}>
                   {displayBooks.map(b => (
                     <TouchableOpacity
                       key={b.id}
-                      style={[styles.bookBtn, currentBook === b.name && styles.bookBtnCurrent]}
+                      style={[styles.bookPill, currentBook === b.name && styles.bookPillCurrent]}
                       onPress={() => setSelectedBook(b.name)}
                     >
-                      <Text style={[styles.bookBtnText, currentBook === b.name && styles.bookBtnTextCurrent]} numberOfLines={1}>
+                      <Text style={[styles.bookPillText, currentBook === b.name && styles.bookPillTextCurrent]} numberOfLines={1}>
                         {b.name}
                       </Text>
                     </TouchableOpacity>
@@ -176,11 +178,6 @@ const styles = StyleSheet.create({
   gridContainer: {
     padding: Spacing.md,
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
   bookBtn: {
     width: '47%',
     backgroundColor: 'rgba(255,255,255,0.05)',
@@ -208,22 +205,84 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     textAlign: 'center',
   },
-  gridChapters: {
+  segmentedControl: {
+    flexDirection: 'row',
+    margin: Spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: Radii.lg,
+    padding: 4,
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    borderRadius: Radii.md,
+  },
+  segmentBtnActive: {
+    backgroundColor: Colors.accent,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  segmentText: {
+    ...Typography.body,
+    fontSize: 14,
+    color: Colors.textMuted,
+    fontWeight: '500',
+  },
+  segmentTextActive: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
+    justifyContent: 'space-between',
+  },
+  bookPill: {
+    width: '48%',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  bookPillCurrent: {
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderColor: 'rgba(99, 102, 241, 0.5)',
+  },
+  bookPillText: {
+    ...Typography.body,
+    color: Colors.text,
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  bookPillTextCurrent: {
+    color: Colors.accent,
+    fontWeight: 'bold',
+  },
+  gridChapters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md, // Más espacio para respirar
     justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
   },
   chapterBtn: {
-    width: 60,
-    height: 60,
+    width: 64, // Botones más grandes
+    height: 64,
     backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radii.md,
+    borderRadius: 32,
   },
   chapterBtnText: {
     ...Typography.screenTitle,
+    fontSize: 20,
     color: Colors.text,
   },
 });

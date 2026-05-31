@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { BibleQueryResponse, BibleTranslation, BibleBook } from '@radio/types';
+import type { BibleQueryResponse, BibleTranslation, BibleBook, BibleSearchResult } from '@radio/types';
 
 const API_BASE = '/api/bible';
 
