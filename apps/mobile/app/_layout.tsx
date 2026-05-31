@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -11,21 +11,33 @@ import { PlaybackService } from '../service';
 
 SplashScreen.preventAutoHideAsync();
 
-// Must be called once at module level before any playback operations
 TrackPlayer.registerPlaybackService(() => PlaybackService);
 
 export default function RootLayout() {
+  const [appIsReady, setAppIsReady] = useState(false);
+
   useEffect(() => {
-    async function requestPermissions() {
-      const { status, canAskAgain } = await Notifications.getPermissionsAsync();
-      if (status !== 'granted' && canAskAgain) {
-        await Notifications.requestPermissionsAsync();
+    async function prepareApp() {
+      try {
+        const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted' && canAskAgain) {
+          await Notifications.requestPermissionsAsync();
+        }
+        await TrackPlayer.setupPlayer();
+      } catch (e) {
+        console.warn('Error durante la inicialización:', e);
+      } finally {
+        setAppIsReady(true);
+        await SplashScreen.hideAsync();
       }
     }
     
-    requestPermissions();
-    SplashScreen.hideAsync();
+    prepareApp();
   }, []);
+
+  if (!appIsReady) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={styles.root}>
