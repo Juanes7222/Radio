@@ -66,6 +66,8 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
   const [error, setError] = useState<string | null>(null);
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
+  const isTransitioningRef = useRef(false);
+
   useEffect(() => {
     if (isPlaying) {
       TrackPlayer.updateNowPlayingMetadata({
@@ -92,7 +94,7 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
 
   useEffect(() => {
     const subscription = TrackPlayer.addEventListener(Event.PlaybackError, () => {
-      if (!wasPlayingRef.current) return;
+      if (!wasPlayingRef.current || isTransitioningRef.current) return;
       if (retryTimerRef.current) return;
 
       const attempt = retryRef.current;
@@ -107,6 +109,7 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
         retryTimerRef.current = null;
         if (!wasPlayingRef.current) return;
         try {
+          isTransitioningRef.current = true;
           await TrackPlayer.reset();
           await TrackPlayer.add({
             url: streamUrlRef.current,
@@ -117,7 +120,9 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
           });
           await TrackPlayer.play();
         } catch {
-          // Will trigger another PlaybackError → next backoff round
+          // Fallo real, lo capturará el próximo ciclo
+        } finally {
+          setTimeout(() => { isTransitioningRef.current = false; }, 1000);
         }
       }, delay);
     });
@@ -137,44 +142,55 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
   }, []);
 
   const play = useCallback(async () => {
-    if (!streamUrl) return;
-    if (retryTimerRef.current) {
-      clearTimeout(retryTimerRef.current);
-      retryTimerRef.current = null;
-    }
+      if (!streamUrl) return;
+      
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
 
-    wasPlayingRef.current = true;
-    retryRef.current = 0;
-    setError(null);
-    setReconnectAttempt(0);
+      retryRef.current = 0;
+      setError(null);
+      setReconnectAttempt(0);
 
-    try {
-      await TrackPlayer.reset();
-      await TrackPlayer.add({
-        url: streamUrlRef.current,
-        title: infoRef.current.title || 'La Voz de la Verdad',
-        artist: infoRef.current.artist || 'En Vivo',
-        artwork: infoRef.current.artwork || undefined,
-        isLiveStream: true,
-      });
-      await TrackPlayer.play();
-    } catch {
+      try {
+        wasPlayingRef.current = false; 
+
+        await TrackPlayer.reset();
+        await TrackPlayer.add({
+          url: streamUrlRef.current,
+          title: infoRef.current.title || 'La Voz de la Verdad',
+          artist: infoRef.current.artist || 'En Vivo',
+          artwork: infoRef.current.artwork || undefined,
+          isLiveStream: true,
+        });
+
+        wasPlayingRef.current = true;
+        await TrackPlayer.play();
+      } catch {
+        wasPlayingRef.current = false;
+        setError('No se pudo iniciar la reproducción');
+      }
+    }, [streamUrl]);
+
+    const pause = useCallback(async () => {
       wasPlayingRef.current = false;
-      setError('No se pudo iniciar la reproducción');
-    }
-  }, [streamUrl]);
+      
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+      
+      retryRef.current = 0;
+      setError(null);
+      setReconnectAttempt(0);
 
-  const pause = useCallback(async () => {
-    wasPlayingRef.current = false;
-    if (retryTimerRef.current) {
-      clearTimeout(retryTimerRef.current);
-      retryTimerRef.current = null;
-    }
-    retryRef.current = 0;
-    await TrackPlayer.reset();
-    setError(null);
-    setReconnectAttempt(0);
-  }, []);
+      try {
+        await TrackPlayer.stop(); 
+      } catch {
+        setError('No se pudo detener la reproducción');
+      }
+    }, []);
 
   const toggle = useCallback(async () => {
     if (isPlaying || isBuffering) {
