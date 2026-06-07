@@ -14,8 +14,8 @@
   "dependencies": {
     "@expo/vector-icons": "^14.0.0",
     "@gorhom/bottom-sheet": "^5.2.14",
-    "@radio/api": "*",
-    "@radio/types": "*",
+    "@radio/api": "workspace:*",
+    "@radio/types": "workspace:*",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "axios": "^1.7.9",
     "expo": "~53.0.0",

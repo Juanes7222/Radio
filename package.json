@@ -1,11 +1,6 @@
 {
   "name": "radio-monorepo",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*",
-    "backend"
-  ],
   "scripts": {
     "dev": "turbo dev",
     "dev:docker": "docker compose -f docker-compose.dev.yml up --build",
@@ -28,5 +23,5 @@
     "expo-router": "~5.1.11",
     "react-native": "0.79.6"
   },
-  "packageManager": "npm@10.9.2"
+  "packageManager": "pnpm@11.5.2"
 }

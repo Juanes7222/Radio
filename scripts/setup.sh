@@ -96,17 +96,17 @@ cd "$DEPLOY_DIR"
 
 info "Step 5/14 — Installing dependencies and building..."
 rm -rf node_modules package-lock.json
-npm install
+pnpm install
 
 # FIX: Abort on high/critical vulnerabilities
-if ! npm audit --audit-level=high; then
+if ! pnpm audit --audit-level=high; then
   error "High severity vulnerabilities found."
   exit 1
 fi
 
-npm run build --workspace=backend
-npm run build --workspace=@radio/web
-npm prune --omit=dev
+pnpm run build --workspace=backend
+pnpm run build --workspace=@radio/web
+pnpm prune --omit=dev
 
 info "Step 6/14 — Configuring panel password..."
 echo "$PANEL_PASS" | htpasswd -ci /etc/nginx/.htpasswd admin

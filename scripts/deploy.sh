@@ -169,8 +169,8 @@ if [[ "$SKIP_AUDIT" == "true" ]]; then
   warn "Audit skipped via --skip-audit. Proceed with caution."
 else
   if git diff --name-only "$BEFORE_HASH" "$AFTER_HASH" | grep -q "package.*\.json"; then
-    info "package.json changed — running npm audit..."
-    npm audit --audit-level=high || {
+    info "package.json changed — running pnpm audit..."
+    pnpm audit --audit-level=high || {
       error "High severity vulnerabilities detected. Aborting deploy."
       exit 1
     }
@@ -180,7 +180,7 @@ else
 fi
 
 step "3/7 — Installing dependencies"
-npm ci --ignore-scripts
+pnpm install --ignore-scripts
 
 step "4/7 — Building applications"
 
@@ -195,7 +195,7 @@ if [[ "$DEPLOY_FRONTEND" == "true" ]] && [[ -d "$FRONTEND_DIR/dist" ]]; then
 fi
 
 if [[ "$DEPLOY_BACKEND" == "true" ]]; then
-  npm run build --workspace=backend
+  pnpm run build --workspace=backend
   if [[ ! -d "$BACKEND_DIR/dist" ]] || [[ -z "$(ls -A "$BACKEND_DIR/dist")" ]]; then
     error "Backend build produced no artifacts."
     exit 1
@@ -203,14 +203,14 @@ if [[ "$DEPLOY_BACKEND" == "true" ]]; then
 fi
 
 if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
-  npm run build --workspace=@radio/web
+  pnpm run build --workspace=@radio/web
   if [[ ! -d "$FRONTEND_DIR/dist" ]] || [[ -z "$(ls -A "$FRONTEND_DIR/dist")" ]]; then
     error "Frontend build produced no artifacts."
     exit 1
   fi
 fi
 
-npm prune --omit=dev
+pnpm prune --omit=dev
 
 step "5/7 — Updating Nginx configuration"
 
