@@ -16,24 +16,31 @@ import swaggerFile from './swagger-output.json';
 import { startScheduler } from './jobs/scheduler';
 import locutorRouter from './routes/locutor';
 import youtubeRouter from './routes/youtube';
-import workerRouter from './routes/workerAdmin';
+import workerAdminRouter from './routes/workerAdmin';
+import { startWorkerServer } from './workers/workerServer';
+import { dispatchPendingJobs } from './jobs/jobDispatcher';
+import { subscribeToAllConfiguredChannels } from './services/youtube/subscription.service';
 
 const app = express();
 
-// Start cron jobs
 startScheduler();
 
 app.use(morgan('dev'));
 app.use(helmet());
 app.use(
-    cors({
-        origin: [
-            'http://localhost:5173',
-            'http://localhost:4173',
-        ],  
-        credentials: true,
-    })
+  cors({
+    origin: ['http://localhost:5173', 'http://localhost:4173'],
+    credentials: true,
+  })
 );
+
+app.use(
+  '/admin-api/youtube/webhook',
+  express.text({ type: 'application/atom+xml' }),
+  express.text({ type: 'text/xml' }),
+  express.text({ type: 'application/xml' })
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -45,34 +52,32 @@ app.use('/webhook', webhookRouter);
 app.use('/panel-api', panelRouter);
 app.use('/live-status', liveStatusRouter);
 app.use('/admin-api/locutor', locutorRouter);
-
-app.use(
-  "/admin-api/youtube/webhook",
-  express.text({ type: "application/atom+xml" }),
-  express.text({ type: "text/xml" }),
-  express.text({ type: "application/xml" })
-);
-
 app.use('/admin-api/youtube', youtubeRouter);
 app.use('/api/bible', bibleRouter);
-
-app.use('/admin-api/workers', workerRouter);
+app.use('/admin-api/workers', workerAdminRouter);
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
-app.get('/admin-api/health', (_req, res) => {
-    res.json({ ok: true, time: new Date().toISOString() });
-});
-
 app.get('/health', (_req, res) => {
-    res.json({ ok: true, time: new Date().toISOString() });
+  res.json({ ok: true, time: new Date().toISOString() });
 });
 
-app.listen(config.port, () => {
-    console.log(`\n Backend admin corriendo en http://localhost:${config.port}`);
-    console.log(`   Station ID : ${config.azuracast.stationId}`);
-    console.log(`   AzuraCast  : ${config.azuracast.url}`);
-    console.log(
-        `   Whitelist  : ${config.whitelist.length ? config.whitelist.join(', ') : '  VACÍA — nadie puede entrar'}\n`
-    );
+app.get('/admin-api/health', (_req, res) => {
+  res.json({ ok: true, time: new Date().toISOString() });
+});
+
+app.listen(config.port, async () => {
+  console.log(`\n Backend corriendo en http://localhost:${config.port}`);
+  console.log(`   Station ID : ${config.azuracast.stationId}`);
+  console.log(`   AzuraCast  : ${config.azuracast.url}`);
+  console.log(
+    `   Whitelist  : ${config.whitelist.length ? config.whitelist.join(', ') : '  VACÍA'}\n`
+  );
+
+  startWorkerServer();
+
+  setInterval(dispatchPendingJobs, parseInt(process.env.JOB_DISPATCH_INTERVAL_MS ?? '2000', 10));
+
+  await subscribeToAllConfiguredChannels();
+  setInterval(subscribeToAllConfiguredChannels, 20 * 60 * 60 * 1000);
 });
