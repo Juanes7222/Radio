@@ -45,6 +45,14 @@ app.use('/webhook', webhookRouter);
 app.use('/panel-api', panelRouter);
 app.use('/live-status', liveStatusRouter);
 app.use('/admin-api/locutor', locutorRouter);
+
+app.use(
+  "/admin-api/youtube/webhook",
+  express.text({ type: "application/atom+xml" }),
+  express.text({ type: "text/xml" }),
+  express.text({ type: "application/xml" })
+);
+
 app.use('/admin-api/youtube', youtubeRouter);
 app.use('/api/bible', bibleRouter);
 

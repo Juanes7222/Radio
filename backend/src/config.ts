@@ -15,6 +15,7 @@ export const config = {
         })(),
         apiKey:    required('AZURACAST_API_KEY'),
         stationId: required('AZURACAST_STATION_ID'),
+        playlistId: process.env.AZURACAST_PLAYLIST_ID ?? "",
     },
     locutor: {
         kokoroUrl: process.env.KOKORO_URL || 'http://localhost:8880',
@@ -36,6 +37,11 @@ export const config = {
     publicUrl:   (process.env.PUBLIC_URL ?? '').replace(/\/$/, ''),
     panelSecret: required('PANEL_SECRET'),
     youtube: {
-        channels: process.env.CHANNELS_ID?.split(',').map(c => c.trim()).filter(Boolean) || []
+        channelIds: (process.env.YOUTUBE_CHANNEL_IDS ?? "").split(",").filter(Boolean),
+    },
+    processing: {
+        maxDurationSeconds: parseInt(process.env.MAX_VIDEO_DURATION_SECONDS ?? "600", 10),
+        maxRetryAttempts: parseInt(process.env.MAX_RETRY_ATTEMPTS ?? "3", 10),
+        tempDir: process.env.TEMP_DOWNLOAD_DIR ?? "/tmp/yt-downloads",
     },
 };

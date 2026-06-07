@@ -1,77 +1,52 @@
-import express, { Router } from 'express';
-import { parseStringPromise } from 'xml2js';
-import { processYouTubeVideoAsync } from '../services/youtubeProcessor.service';
+import { Router, Request, Response } from "express";
+import { prisma } from "../lib/prisma";
+import { parseWebhookXml } from "../utils/xml.parser";
+import { enqueueVideo } from "../jobs/videoQueue";
+import { logger } from "../utils/logger";
 
 const router = Router();
 
+// YouTube verifica la suscripción con un GET que incluye hub.challenge
+router.get("/webhook", (req: Request, res: Response) => {
+  const challenge = req.query["hub.challenge"];
+  const mode = req.query["hub.mode"];
 
-/**
- * GET /admin-api/youtube/webhook
- * Verificación WebSub de YouTube
- */
-router.get('/webhook', (req, res) => {
-  const challenge = req.query['hub.challenge'];
-
-  if (!challenge || typeof challenge !== 'string') {
-    res.status(400).send('Missing challenge');
+  if (mode === "subscribe" && challenge) {
+    logger.info("YouTubeRouter", "Webhook verification successful");
+    res.status(200).send(challenge);
     return;
   }
 
-  console.log('[YouTube] Webhook verificado');
-
-  res.status(200).send(challenge);
+  res.status(400).send("Invalid verification request");
 });
 
-/**
- * POST /admin-api/youtube/webhook
- * Notificaciones de nuevos videos
- */
-router.post(
-  '/webhook',
-  express.text({ type: '*/*' }),
-  async (req, res) => {
-    try {
-      const rawXml =
-        typeof req.body === 'string'
-          ? req.body
-          : req.body.toString();
+router.post("/webhook", async (req: Request, res: Response) => {
+  // Responde inmediatamente para que YouTube no reintente
+  res.status(200).send("OK");
 
-      const parsed = await parseStringPromise(rawXml);
+  const rawBody = req.body;
+  const xml = typeof rawBody === "string" ? rawBody : rawBody?.toString?.() ?? "";
 
-      const entry = parsed.feed?.entry?.[0];
-
-      if (!entry) {
-        console.log('[YouTube] Evento vacío');
-        res.sendStatus(200);
-        return;
-      }
-
-      const videoId = entry['yt:videoId']?.[0];
-      const channelId = entry['yt:channelId']?.[0];
-      const title = entry.title?.[0];
-      const published = entry.published?.[0];
-
-      if (!videoId || !channelId || !title) {
-         res.sendStatus(200);
-         return;
-      }
-
-      console.log('[YouTube] Nuevo webhook recibido');
-      console.log({ videoId, channelId, title, published });
-
-      // Desencadena el procesamiento en segundo plano (no bloqueamos la respuesta Webhook)
-      processYouTubeVideoAsync(videoId, title, channelId).catch(console.error);
-
-      res.sendStatus(200);
-    } catch (err) {
-      console.error(
-        '[YouTube] Error webhook:',
-        err
-      );
-
-      res.sendStatus(500);
-    }
+  const entry = parseWebhookXml(xml);
+  if (!entry) {
+    logger.warn("YouTubeRouter", "Could not parse webhook XML");
+    return;
   }
-);
+
+  const { videoId, channelId, title, publishedAt } = entry;
+  logger.info("YouTubeRouter", "Webhook received", { videoId, channelId });
+
+  const existing = await prisma.youTubeVideo.findUnique({ where: { videoId } });
+  if (existing) {
+    logger.info("YouTubeRouter", "Duplicate video, skipping", { videoId, status: existing.status });
+    return;
+  }
+
+  await prisma.youTubeVideo.create({
+    data: { videoId, channelId, title, publishedAt, status: "RECEIVED", attempts: 0 },
+  });
+
+  enqueueVideo({ videoId, channelId, title, publishedAt, attempt: 1 });
+});
 
 export default router;

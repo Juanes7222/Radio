@@ -53,14 +53,27 @@ model BibleVerse {
 }
 
 model YouTubeVideo {
-  id          String   @id @default(uuid())
-  videoId     String   @unique
-  channelId   String
-  title       String
-  status      String   // "PENDING", "DOWNLOADED", "IGNORED", "ERROR"
-  duration    Int?     // En segundos
-  downloadUrl String?  // Ruta del archivo mp3
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String    @id @default(uuid())
+  videoId         String    @unique
+  channelId       String
+  title           String
+  status          String    @default("RECEIVED")
+  duration        Int?
+  publishedAt     DateTime?
+  localPath       String?
+  azuracastFileId String?
+  azuracastPath   String?
+  attempts        Int       @default(0)
+  lastError       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
+model YouTubeSubscription {
+  id          String    @id @default(uuid())
+  channelId   String    @unique
+  subscribedAt DateTime @default(now())
+  expiresAt   DateTime?
+  active      Boolean   @default(true)
+  updatedAt   DateTime  @updatedAt
+}
