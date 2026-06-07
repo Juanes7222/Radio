@@ -14,9 +14,9 @@ import liveStatusRouter from './routes/live-status';
 import bibleRouter from './routes/bible';
 import swaggerFile from './swagger-output.json';
 import { startScheduler } from './jobs/scheduler';
-
 import locutorRouter from './routes/locutor';
 import youtubeRouter from './routes/youtube';
+import workerRouter from './routes/workerAdmin';
 
 const app = express();
 
@@ -55,6 +55,8 @@ app.use(
 
 app.use('/admin-api/youtube', youtubeRouter);
 app.use('/api/bible', bibleRouter);
+
+app.use('/admin-api/workers', workerRouter);
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 

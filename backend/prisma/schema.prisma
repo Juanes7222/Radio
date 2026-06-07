@@ -67,6 +67,7 @@ model YouTubeVideo {
   lastError       String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  jobs            ProcessingJob[]
 }
 
 model YouTubeSubscription {
@@ -76,4 +77,30 @@ model YouTubeSubscription {
   expiresAt   DateTime?
   active      Boolean   @default(true)
   updatedAt   DateTime  @updatedAt
+}
+
+model WorkerNode {
+  id           String        @id @default(uuid())
+  workerId     String        @unique
+  name         String
+  status       String        @default("OFFLINE")
+  currentJobId String?
+  lastSeenAt   DateTime?
+  registeredAt DateTime      @default(now())
+  jobs         ProcessingJob[]
+}
+
+model ProcessingJob {
+  id         String      @id @default(uuid())
+  videoId    String
+  video      YouTubeVideo @relation(fields: [videoId], references: [videoId])
+  workerId   String?
+  worker     WorkerNode? @relation(fields: [workerId], references: [workerId])
+  status     String      @default("PENDING")
+  attempts   Int         @default(0)
+  lastError  String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 }

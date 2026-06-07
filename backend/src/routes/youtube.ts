@@ -1,7 +1,6 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { parseWebhookXml } from "../utils/xml.parser";
-import { enqueueVideo } from "../jobs/videoQueue";
 import { logger } from "../utils/logger";
 
 const router = Router();
@@ -46,7 +45,16 @@ router.post("/webhook", async (req: Request, res: Response) => {
     data: { videoId, channelId, title, publishedAt, status: "RECEIVED", attempts: 0 },
   });
 
-  enqueueVideo({ videoId, channelId, title, publishedAt, attempt: 1 });
+  await prisma.youTubeVideo.create({
+    data: { videoId, channelId, title, publishedAt, status: "RECEIVED", attempts: 0 },
+  });
+
+  await prisma.processingJob.create({
+    data: { videoId, status: "PENDING" },
+  });
+
+  logger.info("YouTubeRouter", "Job created", { videoId });
+
 });
 
 export default router;
