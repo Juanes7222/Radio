@@ -104,3 +104,96 @@ model ProcessingJob {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 }
+
+model AnnouncementTemplate {
+  id            String           @id @default(uuid())
+  type          String           // 'hourly', 'greeting', 'custom'
+  name          String
+  textTemplate  String           @map("text_template")
+  voice         String           @default("ef_dora")
+  speed         Float            @default(0.95)
+  active        Boolean          @default(true)
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  
+  generatedAudios GeneratedAudio[]
+  
+  @@map("announcement_templates")
+}
+
+model GeneratedAudio {
+  id            String   @id @default(uuid())
+  templateId    String   @map("template_id")
+  template      AnnouncementTemplate @relation(fields: [templateId], references: [id])
+  
+  filename      String   @unique
+  filepath      String
+  textRendered  String   @map("text_rendered")
+  durationMs    Int?     @map("duration_ms")
+  fileSizeBytes Int?     @map("file_size_bytes")
+  voice         String
+  
+  azuracastMediaId String? @map("azuracast_media_id")
+  
+  generatedAt   DateTime @default(now()) @map("generated_at")
+  validUntil    DateTime? @map("valid_until")
+  status        String   @default("ready") // 'ready', 'pending', 'error', 'expired'
+  
+  // Track which hour this audio represents (e.g., "14" for 2 PM)
+  hourValue     Int?     @map("hour_value")
+  
+  // Track which time slot group this belongs to for reuse
+  timeSlotGroup String?  @map("time_slot_group") // 'morning', 'afternoon', 'evening', 'night'
+  
+  // Usage tracking to prevent consecutive-day same-hour repetition
+  lastUsedAt    DateTime? @map("last_used_at")
+  lastUsedDate  DateTime? @map("last_used_date") // Date only, no time
+  useCount      Int       @default(0) @map("use_count")
+  
+  schedules     AudioSchedule[]
+  
+  @@map("generated_audios")
+  @@index([hourValue])
+  @@index([timeSlotGroup])
+  @@index([status])
+  @@index([lastUsedDate])
+}
+
+model AudioSchedule {
+  id              String   @id @default(uuid())
+  audioId         String   @map("audio_id")
+  audio           GeneratedAudio @relation(fields: [audioId], references: [id])
+  
+  // Target date and hour for playback
+  scheduledDate   DateTime @map("scheduled_date") // Date only
+  scheduledHour   Int      @map("scheduled_hour") // 0-23
+  
+  // Scheduling metadata
+  cronExpression  String?  @map("cron_expression")
+  azuracastPlaylistId String? @map("azuracast_playlist_id")
+  
+  enabled         Boolean  @default(true)
+  playedAt        DateTime? @map("played_at")
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  @@unique([scheduledDate, scheduledHour])
+  @@map("audio_schedules")
+  @@index([scheduledDate])
+  @@index([scheduledHour])
+  @@index([enabled])
+}
+
+model GenerationLog {
+  id              String   @id @default(uuid())
+  jobType         String   @map("job_type") // 'scheduled', 'on_demand', 'hourly_check'
+  status          String   @default("running") // 'running', 'success', 'partial', 'error'
+  details         String?
+  audiosGenerated Int?     @map("audios_generated")
+  durationMs      Int?     @map("duration_ms")
+  startedAt       DateTime @default(now()) @map("started_at")
+  finishedAt      DateTime? @map("finished_at")
+  
+  @@map("generation_logs")
+  @@index([startedAt])
+}

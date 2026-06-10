@@ -1,58 +1,115 @@
-import cron from 'node-cron';
-import { db } from '../db';
-import { synthesize } from '../services/tts.service';
-import { renderTemplate } from '../services/template.service';
-import { config } from '../config';
+import cron from "node-cron";
+import { prisma } from "../lib/prisma";
+import { generateOrReuseAudio, scheduleAudioForDate } from "../services/audioGeneration.service";
+import { getPendingHoursForToday } from "../services/timeSlotPlanner.service";
+import { filterSafeHours } from "../services/scheduleAnalyzer.service";
+import { config } from "../config";
+import { logger } from "../utils/logger";
 
-const MEDIA_DIR = config.locutor.mediaDir;
-
+/**
+ * Generates a single hour audio on-demand.
+ */
 async function generateHourAudio(hour24: number) {
-  const filename = `hora_${String(hour24).padStart(2, '0')}.mp3`;
-  const template = db.prepare('SELECT * FROM announcement_templates WHERE type = ? AND active = 1 LIMIT 1').get('hourly') as any;
+  const template = await prisma.announcementTemplate.findFirst({
+    where: { type: "hourly", active: true },
+  });
 
   if (!template) {
-     console.warn('[HourlyCheck] No active hourly template found.');
-     return;
+    logger.warn("HourlyCheck", "No active hourly template found");
+    return null;
   }
 
-  const hour12 = hour24 % 12 || 12;
-  const text = renderTemplate(template.text_template, { hour: String(hour12), hour24: String(hour24) });
-  const outputPath = `${MEDIA_DIR}/${filename}`;
+  const group =
+    hour24 >= 6 && hour24 <= 11
+      ? "morning"
+      : hour24 >= 12 && hour24 <= 17
+      ? "afternoon"
+      : hour24 >= 18 && hour24 <= 21
+      ? "evening"
+      : "night";
 
   try {
-     const { duration_ms, file_size_bytes } = await synthesize({
-        text, voice: template.voice, speed: template.speed, outputPath
-     });
+    const result = await generateOrReuseAudio({
+      templateId: template.id,
+      hour: hour24,
+      group,
+    });
 
-     db.prepare(`
-       INSERT INTO generated_audios
-       (template_id, filename, filepath, text_rendered, duration_ms, file_size_bytes, voice, generated_at, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ready')
-       ON CONFLICT(filename) DO UPDATE SET
-         filepath=excluded.filepath,
-         text_rendered=excluded.text_rendered,
-         duration_ms=excluded.duration_ms,
-         file_size_bytes=excluded.file_size_bytes,
-         voice=excluded.voice,
-         generated_at=excluded.generated_at,
-         status='ready'
-     `).run(template.id, filename, outputPath, text, duration_ms, file_size_bytes, template.voice, new Date().toISOString());
-     
-     console.log(`[HourlyCheck] Regenerated ${filename} successfully.`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    await scheduleAudioForDate(result.audioId, today, hour24);
+
+    logger.info("HourlyCheck", "Generated or reused audio for hour", {
+      hour: hour24,
+      wasReused: result.wasReused,
+    });
+
+    return result;
   } catch (err: any) {
-     console.error(`[HourlyCheck] Error regenerating ${filename}: ${err.message}`);
+    logger.error("HourlyCheck", "Failed to generate audio for hour", {
+      hour: hour24,
+      error: err.message,
+    });
+    return null;
   }
 }
 
 export function registerHourlyJob() {
-  cron.schedule('45 * * * *', async () => {
-    const nextHour = (new Date().getHours() + 1) % 24;
-    const filename = `hora_${String(nextHour).padStart(2,'0')}.mp3`;
-    const audio = db.prepare('SELECT * FROM generated_audios WHERE filename = ?').get(filename) as any;
+  cron.schedule(
+    "45 * * * *",
+    async () => {
+      const nextHour = (new Date().getHours() + 1) % 24;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    if (!audio || audio.status !== 'ready') {
-      console.warn(`[HourlyCheck] Falta ${filename}, regenerando...`);
-      await generateHourAudio(nextHour);
-    }
-  }, { timezone: config.locutor.timezone });
+      logger.info("HourlyCheck", "Checking audio for next hour", {
+        nextHour,
+      });
+
+      try {
+        const existing = await prisma.audioSchedule.findFirst({
+          where: {
+            scheduledDate: today,
+            scheduledHour: nextHour,
+            enabled: true,
+          },
+          include: {
+            audio: true,
+          },
+        });
+
+        if (existing && existing.audio && existing.audio.status === "ready") {
+          logger.info("HourlyCheck", "Audio ready for next hour", {
+            nextHour,
+            audioId: existing.audioId,
+          });
+          return;
+        }
+
+        // Check if it's safe to insert an announcement
+        const safeHours = await filterSafeHours([nextHour]);
+        if (safeHours.length === 0) {
+          logger.warn("HourlyCheck", "Next hour is blocked by programming, skipping", {
+            nextHour,
+          });
+          return;
+        }
+
+        // If missing or not ready, generate it
+        logger.warn("HourlyCheck", "Missing or invalid audio for next hour, regenerating", {
+          nextHour,
+          existingStatus: existing?.audio?.status || "none",
+        });
+
+        await generateHourAudio(nextHour);
+      } catch (err: any) {
+        logger.error("HourlyCheck", "Error during hourly check", {
+          nextHour,
+          error: err.message,
+        });
+      }
+    },
+    { timezone: config.locutor.timezone }
+  );
 }

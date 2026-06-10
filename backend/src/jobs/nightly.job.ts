@@ -1,87 +1,181 @@
-import cron from 'node-cron';
-import { synthesize } from '../services/tts.service';
-import { renderTemplate } from '../services/template.service';
-import { db } from '../db';
-import { config } from '../config';
+import cron from "node-cron";
+import { prisma } from "../lib/prisma";
+import { generatePlan, isLowAudienceWindow } from "../services/timeSlotPlanner.service";
+import { filterSafeHours } from "../services/scheduleAnalyzer.service";
+import {
+  generateOrReuseAudio,
+  scheduleAudioForDate,
+  expireOldAudios,
+} from "../services/audioGeneration.service";
+import { config } from "../config";
+import { logger } from "../utils/logger";
 
-const MEDIA_DIR = config.locutor.mediaDir;
-
-function getItemsForTemplate(template: any) {
-  // Logic to generate items based on template type
-  if (template.type === 'hourly') {
-    return Array.from({ length: 24 }, (_, i) => ({
-      filename: `hora_${String(i).padStart(2, '0')}.mp3`,
-      variables: { hour: String(i % 12 || 12), hour24: String(i) }
-    }));
-  }
-  // Add other logic like greetings etc
-  return [{ filename: `custom_${template.id}.mp3`, variables: {} }];
-}
+const DAYS_AHEAD = 2;
+const SLOTS_PER_GROUP = 24;
 
 export function registerNightlyJob() {
-  cron.schedule('30 2 * * *', async () => {
-    const logEntry = db.prepare(
-      'INSERT INTO generation_logs (job_type, status, started_at) VALUES (?, ?, ?)'
-    ).run('scheduled', 'running', new Date().toISOString());
-
-    const startTime = Date.now();
-    let generated = 0;
-    const errors: any[] = [];
-
-    try {
-      const templates = db.prepare(
-        'SELECT * FROM announcement_templates WHERE active = 1'
-      ).all();
-
-      for (const template of templates as any[]) {
-        const items = getItemsForTemplate(template);
-
-        for (const item of items) {
-          try {
-            const text = renderTemplate(template.text_template, item.variables);
-            const filename = item.filename;
-            const outputPath = `${MEDIA_DIR}/${filename}`;
-
-            const { duration_ms, file_size_bytes } = await synthesize({
-              text, voice: template.voice, speed: template.speed, outputPath
-            });
-
-            db.prepare(`
-              INSERT INTO generated_audios
-              (template_id, filename, filepath, text_rendered, duration_ms, file_size_bytes, voice, generated_at, status)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ready')
-              ON CONFLICT(filename) DO UPDATE SET
-                filepath=excluded.filepath,
-                text_rendered=excluded.text_rendered,
-                duration_ms=excluded.duration_ms,
-                file_size_bytes=excluded.file_size_bytes,
-                voice=excluded.voice,
-                generated_at=excluded.generated_at,
-                status='ready'
-            `).run(template.id, filename, outputPath, text, duration_ms, file_size_bytes, template.voice, new Date().toISOString());
-
-            generated++;
-          } catch (err: any) {
-             errors.push({ item: item.filename, error: err.message });
-          }
-        }
+  cron.schedule(
+    "30 2 * * *",
+    async () => {
+      if (!isLowAudienceWindow()) {
+        logger.info(
+          "NightlyJob",
+          "Skipping generation outside low-audience window"
+        );
+        return;
       }
 
-      db.prepare(`
-        UPDATE generation_logs SET status=?, audios_generated=?, duration_ms=?, details=?, finished_at=?
-        WHERE id=?
-      `).run(
-        errors.length === 0 ? 'success' : 'partial',
-        generated, Date.now() - startTime,
-        JSON.stringify({ errors }),
-        new Date().toISOString(), logEntry.lastInsertRowid
-      );
+      const log = await prisma.generationLog.create({
+        data: {
+          jobType: "scheduled",
+          status: "running",
+          startedAt: new Date(),
+        },
+      });
 
-      console.log(`[NightlyJob] ${generated} audios generados en ${Date.now() - startTime}ms. ${errors.length} errores.`);
+      const startTime = Date.now();
+      let generatedCount = 0;
+      let reusedCount = 0;
+      const errors: Array<{ hour: number; error: string }> = [];
 
-    } catch (err: any) {
-      db.prepare('UPDATE generation_logs SET status=?, details=?, finished_at=? WHERE id=?')
-        .run('error', JSON.stringify({ error: err.message }), new Date().toISOString(), logEntry.lastInsertRowid);
-    }
-  }, { timezone: config.locutor.timezone });
+      try {
+        logger.info("NightlyJob", "Starting nightly audio generation planning");
+
+        // Generate plan for upcoming days
+        const plan = await generatePlan({
+          daysAhead: DAYS_AHEAD,
+          slotsPerGroup: SLOTS_PER_GROUP,
+        });
+
+        if (plan.length === 0) {
+          logger.info("NightlyJob", "No hours need coverage, nothing to do");
+          await prisma.generationLog.update({
+            where: { id: log.id },
+            data: {
+              status: "success",
+              audiosGenerated: 0,
+              durationMs: Date.now() - startTime,
+              finishedAt: new Date(),
+            },
+          });
+          return;
+        }
+
+        // Filter to safe hours only
+        const candidateHours = plan.map((p) => p.hour);
+        const safeHours = await filterSafeHours(candidateHours);
+
+        const safePlan = plan.filter((p) => safeHours.includes(p.hour));
+
+        logger.info("NightlyJob", "Plan after schedule analysis", {
+          totalPlanned: plan.length,
+          safeHours: safePlan.length,
+          daysAhead: DAYS_AHEAD,
+        });
+
+        for (const item of safePlan) {
+          try {
+            if (item.audioId) {
+              // Reuse existing audio
+              await scheduleAudioForDate(
+                item.audioId,
+                item.date,
+                item.hour
+              );
+              reusedCount++;
+              logger.info("NightlyJob", "Reused audio for schedule", {
+                hour: item.hour,
+                date: item.date.toISOString().split("T")[0],
+              });
+            } else {
+              // Find active template for this type
+              const template = await prisma.announcementTemplate.findFirst({
+                where: { type: "hourly", active: true },
+              });
+
+              if (!template) {
+                errors.push({
+                  hour: item.hour,
+                  error: "No active hourly template found",
+                });
+                continue;
+              }
+
+              const result = await generateOrReuseAudio({
+                templateId: template.id,
+                hour: item.hour,
+                group: item.group,
+              });
+
+              if (!result.wasReused) {
+                generatedCount++;
+              } else {
+                reusedCount++;
+              }
+
+              await scheduleAudioForDate(
+                result.audioId,
+                item.date,
+                item.hour
+              );
+            }
+          } catch (err: any) {
+            errors.push({
+              hour: item.hour,
+              error: err.message,
+            });
+            logger.error("NightlyJob", "Failed to process hour", {
+              hour: item.hour,
+              error: err.message,
+            });
+          }
+        }
+
+        // Expire old audios to free disk space
+        const expired = await expireOldAudios(30);
+        if (expired > 0) {
+          logger.info("NightlyJob", "Expired old audios", { count: expired });
+        }
+
+        const status = errors.length === 0 ? "success" : "partial";
+
+        await prisma.generationLog.update({
+          where: { id: log.id },
+          data: {
+            status,
+            audiosGenerated: generatedCount + reusedCount,
+            durationMs: Date.now() - startTime,
+            details: JSON.stringify({
+              generated: generatedCount,
+              reused: reusedCount,
+              errors,
+              expired,
+            }),
+            finishedAt: new Date(),
+          },
+        });
+
+        logger.info("NightlyJob", "Completed nightly generation", {
+          generated: generatedCount,
+          reused: reusedCount,
+          errors: errors.length,
+          durationMs: Date.now() - startTime,
+        });
+      } catch (err: any) {
+        logger.error("NightlyJob", "Fatal error during nightly generation", {
+          error: err.message,
+        });
+
+        await prisma.generationLog.update({
+          where: { id: log.id },
+          data: {
+            status: "error",
+            details: JSON.stringify({ error: err.message }),
+            finishedAt: new Date(),
+          },
+        });
+      }
+    },
+    { timezone: config.locutor.timezone }
+  );
 }

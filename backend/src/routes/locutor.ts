@@ -1,145 +1,259 @@
-import { Router } from 'express';
-import { db } from '../db';
-import { synthesize } from '../services/tts.service';
-import { renderTemplate } from '../services/template.service';
-import { config } from '../config';
+import { Router } from "express";
+import { prisma } from "../lib/prisma";
+import { synthesize } from "../services/tts.service";
+import { renderTemplate } from "../services/template.service";
+import { getAudioStats } from "../services/timeSlotPlanner.service";
+import { getAudioCountByStatus } from "../services/audioGeneration.service";
+import { config } from "../config";
+import { logger } from "../utils/logger";
+import path from "path";
 
 const router = Router();
 const MEDIA_DIR = config.locutor.mediaDir;
 
 // --- TEMPLATES ---
-router.get('/templates', (req, res) => {
+router.get("/templates", async (_req, res) => {
   try {
-    const templates = db.prepare('SELECT * FROM announcement_templates ORDER BY created_at DESC').all();
+    const templates = await prisma.announcementTemplate.findMany({
+      orderBy: { createdAt: "desc" },
+    });
     res.json(templates);
   } catch (err: any) {
+    logger.error("LocutorRoutes", "Failed to list templates", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/templates', (req, res) => {
+router.post("/templates", async (req, res) => {
   try {
     const { type, name, text_template, voice, speed, active } = req.body;
-    const stmt = db.prepare(`
-      INSERT INTO announcement_templates (type, name, text_template, voice, speed, active)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    const info = stmt.run(type, name, text_template, voice || 'ef_dora', speed || 0.95, active !== false ? 1 : 0);
-    res.status(201).json({ id: info.lastInsertRowid, message: 'Template created' });
+    const template = await prisma.announcementTemplate.create({
+      data: {
+        type,
+        name,
+        textTemplate: text_template,
+        voice: voice || "ef_dora",
+        speed: speed || 0.95,
+        active: active !== false,
+      },
+    });
+    res.status(201).json({ id: template.id, message: "Template created" });
   } catch (err: any) {
+    logger.error("LocutorRoutes", "Failed to create template", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
 
-router.put('/templates/:id', (req, res) => {
+router.put("/templates/:id", async (req, res) => {
   try {
     const { type, name, text_template, voice, speed, active } = req.body;
-    const stmt = db.prepare(`
-      UPDATE announcement_templates SET
-        type = ?, name = ?, text_template = ?, voice = ?, speed = ?, active = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `);
-    stmt.run(type, name, text_template, voice, speed, active !== false ? 1 : 0, req.params.id);
-    res.json({ message: 'Template updated' });
+    await prisma.announcementTemplate.update({
+      where: { id: req.params.id },
+      data: {
+        type,
+        name,
+        textTemplate: text_template,
+        voice,
+        speed,
+        active: active !== false,
+      },
+    });
+    res.json({ message: "Template updated" });
   } catch (err: any) {
+    logger.error("LocutorRoutes", "Failed to update template", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
 
-router.delete('/templates/:id', (req, res) => {
+router.delete("/templates/:id", async (req, res) => {
   try {
-    db.prepare('DELETE FROM announcement_templates WHERE id = ?').run(req.params.id);
-    res.json({ message: 'Template deleted' });
+    await prisma.announcementTemplate.delete({
+      where: { id: req.params.id },
+    });
+    res.json({ message: "Template deleted" });
   } catch (err: any) {
+    logger.error("LocutorRoutes", "Failed to delete template", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
 
 // --- AUDIOS ---
-router.get('/audios', (req, res) => {
+router.get("/audios", async (_req, res) => {
   try {
-    const audios = db.prepare('SELECT * FROM generated_audios ORDER BY generated_at DESC LIMIT 100').all();
+    const audios = await prisma.generatedAudio.findMany({
+      orderBy: { generatedAt: "desc" },
+      take: 100,
+      include: {
+        template: { select: { name: true, type: true } },
+        schedules: { take: 5, orderBy: { scheduledDate: "desc" } },
+      },
+    });
     res.json(audios);
   } catch (err: any) {
+    logger.error("LocutorRoutes", "Failed to list audios", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/audios/generate/:templateId', async (req, res) => {
-  const template = db.prepare('SELECT * FROM announcement_templates WHERE id = ?').get(req.params.templateId) as any;
-  if (!template) return res.status(404).json({ error: 'Template not found' });
+router.post("/audios/generate/:templateId", async (req, res) => {
+  try {
+    const template = await prisma.announcementTemplate.findUnique({
+      where: { id: req.params.templateId },
+    });
 
-  const customFilename = `custom_${Date.now()}.mp3`;
-  const outputPath = `${MEDIA_DIR}/${customFilename}`;
-
-  const info = db.prepare(`
-    INSERT INTO generated_audios (template_id, filename, filepath, text_rendered, status)
-    VALUES (?, ?, ?, ?, 'pending')
-  `).run(template.id, customFilename, outputPath, '');
-
-  const audioId = info.lastInsertRowid;
-  res.status(202).json({ audioId, message: 'Generation started' });
-
-  (async () => {
-    try {
-      const text = renderTemplate(template.text_template, req.body.variables || {});
-      const { duration_ms, file_size_bytes } = await synthesize({
-        text, voice: template.voice, speed: template.speed, outputPath
-      });
-
-      db.prepare(`
-        UPDATE generated_audios
-        SET filepath=?, text_rendered=?, duration_ms=?, file_size_bytes=?, status='ready', generated_at=CURRENT_TIMESTAMP
-        WHERE id=?
-      `).run(outputPath, text, duration_ms, file_size_bytes, audioId);
-    } catch (err: any) {
-      db.prepare("UPDATE generated_audios SET status='error' WHERE id=?").run(audioId);
-      console.error('[OnDemandGeneration] Error:', err.message);
+    if (!template) {
+      return res.status(404).json({ error: "Template not found" });
     }
-  })();
+
+    const customFilename = `custom_${Date.now()}.mp3`;
+    const outputPath = path.join(MEDIA_DIR, customFilename);
+
+    const audio = await prisma.generatedAudio.create({
+      data: {
+        templateId: template.id,
+        filename: customFilename,
+        filepath: outputPath,
+        textRendered: "",
+        voice: template.voice,
+        status: "pending",
+      },
+    });
+
+    res.status(202).json({ audioId: audio.id, message: "Generation started" });
+
+    // Background generation
+    (async () => {
+      try {
+        const text = renderTemplate(
+          template.textTemplate,
+          req.body.variables || {}
+        );
+        const { duration_ms, file_size_bytes } = await synthesize({
+          text,
+          voice: template.voice,
+          speed: template.speed,
+          outputPath,
+        });
+
+        await prisma.generatedAudio.update({
+          where: { id: audio.id },
+          data: {
+            textRendered: text,
+            durationMs: Math.round(duration_ms),
+            fileSizeBytes: file_size_bytes,
+            status: "ready",
+          },
+        });
+      } catch (err: any) {
+        await prisma.generatedAudio.update({
+          where: { id: audio.id },
+          data: { status: "error" },
+        });
+        logger.error("LocutorRoutes", "On-demand generation failed", {
+          audioId: audio.id,
+          error: err.message,
+        });
+      }
+    })();
+  } catch (err: any) {
+    logger.error("LocutorRoutes", "Failed to start generation", { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
 });
 
-router.delete('/audios/:id', (req, res) => {
+router.delete("/audios/:id", async (req, res) => {
   try {
-    db.prepare('DELETE FROM generated_audios WHERE id = ?').run(req.params.id);
-    res.json({ message: 'Audio deleted' });
+    await prisma.generatedAudio.delete({
+      where: { id: req.params.id },
+    });
+    res.json({ message: "Audio deleted" });
   } catch (err: any) {
+    logger.error("LocutorRoutes", "Failed to delete audio", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
 
 // --- STATUS ---
-router.get('/status', async (req, res) => {
+router.get("/status", async (_req, res) => {
   try {
     let kokoroOk = false;
     try {
-      const axiosObj = await import('axios');
-      // @ts-ignore
-      const axiosGet = axiosObj.default?.get || axiosObj.get;
-      const { status } = await axiosGet(`${config.locutor.kokoroUrl}/health`, { timeout: 2000 });
+      const axios = await import("axios");
+      const { status } = await axios.default.get(
+        `${config.locutor.kokoroUrl}/health`,
+        { timeout: 2000 }
+      );
       kokoroOk = status === 200;
-    } catch (e) {}
+    } catch (e) {
+      // Kokoro not reachable
+    }
 
-    const lastJob = db.prepare('SELECT * FROM generation_logs ORDER BY started_at DESC LIMIT 1').get();
-    const readyCount = db.prepare("SELECT COUNT(*) as c FROM generated_audios WHERE status='ready'").get() as any;
-    const pendingCount = db.prepare("SELECT COUNT(*) as c FROM generated_audios WHERE status='pending'").get() as any;
+    const lastJob = await prisma.generationLog.findFirst({
+      orderBy: { startedAt: "desc" },
+    });
+
+    const statusCounts = await getAudioCountByStatus();
+    const stats = await getAudioStats();
 
     res.json({
       kokoro: { healthy: kokoroOk },
       last_job: lastJob || null,
-      bank: { ready: readyCount?.c || 0, pending: pendingCount?.c || 0 },
-      timestamp: new Date().toISOString()
+      bank: {
+        ready: statusCounts["ready"] || 0,
+        pending: statusCounts["pending"] || 0,
+        error: statusCounts["error"] || 0,
+      },
+      stats,
+      timestamp: new Date().toISOString(),
     });
   } catch (err: any) {
+    logger.error("LocutorRoutes", "Failed to get status", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/logs', (req, res) => {
+// --- LOGS ---
+router.get("/logs", async (_req, res) => {
   try {
-    const logs = db.prepare('SELECT * FROM generation_logs ORDER BY started_at DESC LIMIT 50').all();
+    const logs = await prisma.generationLog.findMany({
+      orderBy: { startedAt: "desc" },
+      take: 50,
+    });
     res.json(logs);
   } catch (err: any) {
+    logger.error("LocutorRoutes", "Failed to list logs", { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- SCHEDULES ---
+router.get("/schedules", async (req, res) => {
+  try {
+    const date = req.query.date
+      ? new Date(req.query.date as string)
+      : new Date();
+    date.setHours(0, 0, 0, 0);
+
+    const schedules = await prisma.audioSchedule.findMany({
+      where: {
+        scheduledDate: date,
+      },
+      include: {
+        audio: {
+          select: {
+            filename: true,
+            textRendered: true,
+            durationMs: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: { scheduledHour: "asc" },
+    });
+
+    res.json(schedules);
+  } catch (err: any) {
+    logger.error("LocutorRoutes", "Failed to list schedules", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
