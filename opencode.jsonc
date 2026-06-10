@@ -1,0 +1,34 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "autoupdate": true,
+  "default_agent": "build",
+  "formatter": true,
+  "lsp": true,
+  "compaction": {
+    "auto": true,
+    "prune": false,
+    "reserved": 10000
+  },
+  "instructions": [
+    "AGENTS.md",
+    "docs/project-context.md",
+    "docs/backend-context.md",
+    "docs/frontend-context.md"
+  ],
+  "watcher": {
+    "ignore": [
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "coverage/**",
+      ".next/**",
+      ".turbo/**",
+      ".git/**",
+      ".expo/**",
+      ".pnp.*",
+      "android/.gradle/**",
+      "ios/Pods/**",
+      "*.log"
+    ]
+  }
+}
