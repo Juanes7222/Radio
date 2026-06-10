@@ -93,17 +93,19 @@ export async function handleJobStatus(jobId: string, status: string): Promise<vo
 }
 
 export async function handleJobDone(message: JobDoneMessage): Promise<void> {
+  const isIgnored = message.ignored === true;
+
   await prisma.processingJob.update({
     where: { id: message.jobId },
-    data: { status: "DONE", finishedAt: new Date() },
+    data: { status: isIgnored ? "IGNORED" : "DONE", finishedAt: new Date() },
   });
 
   await prisma.youTubeVideo.updateMany({
     where: { jobs: { some: { id: message.jobId } } },
     data: {
-      status: "DONE",
-      azuracastFileId: message.azuracastFileId,
-      azuracastPath: message.azuracastPath,
+      status: isIgnored ? "IGNORED" : "DONE",
+      azuracastFileId: isIgnored ? null : message.azuracastFileId,
+      azuracastPath: isIgnored ? null : message.azuracastPath,
       duration: message.duration,
     },
   });
@@ -113,7 +115,7 @@ export async function handleJobDone(message: JobDoneMessage): Promise<void> {
     data: { status: "ONLINE", currentJobId: null },
   });
 
-  logger.info("JobDispatcher", "Job completed", { jobId: message.jobId });
+  logger.info("JobDispatcher", isIgnored ? "Job ignored" : "Job completed", { jobId: message.jobId });
 }
 
 export async function handleJobError(message: JobErrorMessage): Promise<void> {
