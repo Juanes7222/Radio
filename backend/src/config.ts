@@ -17,6 +17,7 @@ export const config = {
         apiKey:    required('AZURACAST_API_KEY'),
         stationId: required('AZURACAST_STATION_ID'),
         playlistId: process.env.AZURACAST_PLAYLIST_ID ?? "",
+        newsPlaylistId: process.env.AZURACAST_NEWS_PLAYLIST_ID ?? "",
     },
     locutor: {
         kokoroUrl: process.env.KOKORO_URL || 'http://localhost:8880',
