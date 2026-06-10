@@ -156,6 +156,7 @@ fi
 # Discard any local modifications and reset to the remote tracking branch.
 # This ensures manual edits on the server never block or corrupt a deploy.
 git reset --hard "@{u}"
+git submodule update --init --recursive
 AFTER_HASH="$(git rev-parse HEAD)"
 info "Updated: ${BEFORE_HASH:0:8} → ${AFTER_HASH:0:8}"
 
