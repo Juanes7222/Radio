@@ -145,4 +145,4 @@ secrets/
 swagger-output.json
 
 TODO.md
-.ai-context.md
+*.db
