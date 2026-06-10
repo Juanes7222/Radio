@@ -139,7 +139,80 @@ info "Targets: $(_target_label)"
 
 cd "$DEPLOY_DIR"
 
-step "1/7 — Checking repository changes"
+step "1/8 — Ensuring Kokoro TTS service is running"
+
+_KOKORO_URL="${KOKORO_URL:-http://127.0.0.1:8880}"
+_KOKORO_HEALTH_URL="${_KOKORO_URL}/health"
+_KOKORO_RETRIES=6
+_KOKORO_INTERVAL=5
+
+ensure_kokoro() {
+  local healthy=false
+  for i in $(seq 1 "$_KOKORO_RETRIES"); do
+    if curl -sf --max-time 3 "$_KOKORO_HEALTH_URL" &>/dev/null; then
+      healthy=true
+      info "Kokoro TTS is responding (attempt $i)."
+      break
+    fi
+    info "Kokoro not responding — attempt $i/$_KOKORO_RETRIES, waiting ${_KOKORO_INTERVAL}s..."
+    sleep "$_KOKORO_INTERVAL"
+  done
+
+  if [[ "$healthy" == "true" ]]; then
+    return 0
+  fi
+
+  warn "Kokoro TTS is not running. Attempting to start..."
+
+  # Try systemd service first
+  if systemctl list-unit-files | grep -q "^kokoro"; then
+    info "Found kokoro systemd service. Starting..."
+    systemctl start kokoro || true
+    sleep 3
+    for i in $(seq 1 "$_KOKORO_RETRIES"); do
+      if curl -sf --max-time 3 "$_KOKORO_HEALTH_URL" &>/dev/null; then
+        info "Kokoro systemd service started successfully."
+        return 0
+      fi
+      sleep "$_KOKORO_INTERVAL"
+    done
+    error "Kokoro systemd service failed to start."
+    return 1
+  fi
+
+  # Try Docker container as fallback
+  if command -v docker &>/dev/null; then
+    info "Attempting to start Kokoro via Docker..."
+    if docker ps -a --format '{{.Names}}' | grep -q "^kokoro$"; then
+      docker start kokoro || true
+    else
+      warn "No Kokoro container named 'kokoro' found. Please create it manually:"
+      warn "  docker run -d --name kokoro -p 8880:8880 <kokoro-image>"
+      warn "Skipping Kokoro auto-start. The backend will retry synthesis at runtime."
+      return 0
+    fi
+    sleep 3
+    for i in $(seq 1 "$_KOKORO_RETRIES"); do
+      if curl -sf --max-time 3 "$_KOKORO_HEALTH_URL" &>/dev/null; then
+        info "Kokoro Docker container started successfully."
+        return 0
+      fi
+      sleep "$_KOKORO_INTERVAL"
+    done
+    error "Kokoro Docker container failed to start."
+    return 1
+  fi
+
+  warn "No Kokoro service or Docker detected. Skipping auto-start."
+  warn "The backend will attempt to connect to Kokoro at runtime."
+  return 0
+}
+
+ensure_kokoro || {
+  warn "Kokoro TTS is unavailable. The backend may fail to generate audio announcements."
+}
+
+step "2/8 — Checking repository changes"
 
 BEFORE_HASH="$(git rev-parse HEAD)"
 git fetch --quiet origin
@@ -164,7 +237,7 @@ git log --oneline "${BEFORE_HASH}..${AFTER_HASH}" | while read -r line; do
   info "  commit: $line"
 done
 
-step "2/7 — Dependency audit"
+step "3/8 — Dependency audit"
 
 if [[ "$SKIP_AUDIT" == "true" ]]; then
   warn "Audit skipped via --skip-audit. Proceed with caution."
@@ -180,10 +253,10 @@ else
   fi
 fi
 
-step "3/7 — Installing dependencies"
+step "4/8 — Installing dependencies"
 pnpm install --ignore-scripts
 
-step "4/7 — Building applications"
+step "5/8 — Building applications"
 
 if [[ "$DEPLOY_BACKEND" == "true" ]] && [[ -d "$BACKEND_DIR/dist" ]]; then
   BACKUP_BACKEND="$(mktemp -d)"
@@ -227,7 +300,7 @@ fi
 
 pnpm prune --omit=dev
 
-step "5/7 — Updating Nginx configuration"
+step "6/8 — Updating Nginx configuration"
 
 NGINX_CHANGED=false
 if git diff --name-only "$BEFORE_HASH" "$AFTER_HASH" | \
@@ -252,10 +325,10 @@ else
   info "No Nginx changes detected. Skipping."
 fi
 
-step "6/7 — Applying permissions"
+step "7/8 — Applying permissions"
 _apply_permissions
 
-step "7/7 — Restarting backend and running health check"
+step "8/8 — Restarting backend and running health check"
 
 if [[ "$DEPLOY_BACKEND" == "true" ]]; then
   systemctl reload-or-restart "$BACKEND_SERVICE"
@@ -302,6 +375,7 @@ echo -e "  Targets : $(_target_label)"
 echo -e "  Commit  : ${BEFORE_HASH:0:8} → ${AFTER_HASH:0:8}"
 echo -e "  Nginx   : $(systemctl is-active nginx)"
 echo -e "  Backend : $(systemctl is-active "$BACKEND_SERVICE")"
+echo -e "  Kokoro  : $(curl -sf --max-time 2 "$_KOKORO_HEALTH_URL" &>/dev/null && echo "active" || echo "inactive")"
 echo -e "  Time    : $DEPLOY_END"
 echo -e "  Log     : $DEPLOY_LOG"
 echo ""
