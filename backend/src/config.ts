@@ -13,6 +13,7 @@ export const config = {
             const u = required('AZURACAST_URL').replace(/\/$/, '');
             return /^https?:\/\//i.test(u) ? u : `https://${u}`;
         })(),
+        get baseUrl() { return this.url; },
         apiKey:    required('AZURACAST_API_KEY'),
         stationId: required('AZURACAST_STATION_ID'),
         playlistId: process.env.AZURACAST_PLAYLIST_ID ?? "",
@@ -34,11 +35,17 @@ export const config = {
         .split(',')
         .map(e => e.trim().toLowerCase())
         .filter(Boolean),
-    publicUrl:   (process.env.PUBLIC_URL ?? '').replace(/\/$/, ''),
+    publicUrl:   (required('PUBLIC_URL')).replace(/\/$/, ''),
     panelSecret: required('PANEL_SECRET'),
     youtube: {
         channelIds: (process.env.YOUTUBE_CHANNEL_IDS ?? "").split(",").filter(Boolean),
     },
+    worker: {
+        authSecret: required('WORKER_AUTH_SECRET'),
+        port: parseInt(process.env.WS_PORT ?? '3001', 10),
+    },
+    jobDispatchIntervalMs: parseInt(process.env.JOB_DISPATCH_INTERVAL_MS ?? '2000', 10),
+    workerHeartbeatTimeoutMs: parseInt(process.env.WORKER_HEARTBEAT_TIMEOUT_MS ?? '60000', 10),
     processing: {
         maxDurationSeconds: parseInt(process.env.MAX_VIDEO_DURATION_SECONDS ?? "600", 10),
         maxRetryAttempts: parseInt(process.env.MAX_RETRY_ATTEMPTS ?? "3", 10),

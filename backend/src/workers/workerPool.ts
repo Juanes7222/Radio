@@ -7,6 +7,7 @@ export interface WorkerEntry {
   socket: WebSocket;
   status: "idle" | "busy" | "dead";
   maxConcurrentJobs: number;
+  currentJobs: string[];
   currentJobId?: string;
   lastSeenAt: Date;
 }
@@ -14,31 +15,49 @@ export interface WorkerEntry {
 const pool = new Map<string, WorkerEntry>();
 
 export function registerWorker(entry: WorkerEntry): void {
-  pool.set(entry.workerId, entry);
-  logger.info("WorkerPool", "Worker registered", { workerId: entry.workerId, name: entry.name });
+  pool.set(entry.workerId, { ...entry, currentJobs: [] });
+  logger.info("WorkerPool", "Worker registered", { workerId: entry.workerId, name: entry.name, maxConcurrentJobs: entry.maxConcurrentJobs });
 }
 
-export function updateWorkerHeartbeat(workerId: string, status: "idle" | "busy", currentJobId?: string): void {
+export function updateWorkerHeartbeat(workerId: string, status?: "idle" | "busy", currentJobId?: string): void {
   const worker = pool.get(workerId);
   if (!worker) return;
 
   worker.lastSeenAt = new Date();
-  worker.status = status;
-  worker.currentJobId = currentJobId;
+  if (status) {
+    worker.status = status;
+  }
+  if (currentJobId !== undefined) {
+    worker.currentJobId = currentJobId;
+  }
 }
 
 export function markWorkerBusy(workerId: string, jobId: string): void {
   const worker = pool.get(workerId);
   if (!worker) return;
-  worker.status = "busy";
+
+  if (!worker.currentJobs.includes(jobId)) {
+    worker.currentJobs.push(jobId);
+  }
   worker.currentJobId = jobId;
+
+  if (worker.currentJobs.length >= worker.maxConcurrentJobs) {
+    worker.status = "busy";
+  }
 }
 
-export function markWorkerIdle(workerId: string): void {
+export function markWorkerIdle(workerId: string, jobId?: string): void {
   const worker = pool.get(workerId);
   if (!worker) return;
-  worker.status = "idle";
-  worker.currentJobId = undefined;
+
+  if (jobId) {
+    worker.currentJobs = worker.currentJobs.filter((id) => id !== jobId);
+  } else {
+    worker.currentJobs = [];
+  }
+
+  worker.currentJobId = worker.currentJobs[0];
+  worker.status = worker.currentJobs.length === 0 ? "idle" : "busy";
 }
 
 export function removeWorker(workerId: string): void {
@@ -46,9 +65,12 @@ export function removeWorker(workerId: string): void {
   logger.info("WorkerPool", "Worker removed", { workerId });
 }
 
-export function getAvailableWorker(): WorkerEntry | null {
+export function getAvailableWorker(maxHeartbeatMs?: number): WorkerEntry | null {
+  const now = Date.now();
   for (const worker of pool.values()) {
-    if (worker.status === "idle" && worker.socket.readyState === WebSocket.OPEN) {
+    if (worker.socket.readyState !== WebSocket.OPEN) continue;
+    if (maxHeartbeatMs && now - worker.lastSeenAt.getTime() > maxHeartbeatMs) continue;
+    if (worker.currentJobs.length < worker.maxConcurrentJobs) {
       return worker;
     }
   }
@@ -69,6 +91,11 @@ export function pruneDeadWorkers(timeoutMs: number): void {
     const elapsed = now - worker.lastSeenAt.getTime();
     if (elapsed > timeoutMs) {
       logger.warn("WorkerPool", "Worker timed out, removing", { workerId });
+      try {
+        worker.socket.close();
+      } catch {
+        // ignore
+      }
       pool.delete(workerId);
     }
   }

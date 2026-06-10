@@ -9,6 +9,8 @@ router.get("/workers", (_req: Request, res: Response) => {
     workerId: w.workerId,
     name: w.name,
     status: w.status,
+    maxConcurrentJobs: w.maxConcurrentJobs,
+    currentJobs: w.currentJobs,
     currentJobId: w.currentJobId,
     lastSeenAt: w.lastSeenAt,
   }));

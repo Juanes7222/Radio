@@ -1,4 +1,3 @@
-import fetch from "node-fetch";
 import { config } from "../../config";
 import { logger } from "../../utils/logger";
 import { prisma } from "../../lib/prisma";
@@ -25,7 +24,7 @@ export async function subscribeToChannel(channelId: string): Promise<void> {
     signal: AbortSignal.timeout(15_000),
   });
 
-  if (response.status !== 202 && response.status !== 200) {
+  if (response.status !== 202 && response.status !== 200 && response.status !== 204) {
     const body = await response.text();
     throw new Error(`Subscription failed [${response.status}]: ${body}`);
   }

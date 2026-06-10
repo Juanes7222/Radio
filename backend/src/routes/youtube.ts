@@ -45,10 +45,6 @@ router.post("/webhook", async (req: Request, res: Response) => {
     data: { videoId, channelId, title, publishedAt, status: "RECEIVED", attempts: 0 },
   });
 
-  await prisma.youTubeVideo.create({
-    data: { videoId, channelId, title, publishedAt, status: "RECEIVED", attempts: 0 },
-  });
-
   await prisma.processingJob.create({
     data: { videoId, status: "PENDING" },
   });

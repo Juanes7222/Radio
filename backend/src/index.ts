@@ -76,7 +76,7 @@ app.listen(config.port, async () => {
 
   startWorkerServer();
 
-  setInterval(dispatchPendingJobs, parseInt(process.env.JOB_DISPATCH_INTERVAL_MS ?? '2000', 10));
+  setInterval(dispatchPendingJobs, config.jobDispatchIntervalMs);
 
   await subscribeToAllConfiguredChannels();
   setInterval(subscribeToAllConfiguredChannels, 20 * 60 * 60 * 1000);

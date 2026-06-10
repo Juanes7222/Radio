@@ -1,10 +1,10 @@
 import { prisma } from "../lib/prisma";
-import { env } from "../config/env";
+import { config } from "../config";
 import { logger } from "../utils/logger";
-import { getAvailableWorker, markWorkerBusy } from "../workers/workerPool";
+import { getAvailableWorker, markWorkerBusy, markWorkerIdle } from "../workers/workerPool";
 import { AssignJobMessage, JobDoneMessage, JobErrorMessage } from "../types/protocol.types";
 
-const MAX_RETRY_ATTEMPTS = 3;
+const MAX_RETRY_ATTEMPTS = config.processing.maxRetryAttempts;
 
 export async function dispatchPendingJobs(): Promise<void> {
   const pendingJobs = await prisma.processingJob.findMany({
@@ -14,7 +14,7 @@ export async function dispatchPendingJobs(): Promise<void> {
   });
 
   for (const job of pendingJobs) {
-    const worker = getAvailableWorker();
+    const worker = getAvailableWorker(config.workerHeartbeatTimeoutMs);
     if (!worker) break;
 
     const video = await prisma.youTubeVideo.findUnique({ where: { videoId: job.videoId } });
@@ -27,7 +27,7 @@ export async function dispatchPendingJobs(): Promise<void> {
       data: {
         status: "ASSIGNED",
         workerId: worker.workerId,
-        startedAt: new Date(),
+        ...(job.startedAt ? {} : { startedAt: new Date() }),
         attempts: { increment: 1 },
       },
     });
@@ -44,17 +44,39 @@ export async function dispatchPendingJobs(): Promise<void> {
       url: `https://www.youtube.com/watch?v=${video.videoId}`,
       title: video.title,
       channelId: video.channelId,
-      maxDurationSeconds: env.processing.maxDurationSeconds,
+      maxDurationSeconds: config.processing.maxDurationSeconds,
       azuracast: {
-        baseUrl: env.azuracast.baseUrl,
-        apiKey: env.azuracast.apiKey,
-        stationId: env.azuracast.stationId,
-        playlistId: env.azuracast.playlistId,
+        baseUrl: config.azuracast.baseUrl,
+        apiKey: config.azuracast.apiKey,
+        stationId: config.azuracast.stationId,
+        playlistId: config.azuracast.playlistId,
       },
     };
 
-    worker.socket.send(JSON.stringify(message));
-    logger.info("JobDispatcher", "Job assigned", { jobId: job.id, workerId: worker.workerId });
+    try {
+      worker.socket.send(JSON.stringify(message));
+      logger.info("JobDispatcher", "Job assigned", { jobId: job.id, workerId: worker.workerId });
+    } catch (sendErr) {
+      // Rollback: worker no recibió el mensaje
+      markWorkerIdle(worker.workerId, job.id);
+      await prisma.processingJob.update({
+        where: { id: job.id },
+        data: {
+          status: job.status,
+          workerId: null,
+          startedAt: job.startedAt,
+        },
+      });
+      await prisma.workerNode.update({
+        where: { workerId: worker.workerId },
+        data: { currentJobId: null, status: "ONLINE" },
+      });
+      logger.error("JobDispatcher", "Failed to send job to worker, rolled back", {
+        jobId: job.id,
+        workerId: worker.workerId,
+        error: String(sendErr),
+      });
+    }
   }
 }
 

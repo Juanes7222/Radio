@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { IncomingMessage } from "http";
 import { prisma } from "../lib/prisma";
-import { env } from "../config/env";
+import { config } from "../config";
 import { logger } from "../utils/logger";
 import {
   WorkerMessage,
@@ -13,13 +13,14 @@ import {
   markWorkerIdle,
   removeWorker,
   pruneDeadWorkers,
+  getAllWorkers,
 } from "./workerPool";
 import { handleJobDone, handleJobError, handleJobStatus } from "../jobs/jobDispatcher";
 
 export function startWorkerServer(): WebSocketServer {
-  const wss = new WebSocketServer({ port: parseInt(process.env.WS_PORT ?? "3001", 10) });
+  const wss = new WebSocketServer({ port: config.worker.port });
 
-  logger.info("WorkerServer", "WebSocket server started", { port: process.env.WS_PORT ?? "3001" });
+  logger.info("WorkerServer", "WebSocket server started", { port: config.worker.port });
 
   wss.on("connection", (socket: WebSocket, req: IncomingMessage) => {
     logger.info("WorkerServer", "New connection attempt", { ip: req.socket.remoteAddress });
@@ -53,7 +54,8 @@ export function startWorkerServer(): WebSocketServer {
           break;
 
         case "pong":
-          updateWorkerHeartbeat(message.workerId, "idle");
+          // Solo actualiza lastSeenAt, no muta el status
+          updateWorkerHeartbeat(message.workerId);
           break;
 
         case "job_ack":
@@ -67,12 +69,12 @@ export function startWorkerServer(): WebSocketServer {
 
         case "job_done":
           await handleJobDone(message);
-          markWorkerIdle(message.workerId);
+          markWorkerIdle(message.workerId, message.jobId);
           break;
 
         case "job_error":
           await handleJobError(message);
-          markWorkerIdle(message.workerId);
+          markWorkerIdle(message.workerId, message.jobId);
           break;
       }
     });
@@ -89,16 +91,29 @@ export function startWorkerServer(): WebSocketServer {
     });
   });
 
+  // Ping a todos los workers cada 30 segundos
+  setInterval(() => {
+    for (const worker of getAllWorkers()) {
+      if (worker.socket.readyState === WebSocket.OPEN) {
+        try {
+          worker.socket.send(JSON.stringify({ type: "ping" }));
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, 30_000);
+
   // Limpia workers muertos cada 30 segundos
   setInterval(() => {
-    pruneDeadWorkers(parseInt(process.env.WORKER_HEARTBEAT_TIMEOUT_MS ?? "60000", 10));
+    pruneDeadWorkers(config.workerHeartbeatTimeoutMs);
   }, 30_000);
 
   return wss;
 }
 
 async function handleRegister(socket: WebSocket, message: RegisterMessage): Promise<string | null> {
-  if (message.secret !== process.env.WORKER_AUTH_SECRET) {
+  if (message.secret !== config.worker.authSecret) {
     logger.warn("WorkerServer", "Worker auth failed", { workerId: message.workerId });
     socket.close(1008, "Invalid secret");
     return null;
@@ -110,6 +125,7 @@ async function handleRegister(socket: WebSocket, message: RegisterMessage): Prom
     socket,
     status: "idle",
     maxConcurrentJobs: message.maxConcurrentJobs,
+    currentJobs: [],
     lastSeenAt: new Date(),
   });
 
