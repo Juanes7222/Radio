@@ -1,3 +1,6 @@
 [submodule "packages/assets/bible/Holy-Bible-XML-Format"]
 	path = packages/assets/bible/Holy-Bible-XML-Format
 	url = https://github.com/Juanes7222/Holy-Bible-XML-Format.git
+[submodule "worker"]
+	path = worker
+	url = https://github.com/Juanes7222/worker-client.git
