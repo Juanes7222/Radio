@@ -201,6 +201,20 @@ if [[ "$DEPLOY_BACKEND" == "true" ]]; then
     error "Backend build produced no artifacts."
     exit 1
   fi
+
+  info "Generating Prisma client..."
+  pnpm --filter backend run prisma:generate
+
+  info "Applying database migrations..."
+  pnpm --filter backend exec prisma migrate deploy
+
+  BIBLE_DB="$BACKEND_DIR/prisma/dev.db"
+  if [[ ! -f "$BIBLE_DB" ]] || [[ ! -s "$BIBLE_DB" ]]; then
+    info "Bible database not found or empty — running seed..."
+    pnpm --filter backend exec ts-node scripts/seed-bible.ts
+  else
+    info "Bible database already exists. Skipping seed."
+  fi
 fi
 
 if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
