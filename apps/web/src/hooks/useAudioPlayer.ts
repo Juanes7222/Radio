@@ -6,7 +6,8 @@ interface UseAudioPlayerProps {
   autoplay?: boolean;
 }
 
-const RECONNECT_DELAYS = [2000, 4000, 8000, 16000, 30000];
+const RECONNECT_DELAYS = [3000, 5000, 10000, 20000, 30000];
+const STREAM_STABLE_MS = 8000;
 
 export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -26,6 +27,7 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
   const retryRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasPlayingRef = useRef(true);
+  const lastSrcChangeRef = useRef(0);
 
   const [state, setState] = useState<PlayerState>({
     isPlaying: false,
@@ -62,13 +64,14 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
     };
 
     const handleStalled = () => {
-      if (wasPlayingRef.current) {
+      if (!wasPlayingRef.current) return;
+      if (isStreamStable()) {
         scheduleReconnect('El stream se interrumpió. Reconectando…');
       }
     };
 
     const scheduleReconnect = (msg: string) => {
-      if (retryTimerRef.current) return; 
+      if (retryTimerRef.current) return;
       const attempt = retryRef.current;
       const delay = RECONNECT_DELAYS[Math.min(attempt, RECONNECT_DELAYS.length - 1)];
       retryRef.current += 1;
@@ -77,12 +80,13 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
 
       retryTimerRef.current = setTimeout(() => {
         retryTimerRef.current = null;
-        const audio = audioRef.current;
-        if (!audio || !wasPlayingRef.current) return;
+        const currentAudio = audioRef.current;
+        if (!currentAudio || !wasPlayingRef.current) return;
         const base = streamUrlRef.current.split('?')[0];
-        audio.src = `${base}?_r=${Date.now()}`;
-        audio.play().catch(() => {
-          scheduleReconnect('No se pudo reconectar.');
+        lastSrcChangeRef.current = Date.now();
+        currentAudio.src = `${base}?_r=${Date.now()}`;
+        currentAudio.play().catch(() => {
+          setState(prev => ({ ...prev, error: 'No se pudo reconectar.', isLoading: false }));
         });
       }, delay);
     };
@@ -115,6 +119,10 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
       } else {
         setState(prev => ({ ...prev, error: errorMessage, isPlaying: false, isLoading: false }));
       }
+    };
+
+    const isStreamStable = () => {
+      return Date.now() - lastSrcChangeRef.current > STREAM_STABLE_MS;
     };
 
     const handleVolumeChange = () => {
@@ -171,12 +179,15 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
 
   const play = useCallback(async () => {
     if (!audioRef.current) return;
+    lastSrcChangeRef.current = Date.now();
     initAudioGraphIfNeeded();
     await resumeAudioContext();
     if (retryTimerRef.current) {
       clearTimeout(retryTimerRef.current);
       retryTimerRef.current = null;
     }
+    retryRef.current = 0;
+    setReconnectAttempt(0);
     wasPlayingRef.current = true;
     setState(prev => ({ ...prev, isLoading: true, isPlaying: false, error: null, requiresUserGesture: false }));
     audioRef.current.src = streamUrlRef.current;
@@ -196,6 +207,7 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
 
   const pause = useCallback(() => {
     if (!audioRef.current) return;
+    lastSrcChangeRef.current = Date.now();
     wasPlayingRef.current = false;
     if (retryTimerRef.current) {
       clearTimeout(retryTimerRef.current);

@@ -47,7 +47,7 @@ const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 23
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
 
-  const { data, isLoading, error } = useAzuraCast({
+  const { data, isLoading, error, getStreamUrl } = useAzuraCast({
     apiBaseUrl: BACKEND_URL,
     pollInterval: 3000,
   });
@@ -59,9 +59,11 @@ export default function PlayerScreen() {
   );
   const artworkUri = song?.art ?? null;
 
+  const streamUrl = getStreamUrl('128');
+
   const { isPlaying, isBuffering, error: audioError, reconnectAttempt, toggle, pause } =
     useAudioPlayer({
-      streamUrl: data?.station?.listen_url ?? '',
+      streamUrl,
       title,
       artist,
       artwork: artworkUri,

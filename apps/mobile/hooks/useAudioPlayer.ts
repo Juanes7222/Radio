@@ -1,7 +1,8 @@
 /**
- * Hook de audio para React Native usando react-native-track-player.
- * Incluye reconexión automática con backoff exponencial y foreground
- * service en Android para reproducción en segundo plano.
+ * React Native audio hook using react-native-track-player.
+ * Implements exponential backoff reconnection and shields
+ * the event listener during manual transitions to prevent
+ * phantom error loops.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import TrackPlayer, {
@@ -12,8 +13,8 @@ import TrackPlayer, {
   usePlaybackState,
 } from 'react-native-track-player';
 
-// Backoff: 2s, 4s, 8s, 16s, 30s (máx)
-const RECONNECT_DELAYS = [2000, 4000, 8000, 16000, 30000];
+const RECONNECT_DELAYS = [3000, 5000, 10000, 20000, 30000];
+const STREAM_STABLE_MS = 8000;
 
 interface UseAudioPlayerProps {
   streamUrl: string;
@@ -48,6 +49,8 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
   const retryRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasPlayingRef = useRef(false);
+  const lastSrcChangeRef = useRef(0);
+
   const streamUrlRef = useRef(streamUrl);
   streamUrlRef.current = streamUrl;
 
@@ -66,26 +69,22 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
   const [error, setError] = useState<string | null>(null);
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
-  const isTransitioningRef = useRef(false);
-
   useEffect(() => {
-    if (isPlaying) {
-      TrackPlayer.updateNowPlayingMetadata({
-        title: infoRef.current.title || 'La Voz de la Verdad',
-        artist: infoRef.current.artist || 'En Vivo',
-        artwork: infoRef.current.artwork || undefined,
-      }).catch(() => {
-        // En caso de que falle por no estar listo
-      });
-    }
+    if (!isPlaying) return;
+
+    TrackPlayer.updateNowPlayingMetadata({
+      title: infoRef.current.title || 'La Voz de la Verdad',
+      artist: infoRef.current.artist || 'En Vivo',
+      artwork: infoRef.current.artwork || undefined,
+    }).catch(() => {
+      // Silent catch for unready player state
+    });
   }, [title, artist, artwork, isPlaying]);
 
   useEffect(() => {
     TrackPlayer.setupPlayer({ autoHandleInterruptions: true })
       .then(() => configureTrackPlayer())
-      .catch(() => {
-        configureTrackPlayer();
-      });
+      .catch(() => configureTrackPlayer());
 
     return () => {
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
@@ -93,23 +92,26 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
   }, []);
 
   useEffect(() => {
-    const subscription = TrackPlayer.addEventListener(Event.PlaybackError, () => {
-      if (!wasPlayingRef.current || isTransitioningRef.current) return;
-      if (retryTimerRef.current) return;
+    const isStreamStable = () => {
+      return Date.now() - lastSrcChangeRef.current > STREAM_STABLE_MS;
+    };
 
+    const scheduleReconnect = (msg: string) => {
+      if (retryTimerRef.current) return;
       const attempt = retryRef.current;
       const delay = RECONNECT_DELAYS[Math.min(attempt, RECONNECT_DELAYS.length - 1)];
       retryRef.current += 1;
       const nextAttempt = retryRef.current;
 
-      setError(`Stream interrumpido. Reconectando… (intento ${nextAttempt})`);
+      setError(`${msg} (intento ${nextAttempt})`);
       setReconnectAttempt(nextAttempt);
 
       retryTimerRef.current = setTimeout(async () => {
         retryTimerRef.current = null;
         if (!wasPlayingRef.current) return;
+
         try {
-          isTransitioningRef.current = true;
+          lastSrcChangeRef.current = Date.now();
           await TrackPlayer.reset();
           await TrackPlayer.add({
             url: streamUrlRef.current,
@@ -119,15 +121,20 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
             isLiveStream: true,
           });
           await TrackPlayer.play();
-        } catch {
-          // Fallo real, lo capturará el próximo ciclo
-        } finally {
-          setTimeout(() => { isTransitioningRef.current = false; }, 1000);
+        } catch (err) {
+          // Defer to next error event
         }
       }, delay);
+    };
+
+    const errorSubscription = TrackPlayer.addEventListener(Event.PlaybackError, () => {
+      if (!wasPlayingRef.current) return;
+      if (!isStreamStable()) return;
+      if (retryTimerRef.current) return;
+      scheduleReconnect('Stream interrumpido. Reconectando');
     });
 
-    const playingSubscription = TrackPlayer.addEventListener(Event.PlaybackState, ({ state }) => {
+    const stateSubscription = TrackPlayer.addEventListener(Event.PlaybackState, ({ state }) => {
       if (state === State.Playing) {
         retryRef.current = 0;
         setError(null);
@@ -136,69 +143,70 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
     });
 
     return () => {
-      subscription.remove();
-      playingSubscription.remove();
+      errorSubscription.remove();
+      stateSubscription.remove();
     };
   }, []);
 
   const play = useCallback(async () => {
-      if (!streamUrl) return;
-      
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = null;
-      }
+    if (!streamUrl) return;
 
-      retryRef.current = 0;
-      setError(null);
-      setReconnectAttempt(0);
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
 
-      try {
-        wasPlayingRef.current = false; 
+    lastSrcChangeRef.current = Date.now();
+    wasPlayingRef.current = true;
+    retryRef.current = 0;
+    setError(null);
+    setReconnectAttempt(0);
 
-        await TrackPlayer.reset();
-        await TrackPlayer.add({
-          url: streamUrlRef.current,
-          title: infoRef.current.title || 'La Voz de la Verdad',
-          artist: infoRef.current.artist || 'En Vivo',
-          artwork: infoRef.current.artwork || undefined,
-          isLiveStream: true,
-        });
+    try {
+      await TrackPlayer.reset();
+      await TrackPlayer.add({
+        url: streamUrlRef.current,
+        title: infoRef.current.title || 'La Voz de la Verdad',
+        artist: infoRef.current.artist || 'En Vivo',
+        artwork: infoRef.current.artwork || undefined,
+        isLiveStream: true,
+      });
 
-        wasPlayingRef.current = true;
-        await TrackPlayer.play();
-      } catch {
-        wasPlayingRef.current = false;
-        setError('No se pudo iniciar la reproducción');
-      }
-    }, [streamUrl]);
 
-    const pause = useCallback(async () => {
+      await TrackPlayer.play();
+    } catch (err) {
       wasPlayingRef.current = false;
-      
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = null;
-      }
-      
-      retryRef.current = 0;
-      setError(null);
-      setReconnectAttempt(0);
+      setError('Playback initiation failed');
+    }
+  }, [streamUrl]);
 
-      try {
-        await TrackPlayer.stop(); 
-      } catch {
-        setError('No se pudo detener la reproducción');
-      }
-    }, []);
+  const pause = useCallback(async () => {
+    lastSrcChangeRef.current = Date.now();
+    wasPlayingRef.current = false;
+
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+
+    retryRef.current = 0;
+    setError(null);
+    setReconnectAttempt(0);
+
+    try {
+      await TrackPlayer.stop();
+    } catch {
+      // Silent catch for stop errors
+    }
+  }, []);
 
   const toggle = useCallback(async () => {
-    if (isPlaying || isBuffering) {
+    if (wasPlayingRef.current) {
       await pause();
     } else {
       await play();
     }
-  }, [isPlaying, isBuffering, play, pause]);
+  }, [play, pause]);
 
   const stop = useCallback(async () => {
     await pause();
@@ -206,4 +214,3 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
 
   return { isPlaying, isBuffering, error, reconnectAttempt, play, pause, toggle, stop };
 }
-

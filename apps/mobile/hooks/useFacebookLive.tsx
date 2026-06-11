@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import EventSource from 'react-native-sse';
 
 interface LiveStartPayload {
@@ -6,7 +6,17 @@ interface LiveStartPayload {
   url: string;
 }
 
-export function useFacebookLive() {
+interface FacebookLiveContextType {
+  liveUrl: string | null;
+  dismiss: () => void;
+}
+
+const FacebookLiveContext = createContext<FacebookLiveContextType>({
+  liveUrl: null,
+  dismiss: () => {},
+});
+
+export function FacebookLiveProvider({ children }: { children: React.ReactNode }) {
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
 
   const eventSourceRef = useRef<any>(null);
@@ -30,21 +40,15 @@ export function useFacebookLive() {
 
         es.addEventListener('error', () => {
           console.log('SSE connection error, retrying...');
-
           es.close();
-
           retryRef.current = setTimeout(connect, 5000);
         });
 
         es.addEventListener('live_start', (event: any) => {
           try {
-            const data: LiveStartPayload = JSON.parse(
-              event?.data ?? '{}'
-            );
-
-            console.log('Facebook Live started:', data.url);
-
+            const data: LiveStartPayload = JSON.parse(event?.data ?? '{}');
             if (data.url) {
+              console.log('Facebook Live started:', data.url);
               setLiveUrl(data.url);
             }
           } catch (error) {
@@ -58,7 +62,6 @@ export function useFacebookLive() {
         });
       } catch (error) {
         console.error('Error creating EventSource:', error);
-
         retryRef.current = setTimeout(connect, 5000);
       }
     };
@@ -69,13 +72,22 @@ export function useFacebookLive() {
       if (retryRef.current) {
         clearTimeout(retryRef.current);
       }
-
       eventSourceRef.current?.close();
     };
   }, []);
 
-  return {
+  const contextValue = {
     liveUrl,
     dismiss: () => setLiveUrl(null),
   };
+
+  return (
+    <FacebookLiveContext.Provider value={contextValue}>
+      {children}
+    </FacebookLiveContext.Provider>
+  );
+}
+
+export function useFacebookLive() {
+  return useContext(FacebookLiveContext);
 }

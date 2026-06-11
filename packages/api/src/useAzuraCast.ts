@@ -37,8 +37,8 @@ export function useAzuraCast({
         headers: { Accept: 'application/json' },
       });
       let responseData = response.data;
-      if (typeof window !== "undefined") {
-        const urlBase = apiBaseUrl || window.location.origin;
+      const urlBase = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+      if (urlBase) {
         responseData = JSON.parse(JSON.stringify(responseData).replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, urlBase));
       }
       setData(responseData);
@@ -227,8 +227,8 @@ export function useAzuraCast({
       });
 
       let responseData = response.data;
-      if (typeof window !== "undefined") {
-        const urlBase = apiBaseUrl || window.location.origin;
+      const urlBase = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+      if (urlBase) {
         responseData = JSON.parse(JSON.stringify(responseData).replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, urlBase));
       }
       return Array.isArray(responseData) ? responseData : (responseData.result ?? responseData.rows ?? responseData.data ?? []);
@@ -244,8 +244,8 @@ export function useAzuraCast({
           headers: { Accept: 'application/json' },
         });
         let responseData = response.data;
-        if (typeof window !== "undefined") {
-          const urlBase = apiBaseUrl || window.location.origin;
+        const urlBase = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+        if (urlBase) {
           responseData = JSON.parse(JSON.stringify(responseData).replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, urlBase));
         }
         return Array.isArray(responseData) ? responseData : (responseData.result ?? responseData.rows ?? responseData.data ?? null);
@@ -259,19 +259,25 @@ export function useAzuraCast({
   const getStreamUrl = useCallback(
     (quality: StreamQuality): string => {
       if (!data?.station) return '';
+
       const mounts = data.station.mounts;
       const defaultMount = mounts.find((m) => m.is_default) || mounts[0];
-      if (!defaultMount) return '';
-      const qualityNum = parseInt(quality);
-      const matchingMount = mounts.find((m) => m.bitrate === qualityNum);
-      let streamUrl = matchingMount ? matchingMount.url : defaultMount.url;
+      let streamUrl: string;
+
+      if (defaultMount) {
+        const qualityNum = parseInt(quality);
+        const matchingMount = mounts.find((m) => m.bitrate === qualityNum);
+        streamUrl = matchingMount ? matchingMount.url : defaultMount.url;
+      } else {
+        streamUrl = data.station.listen_url || '';
+      }
 
       // Fix mixed content or localhost URLs coming natively from AzuraCast
       const baseUrl = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
       if (baseUrl) {
         streamUrl = streamUrl.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl);
       }
-      
+
       return streamUrl;
     },
     [data, apiBaseUrl]

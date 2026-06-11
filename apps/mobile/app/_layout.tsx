@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 import TrackPlayer from 'react-native-track-player';
 import { PlaybackService } from '../service';
+import { FacebookLiveProvider } from '@/hooks/useFacebookLive';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -42,9 +43,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+        <FacebookLiveProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        </FacebookLiveProvider>
         <StatusBar style="light" translucent backgroundColor="transparent" />
       </SafeAreaProvider>
     </GestureHandlerRootView>
