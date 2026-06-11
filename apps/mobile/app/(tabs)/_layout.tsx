@@ -72,7 +72,17 @@ export default function TabLayout() {
           ),
         }}
       />
-      
+
+      <Tabs.Screen
+        name="prayer"
+        options={{
+          title: 'Oración',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="heart" size={size - 2} color={color} />
+          ),
+        }}
+      />
+
       <Tabs.Screen
         name="social"
         options={{

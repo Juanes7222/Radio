@@ -193,7 +193,17 @@ model GenerationLog {
   durationMs      Int?     @map("duration_ms")
   startedAt       DateTime @default(now()) @map("started_at")
   finishedAt      DateTime? @map("finished_at")
-  
+
   @@map("generation_logs")
   @@index([startedAt])
+}
+
+model PrayerRequest {
+  id        String   @id @default(uuid())
+  name      String
+  request   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("prayer_requests")
+  @@index([createdAt])
 }

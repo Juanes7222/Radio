@@ -52,4 +52,18 @@ export const config = {
         maxRetryAttempts: parseInt(process.env.MAX_RETRY_ATTEMPTS ?? "3", 10),
         tempDir: process.env.TEMP_DOWNLOAD_DIR ?? "/tmp/yt-downloads",
     },
+    email: {
+        host: process.env.SMTP_HOST ?? 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT ?? '587', 10),
+        user: process.env.SMTP_USER ?? '',
+        pass: process.env.SMTP_PASSWORD ?? '',
+        apiKey: process.env.BREVO_API_KEY ?? '',
+        emails: (process.env.EMAIL_RECIPIENTS ?? '').split(',').map(e => e.trim()).filter(Boolean)
+    },
+    prayer: {
+        recipients: (process.env.PRAYER_EMAIL_RECIPIENTS ?? '')
+            .split(',')
+            .map(e => e.trim())
+            .filter(Boolean),
+    },
 };

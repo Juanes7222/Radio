@@ -15,6 +15,7 @@ import {
   AdminDashboard,
   AdminPlaylists,
   AdminRequests,
+  AdminPrayerRequests,
   AdminStreaming,
   AdminSchedule,
   AdminUpload,
@@ -49,6 +50,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="dashboard" element={<AdminDashboard />} />
                   <Route path="playlists" element={<AdminPlaylists />} />
                   <Route path="requests" element={<AdminRequests />} />
+                  <Route path="prayer" element={<AdminPrayerRequests />} />
                   <Route path="streaming" element={<AdminStreaming />} />
                   <Route path="schedule" element={<AdminSchedule />} />
                   <Route path="upload" element={<AdminUpload />} />

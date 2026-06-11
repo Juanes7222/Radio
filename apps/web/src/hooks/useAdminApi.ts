@@ -117,15 +117,24 @@ export function useAdminApi() {
     [request]
   );
 
-  // ── Media ────────────────────────────────────────────────────
-  const getMedia = useCallback(
-    (page = 1) =>
-      request<{ page: unknown; links: unknown; rows: unknown[] }>({
-        url: '/admin-api/station/files',
-        params: { per_page: 50, page },
-      }),
-    [request]
-  );
+    // ── Peticiones de oración ──────────────────────────────────
+    const getPrayerRequests = useCallback(
+      () =>
+        request<{ rows: unknown[] }>({
+          url: '/admin-api/prayer',
+        }),
+      [request]
+    );
+
+    // ── Media ────────────────────────────────────────────────────
+    const getMedia = useCallback(
+      (page = 1) =>
+        request<{ page: unknown; links: unknown; rows: unknown[] }>({
+          url: '/admin-api/station/files',
+          params: { per_page: 50, page },
+        }),
+      [request]
+    );
 
   const createPlaylist = useCallback(
     (data: {
@@ -164,6 +173,7 @@ export function useAdminApi() {
     deletePlaylist,
     getPendingRequests,
     approveRequest,
+    getPrayerRequests,
     getStreamers,
     createStreamer,
     deleteStreamer,
