@@ -269,7 +269,7 @@ if [[ "$DEPLOY_FRONTEND" == "true" ]] && [[ -d "$FRONTEND_DIR/dist" ]]; then
 fi
 
 if [[ "$DEPLOY_BACKEND" == "true" ]]; then
-  pnpm run build --workspace=backend
+  pnpm --filter backend run build
   if [[ ! -d "$BACKEND_DIR/dist" ]] || [[ -z "$(ls -A "$BACKEND_DIR/dist")" ]]; then
     error "Backend build produced no artifacts."
     exit 1
@@ -291,7 +291,7 @@ if [[ "$DEPLOY_BACKEND" == "true" ]]; then
 fi
 
 if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
-  pnpm run build --workspace=@radio/web
+  pnpm --filter @radio/web run build
   if [[ ! -d "$FRONTEND_DIR/dist" ]] || [[ -z "$(ls -A "$FRONTEND_DIR/dist")" ]]; then
     error "Frontend build produced no artifacts."
     exit 1

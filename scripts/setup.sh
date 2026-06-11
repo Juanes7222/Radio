@@ -105,8 +105,8 @@ if ! pnpm audit --audit-level=high; then
   exit 1
 fi
 
-pnpm run build --workspace=backend
-pnpm run build --workspace=@radio/web
+pnpm --filter backend run build
+pnpm --filter @radio/web run build
 pnpm prune --omit=dev
 
 info "Step 6/14 — Configuring panel password..."
