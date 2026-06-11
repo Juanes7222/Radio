@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { initializeInfisicalSecrets } from '@radio/infisical-config';
+import { initializeInfisicalSecrets } from './infisical';
 
 dotenv.config();
 

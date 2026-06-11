@@ -269,14 +269,14 @@ if [[ "$DEPLOY_FRONTEND" == "true" ]] && [[ -d "$FRONTEND_DIR/dist" ]]; then
 fi
 
 if [[ "$DEPLOY_BACKEND" == "true" ]]; then
+  info "Generating Prisma client..."
+  pnpm --filter ./backend run prisma:generate
+
   pnpm --filter ./backend run build
   if [[ ! -d "$BACKEND_DIR/dist" ]] || [[ -z "$(ls -A "$BACKEND_DIR/dist")" ]]; then
     error "Backend build produced no artifacts."
     exit 1
   fi
-
-  info "Generating Prisma client..."
-  pnpm --filter ./backend run prisma:generate
 
   info "Applying database migrations..."
   pnpm --filter ./backend exec prisma migrate deploy

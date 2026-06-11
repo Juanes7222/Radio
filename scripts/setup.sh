@@ -31,7 +31,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 DEPLOY_DIR="${DEPLOY_DIR:-/var/www/radio}"
-BACKEND_DIR="$DEPLOY_DIR/apps/backend"
+BACKEND_DIR="$DEPLOY_DIR/backend"
 FRONTEND_DIR="$DEPLOY_DIR/apps/web"
 SCRIPTS_DIR="$DEPLOY_DIR/scripts"
 
@@ -96,7 +96,7 @@ fi
 cd "$DEPLOY_DIR"
 
 info "Step 5/14 — Installing dependencies and building..."
-rm -rf node_modules package-lock.json
+rm -rf node_modules package-lock.json pnpm-lock.yaml
 pnpm install
 
 # FIX: Abort on high/critical vulnerabilities
@@ -104,6 +104,9 @@ if ! pnpm audit --audit-level=high; then
   error "High severity vulnerabilities found."
   exit 1
 fi
+
+info "Generating Prisma client..."
+pnpm --filter backend run prisma:generate
 
 pnpm --filter backend run build
 pnpm --filter @radio/web run build

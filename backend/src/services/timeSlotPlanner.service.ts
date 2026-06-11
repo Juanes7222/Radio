@@ -254,6 +254,8 @@ export async function getPendingHoursForToday(): Promise<number[]> {
     },
   });
 
-  const coveredHours = new Set(schedules.map((s) => s.scheduledHour));
+  const coveredHours = new Set(
+    schedules.map((s: { scheduledHour: number }) => s.scheduledHour)
+  );
   return futureHours.filter((h) => !coveredHours.has(h));
 }
