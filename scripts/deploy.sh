@@ -306,7 +306,7 @@ if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
   fi
 fi
 
-pnpm prune --omit=dev
+pnpm prune --prod
 
 step "6/8 — Updating Nginx configuration"
 
