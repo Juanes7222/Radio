@@ -107,7 +107,7 @@ fi
 
 pnpm --filter backend run build
 pnpm --filter @radio/web run build
-pnpm prune --omit=dev
+pnpm prune --prod
 
 info "Step 6/14 — Configuring panel password..."
 echo "$PANEL_PASS" | htpasswd -ci /etc/nginx/.htpasswd admin
