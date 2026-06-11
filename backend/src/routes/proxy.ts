@@ -81,6 +81,17 @@ function buildPublicUrl(req: Request): string {
   return `${protocol}://${host}`;
 }
 
+const SCHEDULE_EXCLUSIONS = ['CONTENIDO VARIADO', 'MUSICA', 'JINGLES', 'JINGLE'];
+
+function filterSchedule(data: unknown): unknown {
+  if (!Array.isArray(data)) return data;
+  return data.filter((item: any) => {
+    const title = item?.title ?? '';
+    const normalized = title.toLowerCase();
+    return !SCHEDULE_EXCLUSIONS.some(ex => normalized.includes(ex.toLowerCase()));
+  });
+}
+
 function rewriteInternalUrls(data: unknown, publicUrl: string): unknown {
   const azuraUrl = config.azuracast.url; 
   
@@ -127,7 +138,7 @@ publicRouter.get('/search', (req, res) => {
 publicRouter.get('/schedule', (req, res) => {
   const publicUrl = buildPublicUrl(req);
   proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/schedule`,
-    (data) => rewriteInternalUrls(data, publicUrl));
+    (data) => rewriteInternalUrls(filterSchedule(data), publicUrl));
 });
 
 publicRouter.get('/station/:stationId/art/:artId', async (req, res) => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAzuraCast } from '@radio/api'; // Ajusta la ruta a tus hooks
@@ -21,7 +21,7 @@ const BACKGROUND = '#0c0c1e';
 const CARD_BG = '#16162c';
 const TEXT_MUTED = '#8b92a5';
 
-function ProgramCard({ program, idx }: { program: ScheduleItem; idx: number }) {
+function ProgramCard({ program, idx, onPress }: { program: ScheduleItem; idx: number; onPress?: () => void }) {
   const accent = SLOT_ACCENTS[idx % SLOT_ACCENTS.length];
 
   const startD = new Date(program.start_timestamp * 1000);
@@ -31,7 +31,7 @@ function ProgramCard({ program, idx }: { program: ScheduleItem; idx: number }) {
   const isLive = program.type === 'streamer';
 
   return (
-    <View style={styles.cardWrapper}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.cardWrapper}>
       {/* Línea vertical y punto de tiempo */}
       <View style={styles.timelineIndicator}>
         <View style={styles.verticalLine} />
@@ -80,7 +80,7 @@ function ProgramCard({ program, idx }: { program: ScheduleItem; idx: number }) {
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -89,6 +89,7 @@ export default function ScheduleScreen() {
   const { fetchSchedule } = useAzuraCast({});
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProgram, setSelectedProgram] = useState<ScheduleItem | null>(null);
 
   const currentDay = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState(currentDay);
@@ -179,7 +180,7 @@ export default function ScheduleScreen() {
         ) : programsForDay.length > 0 ? (
           <View style={styles.timelineContainer}>
             {programsForDay.map((program, idx) => (
-              <ProgramCard key={`${program.id}-${program.start_timestamp}`} program={program} idx={idx} />
+              <ProgramCard key={`${program.id}-${program.start_timestamp}`} program={program} idx={idx} onPress={() => setSelectedProgram(program)} />
             ))}
           </View>
         ) : (
@@ -194,6 +195,44 @@ export default function ScheduleScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Program Detail Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={!!selectedProgram}
+        onRequestClose={() => setSelectedProgram(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{selectedProgram?.title}</Text>
+              <Pressable onPress={() => setSelectedProgram(null)} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#ffffff" />
+              </Pressable>
+            </View>
+            <View style={styles.modalBody}>
+              <View style={styles.detailRow}>
+                <Ionicons name="time-outline" size={18} color={TEXT_MUTED} />
+                <Text style={styles.detailText}>
+                  {selectedProgram && new Date(selectedProgram.start_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} - {' '}
+                  {selectedProgram && new Date(selectedProgram.end_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Ionicons 
+                  name={selectedProgram?.type === 'streamer' ? "mic-outline" : "musical-notes-outline"} 
+                  size={18} 
+                  color={TEXT_MUTED} 
+                />
+                <Text style={styles.detailText}>
+                  {selectedProgram?.type === 'streamer' ? 'Programa en vivo con locutor' : 'Programa automático'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -433,5 +472,52 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  modalTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 12,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalBody: {
+    padding: 20,
+    gap: 16,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  detailText: {
+    color: '#ffffff',
+    fontSize: 14,
+    flex: 1,
   },
 });

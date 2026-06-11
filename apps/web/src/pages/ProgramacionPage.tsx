@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { Clock, Radio, Mic2, Music2 } from 'lucide-react';
 import { useTheme, useAzuraCast } from '@/hooks';
 import { Header } from '@/components/ui-custom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { ScheduleItem } from '@radio/types';
 
 
@@ -44,9 +45,11 @@ function TimelineLine({ count }: { count: number }) {
 function ProgramCard({
   program,
   idx,
+  onClick,
 }: {
   program: ScheduleItem;
   idx: number;
+  onClick?: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-60px' });
@@ -65,6 +68,10 @@ function ProgramCard({
       animate={inView ? { opacity: 1, x: 0 } : { opacity: 0, x: -16 }}
       transition={{ duration: 0.5, delay: idx * 0.06, ease: [0.16, 1, 0.3, 1] }}
       className="relative flex gap-5 pl-14 pb-8 last:pb-0"
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick?.(); }}
     >
       {/* Timeline dot */}
       <span
@@ -190,7 +197,7 @@ function SkeletonCard() {
    Main Page
 ───────────────────────────────────────────── */
 export function ProgramacionPage() {
-  // Ya no dependemos de resolvedTheme para la mayoría del estilado, 
+  // Ya no dependemos de resolvedTheme para la mayoría del estilado,
   // pero lo mantenemos si lo necesitas para la lógica del badge "Hoy".
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -198,6 +205,7 @@ export function ProgramacionPage() {
   const { fetchSchedule } = useAzuraCast({});
   const [schedule, setSchedule]   = useState<ScheduleItem[]>([]);
   const [loading, setLoading]     = useState(true);
+  const [selectedProgram, setSelectedProgram] = useState<ScheduleItem | null>(null);
 
   const currentDay = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState(currentDay);
@@ -325,6 +333,7 @@ export function ProgramacionPage() {
                     key={`${program.id}-${program.start_timestamp}`}
                     program={program}
                     idx={idx}
+                    onClick={() => setSelectedProgram(program)}
                   />
                 ))}
               </div>
@@ -351,6 +360,41 @@ export function ProgramacionPage() {
         </AnimatePresence>
 
       </div>
+
+      {/* Program Detail Dialog */}
+      <Dialog open={!!selectedProgram} onOpenChange={() => setSelectedProgram(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{selectedProgram?.title}</DialogTitle>
+            <DialogDescription>
+              {selectedProgram && (
+                <div className="space-y-3 mt-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 opacity-60" />
+                    <span className="text-sm">
+                      {new Date(selectedProgram.start_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} - {' '}
+                      {new Date(selectedProgram.end_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {selectedProgram.type === 'streamer' ? (
+                      <>
+                        <Mic2 className="w-4 h-4 opacity-60" />
+                        <span className="text-sm">Programa en vivo con locutor</span>
+                      </>
+                    ) : (
+                      <>
+                        <Music2 className="w-4 h-4 opacity-60" />
+                        <span className="text-sm">Programa automático</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
 
       {/* Scrollbar hide */}
       <style>{`.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`}</style>
