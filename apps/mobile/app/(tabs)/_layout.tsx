@@ -11,7 +11,7 @@ export default function TabLayout() {
   const { liveUrl } = useFacebookLive();
   const insets = useSafeAreaInsets();
 
-  const BASE_HEIGHT = Platform.OS === 'ios' ? 55 : 60;
+  const BASE_HEIGHT = Platform.OS === 'ios' ? 55 : 63;
   const TAB_HEIGHT = BASE_HEIGHT + insets.bottom;
 
   return (
@@ -25,8 +25,8 @@ export default function TabLayout() {
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: 'rgba(255, 255, 255, 0.15)',
           height: TAB_HEIGHT,
-          paddingBottom: Platform.OS === 'ios' ? insets.bottom : insets.bottom + 8,
-          paddingTop: 8,
+          paddingBottom: Platform.OS === 'ios' ? insets.bottom: insets.bottom + 8,
+          paddingTop: 2,
           elevation: 0,
         },
         tabBarItemStyle: {

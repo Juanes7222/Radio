@@ -326,7 +326,7 @@ export default function PlayerScreen() {
       <View
         style={[
           styles.bottomSection,
-          { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + Spacing.md - 30},
+          { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + Spacing.md - 60},
         ]}
       >
         <PlayerControls
