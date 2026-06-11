@@ -77,6 +77,7 @@ bash "$NODESOURCE_SCRIPT"
 rm -f "$NODESOURCE_SCRIPT"
 apt-get install -y nodejs
 info "Node: $(node -v) | npm: $(npm -v)"
+npm install -g pnpm
 
 info "Step 3/14 — Creating service user '$SERVICE_USER'..."
 if ! id "$SERVICE_USER" &>/dev/null; then
