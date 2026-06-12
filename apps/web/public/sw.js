@@ -34,11 +34,20 @@ const STATIC_ASSETS = [
   // PWA general
   '/icon-512x512.png',
 ];
-// Instalación: cachear assets estáticos
+// Instalación: cachear assets estáticos de forma individual
+// para que un solo asset que falte no rompa toda la instalación.
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const results = await Promise.allSettled(
+        STATIC_ASSETS.map((url) => cache.add(url))
+      );
+      const failed = results
+        .map((r, i) => ({ url: STATIC_ASSETS[i], reason: r.status === 'rejected' ? r.reason : undefined }))
+        .filter((r) => r.reason);
+      if (failed.length) {
+        console.warn('[SW] Failed to cache some assets:', failed.map((f) => f.url));
+      }
     })
   );
   self.skipWaiting();

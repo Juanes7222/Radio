@@ -391,6 +391,9 @@ importers:
       '@infisical/sdk':
         specifier: ^5.0.2
         version: 5.0.2
+      '@radio/infisical-config':
+        specifier: workspace:*
+        version: link:../packages/infisical-config
       axios:
         specifier: ^1.16.0
         version: 1.17.0

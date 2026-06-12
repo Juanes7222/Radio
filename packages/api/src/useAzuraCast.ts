@@ -181,7 +181,7 @@ export function useAzuraCast({
       if (initialData?.station?.shortcode) {
         setupRealTime(initialData.station.shortcode);
       } else {
-        fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 10000));
+        fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 60000));
       }
     });
 
