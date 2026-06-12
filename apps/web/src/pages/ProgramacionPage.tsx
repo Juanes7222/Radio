@@ -10,6 +10,21 @@ import type { ScheduleItem } from '@radio/types';
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
+function getBogotaDayOfWeek(dateInput: Date | number): number {
+  const timestampInSeconds =
+    typeof dateInput === 'number' ? dateInput : Math.floor(dateInput.getTime() / 1000);
+  const date = new Date(timestampInSeconds * 1000);
+  const utcDay = date.getUTCDay();
+  const utcHours = date.getUTCHours();
+
+  // Bogota is UTC-5. If UTC hour < 5, subtracting 5 moves to previous day.
+  if (utcHours < 5) {
+    return (utcDay - 1 + 7) % 7;
+  }
+
+  return utcDay;
+}
+
 const SLOT_ACCENTS = [
   { dot: '#e8883a', glow: 'rgba(232,136,58,0.18)', label: 'bg-[#e8883a]' },
   { dot: '#4f98a3', glow: 'rgba(79,152,163,0.18)', label: 'bg-[#4f98a3]' },
@@ -51,8 +66,8 @@ function ProgramCard({
 
   const startD = new Date(program.start_timestamp * 1000);
   const endD   = new Date(program.end_timestamp   * 1000);
-  const startTime = startD.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-  const endTime   = endD.toLocaleTimeString('es-CO',   { hour: '2-digit', minute: '2-digit' });
+  const startTime = startD.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const endTime   = endD.toLocaleTimeString('es-CO',   { hour: '2-digit', minute: '2-digit', hour12: true });
   const isLive    = program.type === 'streamer';
 
   return (
@@ -194,7 +209,7 @@ export function ProgramacionPage() {
   const [loading, setLoading]     = useState(true);
   const [selectedProgram, setSelectedProgram] = useState<ScheduleItem | null>(null);
 
-  const currentDay = new Date().getDay();
+  const currentDay = getBogotaDayOfWeek(new Date());
   const [selectedDay, setSelectedDay] = useState(currentDay);
 
   useEffect(() => {
@@ -212,8 +227,11 @@ export function ProgramacionPage() {
   }, [fetchSchedule]);
 
   const programsForDay = schedule
-    .filter(item => new Date(item.start_timestamp * 1000).getDay() === selectedDay)
-    .sort((a, b) => a.start_timestamp - b.start_timestamp);
+    .filter(item => getBogotaDayOfWeek(item.start_timestamp) === selectedDay)
+    .sort((a, b) => a.start_timestamp - b.start_timestamp)
+    .filter((item, index, self) =>
+      index === self.findIndex(i => i.id === item.id && i.start_timestamp === item.start_timestamp)
+    );
 
   return (
     <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
@@ -358,15 +376,15 @@ export function ProgramacionPage() {
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 opacity-60" />
                     <span className="text-sm">
-                      {new Date(selectedProgram.start_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} - {' '}
-                      {new Date(selectedProgram.end_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(selectedProgram.start_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })} - {' '}
+                      {new Date(selectedProgram.end_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {selectedProgram.type === 'streamer' ? (
                       <>
                         <Mic2 className="w-4 h-4 opacity-60" />
-                        <span className="text-sm">Programa en vivo con locutor</span>
+                        <span className="text-sm">Programa en vivo</span>
                       </>
                     ) : (
                       <>

@@ -92,6 +92,21 @@ function buildPublicUrl(req: Request): string {
 
 const SCHEDULE_EXCLUSIONS = ['CONTENIDO VARIADO', 'MUSICA', 'JINGLES', 'JINGLE'];
 
+function getBogotaDateString(daysOffset = 0): string {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+
+  const now = new Date();
+  const target = new Date(now);
+  target.setDate(now.getDate() + daysOffset);
+
+  return formatter.format(target);
+}
+
 function filterSchedule(data: unknown): unknown {
   if (!Array.isArray(data)) return data;
   return data.filter((item: any) => {
@@ -173,12 +188,8 @@ publicRouter.get('/schedule', (req, res) => {
   const publicUrl = buildPublicUrl(req);
 
   if (!req.query.start || !req.query.end) {
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(startDate.getDate() + 7);
-
-    req.query.start = startDate.toISOString().split('T')[0];
-    req.query.end = endDate.toISOString().split('T')[0];
+    req.query.start = getBogotaDateString(0);
+    req.query.end = getBogotaDateString(6);
   }
 
   proxyToAzuraCast(

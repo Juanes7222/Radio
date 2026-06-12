@@ -82,15 +82,13 @@ export function formatMediaTitle(title: string, artist?: string): ParsedMedia {
   };
 }
 
-export function formatScheduleTime(date: Date): string {
-  const rawHours = date.getHours();
-  const rawMinutes = date.getMinutes();
-  
-  const period = rawHours >= 12 ? 'PM' : 'AM';
-  const normalizedHours = rawHours % 12 || 12;
-  
-  const paddedHours = normalizedHours.toString().padStart(2, '0');
-  const paddedMinutes = rawMinutes.toString().padStart(2, '0');
-  
-  return `${paddedHours}:${paddedMinutes} ${period}`;
+export function formatScheduleTime(timestampInSeconds: number): string {
+  const date = new Date(timestampInSeconds * 1000);
+
+  return new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
 }

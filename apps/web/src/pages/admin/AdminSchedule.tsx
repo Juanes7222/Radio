@@ -11,6 +11,21 @@ import type { ScheduleItem } from '@radio/types';
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
+function getBogotaDayOfWeek(dateInput: Date | number): number {
+  const timestampInSeconds =
+    typeof dateInput === 'number' ? dateInput : Math.floor(dateInput.getTime() / 1000);
+  const date = new Date(timestampInSeconds * 1000);
+  const utcDay = date.getUTCDay();
+  const utcHours = date.getUTCHours();
+
+  // Bogota is UTC-5. If UTC hour < 5, subtracting 5 moves to previous day.
+  if (utcHours < 5) {
+    return (utcDay - 1 + 7) % 7;
+  }
+
+  return utcDay;
+}
+
 const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 
 export default function AdminSchedule() {
@@ -161,7 +176,7 @@ export default function AdminSchedule() {
         /* Vista línea de tiempo */
         <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
           <CardHeader>
-            <CardTitle className="text-base">Hoy — {DAY_NAMES[new Date().getDay()]}</CardTitle>
+            <CardTitle className="text-base">Hoy — {DAY_NAMES[getBogotaDayOfWeek(new Date())]}</CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <div className="min-w-[600px] relative">

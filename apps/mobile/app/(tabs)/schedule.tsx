@@ -10,6 +10,21 @@ import { BACKEND_URL } from '@/constants/api';
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
+function getBogotaDayOfWeek(dateInput: Date | number): number {
+  const timestampInSeconds =
+    typeof dateInput === 'number' ? dateInput : Math.floor(dateInput.getTime() / 1000);
+  const date = new Date(timestampInSeconds * 1000);
+  const utcDay = date.getUTCDay();
+  const utcHours = date.getUTCHours();
+
+  // Bogota is UTC-5. If UTC hour < 5, subtracting 5 moves to previous day.
+  if (utcHours < 5) {
+    return (utcDay - 1 + 7) % 7;
+  }
+
+  return utcDay;
+}
+
 const SLOT_ACCENTS = [
   { dot: '#e8883a', glow: 'rgba(232,136,58,0.25)' },
   { dot: '#4f98a3', glow: 'rgba(79,152,163,0.25)' },
@@ -26,11 +41,11 @@ const TEXT_MUTED = '#8b92a5';
 function ProgramCard({ program, idx, onPress }: { program: ScheduleItem; idx: number; onPress?: () => void }) {
   const accent = SLOT_ACCENTS[idx % SLOT_ACCENTS.length];
 
-  const startD = new Date(program.start_timestamp * 1000);
-  const endD = new Date(program.end_timestamp * 1000);
+  // const startD = new Date(program.start_timestamp * 1000);
+  // const endD = new Date(program.end_timestamp * 1000);
   
-  const startTime = formatScheduleTime(startD);
-  const endTime = formatScheduleTime(endD);
+  const startTime = formatScheduleTime(program.start_timestamp);
+  const endTime = formatScheduleTime(program.end_timestamp);
   
   const isLive = program.type === 'streamer';
 
@@ -90,7 +105,7 @@ export default function ScheduleScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedProgram, setSelectedProgram] = useState<ScheduleItem | null>(null);
 
-  const currentDay = new Date().getDay();
+  const currentDay = getBogotaDayOfWeek(new Date());
   const [selectedDay, setSelectedDay] = useState(currentDay);
 
   useEffect(() => {
@@ -108,8 +123,11 @@ export default function ScheduleScreen() {
   }, [fetchSchedule]);
 
   const programsForDay = schedule
-    .filter(item => new Date(item.start_timestamp * 1000).getDay() === selectedDay)
-    .sort((a, b) => a.start_timestamp - b.start_timestamp);
+    .filter(item => getBogotaDayOfWeek(item.start_timestamp) === selectedDay)
+    .sort((a, b) => a.start_timestamp - b.start_timestamp)
+    .filter((item, index, self) =>
+      index === self.findIndex(i => i.id === item.id && i.start_timestamp === item.start_timestamp)
+    );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -214,8 +232,8 @@ export default function ScheduleScreen() {
               <View style={styles.detailRow}>
                 <Ionicons name="time-outline" size={18} color={TEXT_MUTED} />
                 <Text style={styles.detailText}>
-                  {selectedProgram && new Date(selectedProgram.start_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} - {' '}
-                  {selectedProgram && new Date(selectedProgram.end_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                  {selectedProgram && new Date(selectedProgram.start_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })} - {' '}
+                  {selectedProgram && new Date(selectedProgram.end_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
                 </Text>
               </View>
               <View style={styles.detailRow}>
@@ -225,7 +243,7 @@ export default function ScheduleScreen() {
                   color={TEXT_MUTED} 
                 />
                 <Text style={styles.detailText}>
-                  {selectedProgram?.type === 'streamer' ? 'Programa en vivo con locutor' : 'Programa automático'}
+                  {selectedProgram?.type === 'streamer' ? 'Programa en vivo' : 'Programa automático'}
                 </Text>
               </View>
             </View>
