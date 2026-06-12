@@ -11,6 +11,7 @@
     "build": "pnpm run swagger && tsc"
   },
   "dependencies": {
+    "@radio/infisical-config": "workspace:*",
     "@infisical/sdk": "^5.0.2",
     "axios": "^1.16.0",
     "better-sqlite3": "^12.9.0",
