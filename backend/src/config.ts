@@ -50,6 +50,7 @@ export const config = {
     processing: {
         maxDurationSeconds: parseInt(process.env.MAX_VIDEO_DURATION_SECONDS ?? "600", 10),
         maxRetryAttempts: parseInt(process.env.MAX_RETRY_ATTEMPTS ?? "3", 10),
+        jobDeadlineHours: parseInt(process.env.JOB_DEADLINE_HOURS ?? "48", 10),
         tempDir: process.env.TEMP_DOWNLOAD_DIR ?? "/tmp/yt-downloads",
     },
     email: {

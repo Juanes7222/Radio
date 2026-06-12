@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { parseWebhookXml } from "../utils/xml.parser";
 import { logger } from "../utils/logger";
+import { config } from "../config";
 
 const router = Router();
 
@@ -46,7 +47,11 @@ router.post("/webhook", async (req: Request, res: Response) => {
   });
 
   await prisma.processingJob.create({
-    data: { videoId, status: "PENDING" },
+    data: {
+      videoId,
+      status: "PENDING",
+      deadlineAt: new Date(Date.now() + config.processing.jobDeadlineHours * 60 * 60 * 1000),
+    },
   });
 
   logger.info("YouTubeRouter", "Job created", { videoId });

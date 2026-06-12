@@ -101,8 +101,14 @@ model ProcessingJob {
   lastError  String?
   startedAt  DateTime?
   finishedAt DateTime?
+  deadlineAt DateTime?
+  nextRetryAt DateTime?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+
+  @@index([status])
+  @@index([deadlineAt])
+  @@index([nextRetryAt])
 }
 
 model AnnouncementTemplate {

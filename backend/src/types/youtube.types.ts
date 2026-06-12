@@ -6,7 +6,8 @@ export type VideoStatus =
   | "UPLOADING"
   | "DONE"
   | "ERROR"
-  | "RETRYING";
+  | "RETRYING"
+  | "ABANDONED";
 
 export interface VideoJob {
   videoId: string;
