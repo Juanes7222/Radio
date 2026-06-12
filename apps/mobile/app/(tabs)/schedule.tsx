@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAzuraCast } from '@radio/api'; // Ajusta la ruta a tus hooks
-import type { ScheduleItem } from '@radio/types'; // Ajusta la ruta a tus tipos
+import { useAzuraCast } from '@radio/api';
+import type { ScheduleItem } from '@radio/types';
+import { formatScheduleTime } from '../../lib/formatMedia';
+import { BACKEND_URL } from '@/constants/api';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -26,24 +28,23 @@ function ProgramCard({ program, idx, onPress }: { program: ScheduleItem; idx: nu
 
   const startD = new Date(program.start_timestamp * 1000);
   const endD = new Date(program.end_timestamp * 1000);
-  const startTime = startD.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-  const endTime = endD.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  
+  const startTime = formatScheduleTime(startD);
+  const endTime = formatScheduleTime(endD);
+  
   const isLive = program.type === 'streamer';
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.cardWrapper}>
-      {/* Línea vertical y punto de tiempo */}
       <View style={styles.timelineIndicator}>
         <View style={styles.verticalLine} />
         <View style={[styles.dot, { backgroundColor: accent.dot }]} />
       </View>
 
       <View style={styles.card}>
-        {/* Franja superior de color */}
         <View style={[styles.cardAccent, { backgroundColor: accent.dot }]} />
         
         <View style={styles.cardContent}>
-          {/* Columna de hora */}
           <View style={styles.timeColumn}>
             <View style={styles.timeRow}>
               <Ionicons name="time-outline" size={14} color={TEXT_MUTED} />
@@ -52,10 +53,8 @@ function ProgramCard({ program, idx, onPress }: { program: ScheduleItem; idx: nu
             <Text style={styles.endTime}>→ {endTime}</Text>
           </View>
 
-          {/* Divisor */}
           <View style={styles.divider} />
 
-          {/* Información del programa */}
           <View style={styles.infoColumn}>
             <View style={styles.titleRow}>
               <Text style={styles.title} numberOfLines={1}>{program.title}</Text>
@@ -86,7 +85,7 @@ function ProgramCard({ program, idx, onPress }: { program: ScheduleItem; idx: nu
 
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
-  const { fetchSchedule } = useAzuraCast({});
+  const { fetchSchedule } = useAzuraCast({ apiBaseUrl: BACKEND_URL });
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProgram, setSelectedProgram] = useState<ScheduleItem | null>(null);

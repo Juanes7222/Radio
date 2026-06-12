@@ -10,7 +10,6 @@ import type { ScheduleItem } from '@radio/types';
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-/** Accent per slot index — maps to CSS custom properties */
 const SLOT_ACCENTS = [
   { dot: '#e8883a', glow: 'rgba(232,136,58,0.18)', label: 'bg-[#e8883a]' },
   { dot: '#4f98a3', glow: 'rgba(79,152,163,0.18)', label: 'bg-[#4f98a3]' },
@@ -20,11 +19,6 @@ const SLOT_ACCENTS = [
   { dot: '#e8af34', glow: 'rgba(232,175,52,0.18)',  label: 'bg-[#e8af34]' },
 ];
 
-/* ─────────────────────────────────────────────
-   Sub-components
-───────────────────────────────────────────── */
-
-/** Animated vertical timeline line */
 function TimelineLine({ count }: { count: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true });
@@ -143,7 +137,6 @@ function ProgramCard({
   );
 }
 
-/** Day selector pill */
 function DayPill({
   label,
   isSelected,
@@ -179,7 +172,6 @@ function DayPill({
   );
 }
 
-/** Skeleton card for loading state */
 function SkeletonCard() {
   return (
     <div className="relative flex gap-5 pl-14 pb-8">
@@ -193,12 +185,7 @@ function SkeletonCard() {
   );
 }
 
-/* ─────────────────────────────────────────────
-   Main Page
-───────────────────────────────────────────── */
 export function ProgramacionPage() {
-  // Ya no dependemos de resolvedTheme para la mayoría del estilado,
-  // pero lo mantenemos si lo necesitas para la lógica del badge "Hoy".
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
@@ -233,7 +220,6 @@ export function ProgramacionPage() {
         <Header stationName="La Voz de la Verdad" />
       <div className="max-w-2xl mx-auto px-5 py-14 sm:py-20">
 
-        {/* ── Header ───────────────────────────────── */}
         <motion.header
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}

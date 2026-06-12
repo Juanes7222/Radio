@@ -81,3 +81,16 @@ export function formatMediaTitle(title: string, artist?: string): ParsedMedia {
     isPreaching: false,
   };
 }
+
+export function formatScheduleTime(date: Date): string {
+  const rawHours = date.getHours();
+  const rawMinutes = date.getMinutes();
+  
+  const period = rawHours >= 12 ? 'PM' : 'AM';
+  const normalizedHours = rawHours % 12 || 12;
+  
+  const paddedHours = normalizedHours.toString().padStart(2, '0');
+  const paddedMinutes = rawMinutes.toString().padStart(2, '0');
+  
+  return `${paddedHours}:${paddedMinutes} ${period}`;
+}

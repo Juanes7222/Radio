@@ -171,8 +171,22 @@ publicRouter.get('/search', (req, res) => {
 
 publicRouter.get('/schedule', (req, res) => {
   const publicUrl = buildPublicUrl(req);
-  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/schedule`,
-    (data) => rewriteInternalUrls(filterSchedule(data), publicUrl));
+
+  if (!req.query.start || !req.query.end) {
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + 7);
+
+    req.query.start = startDate.toISOString().split('T')[0];
+    req.query.end = endDate.toISOString().split('T')[0];
+  }
+
+  proxyToAzuraCast(
+    req,
+    res,
+    `/api/station/${config.azuracast.stationId}/schedule`,
+    (data) => rewriteInternalUrls(filterSchedule(data), publicUrl)
+  );
 });
 
 publicRouter.get('/station/:stationId/art/:artId', async (req, res) => {
