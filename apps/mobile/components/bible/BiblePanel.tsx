@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, SafeAreaView, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { Ionicons } from '@expo/vector-icons'; // Considera cambiar a lucide-react-native
+import { Ionicons } from '@expo/vector-icons';
 import { useBible } from '@/hooks/useBible';
 import { BibleChapterNavigator } from './BibleChapterNavigator';
 import { BibleSearch } from './BibleSearch';
@@ -17,6 +17,8 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
   const { chapterData, isLoading, currentBook, currentChapter, currentTranslation, actions, books } = useBible();
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [contentKey, setContentKey] = useState(0);
+  const { height: windowHeight } = useWindowDimensions();
 
   const isFirstBookAndChapter = currentBook === books[0]?.name && currentChapter === 1;
   const isLastBookAndChapter = currentBook === books[books.length - 1]?.name && currentChapter === (books[books.length - 1]?._count?.chapters || 1);
@@ -32,88 +34,97 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
   };
 
   return (
-    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal 
+      visible={isOpen} 
+      transparent 
+      animationType="slide" 
+      onRequestClose={onClose}
+      onShow={() => setContentKey(prev => prev + 1)}
+    >
       <View style={styles.overlay}>
+        <View style={{ height: windowHeight * 0.1 }} pointerEvents="none" />
         <SafeAreaView style={styles.container}>
-          {/* Header Minimalista */}
-          <View style={styles.header}>
-            <View style={styles.headerPill}>
-              <TouchableOpacity style={styles.selectorBtn} onPress={() => setIsNavOpen(true)}>
-                <Text style={styles.selectorBookText}>{currentBook}</Text>
-                <Text style={styles.selectorChapterText}>{currentChapter}</Text>
-                <Ionicons name="chevron-down" size={16} color={Colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.iconBtn} onPress={() => setIsSearchOpen(true)}>
-                <Ionicons name="search" size={22} color={Colors.text} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={onClose} style={styles.iconBtn}>
-                <Ionicons name="close" size={24} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Área de Lectura */}
-          <View style={styles.content}>
-            {isLoading ? (
-              <View style={styles.centerBox}>
-                <ActivityIndicator size="large" color={Colors.accent} />
-                <Text style={styles.centerText}>Cargando capítulo...</Text>
+            {/* Header Minimalista */}
+            <View style={styles.header}>
+              <View style={styles.headerPill}>
+                <TouchableOpacity style={styles.selectorBtn} onPress={() => setIsNavOpen(true)}>
+                  <Text style={styles.selectorBookText}>{currentBook}</Text>
+                  <Text style={styles.selectorChapterText}>{currentChapter}</Text>
+                  <Ionicons name="chevron-down" size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
               </View>
-            ) : chapterData?.verses ? (
-              <ScrollView 
-                contentContainerStyle={styles.versesContainer}
-                showsVerticalScrollIndicator={false}
-              >
-                <Text style={styles.chapterTitle}>{currentBook}</Text>
-                <Text style={styles.chapterSubtitle}>Capítulo {currentChapter}</Text>
-                
-                <View style={styles.readingArea}>
-                  {chapterData.verses.map((verse) => (
-                    <View key={verse.id} style={styles.verseRow}>
-                      <Text style={styles.verseNumber}>{verse.number}</Text>
-                      <Text style={styles.verseText}>{verse.text}</Text>
-                    </View>
-                  ))}
+              
+              <View style={styles.headerActions}>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => setIsSearchOpen(true)}>
+                  <Ionicons name="search" size={22} color={Colors.text} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={onClose} style={styles.iconBtn}>
+                  <Ionicons name="close" size={24} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Área de Lectura */}
+            <View style={styles.content} key={contentKey}>
+              {isLoading ? (
+                <View style={styles.centerBox}>
+                  <ActivityIndicator size="large" color={Colors.accent} />
+                  <Text style={styles.centerText}>Cargando capítulo...</Text>
                 </View>
-              </ScrollView>
-            ) : (
-              <View style={styles.centerBox}>
-                <Text style={styles.centerText}>No se encontró el capítulo.</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Navegación Flotante (Glassmorphism) */}
-          <BlurView intensity={80} tint="dark" style={styles.floatingNavContainer}>
-            <View style={styles.bottomNav}>
-              <TouchableOpacity 
-                style={[styles.navBtn, (isLoading || isFirstBookAndChapter) && styles.navBtnDisabled]}
-                onPress={handlePrevChapter}
-                disabled={isLoading || isFirstBookAndChapter}
-              >
-                <Ionicons name="arrow-back" size={20} color={isLoading || isFirstBookAndChapter ? Colors.textMuted : Colors.text} />
-              </TouchableOpacity>
-              
-              <View style={styles.translationBadge}>
-                <Text style={styles.translationText}>{currentTranslation}</Text>
-              </View>
-              
-              <TouchableOpacity 
-                style={[styles.navBtn, (isLoading || isLastBookAndChapter) && styles.navBtnDisabled]}
-                onPress={handleNextChapter}
-                disabled={isLoading || isLastBookAndChapter}
-              >
-                <Ionicons name="arrow-forward" size={20} color={isLoading || isLastBookAndChapter ? Colors.textMuted : Colors.text} />
-              </TouchableOpacity>
+              ) : chapterData?.verses ? (
+                <ScrollView
+                  style={{ flex: 1 }}
+                  contentContainerStyle={styles.versesContainer}
+                  showsVerticalScrollIndicator={false}
+                  scrollEnabled={true}
+                >
+                  <Text style={styles.chapterTitle}>{currentBook}</Text>
+                  <Text style={styles.chapterSubtitle}>Capítulo {currentChapter}</Text>
+                  
+                  <View style={styles.readingArea}>
+                    {chapterData.verses.map((verse) => (
+                      <View key={verse.id} style={styles.verseRow}>
+                        <Text style={styles.verseNumber}>{verse.number}</Text>
+                        <Text style={styles.verseText}>{verse.text}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
+              ) : (
+                <View style={styles.centerBox}>
+                  <Text style={styles.centerText}>No se encontró el capítulo.</Text>
+                </View>
+              )}
             </View>
-          </BlurView>
 
-          <BibleChapterNavigator isOpen={isNavOpen} onClose={() => setIsNavOpen(false)} books={books} currentBook={currentBook} onSelect={(bookName, chapterNum) => { actions.setBook(bookName); actions.setChapter(chapterNum); }} />
-          <BibleSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} onSearch={actions.searchBible} onSelect={(bookName, chapterNum) => { actions.setBook(bookName); actions.setChapter(chapterNum); }} />
-        </SafeAreaView>
+            {/* Navegación Flotante (Glassmorphism) */}
+            <BlurView intensity={80} tint="dark" style={styles.floatingNavContainer}>
+              <View style={styles.bottomNav}>
+                <TouchableOpacity 
+                  style={[styles.navBtn, (isLoading || isFirstBookAndChapter) && styles.navBtnDisabled]}
+                  onPress={handlePrevChapter}
+                  disabled={isLoading || isFirstBookAndChapter}
+                >
+                  <Ionicons name="arrow-back" size={20} color={isLoading || isFirstBookAndChapter ? Colors.textMuted : Colors.text} />
+                </TouchableOpacity>
+                
+                <View style={styles.translationBadge}>
+                  <Text style={styles.translationText}>{currentTranslation}</Text>
+                </View>
+                
+                <TouchableOpacity 
+                  style={[styles.navBtn, (isLoading || isLastBookAndChapter) && styles.navBtnDisabled]}
+                  onPress={handleNextChapter}
+                  disabled={isLoading || isLastBookAndChapter}
+                >
+                  <Ionicons name="arrow-forward" size={20} color={isLoading || isLastBookAndChapter ? Colors.textMuted : Colors.text} />
+                </TouchableOpacity>
+              </View>
+            </BlurView>
+
+            <BibleChapterNavigator isOpen={isNavOpen} onClose={() => setIsNavOpen(false)} books={books} currentBook={currentBook} onSelect={(bookName, chapterNum) => { actions.setBook(bookName); actions.setChapter(chapterNum); }} />
+            <BibleSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} onSearch={actions.searchBible} onSelect={(bookName, chapterNum) => { actions.setBook(bookName); actions.setChapter(chapterNum); }} />
+          </SafeAreaView>
       </View>
     </Modal>
   );
@@ -123,11 +134,10 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
   },
   container: {
     backgroundColor: '#0c0c1e',
-    height: '95%', // Ligeramente más alto para dar sensación de inmersión
+    flex: 1, 
     borderTopLeftRadius: Radii.xl,
     borderTopRightRadius: Radii.xl,
     overflow: 'hidden',
@@ -177,7 +187,7 @@ const styles = StyleSheet.create({
   versesContainer: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
-    paddingBottom: 120, // Espacio para la barra flotante
+    paddingBottom: 140, 
   },
   chapterTitle: {
     ...Typography.screenTitle,
@@ -199,7 +209,7 @@ const styles = StyleSheet.create({
   },
   verseRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start', // Alinea el número arriba con la primera línea
+    alignItems: 'flex-start',
   },
   verseNumber: {
     ...Typography.body,
@@ -207,15 +217,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.accent,
     marginRight: Spacing.md,
-    marginTop: 4, // Ajuste óptico con el texto
+    marginTop: 4,
     width: 22,
     opacity: 0.8,
   },
   verseText: {
     ...Typography.body,
-    fontSize: 18, // Texto más grande para lectura
-    color: 'rgba(255, 255, 255, 0.9)', // Blanco ligeramente suavizado
-    lineHeight: 28, // Altura de línea amplia
+    fontSize: 18,
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 28,
     flex: 1,
   },
   floatingNavContainer: {

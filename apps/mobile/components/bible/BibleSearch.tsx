@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, SafeAreaView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, SafeAreaView, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { BibleSearchResult } from '@radio/types';
 import { Colors, Typography, Radii, Spacing } from '@/constants/theme';
@@ -16,6 +16,8 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
   const [results, setResults] = useState<BibleSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [contentKey, setContentKey] = useState(0);
+  const { height: windowHeight } = useWindowDimensions();
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -28,8 +30,9 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
   };
 
   return (
-    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose} onShow={() => setContentKey(prev => prev + 1)}>
       <View style={styles.overlay}>
+        <View style={{ height: windowHeight * 0.1 }} pointerEvents="none" />
         <SafeAreaView style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
@@ -52,7 +55,7 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
           </View>
 
           {/* Results */}
-          <View style={styles.content}>
+          <View style={styles.content} key={contentKey}>
             {isSearching ? (
               <View style={styles.centerBox}>
                 <ActivityIndicator size="large" color={Colors.accent} />
@@ -64,7 +67,7 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
                 <Text style={styles.centerText}>No se encontraron resultados para "{query}"</Text>
               </View>
             ) : (
-              <ScrollView contentContainerStyle={styles.resultsContainer}>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.resultsContainer}>
                 {results.map((verse) => (
                   <TouchableOpacity
                     key={verse.id}
@@ -93,11 +96,10 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: '#0c0c1e', // matching radio player theme
-    height: '90%',
+    backgroundColor: '#0c0c1e',
+    flex: 1,
     borderTopLeftRadius: Radii.xl,
     borderTopRightRadius: Radii.xl,
     borderTopWidth: 1,

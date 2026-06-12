@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, SafeAreaView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, SafeAreaView, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { BibleBook } from '@radio/types';
 import { Colors, Typography, Radii, Spacing } from '@/constants/theme';
@@ -15,6 +15,8 @@ interface BibleChapterNavigatorProps {
 export function BibleChapterNavigator({ isOpen, onClose, books, currentBook, onSelect }: BibleChapterNavigatorProps) {
   const [activeTab, setActiveTab] = useState<'AT' | 'NT'>('AT');
   const [selectedBook, setSelectedBook] = useState<string | null>(null);
+  const [contentKey, setContentKey] = useState(0);
+  const { height: windowHeight } = useWindowDimensions();
 
   const atBooks = books.filter(b => b.testament === 'AT');
   const ntBooks = books.filter(b => b.testament === 'NT');
@@ -30,8 +32,9 @@ export function BibleChapterNavigator({ isOpen, onClose, books, currentBook, onS
   };
 
   return (
-    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose} onShow={() => setContentKey(prev => prev + 1)}>
       <View style={styles.overlay}>
+        <View style={{ height: windowHeight * 0.15 }} pointerEvents="none" />
         <SafeAreaView style={styles.container}>
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
@@ -49,8 +52,9 @@ export function BibleChapterNavigator({ isOpen, onClose, books, currentBook, onS
             </TouchableOpacity>
           </View>
 
+          <View style={styles.content} key={contentKey}>
           {!selectedBook ? (
-            <View style={styles.content}>
+            <>
               {/* Modern Segmented Control */}
               <View style={styles.segmentedControl}>
                 <TouchableOpacity
@@ -71,7 +75,7 @@ export function BibleChapterNavigator({ isOpen, onClose, books, currentBook, onS
                 </TouchableOpacity>
               </View>
 
-              <ScrollView contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
                 <View style={styles.grid}>
                   {displayBooks.map(b => (
                     <TouchableOpacity
@@ -86,9 +90,9 @@ export function BibleChapterNavigator({ isOpen, onClose, books, currentBook, onS
                   ))}
                 </View>
               </ScrollView>
-            </View>
+            </>
           ) : (
-            <ScrollView contentContainerStyle={styles.gridContainer}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.gridContainer}>
               <Text style={styles.instruction}>Selecciona un capítulo</Text>
               <View style={styles.gridChapters}>
                 {Array.from({ length: chapterCount }).map((_, i) => {
@@ -100,7 +104,7 @@ export function BibleChapterNavigator({ isOpen, onClose, books, currentBook, onS
                       onPress={() => {
                         onSelect(selectedBook, num);
                         onClose();
-                        setSelectedBook(null); // Reset for next open
+                        setSelectedBook(null);
                       }}
                     >
                       <Text style={styles.chapterBtnText}>{num}</Text>
@@ -110,6 +114,7 @@ export function BibleChapterNavigator({ isOpen, onClose, books, currentBook, onS
               </View>
             </ScrollView>
           )}
+          </View>
         </SafeAreaView>
       </View>
     </Modal>
@@ -120,11 +125,10 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: '#0c0c1e', // matching radio player theme
-    height: '85%',
+    backgroundColor: '#0c0c1e',
+    flex: 1,
     borderTopLeftRadius: Radii.xl,
     borderTopRightRadius: Radii.xl,
     borderTopWidth: 1,

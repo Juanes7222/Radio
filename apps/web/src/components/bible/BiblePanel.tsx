@@ -55,7 +55,7 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
             </div>
 
             {/* Área de Lectura */}
-            <div className="flex-1 overflow-y-auto px-6 py-10 md:px-16 scroll-smooth pb-32">
+            <div className="flex-1 overflow-y-auto min-h-0 px-6 py-10 md:px-16 scroll-smooth pb-32">
               <div className="max-w-2xl mx-auto">
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center h-[50vh] gap-6 text-muted-foreground">
