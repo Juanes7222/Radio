@@ -31,7 +31,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 DEPLOY_DIR="${DEPLOY_DIR:-/var/www/radio}"
-BACKEND_DIR="$DEPLOY_DIR/apps/backend"
+BACKEND_DIR="$DEPLOY_DIR/backend"
 FRONTEND_DIR="$DEPLOY_DIR/apps/web"
 SCRIPTS_DIR="$DEPLOY_DIR/scripts"
 
@@ -77,6 +77,7 @@ bash "$NODESOURCE_SCRIPT"
 rm -f "$NODESOURCE_SCRIPT"
 apt-get install -y nodejs
 info "Node: $(node -v) | npm: $(npm -v)"
+npm install -g pnpm
 
 info "Step 3/14 — Creating service user '$SERVICE_USER'..."
 if ! id "$SERVICE_USER" &>/dev/null; then
@@ -95,18 +96,21 @@ fi
 cd "$DEPLOY_DIR"
 
 info "Step 5/14 — Installing dependencies and building..."
-rm -rf node_modules package-lock.json
-npm install
+rm -rf node_modules package-lock.json pnpm-lock.yaml
+pnpm install
 
 # FIX: Abort on high/critical vulnerabilities
-if ! npm audit --audit-level=high; then
+if ! pnpm audit --audit-level=high; then
   error "High severity vulnerabilities found."
   exit 1
 fi
 
-npm run build --workspace=backend
-npm run build --workspace=@radio/web
-npm prune --omit=dev
+info "Generating Prisma client..."
+pnpm --filter backend run prisma:generate
+
+pnpm --filter backend run build
+pnpm --filter @radio/web run build
+pnpm prune --prod
 
 info "Step 6/14 — Configuring panel password..."
 echo "$PANEL_PASS" | htpasswd -ci /etc/nginx/.htpasswd admin

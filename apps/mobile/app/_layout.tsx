@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,31 +8,46 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 import TrackPlayer from 'react-native-track-player';
 import { PlaybackService } from '../service';
+import { FacebookLiveProvider } from '@/hooks/useFacebookLive';
 
 SplashScreen.preventAutoHideAsync();
 
-// Must be called once at module level before any playback operations
 TrackPlayer.registerPlaybackService(() => PlaybackService);
 
 export default function RootLayout() {
+  const [appIsReady, setAppIsReady] = useState(false);
+
   useEffect(() => {
-    async function requestPermissions() {
-      const { status, canAskAgain } = await Notifications.getPermissionsAsync();
-      if (status !== 'granted' && canAskAgain) {
-        await Notifications.requestPermissionsAsync();
+    async function prepareApp() {
+      try {
+        const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted' && canAskAgain) {
+          await Notifications.requestPermissionsAsync();
+        }
+        await TrackPlayer.setupPlayer();
+      } catch (e) {
+        console.warn('Error durante la inicialización:', e);
+      } finally {
+        setAppIsReady(true);
+        await SplashScreen.hideAsync();
       }
     }
     
-    requestPermissions();
-    SplashScreen.hideAsync();
+    prepareApp();
   }, []);
+
+  if (!appIsReady) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+        <FacebookLiveProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        </FacebookLiveProvider>
         <StatusBar style="light" translucent backgroundColor="transparent" />
       </SafeAreaProvider>
     </GestureHandlerRootView>

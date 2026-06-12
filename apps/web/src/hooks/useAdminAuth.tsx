@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import axios from 'axios';
-import type { AdminUser } from '@/types/admin';
+import type { AdminUser } from '@radio/types';
 
 const STORAGE_KEY = 'admin_session';
 const STATION_ID = import.meta.env.VITE_STATION_ID || 'la_voz_de_la_verdad';

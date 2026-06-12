@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { useTheme } from '@/hooks';
-import type { NowPlayingData } from '@/types/azuracast';
-import type { ListenerDetail } from '@/types/admin';
+import type { NowPlayingData } from '@radio/types';
+import type { ListenerDetail } from '@radio/types';
 
 interface StatCardProps {
   title: string;

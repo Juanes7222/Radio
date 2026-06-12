@@ -1,0 +1,78 @@
+import fs from "fs";
+import path from "path";
+import FormData from "form-data";
+import fetch from "node-fetch";
+import { config } from "../../config";
+import { logger } from "../../utils/logger";
+
+export interface AzuracastUploadResult {
+  fileId: string;
+  azuraPath: string;
+}
+
+export async function uploadMp3ToAzuracast(
+  localPath: string,
+  title: string,
+  playlistId?: string
+): Promise<AzuracastUploadResult> {
+  const { url, apiKey, stationId } = config.azuracast;
+  const filename = path.basename(localPath);
+
+  const form = new FormData();
+  form.append("file", fs.createReadStream(localPath), { filename });
+
+  const uploadUrl = `${url}/api/station/${stationId}/files`;
+
+  logger.info("AzuracastService", "Uploading file", { filename });
+
+  const uploadResponse = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      ...form.getHeaders(),
+    },
+    body: form,
+    // node-fetch no tiene timeout nativo; usamos AbortController
+    signal: AbortSignal.timeout(120_000),
+  });
+
+  if (!uploadResponse.ok) {
+    const body = await uploadResponse.text();
+    throw new Error(`AzuraCast upload failed [${uploadResponse.status}]: ${body}`);
+  }
+
+  const data = (await uploadResponse.json()) as { id: string; path: string };
+  const fileId = String(data.id);
+  const azuraPath = data.path;
+
+  if (playlistId) {
+    await assignToPlaylist(fileId, playlistId, stationId, url, apiKey);
+  }
+
+  logger.info("AzuracastService", "Upload complete", { fileId, azuraPath });
+  return { fileId, azuraPath };
+}
+
+async function assignToPlaylist(
+  fileId: string,
+  playlistId: string,
+  stationId: string,
+  baseUrl: string,
+  apiKey: string
+): Promise<void> {
+  const url = `${baseUrl}/api/station/${stationId}/file/${fileId}`;
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ playlists: [{ id: playlistId }] }),
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (!response.ok) {
+    logger.warn("AzuracastService", "Could not assign to playlist", { fileId, playlistId });
+  }
+}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Menu, Share2, Home, CircleQuestionMark, FileKey } from 'lucide-react';
+import { Menu, Share2, Home, CalendarClock, CircleQuestionMark, FileKey, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -24,9 +24,10 @@ import {
 
 interface HeaderProps {
   stationName?: string;
+  onOpenPrayer?: () => void;
 }
 
-export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
+export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: HeaderProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const navigate = useNavigate();
@@ -88,6 +89,26 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
             <TooltipContent>Inicio</TooltipContent>
           </Tooltip>
 
+          {onOpenPrayer && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={onOpenPrayer}>
+                  <Heart className="w-5 h-5 text-rose-500" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Oración</TooltipContent>
+            </Tooltip>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={() => navigate('/programacion')}>
+                <CalendarClock className="w-5 h-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Programación</TooltipContent>
+          </Tooltip>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" onClick={() => navigate('/info/who-we-are')}>
@@ -134,6 +155,20 @@ export function Header({ stationName = 'La Voz de la Verdad' }: HeaderProps) {
                 }}>
                   <Home className="w-5 h-5 mr-2" />
                   Inicio
+                </Button>
+                {onOpenPrayer && (
+                  <Button variant="ghost" className="justify-start" onClick={() => {
+                    onOpenPrayer();
+                  }}>
+                    <Heart className="w-5 h-5 mr-2 text-rose-500" />
+                    Oración
+                  </Button>
+                )}
+                <Button variant="ghost" className="justify-start" onClick={() => {
+                  navigate('/programacion');
+                }}>
+                  <CalendarClock className="w-5 h-5 mr-2" />
+                  Programación
                 </Button>
                 <Button variant="ghost" className="justify-start" onClick={() => {
                   navigate('/info/who-we-are');

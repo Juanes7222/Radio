@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Users, Globe, Headphones, TrendingUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import type { Listeners } from '@/types/azuracast';
+import type { Listeners } from '@radio/types';
 
 interface ListenerStatsProps {
   listeners: Listeners;

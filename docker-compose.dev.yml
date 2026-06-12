@@ -1,0 +1,25 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.dev
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/app/backend
+      - ./packages:/app/packages
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev:web"
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+    environment:
+      - VITE_API_BASE_URL=http://localhost:3001
+      - NODE_ENV=development

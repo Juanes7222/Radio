@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   ListMusic,
   MessageSquare,
+  Heart,
   Mic2,
   CalendarDays,
   LogOut,
@@ -17,13 +18,14 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui-custom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTheme } from '@/hooks';
-import type { AdminUser } from '@/types/admin';
+import type { AdminUser } from '@radio/types';
 
 const NAV_ITEMS = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/upload', label: 'Subir archivo', icon: UploadCloud },
   { to: '/admin/playlists', label: 'Playlists', icon: ListMusic },
   { to: '/admin/requests', label: 'Solicitudes', icon: MessageSquare },
+  { to: '/admin/prayer', label: 'Oración', icon: Heart },
   { to: '/admin/streaming', label: 'Streaming / DJs', icon: Mic2 },
   { to: '/admin/schedule', label: 'Programación', icon: CalendarDays },
 ];

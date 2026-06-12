@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { Disc, Music, User } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatMediaTitle } from '@/lib/formatMedia';
-import type { NowPlaying } from '@/types/azuracast';
+import type { NowPlaying } from '@radio/types';
+import { ScrollingText } from '../ui/ScrollingText';
 
 interface SongInfoProps {
   song: NowPlaying | null;
@@ -104,82 +105,54 @@ function SongInfoComponent({ song, isLoading, theme }: SongInfoProps) {
       </div>
 
       {/* Información de la canción */}
-      <div className="flex-1 min-w-0">
-      <motion.h3
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="text-xl font-bold truncate"
-        title={title}
-      >
-        {title}
-      </motion.h3>
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
+        {isPreaching && (
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="inline-block text-[10px] font-semibold uppercase tracking-wider text-indigo-400 mb-1"
+          >
+            Prédica
+          </motion.span>
+        )}
 
-      {isPreaching && (
-        <motion.span
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="inline-block text-[10px] font-semibold uppercase tracking-wider text-indigo-400 mb-1"
-        >
-          Prédica
-        </motion.span>
-      )}
-
-      {artist && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="flex items-center gap-2 text-muted-foreground mt-1"
+          transition={{ delay: 0.1 }}
         >
-          <User className="w-4 h-4" />
-          <span className="truncate" title={artist}>
-            {artist}
-          </span>
+          <ScrollingText text={title} className="text-xl font-bold" speed={45} />
         </motion.div>
-      )}
 
-      {/* {songData.album && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex items-center gap-2 text-muted-foreground text-sm mt-1"
-        >
-          <Album className="w-4 h-4" />
-          <span className="truncate">{songData.album}</span>
-        </motion.div>
-      )}
-
-      {songData.genre && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="flex items-center gap-2 text-muted-foreground text-sm mt-1"
-        >
-          <Mic2 className="w-4 h-4" />
-          <span>{songData.genre}</span>
-        </motion.div>
-      )} */}
-
-      {playlist && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="mt-2"
-        >
-          <span className={`inline-block text-xs px-2 py-1 rounded-full ${
-            theme === 'dark'
-              ? 'bg-slate-700 text-slate-300'
-              : 'bg-slate-200 text-slate-600'
-          }`}>
-            {playlist}
-          </span>
-        </motion.div>
-      )}
-    </div>
+        {artist && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="flex items-center gap-2 text-muted-foreground mt-1"
+          >
+            <User className="w-4 h-4 shrink-0" />
+            <ScrollingText text={artist} className="text-sm" speed={35} />
+          </motion.div>
+        )}
+        
+        {playlist && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-2"
+          >
+            <span className={`inline-block text-xs px-2 py-1 rounded-full ${
+              theme === 'dark'
+                ? 'bg-slate-700 text-slate-300'
+                : 'bg-slate-200 text-slate-600'
+            }`}>
+              {playlist}
+            </span>
+          </motion.div>
+        )}
+      </div>
     </motion.div>
   );
 }

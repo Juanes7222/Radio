@@ -8,12 +8,14 @@ import { AdminAuthProvider, ThemeProvider } from './hooks/index.ts'
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext.tsx'
 import { PublicLayout } from './components/layout/PublicLayout.tsx'
 import { Toaster } from './components/ui/sonner.tsx'
+import ProgramacionPage from './pages/ProgramacionPage.tsx';
 import {
   AdminLogin,
   AdminLayout,
   AdminDashboard,
   AdminPlaylists,
   AdminRequests,
+  AdminPrayerRequests,
   AdminStreaming,
   AdminSchedule,
   AdminUpload,
@@ -34,6 +36,7 @@ createRoot(document.getElementById('root')!).render(
                 {/* Rutas Públicas con Layout (incluye MiniPlayer) */}
                 <Route element={<PublicLayout />}>
                   <Route path="/" element={<App />} />
+                  <Route path="/programacion" element={<ProgramacionPage />} />
                   <Route path="/info/who-we-are" element={<AboutPage />} />
                   <Route path="/info/privacy" element={<PrivacyPolicyPage />} />
                 </Route>
@@ -47,6 +50,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="dashboard" element={<AdminDashboard />} />
                   <Route path="playlists" element={<AdminPlaylists />} />
                   <Route path="requests" element={<AdminRequests />} />
+                  <Route path="prayer" element={<AdminPrayerRequests />} />
                   <Route path="streaming" element={<AdminStreaming />} />
                   <Route path="schedule" element={<AdminSchedule />} />
                   <Route path="upload" element={<AdminUpload />} />

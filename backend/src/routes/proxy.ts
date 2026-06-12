@@ -23,6 +23,21 @@ async function proxyToAzuraCast(
       timeout: 15000,
     };
 
+    // Si hay credenciales Basic Auth en la URL (para saltar protección del Nginx en panel.*)
+    try {
+      const urlObj = new URL(axiosConfig.url!);
+      if (urlObj.username && urlObj.password) {
+        axiosConfig.auth = {
+          username: urlObj.username,
+          password: urlObj.password,
+        };
+        // Limpiamos las credenciales de la URL por limpieza visual de Axios
+        urlObj.username = '';
+        urlObj.password = '';
+        axiosConfig.url = urlObj.toString();
+      }
+    } catch(e) {}
+
     if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body && Object.keys(req.body).length) {
       axiosConfig.data = req.body;
     }
@@ -66,16 +81,44 @@ function buildPublicUrl(req: Request): string {
   return `${protocol}://${host}`;
 }
 
+const SCHEDULE_EXCLUSIONS = ['CONTENIDO VARIADO', 'MUSICA', 'JINGLES', 'JINGLE'];
+
+function filterSchedule(data: unknown): unknown {
+  if (!Array.isArray(data)) return data;
+  return data.filter((item: any) => {
+    const title = item?.title ?? '';
+    const normalized = title.toLowerCase();
+    return !SCHEDULE_EXCLUSIONS.some(ex => normalized.includes(ex.toLowerCase()));
+  });
+}
+
 function rewriteInternalUrls(data: unknown, publicUrl: string): unknown {
-  const azuraUrl = config.azuracast.url;
+  const azuraUrl = config.azuracast.url; 
   
   let rewritten = JSON.stringify(data)
+    .replaceAll('http://localhost:8080', publicUrl)
     .replaceAll('http://localhost', publicUrl)
     .replaceAll('https://localhost', publicUrl)
-    .replaceAll(`${azuraUrl}/api/station`, `${publicUrl}/api/station`);
+    .replaceAll('http://127.0.0.1:8080', publicUrl)
+    .replaceAll('http://127.0.0.1', publicUrl);
     
-  if (azuraUrl && azuraUrl !== 'http://localhost' && azuraUrl !== 'https://localhost') {
-    rewritten = rewritten.replaceAll(azuraUrl, publicUrl);
+  try {
+    const parsedAzura = new URL(azuraUrl);
+    const azuraHost = `${parsedAzura.protocol}//${parsedAzura.host}`;
+    
+    rewritten = rewritten.replaceAll(`${azuraHost}/api/`, `${publicUrl}/api/`);
+    
+    if (azuraHost.includes('panel.')) {
+      const publicDomain = azuraHost.replace('panel.', 'www.');
+      rewritten = rewritten.replaceAll(`${azuraHost}/listen/`, `${publicDomain}/listen/`);
+      rewritten = rewritten.replaceAll(`${azuraHost}/public/`, `${publicDomain}/public/`);
+      rewritten = rewritten.replaceAll(`${azuraHost}/static/`, `${publicDomain}/static/`);
+      rewritten = rewritten.replaceAll(`${azuraHost}/api/station/la_voz_de_la_verdad/art/`, `${publicDomain}/api/station/la_voz_de_la_verdad/art/`);
+    }
+
+  } catch (e) {
+    // Fallback if parsing fails
+    rewritten = rewritten.replaceAll(`${azuraUrl}/api/`, `${publicUrl}/api/`);
   }
   
   return JSON.parse(rewritten);
@@ -95,7 +138,7 @@ publicRouter.get('/search', (req, res) => {
 publicRouter.get('/schedule', (req, res) => {
   const publicUrl = buildPublicUrl(req);
   proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/schedule`,
-    (data) => rewriteInternalUrls(data, publicUrl));
+    (data) => rewriteInternalUrls(filterSchedule(data), publicUrl));
 });
 
 publicRouter.get('/station/:stationId/art/:artId', async (req, res) => {
@@ -108,7 +151,8 @@ publicRouter.get('/station/:stationId/art/:artId', async (req, res) => {
       responseType: 'stream',
       timeout: 15000,
     });
-    res.setHeader('Content-Type', azuraCastResponse.headers['content-type'] ?? 'image/jpeg');
+    const contentType = azuraCastResponse.headers['content-type'];
+    res.setHeader('Content-Type', typeof contentType === 'string' ? contentType : 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=86400');
     azuraCastResponse.data.pipe(res);
   } catch (err) {

@@ -6,12 +6,19 @@ import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Linking } from 'react-native';
 import { useAzuraCast } from '@radio/api';
-import { BACKEND_URL } from '@/constants/api';
+import { BACKEND_URL, STATION_UTC_OFFSET_HOURS } from '@/constants/api';
 import { formatMediaTitle } from '@/lib/formatMedia';
 
 const PROGRAM_NOTIFY_MINUTES_BEFORE = 10;
 const LAST_SCHEDULE_HASH_KEY = 'radio-schedule-hash';
 const SCHEDULE_TASK = 'program-notify-schedule';
+
+const EXCLUDED_PROGRAMS = ['CONTENIDO VARIADO', 'MUSICA', 'JINGLES', 'JINGLE'];
+
+function isExcludedProgram(title: string): boolean {
+  const normalized = title.toLowerCase();
+  return EXCLUDED_PROGRAMS.some(excluded => normalized.includes(excluded.toLowerCase()));
+}
 
 type FetchSchedule = ReturnType<typeof useAzuraCast>['fetchSchedule'];
 
@@ -50,11 +57,11 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
 
   await AsyncStorage.setItem(LAST_SCHEDULE_HASH_KEY, hash);
 
-  const nowSeconds = Math.floor(Date.now() / 1000);
+    const nowSeconds = Math.floor(Date.now() / 1000) + (STATION_UTC_OFFSET_HOURS * 3600);
 
   for (const item of schedule) {
     if (item.start_timestamp <= nowSeconds) continue;
-    if (item.title === 'CONTENIDO VARIADO') continue;
+    if (isExcludedProgram(item.title)) continue;
 
     const notifyTimeSeconds = item.start_timestamp - PROGRAM_NOTIFY_MINUTES_BEFORE * 60;
     if (notifyTimeSeconds <= nowSeconds) continue;

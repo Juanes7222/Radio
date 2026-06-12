@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@radio/types": "*",
+    "@radio/types": "workspace:*",
     "axios": "^1.7.9"
   },
   "peerDependencies": {

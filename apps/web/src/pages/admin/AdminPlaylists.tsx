@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { useTheme } from '@/hooks';
-import type { AdminPlaylist } from '@/types/admin';
+import type { AdminPlaylist } from '@radio/types';
 
 const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 

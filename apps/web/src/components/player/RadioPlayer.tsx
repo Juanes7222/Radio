@@ -33,11 +33,13 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useFavoriteNotify, SLEEP_PRESETS } from '@/hooks';
-import type { NowPlayingData, StreamQuality, PlayerState } from '@/types/azuracast';
+import type { NowPlayingData, StreamQuality, PlayerState } from '@radio/types';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { SongInfo } from './SongInfo';
 import { formatTime } from '@/lib/utils';
 import { ShareModal } from '../ui-custom/SharedModla';
+import { BibleButton } from '../bible/BibleButton';
+import { BiblePanel } from '../bible/BiblePanel';
 
 interface RadioPlayerProps {
   stationData: NowPlayingData | null;
@@ -90,11 +92,8 @@ export function RadioPlayer({
     ? favoriteSongKeys.some((k) => k.toLowerCase() === currentSongKey)
     : false;
 
-  // Datos de la canción actual — declarados aquí para usarlos en hooks
   const currentSong = stationData?.now_playing || null;
 
-  
-  // Notificación de canción favorita
   const currentSongForNotify = currentSong
     ? {
         id: currentSong.song?.id ?? '',
@@ -120,21 +119,24 @@ export function RadioPlayer({
     setFavoriteSongKeys(next);
   };
 
-
-
   const isLive = stationData?.live?.is_live || false;
   const listeners = stationData?.listeners?.current || 0;
   const [shareOpen, setShareOpen] = useState(false);
+  const [bibleOpen, setBibleOpen] = useState(false);
   const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 
   return (
-
     <>
-    <ShareModal
-      open={shareOpen}
-      onOpenChange={setShareOpen}
-      stationName={stationData?.station?.name || 'Radio Stream'}
-    />
+      <ShareModal
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        stationName={stationData?.station?.name || 'Radio Stream'}
+      />
+
+      <BiblePanel 
+        isOpen={bibleOpen} 
+        onClose={() => setBibleOpen(false)} 
+      />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -148,7 +150,6 @@ export function RadioPlayer({
           shadow-2xl border ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}
         `}
       >
-        {/* Overlay toca-para-escuchar cuando el navegador bloquea el autoplay */}
         <AnimatePresence>
           {playerState.requiresUserGesture && (
             <motion.div
@@ -170,11 +171,10 @@ export function RadioPlayer({
           )}
         </AnimatePresence>
 
-        {/* Header con estado */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/30">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Radio className="w-6 h-6 text-primary" />
+              <Radio className="w-6 h-6 text-white" />
               {playerState.isPlaying && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               )}
@@ -208,7 +208,6 @@ export function RadioPlayer({
                         : favoriteNotify.enable()
                     }
                     className={favoriteNotify.isEnabled ? 'text-yellow-500' : ''}
-                    title={favoriteNotify.isEnabled ? 'Desactivar avisos de favoritos' : 'Avisar cuando suene una favorita'}
                   >
                     {favoriteNotify.isEnabled ? (
                       <Bell className="w-5 h-5 fill-current" />
@@ -275,7 +274,7 @@ export function RadioPlayer({
                   <DropdownMenuItem
                     key={q}
                     onClick={() => handleQualityChange(q)}
-                    className={quality === q ? 'bg-primary/10' : ''}
+                    className={quality === q ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium' : ''}
                   >
                     {q} kbps {quality === q && '✓'}
                   </DropdownMenuItem>
@@ -301,7 +300,6 @@ export function RadioPlayer({
           </div>
         </div>
 
-        {/* Visualizador de onda */}
         <div className="px-6 py-4">
           <WaveformVisualizer 
             analyserNode={analyserRef}
@@ -310,7 +308,6 @@ export function RadioPlayer({
           />
         </div>
 
-        {/* Información de la canción */}
         <div className="px-6 pb-4">
           <SongInfo 
             song={currentSong}
@@ -319,10 +316,8 @@ export function RadioPlayer({
           />
         </div>
 
-        {/* Controles principales */}
         <div className="px-6 pb-6">
           <div className="flex items-center justify-center gap-6">
-            {/* Botón Play/Pause */}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -331,14 +326,14 @@ export function RadioPlayer({
               className={`
                 w-20 h-20 rounded-full flex items-center justify-center
                 ${theme === 'dark'
-                  ? 'bg-white text-slate-900 hover:bg-slate-100'
-                  : 'bg-slate-900 text-white hover:bg-slate-800'
+                  ? 'bg-blue-500 text-white hover:bg-blue-600'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
                 }
-                shadow-lg transition-all disabled:opacity-50
+                shadow-[0_8px_30px_rgb(59,130,246,0.3)] transition-all disabled:opacity-50
               `}
             >
               {playerState.isLoading ? (
-                <div className="w-8 h-8 border-4 border-current border-t-transparent rounded-full animate-spin" />
+                <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin" />
               ) : playerState.isPlaying ? (
                 <Pause className="w-8 h-8" />
               ) : (
@@ -347,7 +342,6 @@ export function RadioPlayer({
             </motion.button>
           </div>
 
-          {/* Indicador de sleep timer activo */}
           <AnimatePresence>
             {sleepTimer.isActive && (
               <motion.div
@@ -368,9 +362,7 @@ export function RadioPlayer({
             )}
           </AnimatePresence>
 
-          {/* Controles secundarios */}
           <div className="flex items-center justify-between mt-6">
-            {/* Volumen */}
             <div className="flex items-center gap-2 flex-1 max-w-[200px]">
               <Button
                 variant="ghost"
@@ -389,7 +381,7 @@ export function RadioPlayer({
                   onValueChange={([v]) => onSetVolume(v)}
                   max={100}
                   step={1}
-                  className="w-full"
+                  className="w-full [&_[role=slider]]:bg-white [&_[role=slider]]:border-white [&_span.bg-primary]:bg-white"
                 />
               </div>
               <span className="text-xs text-muted-foreground w-8">
@@ -397,13 +389,13 @@ export function RadioPlayer({
               </span>
             </div>
 
-            {/* Botones adicionales */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              <BibleButton onClick={() => setBibleOpen(true)} theme={theme} />
+              
               <Button
-                variant="default"
                 size="sm"
                 onClick={onShowRequests}
-                className="gap-2"
+                className="gap-2 bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
               >
                 <Send className="w-4 h-4" />
                 Pedir canción
@@ -412,7 +404,6 @@ export function RadioPlayer({
           </div>
         </div>
 
-        {/* Error / Reconexion */}
         <AnimatePresence>
           {(error || playerState.error) && (
             <motion.div
@@ -438,16 +429,16 @@ export function RadioPlayer({
           )}
         </AnimatePresence>
 
-        {/* Progreso de la canción */}
         {currentSong && (
           <div className="px-6 pb-4">
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
               <span>{formatTime(currentSong.elapsed)}</span>
               <span>{formatTime(currentSong.duration)}</span>
             </div>
-            <div className="h-1 bg-slate-700/30 rounded-full overflow-hidden">
+            {/* Barra de progreso en blanco */}
+            <div className="h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
               <motion.div
-                className="h-full bg-primary"
+                className="h-full bg-white rounded-full"
                 initial={{ width: 0 }}
                 animate={{ 
                   width: `${(currentSong.elapsed / currentSong.duration) * 100}%` 
@@ -458,6 +449,6 @@ export function RadioPlayer({
           </div>
         )}
       </motion.div>
-      </>
+    </>
   );
 }

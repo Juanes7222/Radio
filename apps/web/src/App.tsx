@@ -13,6 +13,7 @@ import {
   SongRequestButton,
   AppFooter,
 } from '@/components/ui-custom';
+import { PrayerRequestDialog, PrayerRequestButton } from '@/components/prayer';
 import { useTheme } from '@/hooks';
 import { useGlobalAudio } from '@/hooks/useGlobalAudio';
 import { getSocialLinksWithLiveStatus } from '@/utils/socialLinks';
@@ -42,11 +43,16 @@ function App() {
     requestSong,
   } = useGlobalAudio();
 
+  const [showPrayer, setShowPrayer] = useState(false);
+  const openPrayer = useCallback(() => setShowPrayer(true), [setShowPrayer]);
+  const closePrayer = useCallback(() => setShowPrayer(false), [setShowPrayer]);
+
   const artworkLoadFailed = artworkErrorSongId === (data?.now_playing?.song?.id ?? null);
   const socialLinks = getSocialLinksWithLiveStatus(liveUrl);
 
   const closeRequests = useCallback(() => setShowRequests(false), [setShowRequests]);
   const openRequests = useCallback(() => setShowRequests(true), [setShowRequests]);
+
 
   const MAINTENANCE = import.meta.env.VITE_MAINTENANCE === 'true';
   if (MAINTENANCE) {
@@ -55,7 +61,7 @@ function App() {
 
   return (
     <div className={`min-h-screen w-full overflow-x-hidden transition-colors duration-300 bg-slate-950 text-white-900`}>
-      <Header stationName={data?.station?.name} />
+      <Header stationName={data?.station?.name} onOpenPrayer={openPrayer} />
 
       <main className="bottom-player-clearance">
         <DesktopHeroSection isDark={isDark} />
@@ -90,6 +96,7 @@ function App() {
         />
 
         <SongRequestButton onClick={openRequests} />
+        <PrayerRequestButton onClick={openPrayer} />
 
         <FacebookLivePlayer liveUrl={liveUrl} />
 
@@ -105,6 +112,11 @@ function App() {
         onClose={closeRequests}
         theme={resolvedTheme}
         requestSong={requestSong}
+      />
+      <PrayerRequestDialog
+        isOpen={showPrayer}
+        onClose={closePrayer}
+        theme={resolvedTheme}
       />
     </div>
   );
