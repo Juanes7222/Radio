@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# setup.sh — Deployment and hardening script
+# setup.sh — One-time environment provisioning
+#
+# Prepares the server to run the radio stack: installs system packages,
+# Node.js, creates the service user, clones the repo, configures Nginx
+# with SSL, and registers the backend systemd service.
+#
+# After this script completes, run deploy.sh to build and start the app.
 #
 # USAGE:
 #   PANEL_PASS=<password> CERTBOT_EMAIL=<email> bash setup.sh
 #
 # REQUIRED ENV VARS:
-#   PANEL_PASS
-#   CERTBOT_EMAIL
+#   PANEL_PASS       htpasswd password for the AzuraCast panel
+#   CERTBOT_EMAIL    email for Let's Encrypt registration
 #
 # OPTIONAL ENV VARS:
 #   SSH_PORT     (default: 2222)
@@ -18,7 +24,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# setup.sh is self-contained: it runs before the repo exists and cannot source lib.sh.
+# setup.sh runs before the repo exists and cannot source lib.sh.
 RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
@@ -32,7 +38,6 @@ fi
 
 DEPLOY_DIR="${DEPLOY_DIR:-/var/www/radio}"
 BACKEND_DIR="$DEPLOY_DIR/backend"
-FRONTEND_DIR="$DEPLOY_DIR/apps/web"
 SCRIPTS_DIR="$DEPLOY_DIR/scripts"
 
 NGINX_CONF="/etc/nginx/sites-available/radio"
@@ -55,7 +60,10 @@ if [[ ${#MISSING_VARS[@]} -gt 0 ]]; then
   exit 1
 fi
 
-info "Step 1/14 — Installing system packages..."
+# ------------------------------------------------------------------------------
+# Step 1 — System packages
+# ------------------------------------------------------------------------------
+info "Step 1/8 — Installing system packages..."
 apt-get update -y
 apt-get install -y \
   curl git nginx apache2-utils ufw fail2ban \
@@ -63,7 +71,10 @@ apt-get install -y \
   certbot python3-certbot-nginx \
   aide mailutils logrotate
 
-info "Step 2/14 — Installing Node.js 22..."
+# ------------------------------------------------------------------------------
+# Step 2 — Node.js and pnpm
+# ------------------------------------------------------------------------------
+info "Step 2/8 — Installing Node.js 22..."
 NODESOURCE_SCRIPT="$(mktemp)"
 curl -fsSL https://deb.nodesource.com/setup_22.x -o "$NODESOURCE_SCRIPT"
 
@@ -79,46 +90,40 @@ apt-get install -y nodejs
 info "Node: $(node -v) | npm: $(npm -v)"
 npm install -g pnpm
 
-info "Step 3/14 — Creating service user '$SERVICE_USER'..."
+# ------------------------------------------------------------------------------
+# Step 3 — Service user
+# ------------------------------------------------------------------------------
+info "Step 3/8 — Creating service user '$SERVICE_USER'..."
 if ! id "$SERVICE_USER" &>/dev/null; then
   useradd --system --no-create-home --shell /usr/sbin/nologin \
     --comment "Backend service account" "$SERVICE_USER"
 fi
 
-info "Step 4/14 — Syncing repository..."
+# ------------------------------------------------------------------------------
+# Step 4 — Repository
+# ------------------------------------------------------------------------------
+info "Step 4/8 — Syncing repository..."
 if [[ ! -d "$DEPLOY_DIR/.git" ]]; then
   git clone https://github.com/Juanes7222/Radio.git "$DEPLOY_DIR"
 else
-  # Discard any local modifications and reset to the remote tracking branch.
   git -C "$DEPLOY_DIR" fetch origin
   git -C "$DEPLOY_DIR" reset --hard "@{u}"
 fi
-cd "$DEPLOY_DIR"
+git -C "$DEPLOY_DIR" submodule update --init --recursive
 
-info "Step 5/14 — Installing dependencies and building..."
-rm -rf node_modules package-lock.json pnpm-lock.yaml
-pnpm install
-
-# FIX: Abort on high/critical vulnerabilities
-if ! pnpm audit --audit-level=high; then
-  error "High severity vulnerabilities found."
-  exit 1
-fi
-
-info "Generating Prisma client..."
-pnpm --filter backend run prisma:generate
-
-pnpm --filter backend run build
-pnpm --filter @radio/web run build
-pnpm prune --prod
-
-info "Step 6/14 — Configuring panel password..."
+# ------------------------------------------------------------------------------
+# Step 5 — Panel basic-auth password
+# ------------------------------------------------------------------------------
+info "Step 5/8 — Configuring panel password..."
 echo "$PANEL_PASS" | htpasswd -ci /etc/nginx/.htpasswd admin
 chmod 640 /etc/nginx/.htpasswd
 chown root:www-data /etc/nginx/.htpasswd
 unset PANEL_PASS
 
-info "Step 7/14 — Configuring Nginx and SSL..."
+# ------------------------------------------------------------------------------
+# Step 6 — Nginx base config and SSL certificates
+# ------------------------------------------------------------------------------
+info "Step 6/8 — Configuring Nginx and SSL..."
 
 if ! grep -q "server_tokens off" /etc/nginx/nginx.conf; then
   sed -i '/http {/a \\tserver_tokens off;' /etc/nginx/nginx.conf
@@ -167,7 +172,10 @@ chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 cp "$SCRIPTS_DIR/radio.nginx.conf" "$NGINX_CONF"
 nginx -t && systemctl reload nginx
 
-info "Step 8/14 — Configuring backend systemd service..."
+# ------------------------------------------------------------------------------
+# Step 7 — systemd service unit
+# ------------------------------------------------------------------------------
+info "Step 7/8 — Configuring backend systemd service..."
 
 REPO_SERVICE="$SCRIPTS_DIR/radio-backend.service"
 
@@ -202,4 +210,13 @@ chown "$SERVICE_USER:$SERVICE_USER" "/var/log/$BACKEND_SERVICE"
 
 systemctl daemon-reload
 systemctl enable "$BACKEND_SERVICE"
-systemctl start "$BACKEND_SERVICE"
+
+# ------------------------------------------------------------------------------
+# Step 8 — Hand off to deploy
+# ------------------------------------------------------------------------------
+info "Step 8/8 — Running initial deploy..."
+bash "$SCRIPTS_DIR/deploy.sh" --backend --frontend
+
+info ""
+info "Setup complete. The radio stack is provisioned and running."
+info "Use deploy.sh for all subsequent releases."

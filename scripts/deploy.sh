@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# deploy.sh — Zero-downtime deployment script
+# deploy.sh — Zero-downtime release deployment
+#
+# Pulls the latest code, builds the targets, applies DB migrations, reloads
+# Nginx if its config changed, restarts the backend, and verifies liveness.
+# On any failure the previous build is restored automatically.
 #
 # USAGE:
 #   bash deploy.sh [--backend] [--frontend] [--skip-audit] [--force]
@@ -9,7 +13,7 @@
 #   --backend      Deploy only the backend
 #   --frontend     Deploy only the frontend
 #   --skip-audit   Skip npm audit (NOT recommended in production)
-#   --force        Deploy even if there are no repo changes
+#   --force        Deploy even if there are no new commits
 #
 # If neither --backend nor --frontend is specified, both are deployed.
 # ==============================================================================
@@ -41,7 +45,6 @@ for arg in "$@"; do
   esac
 done
 
-# Default to full deploy when no target is specified.
 if [[ "$DEPLOY_BACKEND" == "false" ]] && [[ "$DEPLOY_FRONTEND" == "false" ]]; then
   DEPLOY_BACKEND=true
   DEPLOY_FRONTEND=true
@@ -61,17 +64,12 @@ BACKUP_BACKEND=""
 BACKUP_WEB=""
 NGINX_RELOADED=false
 
-cleanup() {
-  local exit_code=$?
-  rm -f "$LOCK_FILE"
-  if [[ $exit_code -ne 0 ]]; then
-    error "Deploy failed (exit code: $exit_code). Starting rollback..."
-    echo "[$DEPLOY_START → $(date '+%Y-%m-%d %H:%M:%S')] FAILED (exit: $exit_code)" \
-      >> "$DEPLOY_LOG"
-    rollback
-  fi
+target_label() {
+  local labels=()
+  [[ "$DEPLOY_BACKEND"  == "true" ]] && labels+=("backend")
+  [[ "$DEPLOY_FRONTEND" == "true" ]] && labels+=("frontend")
+  echo "${labels[*]}"
 }
-trap cleanup EXIT
 
 rollback() {
   warn "══ ROLLBACK STARTED ═════════════════════════════"
@@ -101,117 +99,43 @@ rollback() {
     systemctl restart "$BACKEND_SERVICE" || true
   fi
 
-  _apply_permissions
+  apply_permissions "$DEPLOY_BACKEND" "$DEPLOY_FRONTEND"
 
   warn "Rollback completed. Manual verification recommended."
   warn "  journalctl -u $BACKEND_SERVICE -n 50"
   warn "═════════════════════════════════════════════════"
 }
 
-_apply_permissions() {
-  if [[ "$DEPLOY_FRONTEND" == "true" ]] && [[ -d "$FRONTEND_DIR/dist" ]]; then
-    chown -R www-data:www-data "$FRONTEND_DIR/dist"
-    chmod -R 750 "$FRONTEND_DIR/dist"
-  fi
-
-  if [[ "$DEPLOY_BACKEND" == "true" ]] && [[ -d "$BACKEND_DIR/dist" ]]; then
-    chown -R "$SERVICE_USER:$SERVICE_USER" "$BACKEND_DIR/dist"
-    chmod -R 750 "$BACKEND_DIR/dist"
-  fi
-
-  if [[ -f "$BACKEND_DIR/.env" ]]; then
-    chown "root:$SERVICE_USER" "$BACKEND_DIR/.env"
-    chmod 640 "$BACKEND_DIR/.env"
+cleanup() {
+  local exit_code=$?
+  rm -f "$LOCK_FILE"
+  if [[ $exit_code -ne 0 ]]; then
+    error "Deploy failed (exit code: $exit_code). Starting rollback..."
+    echo "[$DEPLOY_START → $(date '+%Y-%m-%d %H:%M:%S')] FAILED (exit: $exit_code)" \
+      >> "$DEPLOY_LOG"
+    rollback
   fi
 }
-
-_target_label() {
-  local labels=()
-  [[ "$DEPLOY_BACKEND"  == "true" ]] && labels+=("backend")
-  [[ "$DEPLOY_FRONTEND" == "true" ]] && labels+=("frontend")
-  echo "${labels[*]}"
-}
+trap cleanup EXIT
 
 echo "" >> "$DEPLOY_LOG"
 echo "═══════════════════════════════════════════" >> "$DEPLOY_LOG"
 info "Deploy started: $DEPLOY_START"
-info "Targets: $(_target_label)"
+info "Targets: $(target_label)"
 
 cd "$DEPLOY_DIR"
 
+# ------------------------------------------------------------------------------
+# Step 1 — Kokoro TTS
+# ------------------------------------------------------------------------------
 step "1/8 — Ensuring Kokoro TTS service is running"
-
-_KOKORO_URL="${KOKORO_URL:-http://127.0.0.1:8880}"
-_KOKORO_HEALTH_URL="${_KOKORO_URL}/health"
-_KOKORO_RETRIES=6
-_KOKORO_INTERVAL=5
-
-ensure_kokoro() {
-  local healthy=false
-  for i in $(seq 1 "$_KOKORO_RETRIES"); do
-    if curl -sf --max-time 3 "$_KOKORO_HEALTH_URL" &>/dev/null; then
-      healthy=true
-      info "Kokoro TTS is responding (attempt $i)."
-      break
-    fi
-    info "Kokoro not responding — attempt $i/$_KOKORO_RETRIES, waiting ${_KOKORO_INTERVAL}s..."
-    sleep "$_KOKORO_INTERVAL"
-  done
-
-  if [[ "$healthy" == "true" ]]; then
-    return 0
-  fi
-
-  warn "Kokoro TTS is not running. Attempting to start..."
-
-  # Try systemd service first
-  if systemctl list-unit-files | grep -q "^kokoro"; then
-    info "Found kokoro systemd service. Starting..."
-    systemctl start kokoro || true
-    sleep 3
-    for i in $(seq 1 "$_KOKORO_RETRIES"); do
-      if curl -sf --max-time 3 "$_KOKORO_HEALTH_URL" &>/dev/null; then
-        info "Kokoro systemd service started successfully."
-        return 0
-      fi
-      sleep "$_KOKORO_INTERVAL"
-    done
-    error "Kokoro systemd service failed to start."
-    return 1
-  fi
-
-  # Try Docker container as fallback
-  if command -v docker &>/dev/null; then
-    info "Attempting to start Kokoro via Docker..."
-    if docker ps -a --format '{{.Names}}' | grep -q "^kokoro$"; then
-      docker start kokoro || true
-    else
-      warn "No Kokoro container named 'kokoro' found. Please create it manually:"
-      warn "  docker run -d --name kokoro -p 8880:8880 <kokoro-image>"
-      warn "Skipping Kokoro auto-start. The backend will retry synthesis at runtime."
-      return 0
-    fi
-    sleep 3
-    for i in $(seq 1 "$_KOKORO_RETRIES"); do
-      if curl -sf --max-time 3 "$_KOKORO_HEALTH_URL" &>/dev/null; then
-        info "Kokoro Docker container started successfully."
-        return 0
-      fi
-      sleep "$_KOKORO_INTERVAL"
-    done
-    error "Kokoro Docker container failed to start."
-    return 1
-  fi
-
-  warn "No Kokoro service or Docker detected. Skipping auto-start."
-  warn "The backend will attempt to connect to Kokoro at runtime."
-  return 0
-}
-
 ensure_kokoro || {
   warn "Kokoro TTS is unavailable. The backend may fail to generate audio announcements."
 }
 
+# ------------------------------------------------------------------------------
+# Step 2 — Repository sync
+# ------------------------------------------------------------------------------
 step "2/8 — Checking repository changes"
 
 BEFORE_HASH="$(git rev-parse HEAD)"
@@ -226,8 +150,6 @@ if [[ "$BEFORE_HASH" == "$REMOTE_HASH" ]] && [[ "$FORCE_DEPLOY" == "false" ]]; t
   exit 0
 fi
 
-# Discard any local modifications and reset to the remote tracking branch.
-# This ensures manual edits on the server never block or corrupt a deploy.
 git reset --hard "@{u}"
 git submodule update --init --recursive
 AFTER_HASH="$(git rev-parse HEAD)"
@@ -237,6 +159,9 @@ git log --oneline "${BEFORE_HASH}..${AFTER_HASH}" | while read -r line; do
   info "  commit: $line"
 done
 
+# ------------------------------------------------------------------------------
+# Step 3 — Dependency audit
+# ------------------------------------------------------------------------------
 step "3/8 — Dependency audit"
 
 if [[ "$SKIP_AUDIT" == "true" ]]; then
@@ -253,9 +178,15 @@ else
   fi
 fi
 
+# ------------------------------------------------------------------------------
+# Step 4 — Dependencies
+# ------------------------------------------------------------------------------
 step "4/8 — Installing dependencies"
 pnpm install --ignore-scripts
 
+# ------------------------------------------------------------------------------
+# Step 5 — Build
+# ------------------------------------------------------------------------------
 step "5/8 — Building applications"
 
 if [[ "$DEPLOY_BACKEND" == "true" ]] && [[ -d "$BACKEND_DIR/dist" ]]; then
@@ -291,14 +222,6 @@ if [[ "$DEPLOY_BACKEND" == "true" ]]; then
 fi
 
 if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
-  pnpm --filter ./apps/web run build
-  if [[ ! -d "$FRONTEND_DIR/dist" ]] || [[ -z "$(ls -A "$FRONTEND_DIR/dist")" ]]; then
-    error "Frontend build produced no artifacts."
-    exit 1
-  fi
-fi
-
-if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
   pnpm --filter @radio/web run build
   if [[ ! -d "$FRONTEND_DIR/dist" ]] || [[ -z "$(ls -A "$FRONTEND_DIR/dist")" ]]; then
     error "Frontend build produced no artifacts."
@@ -308,6 +231,9 @@ fi
 
 pnpm prune --prod
 
+# ------------------------------------------------------------------------------
+# Step 6 — Nginx config
+# ------------------------------------------------------------------------------
 step "6/8 — Updating Nginx configuration"
 
 NGINX_CHANGED=false
@@ -333,9 +259,15 @@ else
   info "No Nginx changes detected. Skipping."
 fi
 
+# ------------------------------------------------------------------------------
+# Step 7 — Permissions
+# ------------------------------------------------------------------------------
 step "7/8 — Applying permissions"
-_apply_permissions
+apply_permissions "$DEPLOY_BACKEND" "$DEPLOY_FRONTEND"
 
+# ------------------------------------------------------------------------------
+# Step 8 — Restart and health check
+# ------------------------------------------------------------------------------
 step "8/8 — Restarting backend and running health check"
 
 if [[ "$DEPLOY_BACKEND" == "true" ]]; then
@@ -372,18 +304,18 @@ fi
 [[ -n "$BACKUP_WEB"     ]] && rm -rf "$BACKUP_WEB"
 
 DEPLOY_END="$(date '+%Y-%m-%d %H:%M:%S')"
-echo "[$DEPLOY_START → $DEPLOY_END] SUCCESS (${BEFORE_HASH:0:8} → ${AFTER_HASH:0:8}) [targets: $(_target_label)]" \
+echo "[$DEPLOY_START → $DEPLOY_END] SUCCESS (${BEFORE_HASH:0:8} → ${AFTER_HASH:0:8}) [targets: $(target_label)]" \
   >> "$DEPLOY_LOG"
 
 echo ""
 echo -e "${GREEN}${BOLD}════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}${BOLD}  Deploy completed successfully${NC}"
 echo -e "${GREEN}${BOLD}════════════════════════════════════════════════${NC}"
-echo -e "  Targets : $(_target_label)"
+echo -e "  Targets : $(target_label)"
 echo -e "  Commit  : ${BEFORE_HASH:0:8} → ${AFTER_HASH:0:8}"
 echo -e "  Nginx   : $(systemctl is-active nginx)"
 echo -e "  Backend : $(systemctl is-active "$BACKEND_SERVICE")"
-echo -e "  Kokoro  : $(curl -sf --max-time 2 "$_KOKORO_HEALTH_URL" &>/dev/null && echo "active" || echo "inactive")"
+echo -e "  Kokoro  : $(curl -sf --max-time 2 "$KOKORO_HEALTH_URL" &>/dev/null && echo "active" || echo "inactive")"
 echo -e "  Time    : $DEPLOY_END"
 echo -e "  Log     : $DEPLOY_LOG"
 echo ""
