@@ -80,7 +80,7 @@ async function bootstrap() {
     res.json({ ok: true, time: new Date().toISOString() });
   });
 
-  app.listen(config.port, async () => {
+  const server = app.listen(config.port, async () => {
     console.log(`\n Backend corriendo en http://localhost:${config.port}`);
     console.log(`   Station ID : ${config.azuracast.stationId}`);
     console.log(`   AzuraCast  : ${config.azuracast.url}`);
@@ -95,6 +95,9 @@ async function bootstrap() {
     await subscribeToAllConfiguredChannels();
     setInterval(subscribeToAllConfiguredChannels, 20 * 60 * 60 * 1000);
   });
+
+  server.timeout = 600_000;
+  server.keepAliveTimeout = 600_000;
 }
 
 bootstrap().catch((err) => {

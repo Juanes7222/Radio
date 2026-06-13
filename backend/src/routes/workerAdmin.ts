@@ -51,6 +51,11 @@ router.get("/jobs", async (_req: Request, res: Response) => {
 
 router.post(
   "/upload",
+  (req: Request, res: Response, next) => {
+    req.setTimeout(600_000);
+    res.setTimeout(600_000);
+    next();
+  },
   upload.single("file"),
   async (req: Request, res: Response) => {
     if (!validateWorkerAuth(req, res)) return;
