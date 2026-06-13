@@ -71,6 +71,7 @@ export async function dispatchPendingJobs(): Promise<void> {
       title: video.title,
       channelId: video.channelId,
       maxDurationSeconds: config.processing.maxDurationSeconds,
+      uploadProxyUrl: `${config.publicUrl}/admin-api/workers/upload`,
       azuracast: {
         baseUrl: config.azuracast.publicUrl,
         apiKey: config.azuracast.apiKey,
