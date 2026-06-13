@@ -14,6 +14,11 @@ export const config = {
             return /^https?:\/\//i.test(u) ? u : `https://${u}`;
         })(),
         get baseUrl() { return this.url; },
+        get publicUrl() {
+            const env = process.env.AZURACAST_PUBLIC_URL;
+            const u = (env ? env : this.url).replace(/\/$/, '');
+            return /^https?:\/\//i.test(u) ? u : `https://${u}`;
+        },
         apiKey:    required('AZURACAST_API_KEY'),
         stationId: required('AZURACAST_STATION_ID'),
         playlistId: process.env.AZURACAST_PLAYLIST_ID ?? "",

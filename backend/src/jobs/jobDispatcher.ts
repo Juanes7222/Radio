@@ -72,7 +72,7 @@ export async function dispatchPendingJobs(): Promise<void> {
       channelId: video.channelId,
       maxDurationSeconds: config.processing.maxDurationSeconds,
       azuracast: {
-        baseUrl: config.azuracast.baseUrl,
+        baseUrl: config.azuracast.publicUrl,
         apiKey: config.azuracast.apiKey,
         stationId: config.azuracast.stationId,
         playlistId: config.azuracast.playlistId,
