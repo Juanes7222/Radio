@@ -161,6 +161,26 @@ export async function handleJobError(message: JobErrorMessage): Promise<void> {
     return;
   }
 
+  if (!message.retryable) {
+    await prisma.processingJob.update({
+      where: { id: message.jobId },
+      data: { status: "ERROR", lastError: message.error, finishedAt: new Date(), nextRetryAt: null },
+    });
+    await prisma.youTubeVideo.updateMany({
+      where: { jobs: { some: { id: message.jobId } } },
+      data: { status: "ERROR", lastError: message.error },
+    });
+    await prisma.workerNode.updateMany({
+      where: { workerId: message.workerId },
+      data: { status: "ONLINE", currentJobId: null },
+    });
+    logger.error("JobDispatcher", "Job failed with non-retryable error", {
+      jobId: message.jobId,
+      error: message.error,
+    });
+    return;
+  }
+
   const nextRetry = calculateNextRetry(job.attempts + 1);
 
   await prisma.processingJob.update({
