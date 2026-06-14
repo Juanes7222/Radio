@@ -4,6 +4,7 @@ export type VideoStatus =
   | "IGNORED"
   | "DOWNLOADING"
   | "UPLOADING"
+  | "UPLOAD_PENDING"
   | "DONE"
   | "ERROR"
   | "RETRYING"

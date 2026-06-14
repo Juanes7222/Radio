@@ -49,6 +49,53 @@ router.get("/jobs", async (_req: Request, res: Response) => {
   res.json(jobs);
 });
 
+async function processBackgroundUpload(
+  jobId: string,
+  videoId: string,
+  filePath: string,
+  title: string,
+  playlistId: string | undefined
+): Promise<void> {
+  try {
+    logger.info("WorkerAdmin", "Background upload to AzuraCast started", { jobId, videoId });
+    const result = await uploadMp3ToAzuracast(filePath, title, playlistId);
+
+    await prisma.youTubeVideo.updateMany({
+      where: { videoId },
+      data: {
+        status: "DONE",
+        azuracastFileId: result.fileId,
+        azuracastPath: result.azuraPath,
+      },
+    });
+
+    logger.info("WorkerAdmin", "Background upload to AzuraCast completed", {
+      jobId,
+      videoId,
+      fileId: result.fileId,
+    });
+  } catch (err) {
+    logger.error("WorkerAdmin", "Background upload to AzuraCast failed", {
+      jobId,
+      videoId,
+      error: String(err),
+    });
+    await prisma.youTubeVideo.updateMany({
+      where: { videoId },
+      data: { status: "UPLOAD_PENDING", lastError: String(err) },
+    });
+  } finally {
+    try {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (cleanupErr) {
+      logger.warn("WorkerAdmin", "Failed to cleanup background upload file", {
+        path: filePath,
+        error: String(cleanupErr),
+      });
+    }
+  }
+}
+
 router.post(
   "/upload",
   (req: Request, res: Response, next) => {
@@ -65,32 +112,35 @@ router.post(
       return;
     }
 
+    const jobId = req.body.jobId || (req.headers["x-job-id"] as string | undefined);
+    if (!jobId) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      res.status(400).json({ error: "jobId is required" });
+      return;
+    }
+
+    const job = await prisma.processingJob.findUnique({ where: { id: jobId } });
+    if (!job) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      res.status(404).json({ error: "Job not found" });
+      return;
+    }
+
     const title = req.body.title || req.file.originalname;
     const playlistId = req.body.playlistId || undefined;
+    const filePath = req.file.path;
+    const videoId = job.videoId;
 
-    let cleanupDone = false;
-    function cleanup(): void {
-      if (cleanupDone) return;
-      cleanupDone = true;
-      try {
-        if (fs.existsSync(req.file!.path)) fs.unlinkSync(req.file!.path);
-      } catch (cleanupErr) {
-        logger.warn("WorkerAdmin", "Failed to cleanup temp upload", {
-          path: req.file!.path,
-          error: String(cleanupErr),
-        });
-      }
-    }
+    await prisma.youTubeVideo.updateMany({
+      where: { videoId },
+      data: { status: "UPLOAD_PENDING", lastError: null },
+    });
 
-    try {
-      const result = await uploadMp3ToAzuracast(req.file.path, title, playlistId);
-      cleanup();
-      res.json(result);
-    } catch (err) {
-      cleanup();
-      logger.error("WorkerAdmin", "Proxy upload to AzuraCast failed", { error: String(err) });
-      res.status(502).json({ error: String(err) });
-    }
+    res.status(202).json({ accepted: true, jobId });
+
+    setImmediate(() => {
+      void processBackgroundUpload(jobId, videoId, filePath, title, playlistId);
+    });
   }
 );
 

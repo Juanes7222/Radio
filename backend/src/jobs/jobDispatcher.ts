@@ -120,28 +120,44 @@ export async function handleJobStatus(jobId: string, status: string): Promise<vo
 
 export async function handleJobDone(message: JobDoneMessage): Promise<void> {
   const isIgnored = message.ignored === true;
+  const hasUploadIds = !isIgnored && !!message.azuracastFileId && !!message.azuracastPath;
 
   await prisma.processingJob.update({
     where: { id: message.jobId },
     data: { status: isIgnored ? "IGNORED" : "DONE", finishedAt: new Date(), nextRetryAt: null },
   });
 
-  await prisma.youTubeVideo.updateMany({
-    where: { jobs: { some: { id: message.jobId } } },
-    data: {
-      status: isIgnored ? "IGNORED" : "DONE",
-      azuracastFileId: isIgnored ? null : message.azuracastFileId,
-      azuracastPath: isIgnored ? null : message.azuracastPath,
-      duration: message.duration,
-    },
-  });
+  if (isIgnored) {
+    await prisma.youTubeVideo.updateMany({
+      where: { jobs: { some: { id: message.jobId } } },
+      data: { status: "IGNORED", azuracastFileId: null, azuracastPath: null, duration: message.duration },
+    });
+  } else if (hasUploadIds) {
+    await prisma.youTubeVideo.updateMany({
+      where: { jobs: { some: { id: message.jobId } } },
+      data: {
+        status: "DONE",
+        azuracastFileId: message.azuracastFileId,
+        azuracastPath: message.azuracastPath,
+        duration: message.duration,
+      },
+    });
+  } else {
+    await prisma.youTubeVideo.updateMany({
+      where: { jobs: { some: { id: message.jobId } } },
+      data: { duration: message.duration, lastError: null },
+    });
+  }
 
   await prisma.workerNode.updateMany({
     where: { workerId: message.workerId },
     data: { status: "ONLINE", currentJobId: null },
   });
 
-  logger.info("JobDispatcher", isIgnored ? "Job ignored" : "Job completed", { jobId: message.jobId });
+  logger.info("JobDispatcher", isIgnored ? "Job ignored" : "Job completed", {
+    jobId: message.jobId,
+    hasUploadIds,
+  });
 }
 
 export async function handleJobError(message: JobErrorMessage): Promise<void> {
