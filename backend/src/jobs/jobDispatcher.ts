@@ -19,6 +19,109 @@ function isPastDeadline(job: { deadlineAt: Date | null; createdAt: Date }): bool
   return Date.now() > job.createdAt.getTime() + DEADLINE_MS;
 }
 
+export async function dispatchJobById(jobId: string): Promise<void> {
+  const job = await prisma.processingJob.findUnique({
+    where: { id: jobId },
+  });
+
+  if (!job) {
+    throw new Error(`Job ${jobId} not found`);
+  }
+
+  if (isPastDeadline(job)) {
+    await abandonJob(job.id, "Deadline exceeded before dispatch");
+    return;
+  }
+
+  const worker = getAvailableWorker(config.workerHeartbeatTimeoutMs);
+
+  if (!worker) {
+    throw new Error("No available workers");
+  }
+
+  const video = await prisma.youTubeVideo.findUnique({
+    where: { videoId: job.videoId },
+  });
+
+  if (!video) {
+    throw new Error(`Video ${job.videoId} not found`);
+  }
+
+  markWorkerBusy(worker.workerId, job.id);
+
+  await prisma.processingJob.update({
+    where: { id: job.id },
+    data: {
+      status: "ASSIGNED",
+      workerId: worker.workerId,
+      ...(job.startedAt ? {} : { startedAt: new Date() }),
+      attempts: { increment: 1 },
+      nextRetryAt: null,
+    },
+  });
+
+  await prisma.workerNode.update({
+    where: { workerId: worker.workerId },
+    data: {
+      currentJobId: job.id,
+      status: "BUSY",
+    },
+  });
+
+  const message: AssignJobMessage = {
+    type: "assign_job",
+    jobId: job.id,
+    videoId: video.videoId,
+    url: `https://www.youtube.com/watch?v=${video.videoId}`,
+    title: video.title,
+    channelId: video.channelId,
+    maxDurationSeconds: config.processing.maxDurationSeconds,
+    uploadProxyUrl: `${config.publicUrl}/admin-api/workers/upload`,
+    azuracast: {
+      baseUrl: config.azuracast.publicUrl,
+      apiKey: config.azuracast.apiKey,
+      stationId: config.azuracast.stationId,
+      playlistId: config.azuracast.playlistId,
+    },
+  };
+
+  try {
+    worker.socket.send(JSON.stringify(message));
+
+    logger.info("JobDispatcher", "Job assigned", {
+      jobId: job.id,
+      workerId: worker.workerId,
+    });
+  } catch (sendErr) {
+    markWorkerIdle(worker.workerId, job.id);
+
+    await prisma.processingJob.update({
+      where: { id: job.id },
+      data: {
+        status: job.status,
+        workerId: null,
+        startedAt: job.startedAt,
+      },
+    });
+
+    await prisma.workerNode.update({
+      where: { workerId: worker.workerId },
+      data: {
+        currentJobId: null,
+        status: "ONLINE",
+      },
+    });
+
+    logger.error("JobDispatcher", "Failed to send job to worker, rolled back", {
+      jobId: job.id,
+      workerId: worker.workerId,
+      error: String(sendErr),
+    });
+
+    throw sendErr;
+  }
+}
+
 export async function dispatchPendingJobs(): Promise<void> {
   const now = new Date();
   const pendingJobs = await prisma.processingJob.findMany({
@@ -34,76 +137,15 @@ export async function dispatchPendingJobs(): Promise<void> {
   });
 
   for (const job of pendingJobs) {
-    if (isPastDeadline(job)) {
-      await abandonJob(job.id, "Deadline exceeded before dispatch");
-      continue;
-    }
-
-    const worker = getAvailableWorker(config.workerHeartbeatTimeoutMs);
-    if (!worker) break;
-
-    const video = await prisma.youTubeVideo.findUnique({ where: { videoId: job.videoId } });
-    if (!video) continue;
-
-    markWorkerBusy(worker.workerId, job.id);
-
-    await prisma.processingJob.update({
-      where: { id: job.id },
-      data: {
-        status: "ASSIGNED",
-        workerId: worker.workerId,
-        ...(job.startedAt ? {} : { startedAt: new Date() }),
-        attempts: { increment: 1 },
-        nextRetryAt: null,
-      },
-    });
-
-    await prisma.workerNode.update({
-      where: { workerId: worker.workerId },
-      data: { currentJobId: job.id, status: "BUSY" },
-    });
-
-    const message: AssignJobMessage = {
-      type: "assign_job",
+  try {
+    await dispatchJobById(job.id);
+  } catch (err) {
+    logger.error("JobDispatcher", "Failed dispatching pending job", {
       jobId: job.id,
-      videoId: video.videoId,
-      url: `https://www.youtube.com/watch?v=${video.videoId}`,
-      title: video.title,
-      channelId: video.channelId,
-      maxDurationSeconds: config.processing.maxDurationSeconds,
-      uploadProxyUrl: `${config.publicUrl}/admin-api/workers/upload`,
-      azuracast: {
-        baseUrl: config.azuracast.publicUrl,
-        apiKey: config.azuracast.apiKey,
-        stationId: config.azuracast.stationId,
-        playlistId: config.azuracast.playlistId,
-      },
-    };
-
-    try {
-      worker.socket.send(JSON.stringify(message));
-      logger.info("JobDispatcher", "Job assigned", { jobId: job.id, workerId: worker.workerId });
-    } catch (sendErr) {
-      markWorkerIdle(worker.workerId, job.id);
-      await prisma.processingJob.update({
-        where: { id: job.id },
-        data: {
-          status: job.status,
-          workerId: null,
-          startedAt: job.startedAt,
-        },
-      });
-      await prisma.workerNode.update({
-        where: { workerId: worker.workerId },
-        data: { currentJobId: null, status: "ONLINE" },
-      });
-      logger.error("JobDispatcher", "Failed to send job to worker, rolled back", {
-        jobId: job.id,
-        workerId: worker.workerId,
-        error: String(sendErr),
-      });
-    }
+      error: String(err),
+    });
   }
+}
 }
 
 export async function handleJobStatus(jobId: string, status: string): Promise<void> {
