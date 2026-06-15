@@ -30,7 +30,7 @@ type JobSummary = {
 };
 
 function getBaseUrl(): string {
-  const port = process.env.PORT ?? "3001";
+  const port = process.env.PORT ?? "3000";
   return (process.env.JOB_TEST_BASE_URL ?? `http://127.0.0.1:${port}`).replace(/\/$/, "");
 }
 
