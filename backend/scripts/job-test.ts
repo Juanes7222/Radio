@@ -1,27 +1,40 @@
-import { prisma } from "../src/lib/prisma";
-import { dispatchJobById } from "../src/jobs/jobDispatcher";
+import dotenv from "dotenv";
+import { initializeInfisicalSecrets } from "../src/infisical";
 
-async function getRandomJob(where: any = {}) {
-  const count = await prisma.processingJob.count({
-    where,
-  });
+dotenv.config();
 
-  if (count === 0) {
-    return null;
+async function bootstrap() {
+  const infisicalInitialized = await initializeInfisicalSecrets();
+
+  if (infisicalInitialized) {
+    console.log("[Infisical] Secrets loaded successfully");
+  } else {
+    console.log("[Infisical] Not configured or failed.");
   }
 
-  const skip = Math.floor(Math.random() * count);
+  const { prisma } = await import("../src/lib/prisma");
+  const { dispatchJobById } = await import("../src/jobs/jobDispatcher");
 
-  return prisma.processingJob.findFirst({
-    where,
-    skip,
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
-}
+  async function getRandomJob(where: any = {}) {
+    const count = await prisma.processingJob.count({
+      where,
+    });
 
-async function main() {
+    if (count === 0) {
+      return null;
+    }
+
+    const skip = Math.floor(Math.random() * count);
+
+    return prisma.processingJob.findFirst({
+      where,
+      skip,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
   const [mode, value] = process.argv.slice(2);
 
   let job = null;
@@ -92,29 +105,19 @@ async function main() {
 
     default:
       console.log(`
-         Usage:
+Usage:
 
-         random
-         pending
-         retrying
-         assigned
-         error
-         abandoned
+random
+pending
+retrying
+assigned
+error
+abandoned
 
-         id <jobId>
+id <jobId>
 
-         video <videoId>
-
-         Examples:
-
-         pnpm tsx src/scripts/test-job.ts random
-
-         pnpm tsx src/scripts/test-job.ts pending
-
-         pnpm tsx src/scripts/test-job.ts id 123
-
-         pnpm tsx src/scripts/test-job.ts video dQw4w9WgXcQ
-         `);
+video <videoId>
+`);
       return;
   }
 
@@ -132,13 +135,11 @@ async function main() {
   await dispatchJobById(job.id);
 
   console.log("Job dispatched successfully");
+
+  await prisma.$disconnect();
 }
 
-main()
-  .catch((err) => {
-    console.error(err);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+bootstrap().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
