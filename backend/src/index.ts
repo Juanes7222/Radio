@@ -33,6 +33,7 @@ async function bootstrap() {
   const { startWorkerServer } = await import('./workers/workerServer');
   const { dispatchPendingJobs } = await import('./jobs/jobDispatcher');
   const { subscribeToAllConfiguredChannels } = await import('./services/youtube/subscription.service');
+  const { default: internalTestRouter } = await import('./routes/internalTest');
 
   const app = express.default();
 
@@ -68,6 +69,7 @@ async function bootstrap() {
   app.use('/admin-api/youtube', youtubeRouter);
   app.use('/api/bible', bibleRouter);
   app.use('/admin-api/workers', workerAdminRouter);
+  app.use('/internal', internalTestRouter);
   app.use('/api/prayer', prayerRouter);
 
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
