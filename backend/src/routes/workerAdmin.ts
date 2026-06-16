@@ -54,11 +54,12 @@ async function processBackgroundUpload(
   videoId: string,
   filePath: string,
   title: string,
-  playlistId: string | undefined
+  playlistId: string | undefined,
+  folder: string | undefined
 ): Promise<void> {
   try {
     logger.info("WorkerAdmin", "Background upload to AzuraCast started", { jobId, videoId });
-    const result = await uploadMp3ToAzuracast(filePath, title, playlistId);
+    const result = await uploadMp3ToAzuracast(filePath, title, playlistId, folder);
 
     await prisma.youTubeVideo.updateMany({
       where: { videoId },
@@ -126,8 +127,12 @@ router.post(
       return;
     }
 
+    const video = await prisma.youTubeVideo.findUnique({ where: { videoId: job.videoId } });
+    const isNewsChannel = config.youtube.noticeChanelIds.includes(video?.channelId ?? "");
+    const playlistId = req.body.playlistId || (isNewsChannel ? config.azuracast.newsPlaylistId : config.azuracast.playlistId) || undefined;
+    const folder = isNewsChannel ? "NOTICIAS" : "CONTENIDO VARIADO";
+
     const title = req.body.title || req.file.originalname;
-    const playlistId = req.body.playlistId || undefined;
     const filePath = req.file.path;
     const videoId = job.videoId;
 
@@ -139,7 +144,7 @@ router.post(
     res.status(202).json({ accepted: true, jobId });
 
     setImmediate(() => {
-      void processBackgroundUpload(jobId, videoId, filePath, title, playlistId);
+        void processBackgroundUpload(jobId, videoId, filePath, title, playlistId, folder);
     });
   }
 );
