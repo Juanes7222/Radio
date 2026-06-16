@@ -17,8 +17,12 @@ export async function uploadMp3ToAzuracast(
   folder?: string
 ): Promise<AzuracastUploadResult> {
   const { url, apiKey, stationId } = config.azuracast;
-  const filename = path.basename(localPath);
-  const destinationPath  = folder ? `${folder}/${filename}` : filename;
+  const sanitizedTitle = title
+    .replace(/[^\w\s\-áéíóúÁÉÍÓÚñÑ]/g, "")
+    .trim()
+    .replace(/\s+/g, "_");
+  const filename = `${sanitizedTitle}.mp3`;
+  const destinationPath = folder ? `${folder}/${filename}` : filename;
 
   const fileBuffer = fs.readFileSync(localPath);
   const base64 = fileBuffer.toString("base64");
@@ -50,6 +54,7 @@ export async function uploadMp3ToAzuracast(
   const azuraPath = data.path;
 
   if (playlistId) {
+    logger.info("AzuracastService", "Assigning file to playlist", { fileId, playlistId });
     await assignToPlaylist(fileId, playlistId, stationId, url, apiKey);
   }
 
@@ -78,5 +83,7 @@ async function assignToPlaylist(
 
   if (!response.ok) {
     logger.warn("AzuracastService", "Could not assign to playlist", { fileId, playlistId });
+  } else {
+    logger.info("AzuracastService", "File assigned to playlist", { fileId, playlistId });
   }
 }
