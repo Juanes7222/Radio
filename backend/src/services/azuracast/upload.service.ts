@@ -18,8 +18,9 @@ export async function uploadMp3ToAzuracast(
   const { url, apiKey, stationId } = config.azuracast;
   const filename = path.basename(localPath);
 
-  const form = new FormData();
-  form.append("file", fs.createReadStream(localPath), { filename });
+  const fileBuffer = fs.readFileSync(localPath);
+  const base64 = fileBuffer.toString("base64");
+  const dataUri = `data:audio/mpeg;base64,${base64}`;
 
   const uploadUrl = `${url}/api/station/${stationId}/files`;
 
@@ -29,10 +30,12 @@ export async function uploadMp3ToAzuracast(
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      ...form.getHeaders(),
+      "Content-Type": "application/json",
     },
-    body: form,
-    // node-fetch no tiene timeout nativo; usamos AbortController
+    body: JSON.stringify({
+      path: filename,
+      file: dataUri,
+    }),
     signal: AbortSignal.timeout(120_000),
   });
 
