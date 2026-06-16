@@ -68,6 +68,11 @@ export async function dispatchJobById(jobId: string): Promise<void> {
     },
   });
 
+  const isNewsChannel = config.youtube.noticeChanelIds.includes(video.channelId);
+  const playlistId = isNewsChannel
+    ? config.azuracast.newsPlaylistId
+    : config.azuracast.playlistId;
+
   const message: AssignJobMessage = {
     type: "assign_job",
     jobId: job.id,
@@ -81,7 +86,7 @@ export async function dispatchJobById(jobId: string): Promise<void> {
       baseUrl: config.azuracast.publicUrl,
       apiKey: config.azuracast.apiKey,
       stationId: config.azuracast.stationId,
-      playlistId: config.azuracast.playlistId,
+      playlistId: playlistId,
     },
   };
 

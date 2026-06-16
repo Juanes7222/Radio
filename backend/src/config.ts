@@ -45,6 +45,7 @@ export const config = {
     panelSecret: required('PANEL_SECRET'),
     youtube: {
         channelIds: (process.env.YOUTUBE_CHANNEL_IDS ?? "").split(",").filter(Boolean),
+        noticeChanelIds: (process.env.YOUTUBE_CHANNEL_NOTICES ?? "").split(",").filter(Boolean),
     },
     worker: {
         authSecret: required('WORKER_AUTH_SECRET'),
