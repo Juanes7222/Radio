@@ -31,7 +31,7 @@ function getPeriodGreeting(): string {
 }
 
 export function renderTemplate(template: string, variables: Record<string, string> = {}): string {
-  const defaults: Record<string, string | number> = {
+  const computedDefaults: Record<string, string | number> = {
     hour: getCurrentHour12(),
     hour24: new Date().getHours(),
     period: getPeriod(),
@@ -41,8 +41,22 @@ export function renderTemplate(template: string, variables: Record<string, strin
     date: getFormattedDate(),
     temperature: variables.temperature || '',
   };
-  
-  return template.replace(/\\{\\{(\\w+)\\}\\}/g, (_, key) => {
-    return String(defaults[key] || variables[key] || '');
+
+  const merged: Record<string, string | number> = {};
+  for (const key of Object.keys(computedDefaults)) {
+    merged[key] = computedDefaults[key];
+  }
+  for (const key of Object.keys(variables)) {
+    if (variables[key] !== undefined && variables[key] !== null && variables[key] !== "") {
+      merged[key] = variables[key];
+    }
+  }
+
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    const value = merged[key];
+    if (value === undefined || value === null || value === "") {
+      return "";
+    }
+    return String(value);
   });
 }

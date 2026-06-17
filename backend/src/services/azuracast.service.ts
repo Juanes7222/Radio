@@ -62,9 +62,21 @@ export async function upsertScheduledPlaylist(name: string, cronHour: number): P
 }
 
 export async function forcePlayAnnouncement(mediaId: string): Promise<void> {
-  await azApi.post(`/station/${STATION}/queue/inject_from_playlist`, {
-    media_id: mediaId
-  });
+  try {
+    await azApi.post(`/station/${STATION}/queue`, {
+      media_id: mediaId,
+    });
+  } catch (err: any) {
+    const responseData = err.response?.data;
+    const responseStatus = err.response?.status;
+    const errorMessage =
+      typeof responseData === "string"
+        ? responseData
+        : responseData?.message || JSON.stringify(responseData) || err.message;
+    throw new Error(
+      `AzuraCast queue inject failed (${responseStatus || "?"}): ${errorMessage}`
+    );
+  }
 }
 
 interface PlaylistResponse {
@@ -97,13 +109,15 @@ export async function getOrCreatePlaylist(name: string): Promise<string> {
 }
 
 export async function addMediaToPlaylist(playlistId: string, mediaId: string): Promise<void> {
-  await azApi.post(`/station/${STATION}/playlist/${playlistId}/queue`, {
-    id: mediaId,
+  await azApi.put(`/station/${STATION}/file/${mediaId}`, {
+    playlists: [{ id: parseInt(playlistId, 10) }],
   });
 }
 
 export async function removeMediaFromPlaylist(playlistId: string, mediaId: string): Promise<void> {
-  await azApi.delete(`/station/${STATION}/playlist/${playlistId}/queue/${mediaId}`);
+  await azApi.put(`/station/${STATION}/file/${mediaId}`, {
+    playlists: [],
+  });
 }
 
 export async function getPlaylistMedia(playlistId: string): Promise<string[]> {

@@ -9,6 +9,43 @@ import type { TimeSlotGroup } from "./timeSlotPlanner.service";
 
 const MEDIA_DIR = config.locutor.mediaDir;
 
+const HOUR_WORDS: Record<number, string> = {
+  0: "doce de la noche",
+  1: "una de la madrugada",
+  2: "dos de la madrugada",
+  3: "tres de la madrugada",
+  4: "cuatro de la madrugada",
+  5: "cinco de la madrugada",
+  6: "seis de la mañana",
+  7: "siete de la mañana",
+  8: "ocho de la mañana",
+  9: "nueve de la mañana",
+  10: "diez de la mañana",
+  11: "once de la mañana",
+  12: "doce del mediodía",
+  13: "una de la tarde",
+  14: "dos de la tarde",
+  15: "tres de la tarde",
+  16: "cuatro de la tarde",
+  17: "cinco de la tarde",
+  18: "seis de la tarde",
+  19: "siete de la noche",
+  20: "ocho de la noche",
+  21: "nueve de la noche",
+  22: "diez de la noche",
+  23: "once de la noche",
+};
+
+function numberToSpanishHour(hour24: number): string {
+  return HOUR_WORDS[hour24] ?? `${hour24} horas`;
+}
+
+function periodInSpanish(hour24: number): string {
+  if (hour24 >= 5 && hour24 < 12) return "mañana";
+  if (hour24 >= 12 && hour24 < 19) return "tarde";
+  return "noche";
+}
+
 export interface GenerationResult {
   audioId: string;
   filename: string;
@@ -105,11 +142,16 @@ async function generateNewAudio(
   }
 
   const hour12 = hour % 12 || 12;
+  const hourText = numberToSpanishHour(hour);
+  const periodText = periodInSpanish(hour);
   const renderedText =
     text ||
     renderTemplate(template.textTemplate, {
       hour: String(hour12),
       hour24: String(hour),
+      hour_text: hourText,
+      period: periodText,
+      period_greeting: periodText,
     });
 
   const filename = `hora_${String(hour).padStart(2, "0")}_${Date.now()}.mp3`;
