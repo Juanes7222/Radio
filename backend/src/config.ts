@@ -23,6 +23,7 @@ export const config = {
         stationId: required('AZURACAST_STATION_ID'),
         playlistId: process.env.AZURACAST_PLAYLIST_ID ?? "",
         newsPlaylistId: process.env.AZURACAST_NEWS_PLAYLIST_ID ?? "",
+        newsFolderPath: process.env.AZURACAST_NEWS_FOLDER_PATH ?? "/var/azuracast/stations/1/media/NOTICIAS",
     },
     locutor: {
         kokoroUrl: process.env.KOKORO_URL || 'http://localhost:8880',

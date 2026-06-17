@@ -1,6 +1,4 @@
 import fs from "fs";
-import path from "path";
-import FormData from "form-data";
 import fetch from "node-fetch";
 import { config } from "../../config";
 import { logger } from "../../utils/logger";
@@ -18,7 +16,9 @@ export async function uploadMp3ToAzuracast(
 ): Promise<AzuracastUploadResult> {
   const { url, apiKey, stationId } = config.azuracast;
   const sanitizedTitle = title
-    .replace(/[^\w\s\-áéíóúÁÉÍÓÚñÑ]/g, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, "")
     .trim()
     .replace(/\s+/g, "_");
   const filename = `${sanitizedTitle}.mp3`;
@@ -29,7 +29,7 @@ export async function uploadMp3ToAzuracast(
 
   const uploadUrl = `${url}/api/station/${stationId}/files`;
 
-  logger.info("AzuracastService", "Uploading file", { filename, azuraPath: destinationPath });
+  logger.info("AzuracastService", "Uploading file", { filename, azuraPath: destinationPath, title });
 
   const uploadResponse = await fetch(uploadUrl, {
     method: "POST",

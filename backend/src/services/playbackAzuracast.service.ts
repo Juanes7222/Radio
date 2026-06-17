@@ -1,5 +1,6 @@
+import axios from "axios";
 import { prisma } from "../lib/prisma";
-import { forcePlayAnnouncement, getOrCreatePlaylist, addMediaToPlaylist } from "./azuracast.service";
+import { getOrCreatePlaylist, addMediaToPlaylist } from "./azuracast.service";
 import { uploadMp3ToAzuracast } from "./azuracast/upload.service";
 import { config } from "../config";
 import { logger } from "../utils/logger";
@@ -7,6 +8,14 @@ import { logger } from "../utils/logger";
 const PLAYLIST_NAME = "Avisos de Hora";
 
 let cachedPlaylistId: string | null = null;
+
+const azApi = axios.create({
+  baseURL: `${config.azuracast.url}/api`,
+  headers: { "X-API-Key": config.azuracast.apiKey },
+  timeout: 10_000,
+});
+
+const STATION = config.azuracast.stationId;
 
 async function getPlaylistId(): Promise<string> {
   if (cachedPlaylistId) return cachedPlaylistId;
@@ -51,15 +60,18 @@ export async function addToAnnouncementPlaylist(mediaId: string): Promise<void> 
 }
 
 /**
- * Injects an announcement directly into the station queue.
- * This is the most reliable way to play at an exact time.
+ * Pushes the media item into the upcoming playback queue.
+ * This avoids cutting off the current song and handles transitions smoothly.
  */
-export async function playAnnouncementNow(mediaId: string): Promise<void> {
+export async function queueAnnouncementNext(mediaId: string): Promise<void> {
   try {
-    await forcePlayAnnouncement(mediaId);
-    logger.info("PlaybackAzuracast", "Injected announcement into queue", { mediaId });
+    await azApi.post(`/station/${STATION}/queue`, {
+      media_id: mediaId,
+      is_asap: true,
+    });
+    logger.info("PlaybackAzuracast", "Queued announcement successfully", { mediaId });
   } catch (err: any) {
-    logger.error("PlaybackAzuracast", "Failed to inject announcement", { mediaId, error: err.message });
+    logger.error("PlaybackAzuracast", "Failed to queue announcement", { mediaId, error: err.message });
     throw err;
   }
 }
@@ -99,14 +111,14 @@ export async function playScheduledAnnouncementForHour(hour: number): Promise<bo
   }
 
   try {
-    await playAnnouncementNow(schedule.audio.azuracastMediaId);
+    await queueAnnouncementNext(schedule.audio.azuracastMediaId);
 
     await prisma.audioSchedule.update({
       where: { id: schedule.id },
       data: { playedAt: new Date() },
     });
 
-    logger.info("PlaybackAzuracast", "Played scheduled announcement", {
+    logger.info("PlaybackAzuracast", "Processed scheduled announcement queueing", {
       hour,
       audioId: schedule.audio.id,
       mediaId: schedule.audio.azuracastMediaId,
@@ -114,7 +126,7 @@ export async function playScheduledAnnouncementForHour(hour: number): Promise<bo
 
     return true;
   } catch (err: any) {
-    logger.error("PlaybackAzuracast", "Failed to play scheduled announcement", { hour, error: err.message });
+    logger.error("PlaybackAzuracast", "Failed to process scheduled announcement", { hour, error: err.message });
     return false;
   }
 }

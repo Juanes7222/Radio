@@ -52,8 +52,9 @@ const BLOCKING_KEYWORDS = [
 const BLOCKING_PLAYLIST_TYPES = ["streamer", "live", "custom"];
 
 function isBlockingItem(item: AzuraScheduleItem): boolean {
-  if (item.is_streamer) return true;
-  if (item.type === "streamer" || item.type === "live") return true;
+  if (item.is_streamer || BLOCKING_PLAYLIST_TYPES.includes(item.type)) {
+    return true;
+  }
 
   const text = `${item.title ?? ""} ${item.name ?? ""}`.toLowerCase();
   return BLOCKING_KEYWORDS.some((kw) => text.includes(kw));
@@ -68,14 +69,26 @@ function isBlockingPlaylist(playlist: AzuraPlaylist): boolean {
   return BLOCKING_KEYWORDS.some((kw) => name.includes(kw));
 }
 
-async function fetchStationScheduleSafe(): Promise<AzuraScheduleItem[]> {
+/**
+ * Fetches the station schedule within the boundaries of the specified target date.
+ */
+async function fetchStationScheduleSafe(targetDate: Date): Promise<AzuraScheduleItem[]> {
   try {
-    const { data } = await azApi.get(`/station/${STATION}/schedule`);
+    const start = new Date(targetDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(targetDate);
+    end.setHours(23, 59, 59, 999);
+
+    const { data } = await azApi.get(`/station/${STATION}/schedule`, {
+      params: { 
+        start: start.toISOString(), 
+        end: end.toISOString() 
+      }
+    });
+    
     return Array.isArray(data) ? data : [];
   } catch (err: any) {
-    logger.warn("ScheduleAnalyzer", "Failed to fetch station schedule, treating as open", {
-      error: err.message,
-    });
+    logger.warn("ScheduleAnalyzer", "Failed to fetch station schedule", { error: err.message });
     return [];
   }
 }
@@ -85,30 +98,81 @@ async function fetchPlaylistsSafe(): Promise<AzuraPlaylist[]> {
     const { data } = await azApi.get<AzuraPlaylist[]>(`/station/${STATION}/playlists`);
     return Array.isArray(data) ? data : [];
   } catch (err: any) {
-    logger.warn("ScheduleAnalyzer", "Failed to fetch playlists, treating as open", {
-      error: err.message,
-    });
+    logger.warn("ScheduleAnalyzer", "Failed to fetch playlists", { error: err.message });
     return [];
   }
 }
 
 /**
- * Returns the hours that are BLOCKED for inserting time announcements.
- * Only blocks hours with special programming (news, live shows, events).
- * Regular music programming does NOT block announcements since they are
- * injected into the play queue between songs.
- *
- * If the AzuraCast API is unreachable, returns an empty set (fail open)
- * so the radio can still announce the hour.
+ * Maps standard JavaScript day index (0-6) to AzuraCast day index (1-7).
  */
+function getAzuraDayOfWeek(date: Date): number {
+  const day = date.getDay();
+  return day === 0 ? 7 : day;
+}
+
+/**
+ * Calculates occupied hours handling strict time boundaries.
+ * Prevents blocking the final hour if the event ends exactly at minute zero.
+ */
+function calculatePlaylistBlockedHours(startTime: number, endTime: number): number[] {
+  const blocked: number[] = [];
+  const startHour = Math.floor(startTime / 100);
+  const endHour = Math.floor(endTime / 100);
+  const endMin = endTime % 100;
+
+  const adjustedEndHour = (endMin === 0 && endHour > startHour) ? endHour - 1 : endHour;
+
+  for (let h = startHour; h <= adjustedEndHour; h++) {
+    blocked.push(h);
+  }
+  return blocked;
+}
+
+/**
+ * Calculates occupied hours for specific Date boundaries.
+ * Clamps the blocked hours to only apply to the target day, allowing midnight crossings.
+ */
+function calculateScheduleBlockedHours(start: Date, end: Date, targetDateString: string): number[] {
+  const blocked: number[] = [];
+  const startString = start.toDateString();
+  const endString = end.toDateString();
+
+  if (startString === targetDateString) {
+    const isSameDay = endString === targetDateString;
+    let endHour = isSameDay ? end.getHours() : 23;
+
+    if (isSameDay && end.getMinutes() === 0 && endHour > start.getHours()) {
+      endHour--;
+    }
+
+    for (let h = start.getHours(); h <= endHour; h++) {
+      blocked.push(h);
+    }
+  } else if (endString === targetDateString) {
+    let endHour = end.getHours();
+    
+    if (end.getMinutes() === 0 && endHour > 0) {
+      endHour--;
+    }
+
+    for (let h = 0; h <= endHour; h++) {
+      blocked.push(h);
+    }
+  }
+
+  return blocked;
+}
+
 export async function analyzeSafeHours(date: Date = new Date()): Promise<number[]> {
+  const targetDateString = date.toDateString();
   const [schedule, playlists] = await Promise.all([
-    fetchStationScheduleSafe(),
+    fetchStationScheduleSafe(date),
     fetchPlaylistsSafe(),
   ]);
 
-  const dayOfWeek = date.getDay();
   const blockedHours = new Set<number>();
+  const currentAzuraDay = getAzuraDayOfWeek(date);
 
   for (const item of schedule) {
     if (!isBlockingItem(item)) continue;
@@ -116,65 +180,37 @@ export async function analyzeSafeHours(date: Date = new Date()): Promise<number[
     const start = new Date(item.start_timestamp * 1000);
     const end = new Date(item.end_timestamp * 1000);
 
-    if (start.toDateString() !== date.toDateString()) continue;
-
-    const startHour = start.getHours();
-    const endHour = end.getHours();
-    const startMin = start.getMinutes();
-
-    if (startMin > 30 && startHour === endHour) {
-      blockedHours.add(startHour);
-    } else {
-      for (let h = startHour; h <= endHour; h++) {
-        blockedHours.add(h);
-      }
-    }
+    const blockedInterval = calculateScheduleBlockedHours(start, end, targetDateString);
+    blockedInterval.forEach((hour) => blockedHours.add(hour));
   }
 
   for (const playlist of playlists) {
-    if (!isBlockingPlaylist(playlist)) continue;
-    if (!playlist.schedule_items) continue;
+    if (!isBlockingPlaylist(playlist) || !playlist.schedule_items) continue;
 
     for (const item of playlist.schedule_items) {
-      if (!item.days.includes(dayOfWeek)) continue;
+      if (!item.days.includes(currentAzuraDay)) continue;
 
-      const startHour = Math.floor(item.start_time / 100);
-      const endHour = Math.floor(item.end_time / 100);
-
-      for (let h = startHour; h <= endHour; h++) {
-        blockedHours.add(h);
-      }
+      const blockedInterval = calculatePlaylistBlockedHours(item.start_time, item.end_time);
+      blockedInterval.forEach((hour) => blockedHours.add(hour));
     }
   }
 
-  const allHours = Array.from({ length: 24 }, (_, i) => i);
-  const safeHours = allHours.filter((h) => !blockedHours.has(h));
+  const safeHours = Array.from({ length: 24 }, (_, i) => i).filter((h) => !blockedHours.has(h));
 
   logger.info("ScheduleAnalyzer", "Safe hours computed", {
-    blockedHours: Array.from(blockedHours),
+    blockedHours: Array.from(blockedHours).sort((a, b) => a - b),
     safeHoursCount: safeHours.length,
   });
 
   return safeHours;
 }
 
-/**
- * Filters a list of candidate hours to only those that are safe
- * according to the current station schedule.
- */
-export async function filterSafeHours(
-  candidateHours: number[],
-  date?: Date
-): Promise<number[]> {
+export async function filterSafeHours(candidateHours: number[], date?: Date): Promise<number[]> {
   const safeHours = await analyzeSafeHours(date || new Date());
   return candidateHours.filter((h) => safeHours.includes(h));
 }
 
-/**
- * Returns hours that are explicitly blocked by programming.
- */
 export async function getBlockedHours(date: Date = new Date()): Promise<number[]> {
-  const allHours = Array.from({ length: 24 }, (_, i) => i);
   const safeHours = await analyzeSafeHours(date);
-  return allHours.filter((h) => !safeHours.includes(h));
+  return Array.from({ length: 24 }, (_, i) => i).filter((h) => !safeHours.includes(h));
 }
