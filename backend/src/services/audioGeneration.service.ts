@@ -65,7 +65,11 @@ async function findReusableAudio(
   hour: number,
   group: TimeSlotGroup
 ) {
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
 
   return prisma.generatedAudio.findFirst({
     where: {
@@ -74,7 +78,7 @@ async function findReusableAudio(
       status: "ready",
       OR: [
         { lastUsedDate: null },
-        { lastUsedDate: { not: today } },
+        { lastUsedDate: { lt: today } },
       ],
     },
     orderBy: [
@@ -171,13 +175,14 @@ export async function scheduleAudioForDate(
   hour: number,
   azuracastPlaylistId?: string
 ): Promise<void> {
-  const dateStr = date.toISOString().split("T")[0];
+  const dateOnly = new Date(date);
+  dateOnly.setHours(0, 0, 0, 0);
 
   await prisma.generatedAudio.update({
     where: { id: audioId },
     data: {
       lastUsedAt: new Date(),
-      lastUsedDate: dateStr,
+      lastUsedDate: dateOnly,
       useCount: { increment: 1 },
     },
   });
@@ -203,7 +208,7 @@ export async function scheduleAudioForDate(
     },
   });
 
-  logger.info("AudioGeneration", "Scheduled audio", { audioId, date: dateStr, hour });
+  logger.info("AudioGeneration", "Scheduled audio", { audioId, date: dateOnly.toISOString().split("T")[0], hour });
 }
 
 /**

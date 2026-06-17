@@ -45,6 +45,8 @@ const BLOCKING_KEYWORDS = [
   "show",
   "concierto",
   "programa especial",
+  "predica",
+  "rev"
 ];
 
 const BLOCKING_PLAYLIST_TYPES = ["streamer", "live", "custom"];

@@ -84,14 +84,12 @@ async function findReusableAudio(
   const previousDate = new Date(date);
   previousDate.setDate(previousDate.getDate() - 1);
 
-  const previousDateStr = previousDate.toISOString().split("T")[0];
-
   const candidates = await prisma.generatedAudio.findMany({
     where: {
       hourValue: hour,
       status: "ready",
       OR: [
-        { lastUsedDate: { lt: previousDateStr } },
+        { lastUsedDate: { lt: previousDate } },
         { lastUsedDate: null },
       ],
     },
@@ -203,13 +201,14 @@ export async function markAudioUsed(
   date: Date,
   hour: number
 ): Promise<void> {
-  const dateStr = date.toISOString().split("T")[0];
+  const dateOnly = new Date(date);
+  dateOnly.setHours(0, 0, 0, 0);
 
   await prisma.generatedAudio.update({
     where: { id: audioId },
     data: {
       lastUsedAt: new Date(),
-      lastUsedDate: dateStr,
+      lastUsedDate: dateOnly,
       useCount: { increment: 1 },
     },
   });
