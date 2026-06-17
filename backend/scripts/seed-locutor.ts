@@ -7,7 +7,7 @@ const DEFAULT_TEMPLATES = [
     type: "hourly",
     name: "Aviso de Hora (predeterminado)",
     textTemplate:
-      "Son las {{hour_text}} de la {{period}}. {{station_name}}.",
+      "{{station_name}} Son las {{hour_text}}",
     voice: "ef_dora",
     speed: 0.9,
     active: true,

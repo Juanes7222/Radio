@@ -62,10 +62,12 @@ export async function upsertScheduledPlaylist(name: string, cronHour: number): P
 }
 
 export async function forcePlayAnnouncement(mediaId: string): Promise<void> {
+  // AzuraCast does not expose a public API to inject media into the play queue.
+  // Instead, we use the "skip" backend action to advance to the next track,
+  // combined with the media being assigned to a high-priority playlist.
+  // The caller is expected to ensure the media is in an active playlist.
   try {
-    await azApi.post(`/station/${STATION}/queue`, {
-      media_id: mediaId,
-    });
+    await azApi.post(`/station/${STATION}/backend/skip`);
   } catch (err: any) {
     const responseData = err.response?.data;
     const responseStatus = err.response?.status;
@@ -74,7 +76,7 @@ export async function forcePlayAnnouncement(mediaId: string): Promise<void> {
         ? responseData
         : responseData?.message || JSON.stringify(responseData) || err.message;
     throw new Error(
-      `AzuraCast queue inject failed (${responseStatus || "?"}): ${errorMessage}`
+      `AzuraCast backend skip failed (${responseStatus || "?"}): ${errorMessage}`
     );
   }
 }

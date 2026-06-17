@@ -10,40 +10,65 @@ import type { TimeSlotGroup } from "./timeSlotPlanner.service";
 const MEDIA_DIR = config.locutor.mediaDir;
 
 const HOUR_WORDS: Record<number, string> = {
-  0: "doce de la noche",
-  1: "una de la madrugada",
-  2: "dos de la madrugada",
-  3: "tres de la madrugada",
-  4: "cuatro de la madrugada",
-  5: "cinco de la madrugada",
-  6: "seis de la mañana",
-  7: "siete de la mañana",
-  8: "ocho de la mañana",
-  9: "nueve de la mañana",
-  10: "diez de la mañana",
-  11: "once de la mañana",
-  12: "doce del mediodía",
-  13: "una de la tarde",
-  14: "dos de la tarde",
-  15: "tres de la tarde",
-  16: "cuatro de la tarde",
-  17: "cinco de la tarde",
-  18: "seis de la tarde",
-  19: "siete de la noche",
-  20: "ocho de la noche",
-  21: "nueve de la noche",
-  22: "diez de la noche",
-  23: "once de la noche",
+  0: "doce",
+  1: "una",
+  2: "dos",
+  3: "tres",
+  4: "cuatro",
+  5: "cinco",
+  6: "seis",
+  7: "siete",
+  8: "ocho",
+  9: "nueve",
+  10: "diez",
+  11: "once",
+  12: "doce",
+  13: "una",
+  14: "dos",
+  15: "tres",
+  16: "cuatro",
+  17: "cinco",
+  18: "seis",
+  19: "siete",
+  20: "ocho",
+  21: "nueve",
+  22: "diez",
+  23: "once",
+};
+
+const PERIOD_WORDS: Record<number, string> = {
+  0: "de la noche",
+  1: "de la madrugada",
+  2: "de la madrugada",
+  3: "de la madrugada",
+  4: "de la madrugada",
+  5: "de la madrugada",
+  6: "de la mañana",
+  7: "de la mañana",
+  8: "de la mañana",
+  9: "de la mañana",
+  10: "de la mañana",
+  11: "de la mañana",
+  12: "del mediodía",
+  13: "de la tarde",
+  14: "de la tarde",
+  15: "de la tarde",
+  16: "de la tarde",
+  17: "de la tarde",
+  18: "de la tarde",
+  19: "de la noche",
+  20: "de la noche",
+  21: "de la noche",
+  22: "de la noche",
+  23: "de la noche",
 };
 
 function numberToSpanishHour(hour24: number): string {
-  return HOUR_WORDS[hour24] ?? `${hour24} horas`;
+  return HOUR_WORDS[hour24] ?? `${hour24}`;
 }
 
 function periodInSpanish(hour24: number): string {
-  if (hour24 >= 5 && hour24 < 12) return "mañana";
-  if (hour24 >= 12 && hour24 < 19) return "tarde";
-  return "noche";
+  return PERIOD_WORDS[hour24] ?? "de la noche";
 }
 
 export interface GenerationResult {
