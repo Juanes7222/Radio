@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma";
-import { uploadMedia, forcePlayAnnouncement, getOrCreatePlaylist, addMediaToPlaylist } from "./azuracast.service";
+import { forcePlayAnnouncement, getOrCreatePlaylist, addMediaToPlaylist } from "./azuracast.service";
+import { uploadMp3ToAzuracast } from "./azuracast/upload.service";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 
@@ -15,15 +16,23 @@ async function getPlaylistId(): Promise<string> {
 
 /**
  * Uploads an audio file to AzuraCast and returns the media ID.
+ * Uses the proven base64+JSON approach to avoid AzuraCast's multipart deserialization bug.
  */
 export async function uploadAudioToAzuraCast(filePath: string, filename: string): Promise<string> {
   try {
-    const remotePath = `locutores/${filename}`;
-    const mediaId = await uploadMedia(filePath, remotePath);
-    logger.info("PlaybackAzuracast", "Uploaded audio to AzuraCast", { mediaId, filename });
-    return mediaId;
+    const title = filename.replace(/\.mp3$/, "");
+    const result = await uploadMp3ToAzuracast(filePath, title, undefined, "locutores");
+    logger.info("PlaybackAzuracast", "Uploaded audio to AzuraCast", {
+      mediaId: result.fileId,
+      azuraPath: result.azuraPath,
+      filename,
+    });
+    return result.fileId;
   } catch (err: any) {
-    logger.error("PlaybackAzuracast", "Failed to upload audio", { filePath, error: err.message });
+    logger.error("PlaybackAzuracast", "Failed to upload audio", {
+      filePath,
+      error: err.message,
+    });
     throw err;
   }
 }
