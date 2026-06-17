@@ -5,7 +5,11 @@ import { renderTemplate } from "../services/template.service";
 import { getAudioStats } from "../services/timeSlotPlanner.service";
 import { getAudioCountByStatus, generateOrReuseAudio, scheduleAudioForDate } from "../services/audioGeneration.service";
 import { analyzeSafeHours as analyzeSafeHoursSafe, getBlockedHours } from "../services/scheduleAnalyzer.service";
-import { playScheduledAnnouncementForHour } from "../services/playbackAzuracast.service";
+import { 
+  queueAnnouncementNext, 
+  uploadAudioToAzuraCast, 
+  addToAnnouncementPlaylist 
+} from "../services/playbackAzuracast.service";
 import { runNightlyGeneration } from "../jobs/nightly.job";
 import { config } from "../config";
 import { logger } from "../utils/logger";
@@ -342,32 +346,17 @@ router.post("/play-now/:hour", async (req, res) => {
 
     const audio = schedule.audio;
 
-    if (audio.status !== "ready") {
+    if (audio.status !== "ready" || !audio.azuracastMediaId) {
       return res.json({
         success: false,
         hour,
         reason: "audio_not_ready",
-        audioId: audio.id,
-        status: audio.status,
-        message: "Audio is not in ready status",
-      });
-    }
-
-    if (!audio.azuracastMediaId) {
-      return res.json({
-        success: false,
-        hour,
-        reason: "no_azuracast_id",
-        audioId: audio.id,
-        filename: audio.filename,
-        filepath: audio.filepath,
-        message: "Audio was not uploaded to AzuraCast. Use the retry-upload endpoint.",
+        message: "Audio is not ready or missing AzuraCast ID",
       });
     }
 
     try {
-      const { playAnnouncementNow } = await import("../services/playbackAzuracast.service");
-      await playAnnouncementNow(audio.azuracastMediaId);
+      await queueAnnouncementNext(audio.azuracastMediaId);
 
       await prisma.audioSchedule.update({
         where: { id: schedule.id },
@@ -377,16 +366,14 @@ router.post("/play-now/:hour", async (req, res) => {
       return res.json({
         success: true,
         hour,
-        audioId: audio.id,
         mediaId: audio.azuracastMediaId,
-        message: "Announcement injected into AzuraCast queue",
+        message: "Announcement queued in AzuraCast successfully",
       });
     } catch (err: any) {
       return res.status(500).json({
         success: false,
         hour,
-        reason: "inject_failed",
-        mediaId: audio.azuracastMediaId,
+        reason: "queue_failed",
         error: err.message,
       });
     }
@@ -396,6 +383,7 @@ router.post("/play-now/:hour", async (req, res) => {
   }
 });
 
+// --- RETRY UPLOAD ---
 router.post("/retry-upload/:audioId", async (req, res) => {
   try {
     const audio = await prisma.generatedAudio.findUnique({
@@ -405,8 +393,6 @@ router.post("/retry-upload/:audioId", async (req, res) => {
     if (!audio) {
       return res.status(404).json({ error: "Audio not found" });
     }
-
-    const { uploadAudioToAzuraCast, addToAnnouncementPlaylist } = await import("../services/playbackAzuracast.service");
 
     const mediaId = await uploadAudioToAzuraCast(audio.filepath, audio.filename);
     await addToAnnouncementPlaylist(mediaId);
@@ -420,7 +406,7 @@ router.post("/retry-upload/:audioId", async (req, res) => {
       success: true,
       audioId: audio.id,
       mediaId,
-      message: "Audio uploaded to AzuraCast",
+      message: "Audio uploaded and added to playlist",
     });
   } catch (err: any) {
     logger.error("LocutorRoutes", "Retry upload failed", { error: err.message });
