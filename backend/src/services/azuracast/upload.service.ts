@@ -18,10 +18,11 @@ export async function uploadMp3ToAzuracast(
   const sanitizedTitle = title
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\w\s-]/g, "")
+    .replace(/[^\p{L}\p{N}\s_-]/gu, "")
     .trim()
-    .replace(/\s+/g, "_");
-  const filename = `${sanitizedTitle}.mp3`;
+    .replace(/\s+/g, "_")
+    .slice(0, 200);
+  const filename = sanitizedTitle.length > 0 ? `${sanitizedTitle}.mp3` : `audio_${Date.now()}.mp3`;
   const destinationPath = folder ? `${folder}/${filename}` : filename;
 
   const fileBuffer = fs.readFileSync(localPath);

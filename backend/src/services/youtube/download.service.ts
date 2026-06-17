@@ -27,6 +27,7 @@ export async function downloadAsMp3(videoId: string): Promise<string> {
       "--audio-format", "mp3",
       "--audio-quality", "0",
       "--no-playlist",
+      "--embed-metadata",
       "-o", outputTemplate,
       url,
     ],
