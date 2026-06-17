@@ -319,10 +319,111 @@ router.post("/play-now/:hour", async (req, res) => {
       return res.status(400).json({ error: "Invalid hour (0-23)" });
     }
 
-    const played = await playScheduledAnnouncementForHour(hour);
-    res.json({ success: played, hour });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const schedule = await prisma.audioSchedule.findFirst({
+      where: {
+        scheduledDate: today,
+        scheduledHour: hour,
+        enabled: true,
+      },
+      include: { audio: true },
+    });
+
+    if (!schedule || !schedule.audio) {
+      return res.json({
+        success: false,
+        hour,
+        reason: "no_schedule",
+        message: "No schedule found for this hour",
+      });
+    }
+
+    const audio = schedule.audio;
+
+    if (audio.status !== "ready") {
+      return res.json({
+        success: false,
+        hour,
+        reason: "audio_not_ready",
+        audioId: audio.id,
+        status: audio.status,
+        message: "Audio is not in ready status",
+      });
+    }
+
+    if (!audio.azuracastMediaId) {
+      return res.json({
+        success: false,
+        hour,
+        reason: "no_azuracast_id",
+        audioId: audio.id,
+        filename: audio.filename,
+        filepath: audio.filepath,
+        message: "Audio was not uploaded to AzuraCast. Use the retry-upload endpoint.",
+      });
+    }
+
+    try {
+      const { playAnnouncementNow } = await import("../services/playbackAzuracast.service");
+      await playAnnouncementNow(audio.azuracastMediaId);
+
+      await prisma.audioSchedule.update({
+        where: { id: schedule.id },
+        data: { playedAt: new Date() },
+      });
+
+      return res.json({
+        success: true,
+        hour,
+        audioId: audio.id,
+        mediaId: audio.azuracastMediaId,
+        message: "Announcement injected into AzuraCast queue",
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        hour,
+        reason: "inject_failed",
+        mediaId: audio.azuracastMediaId,
+        error: err.message,
+      });
+    }
   } catch (err: any) {
     logger.error("LocutorRoutes", "Manual playback failed", { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/retry-upload/:audioId", async (req, res) => {
+  try {
+    const audio = await prisma.generatedAudio.findUnique({
+      where: { id: req.params.audioId },
+    });
+
+    if (!audio) {
+      return res.status(404).json({ error: "Audio not found" });
+    }
+
+    const { uploadAudioToAzuraCast, addToAnnouncementPlaylist } = await import("../services/playbackAzuracast.service");
+
+    const mediaId = await uploadAudioToAzuraCast(audio.filepath, audio.filename);
+    await addToAnnouncementPlaylist(mediaId);
+
+    await prisma.generatedAudio.update({
+      where: { id: audio.id },
+      data: { azuracastMediaId: mediaId },
+    });
+
+    res.json({
+      success: true,
+      audioId: audio.id,
+      mediaId,
+      message: "Audio uploaded to AzuraCast",
+    });
+  } catch (err: any) {
+    logger.error("LocutorRoutes", "Retry upload failed", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
