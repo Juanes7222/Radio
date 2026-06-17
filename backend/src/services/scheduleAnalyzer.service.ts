@@ -5,15 +5,18 @@ import { logger } from "../utils/logger";
 const azApi = axios.create({
   baseURL: `${config.azuracast.url}/api`,
   headers: { "X-API-Key": config.azuracast.apiKey },
+  timeout: 10_000,
 });
 
 const STATION = config.azuracast.stationId;
 
-interface ScheduledItem {
-  startHour: number;
-  endHour: number;
+interface AzuraScheduleItem {
+  start_timestamp: number;
+  end_timestamp: number;
   title: string;
-  type: "playlist" | "streamer" | "remote";
+  type: string;
+  name?: string;
+  is_streamer?: boolean;
 }
 
 interface AzuraPlaylist {
@@ -21,6 +24,7 @@ interface AzuraPlaylist {
   name: string;
   type: string;
   is_enabled: boolean;
+  source?: string;
   schedule_items?: Array<{
     start_time: number;
     end_time: number;
@@ -28,24 +32,58 @@ interface AzuraPlaylist {
   }>;
 }
 
-interface AzuraSchedule {
-  start_timestamp: number;
-  end_timestamp: number;
-  title: string;
-  type: string;
+const BLOCKING_KEYWORDS = [
+  "noticiero",
+  "news",
+  "noticias",
+  "en vivo",
+  "live",
+  "streamer",
+  "locutor",
+  "transmisión especial",
+  "evento",
+  "show",
+  "concierto",
+  "programa especial",
+];
+
+const BLOCKING_PLAYLIST_TYPES = ["streamer", "live", "custom"];
+
+function isBlockingItem(item: AzuraScheduleItem): boolean {
+  if (item.is_streamer) return true;
+  if (item.type === "streamer" || item.type === "live") return true;
+
+  const text = `${item.title ?? ""} ${item.name ?? ""}`.toLowerCase();
+  return BLOCKING_KEYWORDS.some((kw) => text.includes(kw));
 }
 
-/**
- * Fetches the current schedule for the station from AzuraCast.
- */
-export async function fetchStationSchedule(): Promise<AzuraSchedule[]> {
+function isBlockingPlaylist(playlist: AzuraPlaylist): boolean {
+  if (!playlist.is_enabled) return false;
+  if (playlist.source && playlist.source !== "songs") return true;
+  if (BLOCKING_PLAYLIST_TYPES.includes(playlist.type)) return true;
+
+  const name = (playlist.name ?? "").toLowerCase();
+  return BLOCKING_KEYWORDS.some((kw) => name.includes(kw));
+}
+
+async function fetchStationScheduleSafe(): Promise<AzuraScheduleItem[]> {
   try {
-    const { data } = await azApi.get(`/station/${STATION}/schedule`, {
-      timeout: 15_000,
-    });
+    const { data } = await azApi.get(`/station/${STATION}/schedule`);
     return Array.isArray(data) ? data : [];
   } catch (err: any) {
-    logger.error("ScheduleAnalyzer", "Failed to fetch station schedule", {
+    logger.warn("ScheduleAnalyzer", "Failed to fetch station schedule, treating as open", {
+      error: err.message,
+    });
+    return [];
+  }
+}
+
+async function fetchPlaylistsSafe(): Promise<AzuraPlaylist[]> {
+  try {
+    const { data } = await azApi.get<AzuraPlaylist[]>(`/station/${STATION}/playlists`);
+    return Array.isArray(data) ? data : [];
+  } catch (err: any) {
+    logger.warn("ScheduleAnalyzer", "Failed to fetch playlists, treating as open", {
       error: err.message,
     });
     return [];
@@ -53,66 +91,69 @@ export async function fetchStationSchedule(): Promise<AzuraSchedule[]> {
 }
 
 /**
- * Analyzes the station schedule and returns hours that are safe
- * for inserting time announcements without interfering with other programming.
+ * Returns the hours that are BLOCKED for inserting time announcements.
+ * Only blocks hours with special programming (news, live shows, events).
+ * Regular music programming does NOT block announcements since they are
+ * injected into the play queue between songs.
  *
- * A safe hour is one where:
- * - There is no scheduled playlist overlapping the top of the hour
- * - There is no live streamer scheduled
- * - The hour is not within a "remote" source block
+ * If the AzuraCast API is unreachable, returns an empty set (fail open)
+ * so the radio can still announce the hour.
  */
 export async function analyzeSafeHours(date: Date = new Date()): Promise<number[]> {
-  const schedule = await fetchStationSchedule();
-  const dayOfWeek = date.getDay();
+  const [schedule, playlists] = await Promise.all([
+    fetchStationScheduleSafe(),
+    fetchPlaylistsSafe(),
+  ]);
 
-  const busyHours = new Set<number>();
+  const dayOfWeek = date.getDay();
+  const blockedHours = new Set<number>();
 
   for (const item of schedule) {
+    if (!isBlockingItem(item)) continue;
+
     const start = new Date(item.start_timestamp * 1000);
     const end = new Date(item.end_timestamp * 1000);
 
-    // Only consider items that overlap the target day
-    if (start.toDateString() !== date.toDateString()) {
-      continue;
-    }
+    if (start.toDateString() !== date.toDateString()) continue;
 
     const startHour = start.getHours();
     const endHour = end.getHours();
+    const startMin = start.getMinutes();
 
-    for (let h = startHour; h <= endHour; h++) {
-      busyHours.add(h);
+    if (startMin > 30 && startHour === endHour) {
+      blockedHours.add(startHour);
+    } else {
+      for (let h = startHour; h <= endHour; h++) {
+        blockedHours.add(h);
+      }
     }
   }
 
-  // Also fetch playlists to cross-reference
-  try {
-    const { data: playlists } = await azApi.get<AzuraPlaylist[]>(
-      `/station/${STATION}/playlists`,
-      { timeout: 15_000 }
-    );
+  for (const playlist of playlists) {
+    if (!isBlockingPlaylist(playlist)) continue;
+    if (!playlist.schedule_items) continue;
 
-    for (const playlist of playlists) {
-      if (!playlist.is_enabled || !playlist.schedule_items) continue;
+    for (const item of playlist.schedule_items) {
+      if (!item.days.includes(dayOfWeek)) continue;
 
-      for (const item of playlist.schedule_items) {
-        if (!item.days.includes(dayOfWeek)) continue;
+      const startHour = Math.floor(item.start_time / 100);
+      const endHour = Math.floor(item.end_time / 100);
 
-        const startHour = Math.floor(item.start_time / 100);
-        const endHour = Math.floor(item.end_time / 100);
-
-        for (let h = startHour; h <= endHour; h++) {
-          busyHours.add(h);
-        }
+      for (let h = startHour; h <= endHour; h++) {
+        blockedHours.add(h);
       }
     }
-  } catch (err: any) {
-    logger.warn("ScheduleAnalyzer", "Could not fetch playlists for schedule analysis", {
-      error: err.message,
-    });
   }
 
   const allHours = Array.from({ length: 24 }, (_, i) => i);
-  return allHours.filter((h) => !busyHours.has(h));
+  const safeHours = allHours.filter((h) => !blockedHours.has(h));
+
+  logger.info("ScheduleAnalyzer", "Safe hours computed", {
+    blockedHours: Array.from(blockedHours),
+    safeHoursCount: safeHours.length,
+  });
+
+  return safeHours;
 }
 
 /**
@@ -128,8 +169,7 @@ export async function filterSafeHours(
 }
 
 /**
- * Returns hours that are explicitly blocked by programming
- * (e.g., news, live shows, special events).
+ * Returns hours that are explicitly blocked by programming.
  */
 export async function getBlockedHours(date: Date = new Date()): Promise<number[]> {
   const allHours = Array.from({ length: 24 }, (_, i) => i);

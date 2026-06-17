@@ -20,6 +20,16 @@ function isExcludedProgram(title: string): boolean {
   return EXCLUDED_PROGRAMS.some(excluded => normalized.includes(excluded.toLowerCase()));
 }
 
+function formatStationTime(timestampSeconds: number): string {
+  const date = new Date((timestampSeconds - STATION_UTC_OFFSET_HOURS * 3600) * 1000);
+  return date.toLocaleTimeString('es-CO', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'America/Bogota',
+  });
+}
+
 type FetchSchedule = ReturnType<typeof useAzuraCast>['fetchSchedule'];
 
 async function ensureExactAlarmPermission() {
@@ -57,24 +67,27 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
 
   await AsyncStorage.setItem(LAST_SCHEDULE_HASH_KEY, hash);
 
-    const nowSeconds = Math.floor(Date.now() / 1000) + (STATION_UTC_OFFSET_HOURS * 3600);
+  const nowUtcSeconds = Math.floor(Date.now() / 1000);
+  const stationOffsetSeconds = STATION_UTC_OFFSET_HOURS * 3600;
 
   for (const item of schedule) {
-    if (item.start_timestamp <= nowSeconds) continue;
+    const itemUtcSeconds = item.start_timestamp - stationOffsetSeconds;
+    if (itemUtcSeconds <= nowUtcSeconds) continue;
     if (isExcludedProgram(item.title)) continue;
 
-    const notifyTimeSeconds = item.start_timestamp - PROGRAM_NOTIFY_MINUTES_BEFORE * 60;
-    if (notifyTimeSeconds <= nowSeconds) continue;
+    const notifyUtcSeconds = itemUtcSeconds - PROGRAM_NOTIFY_MINUTES_BEFORE * 60;
+    if (notifyUtcSeconds <= nowUtcSeconds) continue;
 
     const { title, artist, isPreaching } = formatMediaTitle(item.title);
+    const startTime = formatStationTime(item.start_timestamp);
 
     let notificationBody: string;
     if (isPreaching) {
-      notificationBody = `La prédica "${title}" de ${artist} empezará en ${PROGRAM_NOTIFY_MINUTES_BEFORE} minutos.`;
+      notificationBody = `La prédica "${title}" de ${artist} empieza a las ${startTime}.`;
     } else if (artist) {
-      notificationBody = `El programa "${title}" de ${artist} empezará en ${PROGRAM_NOTIFY_MINUTES_BEFORE} minutos.`;
+      notificationBody = `El programa "${title}" de ${artist} empieza a las ${startTime}.`;
     } else {
-      notificationBody = `El programa "${title}" empezará en ${PROGRAM_NOTIFY_MINUTES_BEFORE} minutos.`;
+      notificationBody = `El programa "${title}" empieza a las ${startTime}.`;
     }
 
     await Notifications.scheduleNotificationAsync({
@@ -86,7 +99,7 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
       },
       trigger: {
         type: 'date',
-        date: new Date(notifyTimeSeconds * 1000),
+        date: new Date(notifyUtcSeconds * 1000),
       } as Notifications.NotificationTriggerInput,
     });
   }

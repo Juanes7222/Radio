@@ -54,13 +54,14 @@ export async function synthesize({
 
 async function getAudioDuration(filePath: string): Promise<number> {
   try {
-    const { stdout } = await execAsync(`ffprobe -v quiet -print_format json -show_streams "${filePath}"`);
+    const { stdout } = await execAsync(
+      `ffprobe -v quiet -print_format json -show_format "${filePath}"`
+    );
     const data = JSON.parse(stdout);
-    if (data.streams && data.streams.length > 0 && data.streams[0].duration) {
-      return parseFloat(data.streams[0].duration);
-    }
-  } catch (err) {
-    console.warn(`Could not get duration for ${filePath} with ffprobe, falling back to 0`);
+    const duration = data.format?.duration;
+    if (duration) return parseFloat(duration);
+  } catch {
+    console.warn(`Could not get duration for ${filePath}, falling back to 0`);
   }
-  return 0; // Fallback
+  return 0;
 }

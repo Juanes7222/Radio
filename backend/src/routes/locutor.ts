@@ -3,7 +3,10 @@ import { prisma } from "../lib/prisma";
 import { synthesize } from "../services/tts.service";
 import { renderTemplate } from "../services/template.service";
 import { getAudioStats } from "../services/timeSlotPlanner.service";
-import { getAudioCountByStatus } from "../services/audioGeneration.service";
+import { getAudioCountByStatus, generateOrReuseAudio, scheduleAudioForDate } from "../services/audioGeneration.service";
+import { analyzeSafeHours as analyzeSafeHoursSafe, getBlockedHours } from "../services/scheduleAnalyzer.service";
+import { playScheduledAnnouncementForHour } from "../services/playbackAzuracast.service";
+import { runNightlyGeneration } from "../jobs/nightly.job";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import path from "path";
@@ -255,6 +258,127 @@ router.get("/schedules", async (req, res) => {
   } catch (err: any) {
     logger.error("LocutorRoutes", "Failed to list schedules", { error: err.message });
     res.status(500).json({ error: err.message });
+  }
+});
+
+// --- MANUAL GENERATION (for testing/debugging) ---
+router.post("/generate-now/:hour", async (req, res) => {
+  try {
+    const hour = parseInt(req.params.hour, 10);
+    if (isNaN(hour) || hour < 0 || hour > 23) {
+      return res.status(400).json({ error: "Invalid hour (0-23)" });
+    }
+
+    const template = await prisma.announcementTemplate.findFirst({
+      where: { type: "hourly", active: true },
+    });
+
+    if (!template) {
+      return res.status(404).json({ error: "No active hourly template found" });
+    }
+
+    const group =
+      hour >= 6 && hour <= 11
+        ? "morning"
+        : hour >= 12 && hour <= 17
+        ? "afternoon"
+        : hour >= 18 && hour <= 21
+        ? "evening"
+        : "night";
+
+    const result = await generateOrReuseAudio({
+      templateId: template.id,
+      hour,
+      group,
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    await scheduleAudioForDate(result.audioId, today, hour);
+
+    res.json({
+      success: true,
+      audioId: result.audioId,
+      filename: result.filename,
+      hour,
+      wasReused: result.wasReused,
+      durationMs: result.durationMs,
+    });
+  } catch (err: any) {
+    logger.error("LocutorRoutes", "Manual generation failed", { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- FORCE PLAYBACK NOW ---
+router.post("/play-now/:hour", async (req, res) => {
+  try {
+    const hour = parseInt(req.params.hour, 10);
+    if (isNaN(hour) || hour < 0 || hour > 23) {
+      return res.status(400).json({ error: "Invalid hour (0-23)" });
+    }
+
+    const played = await playScheduledAnnouncementForHour(hour);
+    res.json({ success: played, hour });
+  } catch (err: any) {
+    logger.error("LocutorRoutes", "Manual playback failed", { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- SAFE HOURS DEBUG ---
+router.get("/safe-hours", async (_req, res) => {
+  try {
+    const safe = await analyzeSafeHoursSafe(new Date());
+    const blocked = await getBlockedHours(new Date());
+    res.json({ safe, blocked });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- TRIGGER NIGHTLY JOB MANUALLY ---
+router.post("/run-nightly", async (_req, res) => {
+  try {
+    res.json({ message: "Nightly generation started in background" });
+    runNightlyGeneration().catch((err) => {
+      logger.error("LocutorRoutes", "Manual nightly run failed", { error: err.message });
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- TEST KOKORO CONNECTION ---
+router.get("/test-kokoro", async (_req, res) => {
+  try {
+    const testText = "Prueba de conexión con Kokoro";
+    const testPath = path.join(MEDIA_DIR, `test_kokoro_${Date.now()}.mp3`);
+
+    const result = await synthesize({
+      text: testText,
+      voice: "ef_dora",
+      speed: 0.95,
+      outputPath: testPath,
+    });
+
+    const fs = await import("fs/promises");
+    await fs.unlink(testPath).catch(() => {});
+
+    res.json({
+      success: true,
+      message: "Kokoro responded successfully",
+      durationMs: result.duration_ms,
+      fileSizeBytes: result.file_size_bytes,
+      kokoroUrl: config.locutor.kokoroUrl,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      kokoroUrl: config.locutor.kokoroUrl,
+    });
   }
 });
 

@@ -87,13 +87,16 @@ export function registerHourlyJob() {
           return;
         }
 
-        // Check if it's safe to insert an announcement
+        // Check if it's safe to insert an announcement.
+        // If the schedule analyzer cannot reach AzuraCast or reports
+        // no safe hours, we still attempt to generate the audio so the
+        // radio can announce the time. Announcements are injected into
+        // the play queue and do not require empty time blocks.
         const safeHours = await filterSafeHours([nextHour]);
         if (safeHours.length === 0) {
-          logger.warn("HourlyCheck", "Next hour is blocked by programming, skipping", {
+          logger.info("HourlyCheck", "Schedule analyzer reports no safe hours, proceeding anyway", {
             nextHour,
           });
-          return;
         }
 
         // If missing or not ready, generate it
