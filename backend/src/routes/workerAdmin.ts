@@ -108,6 +108,15 @@ router.post(
   async (req: Request, res: Response) => {
     if (!validateWorkerAuth(req, res)) return;
 
+    logger.info("WorkerAdmin", "Upload request received", {
+      bodyTitle: req.body.title,
+      bodyJobId: req.body.jobId,
+      fileOriginalname: req.file?.originalname,
+      headers: {
+        jobId: req.headers["x-job-id"],
+      },
+    });
+
     if (!req.file) {
       res.status(400).json({ error: "No file provided" });
       return;
