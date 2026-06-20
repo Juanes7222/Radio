@@ -6,7 +6,7 @@ import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAzuraCast } from '@radio/api';
-import { BACKEND_URL, STATION_UTC_OFFSET_HOURS } from '@/constants/api';
+import { BACKEND_URL } from '@/constants/api';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import { SUBSCRIPTIONS_KEY, SUBSCRIPTIONS_EVENT } from './useProgramSubscriptions';
 
@@ -15,7 +15,7 @@ const LAST_SCHEDULE_HASH_KEY = 'radio-schedule-hash';
 const SCHEDULE_TASK = 'program-notify-schedule';
 
 function formatStationTime(timestampSeconds: number): string {
-  const date = new Date((timestampSeconds - STATION_UTC_OFFSET_HOURS * 3600) * 1000);
+  const date = new Date((timestampSeconds) * 1000);
   return date.toLocaleTimeString('es-CO', {
     hour: 'numeric',
     minute: '2-digit',
@@ -68,12 +68,11 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
   await AsyncStorage.setItem(LAST_SCHEDULE_HASH_KEY, finalHash);
 
   const nowUtcSeconds = Math.floor(Date.now() / 1000);
-  const stationOffsetSeconds = STATION_UTC_OFFSET_HOURS * 3600;
 
   for (const item of schedule) {
     if (!subscribedTitles.includes(item.title)) continue;
 
-    const itemUtcSeconds = item.start_timestamp - stationOffsetSeconds;
+    const itemUtcSeconds = item.start_timestamp;
     if (itemUtcSeconds <= nowUtcSeconds) continue;
 
     const notifyUtcSeconds = itemUtcSeconds - PROGRAM_NOTIFY_MINUTES_BEFORE * 60;
