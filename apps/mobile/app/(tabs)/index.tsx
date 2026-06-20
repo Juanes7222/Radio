@@ -21,6 +21,7 @@ import { PlayerControls } from '@/components/PlayerControls';
 import { SleepTimerModal } from '@/components/SleepTimerModal';
 import { FacebookLivePlayer } from '@/components/FacebookLivePlayer';
 import { BiblePanel } from '@/components/bible/BiblePanel';
+import { NotificationsModal } from '@/components/NotificationsModal';
 import TextTicker from 'react-native-text-ticker';
 import { useAzuraCast } from '@radio/api';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
@@ -41,7 +42,6 @@ import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 import { scale, verticalScale, TAB_BAR_HEIGHT } from '../../lib/responsive';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-// Reserve ~260pt for top bar + song info + controls + tab bar
 const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 232);
 
 export default function PlayerScreen() {
@@ -73,6 +73,8 @@ export default function PlayerScreen() {
 
   const [showBible, setShowBible] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
+  const [showNotifyMenu, setShowNotifyMenu] = useState(false);
+
   const sleepTimer = useSleepTimer(useCallback(async () => {
     await pause();
   }, [pause]));
@@ -128,7 +130,7 @@ export default function PlayerScreen() {
       } else {
         Alert.alert(
           'Notificaciones necesarias',
-          'Para saber cuando suene tu música favorita necesitamos el permiso de notificaciones.',
+          'Para saber cuando suene tu música favorita o un programa necesitamos el permiso.',
           [
             { text: 'Entendido', style: 'default' }
           ]
@@ -189,13 +191,13 @@ export default function PlayerScreen() {
 
         <View style={styles.topBar}>
           <TouchableOpacity
-            onPress={handleToggleNotify}
+            onPress={() => setShowNotifyMenu(true)}
             style={styles.iconButton}
             activeOpacity={0.7}
-            accessibilityLabel={notifyEnabled ? 'Desactivar notificaciones' : 'Activar notificaciones'}
+            accessibilityLabel="Configurar notificaciones"
           >
             <Ionicons
-              name={notifyEnabled ? 'notifications' : 'notifications-off-outline'}
+              name={notifyEnabled ? 'notifications' : 'notifications-outline'}
               size={20}
               color={notifyEnabled ? Colors.accent : Colors.textFaint}
             />
@@ -280,18 +282,6 @@ export default function PlayerScreen() {
               {artist}
             </TextTicker>
           ) : null}
-          {/* {song?.album ? (
-            <TextTicker
-              style={styles.albumName}
-              duration={8000}
-              loop
-              bounce={false}
-              repeatSpacer={50}
-              marqueeDelay={2000}
-            >
-              {song.album}
-            </TextTicker>
-          ) : null} */}
         </View>
 
         {sleepTimer.isActive && (
@@ -350,6 +340,14 @@ export default function PlayerScreen() {
           sleepTimer.cancel();
           setShowSleepMenu(false);
         }}
+      />
+
+      <NotificationsModal
+        visible={showNotifyMenu}
+        onClose={() => setShowNotifyMenu(false)}
+        notifyEnabled={notifyEnabled}
+        onToggleCurrent={handleToggleNotify}
+        currentSongTitle={title}
       />
 
       <BiblePanel 
