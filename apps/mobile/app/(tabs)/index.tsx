@@ -21,12 +21,14 @@ import { PlayerControls } from '@/components/PlayerControls';
 import { SleepTimerModal } from '@/components/SleepTimerModal';
 import { FacebookLivePlayer } from '@/components/FacebookLivePlayer';
 import { BiblePanel } from '@/components/bible/BiblePanel';
+import { NotificationsModal } from '@/components/NotificationsModal';
 import TextTicker from 'react-native-text-ticker';
 import { useAzuraCast } from '@radio/api';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
 import { useProgramNotify } from '@/hooks/useProgramNotify';
+import { useNotificationReminder } from '@/hooks/useNotificationReminder';
 import {
   useFavoriteNotify,
   loadFavoriteSongKeys,
@@ -41,7 +43,6 @@ import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 import { scale, verticalScale, TAB_BAR_HEIGHT } from '../../lib/responsive';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-// Reserve ~260pt for top bar + song info + controls + tab bar
 const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 232);
 
 export default function PlayerScreen() {
@@ -73,6 +74,8 @@ export default function PlayerScreen() {
 
   const [showBible, setShowBible] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
+  const [showNotifyMenu, setShowNotifyMenu] = useState(false);
+
   const sleepTimer = useSleepTimer(useCallback(async () => {
     await pause();
   }, [pause]));
@@ -107,6 +110,17 @@ export default function PlayerScreen() {
   const { isEnabled: notifyEnabled, enable: enableNotify, disable: disableNotify } =
     useFavoriteNotify(currentSongForNotify, favoriteSongKeys);
 
+  const { showReminder, dismissReminder } = useNotificationReminder();
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  const handleDismissReminder = useCallback(() => {
+    dismissReminder();
+    setShowTooltip(true);
+    setTimeout(() => {
+      setShowTooltip(false);
+    }, 4000);
+  }, [dismissReminder]);
+
   const listenersCount = data?.listeners?.current ?? 0;
 
   const handleToggleNotify = useCallback(async () => {
@@ -128,7 +142,7 @@ export default function PlayerScreen() {
       } else {
         Alert.alert(
           'Notificaciones necesarias',
-          'Para saber cuando suene tu música favorita necesitamos el permiso de notificaciones.',
+          'Para saber cuando suene tu música favorita o un programa necesitamos el permiso.',
           [
             { text: 'Entendido', style: 'default' }
           ]
@@ -188,18 +202,31 @@ export default function PlayerScreen() {
         )}
 
         <View style={styles.topBar}>
-          <TouchableOpacity
-            onPress={handleToggleNotify}
-            style={styles.iconButton}
-            activeOpacity={0.7}
-            accessibilityLabel={notifyEnabled ? 'Desactivar notificaciones' : 'Activar notificaciones'}
-          >
-            <Ionicons
-              name={notifyEnabled ? 'notifications' : 'notifications-off-outline'}
-              size={20}
-              color={notifyEnabled ? Colors.accent : Colors.textFaint}
-            />
-          </TouchableOpacity>
+          <View style={{ zIndex: 10 }}>
+            <TouchableOpacity
+              onPress={() => {
+                setShowTooltip(false);
+                setShowNotifyMenu(true);
+              }} 
+              style={styles.iconButton}
+              activeOpacity={0.7}
+              accessibilityLabel="Configurar notificaciones"
+            >
+              <Ionicons
+                name={notifyEnabled ? 'notifications' : 'notifications-outline'}
+                size={20}
+                color={notifyEnabled ? Colors.accent : Colors.textFaint}
+              />
+            </TouchableOpacity>
+
+            {/* Tooltip emergente */}
+            {showTooltip && (
+              <View style={styles.tooltipContainer}>
+                <View style={styles.tooltipArrow} />
+                <Text style={styles.tooltipText}>Configúralo aquí cuando desees</Text>
+              </View>
+            )}
+          </View>
 
           <LiveBadge listenersCount={listenersCount} />
 
@@ -219,6 +246,32 @@ export default function PlayerScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {showReminder && (
+          <View style={styles.reminderBanner}>
+            <View style={styles.reminderContent}>
+              <Ionicons name="notifications" size={20} color={Colors.accent} />
+              <View style={styles.reminderTextContainer}>
+                <Text style={styles.reminderTitle}>No te pierdas de nada</Text>
+                <Text style={styles.reminderBody}>Configura alertas para tus programas favoritos.</Text>
+              </View>
+            </View>
+            <View style={styles.reminderActions}>
+              <TouchableOpacity onPress={handleDismissReminder} style={styles.reminderButton}>
+                <Text style={styles.reminderButtonTextFaint}>Luego</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.reminderButtonAccent}
+                onPress={() => {
+                  dismissReminder();
+                  setShowNotifyMenu(true);
+                }}
+              >
+                <Text style={styles.reminderButtonText}>Configurar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         <Image
           source={LOGO}
@@ -280,18 +333,6 @@ export default function PlayerScreen() {
               {artist}
             </TextTicker>
           ) : null}
-          {/* {song?.album ? (
-            <TextTicker
-              style={styles.albumName}
-              duration={8000}
-              loop
-              bounce={false}
-              repeatSpacer={50}
-              marqueeDelay={2000}
-            >
-              {song.album}
-            </TextTicker>
-          ) : null} */}
         </View>
 
         {sleepTimer.isActive && (
@@ -350,6 +391,14 @@ export default function PlayerScreen() {
           sleepTimer.cancel();
           setShowSleepMenu(false);
         }}
+      />
+
+      <NotificationsModal
+        visible={showNotifyMenu}
+        onClose={() => setShowNotifyMenu(false)}
+        notifyEnabled={notifyEnabled}
+        onToggleCurrent={handleToggleNotify}
+        currentSongTitle={title}
       />
 
       <BiblePanel 
@@ -547,6 +596,101 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+
+  reminderBanner: {
+    backgroundColor: Colors.surfaceElevated,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderRadius: Radii.md,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  reminderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  reminderTextContainer: {
+    marginLeft: Spacing.sm,
+    flex: 1,
+  },
+  reminderTitle: {
+    ...Typography.body,
+    color: Colors.text,
+    fontWeight: '600',
+  },
+  reminderBody: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  reminderActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  reminderButton: {
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    justifyContent: 'center',
+  },
+  reminderButtonTextFaint: {
+    ...Typography.caption,
+    color: Colors.textFaint,
+    fontWeight: '500',
+  },
+  reminderButtonAccent: {
+    backgroundColor: Colors.accentMuted,
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radii.sm,
+    justifyContent: 'center',
+  },
+  reminderButtonText: {
+    ...Typography.caption,
+    color: Colors.accent,
+    fontWeight: '600',
+  },
+  tooltipContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    marginTop: 8,
+    backgroundColor: Colors.accent,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: Radii.sm,
+    width: 130,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  tooltipArrow: {
+    position: 'absolute',
+    top: -6,
+    left: 12,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderBottomWidth: 6,
+    borderStyle: 'solid',
+    backgroundColor: 'transparent',
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: Colors.accent,
+  },
+  tooltipText: {
+    ...Typography.caption,
+    color: '#ffffff',
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 16,
   },
 });
 

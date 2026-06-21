@@ -14,6 +14,11 @@ export async function uploadMp3ToAzuracast(
   playlistId?: string,
   folder?: string
 ): Promise<AzuracastUploadResult> {
+  logger.info("AzuracastService", "Raw title received", {
+    title,
+    bytes: Buffer.from(title).toString("hex"),
+  });
+
   const { url, apiKey, stationId } = config.azuracast;
   const sanitizedTitle = title
     .normalize("NFD")
