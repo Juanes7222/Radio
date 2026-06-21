@@ -7,7 +7,7 @@ import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAzuraCast } from '@radio/api';
 import { BACKEND_URL } from '@/constants/api';
-import { formatMediaTitle } from '@/lib/formatMedia';
+import { formatMediaTitle, formatScheduleTime } from '@/lib/formatMedia';
 import { SUBSCRIPTIONS_KEY, SUBSCRIPTIONS_EVENT } from './useProgramSubscriptions';
 
 const PROGRAM_NOTIFY_MINUTES_BEFORE = 10;
@@ -25,6 +25,12 @@ function formatStationTime(timestampSeconds: number): string {
 }
 
 type FetchSchedule = ReturnType<typeof useAzuraCast>['fetchSchedule'];
+
+const AZURACAST_UTC_OFFSET_SECONDS = 5 * 60 * 60;
+
+function toUtcSeconds(azuracastTimestamp: number): number {
+  return azuracastTimestamp - AZURACAST_UTC_OFFSET_SECONDS;
+}
 
 async function ensureExactAlarmPermission() {
   if (Platform.OS !== 'android') return;
@@ -72,14 +78,15 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
   for (const item of schedule) {
     if (!subscribedTitles.includes(item.title)) continue;
 
-    const itemUtcSeconds = item.start_timestamp;
+    const itemUtcSeconds = toUtcSeconds(item.start_timestamp);
     if (itemUtcSeconds <= nowUtcSeconds) continue;
 
     const notifyUtcSeconds = itemUtcSeconds - PROGRAM_NOTIFY_MINUTES_BEFORE * 60;
     if (notifyUtcSeconds <= nowUtcSeconds) continue;
 
     const { title, artist, isPreaching } = formatMediaTitle(item.title);
-    const startTime = formatStationTime(item.start_timestamp);
+    const startTime = formatScheduleTime(itemUtcSeconds);
+
 
     let notificationBody: string;
     if (isPreaching) {
@@ -99,7 +106,7 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
       },
       trigger: {
         type: 'date',
-        date: new Date(notifyUtcSeconds * 1000),
+        date: notifyUtcSeconds * 1000,
       } as Notifications.NotificationTriggerInput,
     });
   }
