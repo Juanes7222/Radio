@@ -88,7 +88,7 @@ function ProgramCard({ program, idx, onPress }: { program: ScheduleItem; idx: nu
                 color={TEXT_MUTED} 
               />
               <Text style={styles.typeText}>
-                {isLive ? 'Programa en vivo con locutor' : 'Programa automático'}
+                {isLive ? 'En vivo' : 'Programa automático'}
               </Text>
             </View>
           </View>

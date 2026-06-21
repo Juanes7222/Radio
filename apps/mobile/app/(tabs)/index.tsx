@@ -7,10 +7,10 @@ import {
   ActivityIndicator,
   Pressable,
   Dimensions,
-  Platform,
   Image,
   Alert,
   Linking,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,7 +27,7 @@ import { useAzuraCast } from '@radio/api';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
-import { useProgramNotify } from '@/hooks/useProgramNotify';
+import { useProgramNotify, debugFireNextNotification } from '@/hooks/useProgramNotify';
 import { useNotificationReminder } from '@/hooks/useNotificationReminder';
 import {
   useFavoriteNotify,
@@ -48,7 +48,7 @@ const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 23
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
 
-  const { data, isLoading, error, getStreamUrl } = useAzuraCast({
+  const { data, isLoading, error, getStreamUrl, fetchSchedule } = useAzuraCast({
     apiBaseUrl: BACKEND_URL,
     pollInterval: 3000,
   });
@@ -185,185 +185,198 @@ export default function PlayerScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Seccion superior */}
-      <View style={[styles.topSection, { paddingTop: insets.top + Spacing.sm }]}>
-        {(reconnectAttempt > 0 || audioError) && (
-          <View style={[
-            styles.banner,
-            reconnectAttempt > 0 ? styles.bannerAmber : styles.bannerRed,
-          ]}>
-            {reconnectAttempt > 0 && (
-              <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
-            )}
-            <Text style={styles.bannerText} numberOfLines={2}>
-              {audioError ?? 'Reconectando…'}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.topBar}>
-          <View style={{ zIndex: 10 }}>
-            <TouchableOpacity
-              onPress={() => {
-                setShowTooltip(false);
-                setShowNotifyMenu(true);
-              }} 
-              style={styles.iconButton}
-              activeOpacity={0.7}
-              accessibilityLabel="Configurar notificaciones"
-            >
-              <Ionicons
-                name={notifyEnabled ? 'notifications' : 'notifications-outline'}
-                size={20}
-                color={notifyEnabled ? Colors.accent : Colors.textFaint}
-              />
-            </TouchableOpacity>
-
-            {/* Tooltip emergente */}
-            {showTooltip && (
-              <View style={styles.tooltipContainer}>
-                <View style={styles.tooltipArrow} />
-                <Text style={styles.tooltipText}>Configúralo aquí cuando desees</Text>
-              </View>
-            )}
-          </View>
-
-          <LiveBadge listenersCount={listenersCount} />
-
-          <TouchableOpacity
-            onPress={() => setShowSleepMenu(true)}
-            style={[styles.iconButton, sleepTimer.isActive && styles.iconButtonActive]}
-            activeOpacity={0.7}
-            accessibilityLabel="Temporizador de apagado"
-          >
-            <Ionicons
-              name="timer-outline"
-              size={20}
-              color={sleepTimer.isActive ? Colors.warning : Colors.textFaint}
-            />
-            {sleepTimer.isActive && (
-              <Text style={styles.timerBadge}>{sleepTimer.display}</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {showReminder && (
-          <View style={styles.reminderBanner}>
-            <View style={styles.reminderContent}>
-              <Ionicons name="notifications" size={20} color={Colors.accent} />
-              <View style={styles.reminderTextContainer}>
-                <Text style={styles.reminderTitle}>No te pierdas de nada</Text>
-                <Text style={styles.reminderBody}>Configura alertas para tus programas favoritos.</Text>
-              </View>
-            </View>
-            <View style={styles.reminderActions}>
-              <TouchableOpacity onPress={handleDismissReminder} style={styles.reminderButton}>
-                <Text style={styles.reminderButtonTextFaint}>Luego</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.reminderButtonAccent}
-                onPress={() => {
-                  dismissReminder();
-                  setShowNotifyMenu(true);
-                }}
-              >
-                <Text style={styles.reminderButtonText}>Configurar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        <Image
-          source={LOGO}
-          style={{ width: 190, height: 84, alignSelf: 'center', marginBottom: Spacing.sm }}
-          resizeMode="contain"
-        />
-
-        <TouchableOpacity 
-          style={styles.bibleButton} 
-          onPress={() => setShowBible(true)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="book" size={18} color="#fff" />
-          <Text style={styles.bibleButtonText}>Biblia</Text>
-        </TouchableOpacity>
-
-      </View>
-
-      {/* Seccion central: vinilo/live + info */}
-      <View style={styles.centerSection}>
-        {liveUrl ? (
-          <FacebookLivePlayer liveUrl={liveUrl} />
-        ) : (
-          <View style={styles.vinylWrapper}>
-            <View style={styles.vinylGlow} />
-            <VinylDisc
-              artworkUri={artworkUri}
-              isPlaying={isPlaying || isBuffering}
-              size={VINYL_SIZE}
-            />
-          </View>
-        )}
-
-        <View style={styles.songInfo}>
-          {isPreaching && (
-            <View style={styles.preachingBadge}>
-              <Text style={styles.preachingBadgeText}>Prédica</Text>
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.topSection, { paddingTop: insets.top + Spacing.sm }]}>
+          {(reconnectAttempt > 0 || audioError) && (
+            <View style={[
+              styles.banner,
+              reconnectAttempt > 0 ? styles.bannerAmber : styles.bannerRed,
+            ]}>
+              {reconnectAttempt > 0 && (
+                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+              )}
+              <Text style={styles.bannerText} numberOfLines={2}>
+                {audioError ?? 'Reconectando…'}
+              </Text>
             </View>
           )}
-          <TextTicker
-            style={styles.songTitle}
-            duration={8000}
-            loop
-            bounce={false}
-            repeatSpacer={50}
-            marqueeDelay={2000}
+
+          <View style={styles.topBar}>
+            <View style={{ zIndex: 10 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowTooltip(false);
+                  setShowNotifyMenu(true);
+                }} 
+                style={styles.iconButton}
+                activeOpacity={0.7}
+                accessibilityLabel="Configurar notificaciones"
+              >
+                <Ionicons
+                  name={notifyEnabled ? 'notifications' : 'notifications-outline'}
+                  size={20}
+                  color={notifyEnabled ? Colors.accent : Colors.textFaint}
+                />
+              </TouchableOpacity>
+
+              {showTooltip && (
+                <View style={styles.tooltipContainer}>
+                  <View style={styles.tooltipArrow} />
+                  <Text style={styles.tooltipText}>Configúralo aquí cuando desees</Text>
+                </View>
+              )}
+            </View>
+
+            <LiveBadge listenersCount={listenersCount} />
+
+            <TouchableOpacity
+              onPress={() => setShowSleepMenu(true)}
+              style={[styles.iconButton, sleepTimer.isActive && styles.iconButtonActive]}
+              activeOpacity={0.7}
+              accessibilityLabel="Temporizador de apagado"
+            >
+              <Ionicons
+                name="timer-outline"
+                size={20}
+                color={sleepTimer.isActive ? Colors.warning : Colors.textFaint}
+              />
+              {sleepTimer.isActive && (
+                <Text style={styles.timerBadge}>{sleepTimer.display}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {showReminder && (
+            <View style={styles.reminderBanner}>
+              <View style={styles.reminderContent}>
+                <Ionicons name="notifications" size={20} color={Colors.accent} />
+                <View style={styles.reminderTextContainer}>
+                  <Text style={styles.reminderTitle}>No te pierdas de nada</Text>
+                  <Text style={styles.reminderBody}>Configura alertas para tus programas favoritos.</Text>
+                </View>
+              </View>
+              <View style={styles.reminderActions}>
+                <TouchableOpacity onPress={handleDismissReminder} style={styles.reminderButton}>
+                  <Text style={styles.reminderButtonTextFaint}>Luego</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.reminderButtonAccent}
+                  onPress={() => {
+                    dismissReminder();
+                    setShowNotifyMenu(true);
+                  }}
+                >
+                  <Text style={styles.reminderButtonText}>Configurar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          <Image
+            source={LOGO}
+            style={{ width: 190, height: 84, alignSelf: 'center', marginBottom: Spacing.sm }}
+            resizeMode="contain"
+          />
+
+          <TouchableOpacity 
+            style={styles.bibleButton} 
+            onPress={() => setShowBible(true)}
+            activeOpacity={0.8}
           >
-            {title}
-          </TextTicker>
-          {artist ? (
+            <Ionicons name="book" size={18} color="#fff" />
+            <Text style={styles.bibleButtonText}>Biblia</Text>
+          </TouchableOpacity>
+
+        </View>
+
+        <View style={styles.centerSection}>
+          {liveUrl ? (
+            <FacebookLivePlayer liveUrl={liveUrl} />
+          ) : (
+            <View style={styles.vinylWrapper}>
+              <View style={styles.vinylGlow} />
+              <VinylDisc
+                artworkUri={artworkUri}
+                isPlaying={isPlaying || isBuffering}
+                size={VINYL_SIZE}
+              />
+            </View>
+          )}
+
+          <View style={styles.songInfo}>
+            {isPreaching && (
+              <View style={styles.preachingBadge}>
+                <Text style={styles.preachingBadgeText}>Prédica</Text>
+              </View>
+            )}
             <TextTicker
-              style={styles.artistName}
+              style={styles.songTitle}
               duration={8000}
               loop
               bounce={false}
               repeatSpacer={50}
               marqueeDelay={2000}
             >
-              {artist}
+              {title}
             </TextTicker>
-          ) : null}
+            {artist ? (
+              <TextTicker
+                style={styles.artistName}
+                duration={8000}
+                loop
+                bounce={false}
+                repeatSpacer={50}
+                marqueeDelay={2000}
+              >
+                {artist}
+              </TextTicker>
+            ) : null}
+          </View>
+
+          {sleepTimer.isActive && (
+            <View style={styles.sleepRow}>
+              <Ionicons name="timer-outline" size={14} color={Colors.warning} />
+              <Text style={styles.sleepText}>Apagado en {sleepTimer.display}</Text>
+              <Pressable
+                onPress={sleepTimer.cancel}
+                style={({ pressed }) => [styles.cancelButton, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {data?.playing_next && (
+            <View style={styles.nextCard}>
+              <Ionicons name="play-skip-forward" size={13} color={Colors.accent} />
+              <Text style={styles.nextLabel}>A continuación: </Text>
+              
+              <View style={styles.nextTickerContainer}>
+                <TextTicker
+                  duration={8000}
+                  loop
+                  bounce={false}
+                  repeatSpacer={50}
+                  marqueeDelay={2000}
+                >
+                  <Text style={styles.nextArtist}>
+                    {formatMediaTitle(data.playing_next.song.title, data.playing_next.song.artist).artist}
+                  </Text>
+                  <Text style={styles.nextSeparator}> · </Text>
+                  <Text style={styles.nextTitle}>
+                    {formatMediaTitle(data.playing_next.song.title, data.playing_next.song.artist).title}
+                  </Text>
+                </TextTicker>
+              </View>
+            </View>
+          )}
         </View>
+      </ScrollView>
 
-        {sleepTimer.isActive && (
-          <View style={styles.sleepRow}>
-            <Ionicons name="timer-outline" size={14} color={Colors.warning} />
-            <Text style={styles.sleepText}>Apagado en {sleepTimer.display}</Text>
-            <Pressable
-              onPress={sleepTimer.cancel}
-              style={({ pressed }) => [styles.cancelButton, pressed && { opacity: 0.7 }]}
-            >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {data?.playing_next && (
-          <View style={styles.nextCard}>
-            <Ionicons name="play-skip-forward" size={13} color={Colors.accent} />
-            <Text style={styles.nextLabel}>A continuación: </Text>
-            <Text style={styles.nextArtist} numberOfLines={1}>
-              {formatMediaTitle(data.playing_next.song.title, data.playing_next.song.artist).artist}
-            </Text>
-            <Text style={styles.nextSeparator}>·</Text>
-            <Text style={styles.nextTitle} numberOfLines={1}>
-              {formatMediaTitle(data.playing_next.song.title, data.playing_next.song.artist).title}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Seccion inferior: controles */}
       <View
         style={[
           styles.bottomSection,
@@ -409,9 +422,18 @@ export default function PlayerScreen() {
   );
 }
 
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  
+  // Allow ScrollView to take available space
+  scrollContainer: {
+    flex: 1,
+  },
+  // Ensure child content stretches correctly and adds padding at the end
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: Spacing.xl,
+  },
 
   center: {
     flex: 1,
@@ -423,7 +445,6 @@ const styles = StyleSheet.create({
   loadingText: { ...Typography.body, color: Colors.textMuted, marginTop: Spacing.sm },
   errorText: { ...Typography.body, color: Colors.danger, textAlign: 'center', maxWidth: 280 },
 
-  // ── Banners ──────────────────────────────────────────────────
   banner: {
     width: '100%',
     flexDirection: 'row',
@@ -437,7 +458,6 @@ const styles = StyleSheet.create({
   bannerRed: { backgroundColor: 'rgba(127,29,29,0.85)' },
   bannerText: { color: '#fef3c7', fontSize: 13, flex: 1 },
 
-  // ── Top section ──────────────────────────────────────────────
   topSection: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xs,
@@ -479,7 +499,6 @@ const styles = StyleSheet.create({
   timerBadge: { ...Typography.caption, color: Colors.warning, fontWeight: '700' },
   stationName: { ...Typography.screenTitle, color: Colors.textMuted, textAlign: 'center' },
 
-  // ── Center section ───────────────────────────────────────────
   centerSection: {
     flex: 1,
     alignItems: 'center',
@@ -488,7 +507,6 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
 
-  // ── Vinyl ────────────────────────────────────────────────────
   vinylWrapper: {
     width: VINYL_SIZE,
     height: VINYL_SIZE,
@@ -508,7 +526,6 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
 
-  // ── Song info ────────────────────────────────────────────────
   songInfo: {
     alignItems: 'center',
     gap: Spacing.xs,
@@ -519,7 +536,6 @@ const styles = StyleSheet.create({
   artistName: { ...Typography.artistName, color: Colors.textMuted, textAlign: 'center' },
   albumName: { ...Typography.albumName, color: Colors.textFaint, textAlign: 'center' },
 
-  // ── Sleep row ────────────────────────────────────────────────
   sleepRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -539,8 +555,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: { ...Typography.caption, color: Colors.warning, fontWeight: '600' },
 
-  // ── Next card ────────────────────────────────────────────────
-    nextCard: {
+  nextCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
@@ -572,8 +587,11 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     flexShrink: 1,
   },
+  nextTickerContainer: {
+    flex: 1,
+    overflow: 'hidden',
+  },
 
-  // ── Bottom section: controles ────────────────────────────────
   bottomSection: {
     paddingTop: Spacing.lg,
     paddingHorizontal: Spacing.lg,
@@ -693,8 +711,3 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 });
-
-
-
-
-

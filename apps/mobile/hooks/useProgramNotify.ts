@@ -152,3 +152,58 @@ export function useProgramNotify() {
     };
   }, [fetchSchedule]);
 }
+
+export async function debugFireNextNotification(fetchSchedule: FetchSchedule) {
+  const schedule = await fetchSchedule();
+  if (!schedule || schedule.length === 0) {
+    console.warn('No schedule items found');
+    return;
+  }
+
+  const nowUtcSeconds = Math.floor(Date.now() / 1000);
+  const next = schedule
+    .filter(item => item.start_timestamp > nowUtcSeconds)
+    .sort((a, b) => a.start_timestamp - b.start_timestamp)[0];
+
+  if (!next) {
+    console.warn('No upcoming schedule items');
+    return;
+  }
+
+  const { title, artist, isPreaching } = formatMediaTitle(next.title);
+  const startTime = formatScheduleTime(next.start_timestamp);
+
+  let body: string;
+  if (isPreaching) {
+    body = `La prédica "${title}" de ${artist} empieza a las ${startTime}.`;
+  } else if (artist) {
+    body = `El programa "${title}" de ${artist} empieza a las ${startTime}.`;
+  } else {
+    body = `El programa "${title}" empieza a las ${startTime}.`;
+  }
+
+  const fireInSeconds = 5;
+  const triggerMs = (nowUtcSeconds + fireInSeconds) * 1000;
+
+  console.log(JSON.stringify({
+    program: next.title,
+    startIso: new Date(next.start_timestamp * 1000).toISOString(),
+    formattedTime: startTime,
+    triggerIso: new Date(triggerMs).toISOString(),
+    nowIso: new Date().toISOString(),
+    body,
+  }));
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Transmisión en vivo pronto',
+      body,
+      sound: true,
+      data: { isProgramNotify: true, isDebug: true },
+    },
+    trigger: {
+      type: 'date',
+      date: triggerMs,
+    } as Notifications.NotificationTriggerInput,
+  });
+}
