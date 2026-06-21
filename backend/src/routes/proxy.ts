@@ -79,6 +79,10 @@ router.get('/nowplaying', requireAuth, (req, res) => {
   proxyToAzuraCast(req, res, `/api/nowplaying/${config.azuracast.stationId}`);
 });
 
+router.post('/station/nowplaying/update', requireAuth, (req, res) => {
+    proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/nowplaying/update`);
+});
+
 export default router;
 
 // Public routes — no authentication required
