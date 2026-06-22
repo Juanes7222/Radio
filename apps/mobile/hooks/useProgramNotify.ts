@@ -15,6 +15,7 @@ import {
 } from './useProgramSubscriptions';
 
 const PROGRAM_NOTIFY_MINUTES_BEFORE = 10;
+const LOOK_AHEAD_HOURS = 24;
 const SCHEDULE_TASK = 'program-notify-schedule';
 
 type FetchSchedule = ReturnType<typeof useAzuraCast>['fetchSchedule'];
@@ -29,29 +30,42 @@ async function ensureExactAlarmPermission() {
   }
 }
 
+/**
+ * Fetches the schedule, filters by user subscriptions and the look-ahead window,
+ * and schedules local notifications for upcoming programs.
+ */
 export async function setupNotifications(fetchSchedule: FetchSchedule) {
+  
   await ensureExactAlarmPermission();
 
   const schedule = await fetchSchedule();
-  if (!schedule || schedule.length === 0) return;
+  if (!schedule || schedule.length === 0) {
+    return;
+  }
 
   const { status } = await Notifications.getPermissionsAsync();
-  if (status !== 'granted') return;
+  if (status !== 'granted') {
+    return;
+  }
 
   const subsData = await AsyncStorage.getItem(SUBSCRIPTIONS_KEY);
   const subscribedTitles: string[] = subsData ? JSON.parse(subsData) : DEFAULT_SUBSCRIPTIONS;
+  
 
   const nowUtcSeconds = Math.floor(Date.now() / 1000);
+  const maxFutureUtcSeconds = nowUtcSeconds + (LOOK_AHEAD_HOURS * 3600);
   const validNotificationIds: string[] = [];
 
   for (const item of schedule) {
+    if (item.start_timestamp <= nowUtcSeconds || item.start_timestamp > maxFutureUtcSeconds) {
+      continue;
+    }
+
     const isSubscribed = subscribedTitles.some(
       sub => normalizeTitle(sub) === normalizeTitle(item.title)
     );
     
     if (!isSubscribed) continue;
-
-    if (item.start_timestamp <= nowUtcSeconds) continue;
 
     const notifyUtcSeconds = item.start_timestamp - (PROGRAM_NOTIFY_MINUTES_BEFORE * 60);
     if (notifyUtcSeconds <= nowUtcSeconds) continue;
@@ -71,6 +85,9 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
     const notificationId = `radio-program-${item.id}`;
     validNotificationIds.push(notificationId);
 
+    const triggerDate = new Date(notifyUtcSeconds * 1000);
+    
+
     await Notifications.scheduleNotificationAsync({
       identifier: notificationId,
       content: {
@@ -81,12 +98,13 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
       },
       trigger: {
         type: 'date',
-        date: new Date(notifyUtcSeconds * 1000),
+        date: triggerDate,
       } as Notifications.NotificationTriggerInput,
     });
   }
 
   const existingScheduled = await Notifications.getAllScheduledNotificationsAsync();
+  let cancelledCount = 0;
   
   for (const notif of existingScheduled) {
     const isProgramNotif = notif.content.data?.isProgramNotify;
@@ -94,8 +112,10 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
 
     if (isProgramNotif && !isStillValid) {
       await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+      cancelledCount++;
     }
   }
+  
 }
 
 export async function registerScheduleBackgroundTask(fetchSchedule: FetchSchedule) {
@@ -103,7 +123,7 @@ export async function registerScheduleBackgroundTask(fetchSchedule: FetchSchedul
     try {
       await setupNotifications(fetchSchedule);
       return BackgroundTask.BackgroundTaskResult.Success;
-    } catch {
+    } catch (error) {
       return BackgroundTask.BackgroundTaskResult.Failed;
     }
   });
