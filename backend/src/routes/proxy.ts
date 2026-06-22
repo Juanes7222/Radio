@@ -178,10 +178,7 @@ async function getAllRequestableSongs(
   req: Request,
   publicUrl: string,
 ): Promise<SongRequest[]> {
-  if (
-    requestsCache &&
-    requestsCache.expiresAt > Date.now()
-  ) {
+  if (requestsCache && requestsCache.expiresAt > Date.now()) {
     return requestsCache.data;
   }
 
@@ -200,9 +197,7 @@ async function getAllRequestableSongs(
       },
     );
 
-    const batch = Array.isArray(data)
-      ? (data as SongRequest[])
-      : [];
+    const batch = Array.isArray(data) ? (data as SongRequest[]) : [];
 
     allSongs.push(...batch);
 
@@ -214,9 +209,7 @@ async function getAllRequestableSongs(
   }
 
   const uniqueSongs = Array.from(
-    new Map(
-      allSongs.map(song => [song.request_id, song]),
-    ).values(),
+    new Map(allSongs.map(song => [song.request_id, song])).values(),
   );
 
   requestsCache = {
