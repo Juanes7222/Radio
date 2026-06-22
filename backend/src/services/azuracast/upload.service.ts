@@ -48,8 +48,6 @@ export async function uploadMp3ToAzuracast(
     body: JSON.stringify({
       path: destinationPath,
       file: `data:audio/mpeg;base64,${base64}`,
-      title,
-      artist,
     }),
     signal: AbortSignal.timeout(120_000),
   });
@@ -63,13 +61,51 @@ export async function uploadMp3ToAzuracast(
   const fileId = String(data.id);
   const azuraPath = data.path;
 
-  if (playlistId) {
-    logger.info("AzuracastService", "Assigning file to playlist", { fileId, playlistId });
-    await assignToPlaylist(fileId, playlistId, stationId, url, apiKey);
-  }
+  await updateFileMetadata(fileId, title, artist, playlistId, stationId, url, apiKey);
 
   logger.info("AzuracastService", "Upload complete", { fileId, azuraPath });
   return { fileId, azuraPath };
+}
+
+async function updateFileMetadata(
+  fileId: string,
+  title: string,
+  artist: string,
+  playlistId: string | undefined,
+  stationId: string,
+  baseUrl: string,
+  apiKey: string
+): Promise<void> {
+  const url = `${baseUrl}/api/station/${stationId}/file/${fileId}`;
+
+  const body: Record<string, unknown> = {
+    title,
+    artist,
+  };
+
+  if (playlistId) {
+    body.playlists = [{ id: playlistId }];
+    logger.info("AzuracastService", "Assigning file to playlist", { fileId, playlistId });
+  }
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (!response.ok) {
+    logger.warn("AzuracastService", "Could not update file metadata", {
+      fileId,
+      status: response.status,
+    });
+  } else {
+    logger.info("AzuracastService", "File metadata updated", { fileId, title, artist });
+  }
 }
 
 async function assignToPlaylist(
