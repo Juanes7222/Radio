@@ -174,6 +174,49 @@ function normalizeSearch(value: string): string {
     .trim();
 }
 
+function extractSongRequests(payload: unknown): SongRequest[] {
+  if (Array.isArray(payload)) {
+    return payload as SongRequest[];
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+
+  const obj = payload as Record<string, unknown>;
+
+  const candidates = [
+    obj.data,
+    obj.items,
+    obj.results,
+    obj.records,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate as SongRequest[];
+    }
+  }
+
+  if (obj.data && typeof obj.data === 'object') {
+    const nested = obj.data as Record<string, unknown>;
+    const nestedCandidates = [
+      nested.data,
+      nested.items,
+      nested.results,
+      nested.records,
+    ];
+
+    for (const candidate of nestedCandidates) {
+      if (Array.isArray(candidate)) {
+        return candidate as SongRequest[];
+      }
+    }
+  }
+
+  return [];
+}
+
 async function getAllRequestableSongs(
   req: Request,
   publicUrl: string,
@@ -197,7 +240,9 @@ async function getAllRequestableSongs(
       },
     );
 
-    const batch = Array.isArray(data) ? (data as SongRequest[]) : [];
+    const batch = extractSongRequests(data);
+
+    console.log('[search] page:', page, 'batch:', batch.length);
 
     allSongs.push(...batch);
 
