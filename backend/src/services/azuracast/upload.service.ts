@@ -11,11 +11,13 @@ export interface AzuracastUploadResult {
 export async function uploadMp3ToAzuracast(
   localPath: string,
   title: string,
+  artist: string,
   playlistId?: string,
   folder?: string
 ): Promise<AzuracastUploadResult> {
   logger.info("AzuracastService", "Raw title received", {
     title,
+    artist,
     bytes: Buffer.from(title).toString("hex"),
   });
 
@@ -35,7 +37,7 @@ export async function uploadMp3ToAzuracast(
 
   const uploadUrl = `${url}/api/station/${stationId}/files`;
 
-  logger.info("AzuracastService", "Uploading file", { filename, azuraPath: destinationPath, title });
+  logger.info("AzuracastService", "Uploading file", { filename, azuraPath: destinationPath, title, artist });
 
   const uploadResponse = await fetch(uploadUrl, {
     method: "POST",
@@ -46,6 +48,8 @@ export async function uploadMp3ToAzuracast(
     body: JSON.stringify({
       path: destinationPath,
       file: `data:audio/mpeg;base64,${base64}`,
+      title,
+      artist,
     }),
     signal: AbortSignal.timeout(120_000),
   });
