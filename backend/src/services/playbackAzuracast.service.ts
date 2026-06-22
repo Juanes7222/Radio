@@ -30,7 +30,7 @@ async function getPlaylistId(): Promise<string> {
 export async function uploadAudioToAzuraCast(filePath: string, filename: string): Promise<string> {
   try {
     const title = filename.replace(/\.mp3$/, "");
-    const result = await uploadMp3ToAzuracast(filePath, title, undefined, "locutores");
+    const result = await uploadMp3ToAzuracast(filePath, title, "", undefined, "locutores");
     logger.info("PlaybackAzuracast", "Uploaded audio to AzuraCast", {
       mediaId: result.fileId,
       azuraPath: result.azuraPath,
