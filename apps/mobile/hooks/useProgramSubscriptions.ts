@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const SUBSCRIPTIONS_KEY = 'radio-program-subscriptions';
 export const SUBSCRIPTIONS_EVENT = 'onSubscriptionsUpdated';
 
-const DEFAULT_SUBSCRIPTIONS: string[] = [
+export const DEFAULT_SUBSCRIPTIONS: string[] = [
   "Rev Javier Carrascal", 
   "Rev Humberto Henao", 
   "Rev José Soto", 
@@ -14,9 +14,6 @@ const DEFAULT_SUBSCRIPTIONS: string[] = [
   "Lectura Biblica"
 ];
 
-/**
- * Manages user program subscriptions, loading initial defaults if no previous data exists.
- */
 export function useProgramSubscriptions() {
   const [subscribedPrograms, setSubscribedPrograms] = useState<string[]>(DEFAULT_SUBSCRIPTIONS);
 
@@ -30,19 +27,37 @@ export function useProgramSubscriptions() {
     });
   }, []);
 
-  const toggleSubscription = useCallback(async (programTitle: string) => {
+  const notifyUpdate = (newSubs: string[]) => {
+    AsyncStorage.setItem(SUBSCRIPTIONS_KEY, JSON.stringify(newSubs)).then(() => {
+      DeviceEventEmitter.emit(SUBSCRIPTIONS_EVENT);
+    });
+  };
+
+  const toggleSubscription = useCallback((programTitle: string) => {
     setSubscribedPrograms(prev => {
       const next = prev.includes(programTitle)
         ? prev.filter(title => title !== programTitle)
         : [...prev, programTitle];
       
-      AsyncStorage.setItem(SUBSCRIPTIONS_KEY, JSON.stringify(next)).then(() => {
-        DeviceEventEmitter.emit(SUBSCRIPTIONS_EVENT);
-      });
-      
+      notifyUpdate(next);
       return next;
     });
   }, []);
 
-  return { subscribedPrograms, toggleSubscription };
+  const subscribeAll = useCallback((allPrograms: string[]) => {
+    setSubscribedPrograms(allPrograms);
+    notifyUpdate(allPrograms);
+  }, []);
+
+  const unsubscribeAll = useCallback(() => {
+    setSubscribedPrograms([]);
+    notifyUpdate([]);
+  }, []);
+
+  return { 
+    subscribedPrograms, 
+    toggleSubscription, 
+    subscribeAll, 
+    unsubscribeAll 
+  };
 }
