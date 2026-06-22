@@ -186,6 +186,8 @@ function extractSongRequests(payload: unknown): SongRequest[] {
   const obj = payload as Record<string, unknown>;
 
   const candidates = [
+    obj.rows,
+    obj.result,
     obj.data,
     obj.items,
     obj.results,
@@ -201,6 +203,8 @@ function extractSongRequests(payload: unknown): SongRequest[] {
   if (obj.data && typeof obj.data === 'object') {
     const nested = obj.data as Record<string, unknown>;
     const nestedCandidates = [
+      obj.rows,
+      obj.result,
       nested.data,
       nested.items,
       nested.results,
