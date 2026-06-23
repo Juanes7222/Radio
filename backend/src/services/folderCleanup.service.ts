@@ -40,7 +40,7 @@ export async function cleanupNewsFolder(): Promise<void> {
             `/station/${STATION}/files`,
             { 
                 params: { currentDirectory: folderPath },
-                timeout: 30_000 
+                timeout: 90_000
             }
         );
 
@@ -74,7 +74,7 @@ export async function cleanupNewsFolder(): Promise<void> {
             try {
                 await azApi.delete(
                     `/station/${STATION}/file/${media.unique_id}`,
-                    { timeout: 15_000 }
+                    { timeout: 90_000 }
                 );
                 logger.info('FolderCleanup', 'Removed file', { 
                     fileId: media.id, 
