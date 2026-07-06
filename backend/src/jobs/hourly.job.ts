@@ -10,15 +10,6 @@ import { logger } from "../utils/logger";
  * Generates a single hour audio on-demand.
  */
 async function generateHourAudio(hour24: number) {
-  const template = await prisma.announcementTemplate.findFirst({
-    where: { type: "hourly", active: true },
-  });
-
-  if (!template) {
-    logger.warn("HourlyCheck", "No active hourly template found");
-    return null;
-  }
-
   const group =
     hour24 >= 6 && hour24 <= 11
       ? "morning"
@@ -30,7 +21,6 @@ async function generateHourAudio(hour24: number) {
 
   try {
     const result = await generateOrReuseAudio({
-      templateId: template.id,
       hour: hour24,
       group,
     });

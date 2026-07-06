@@ -272,14 +272,6 @@ router.post("/generate-now/:hour", async (req, res) => {
       return res.status(400).json({ error: "Invalid hour (0-23)" });
     }
 
-    const template = await prisma.announcementTemplate.findFirst({
-      where: { type: "hourly", active: true },
-    });
-
-    if (!template) {
-      return res.status(404).json({ error: "No active hourly template found" });
-    }
-
     const group =
       hour >= 6 && hour <= 11
         ? "morning"
@@ -289,11 +281,7 @@ router.post("/generate-now/:hour", async (req, res) => {
         ? "evening"
         : "night";
 
-    const result = await generateOrReuseAudio({
-      templateId: template.id,
-      hour,
-      group,
-    });
+    const result = await generateOrReuseAudio({ hour, group });
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);

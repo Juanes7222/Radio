@@ -100,20 +100,7 @@ export async function runNightlyGeneration(): Promise<void> {
             date: item.date.toISOString().split("T")[0],
           });
         } else {
-          const template = await prisma.announcementTemplate.findFirst({
-            where: { type: "hourly", active: true },
-          });
-
-          if (!template) {
-            errors.push({
-              hour: item.hour,
-              error: "No active hourly template found",
-            });
-            continue;
-          }
-
           const result = await generateOrReuseAudio({
-            templateId: template.id,
             hour: item.hour,
             group: item.group,
           });

@@ -81,30 +81,105 @@ export interface GenerationResult {
 }
 
 export interface GenerationRequest {
-  templateId: string;
+  templateId?: string;
   hour: number;
   group: TimeSlotGroup;
   text?: string;
   voice?: string;
   speed?: number;
+  stationName?: string;
+}
+
+function getDayIndex(): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+async function pickTemplateForHour(hour: number): Promise<{
+  id: string;
+  voice: string;
+  speed: number;
+  textTemplate: string;
+}> {
+  const templates = await prisma.announcementTemplate.findMany({
+    where: { type: "hourly", active: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (templates.length === 0) {
+    throw new Error("No active hourly templates found");
+  }
+
+  const index = (hour + getDayIndex()) % templates.length;
+  const template = templates[index];
+
+  return {
+    id: template.id,
+    voice: template.voice,
+    speed: template.speed,
+    textTemplate: template.textTemplate,
+  };
+}
+
+/**
+ * Returns the active template for a given hour, rotating across
+ * available templates based on the hour and day index.
+ */
+export async function getTemplateForHour(hour: number): Promise<{
+  id: string;
+  voice: string;
+  speed: number;
+  textTemplate: string;
+  name: string;
+}> {
+  const templates = await prisma.announcementTemplate.findMany({
+    where: { type: "hourly", active: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (templates.length === 0) {
+    throw new Error("No active hourly templates found");
+  }
+
+  const index = (hour + getDayIndex()) % templates.length;
+  const template = templates[index];
+
+  return {
+    id: template.id,
+    voice: template.voice,
+    speed: template.speed,
+    textTemplate: template.textTemplate,
+    name: template.name,
+  };
 }
 
 /**
  * Generates or reuses a time announcement audio.
- * If a suitable reusable audio exists, it returns that one.
- * Otherwise, it generates a new audio using TTS.
+ * If no templateId is provided, picks one automatically by
+ * rotating across active templates based on (hour + dayIndex).
+ * When reusing, it only reuses audio generated with the same template.
  */
 export async function generateOrReuseAudio(
   request: GenerationRequest
 ): Promise<GenerationResult> {
-  const { templateId, hour, group } = request;
+  let { templateId, hour, group, voice, speed } = request;
 
-  const existing = await findReusableAudio(hour, group);
+  if (!templateId) {
+    const picked = await pickTemplateForHour(hour);
+    templateId = picked.id;
+    voice = voice || picked.voice;
+    speed = speed || picked.speed;
+  }
+
+  const existing = await findReusableAudio(hour, group, templateId);
   if (existing) {
     logger.info("AudioGeneration", "Reusing existing audio", {
       audioId: existing.id,
       hour,
       group,
+      templateId,
     });
 
     return {
@@ -117,7 +192,7 @@ export async function generateOrReuseAudio(
     };
   }
 
-  return generateNewAudio(request);
+  return generateNewAudio({ ...request, templateId, voice, speed });
 }
 
 /**
@@ -125,7 +200,8 @@ export async function generateOrReuseAudio(
  */
 async function findReusableAudio(
   hour: number,
-  group: TimeSlotGroup
+  group: TimeSlotGroup,
+  templateId: string
 ) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -137,6 +213,7 @@ async function findReusableAudio(
     where: {
       hourValue: hour,
       timeSlotGroup: group,
+      templateId,
       status: "ready",
       OR: [
         { lastUsedDate: null },
