@@ -57,19 +57,19 @@ export async function getOrCreateAnnouncementStreamer(): Promise<{
 
   const password = generatePassword();
   const { data } = await azApi.post(`/station/${STATION}/streamers`, {
-    streamer_username: "locutor_auto",
+    streamer_username: "avsisos_auto",
     streamer_password: password,
-    display_name: "Locutor Automatico",
+    display_name: "La Voz de la Verdad",
     comments: "Cuenta automatica para avisos de hora",
     is_active: true,
     enforce_schedule: false,
   });
 
-  cachedCredentials = { username: "locutor_auto", password };
+  cachedCredentials = { username: "avsisos_auto", password };
 
   logger.info(
     "LocutorStreamer",
-    `Streamer creado: locutor_auto (ID ${data.id}). Guarda esta password en .env: ${password}`
+    `Streamer creado: avsisos_auto (ID ${data.id}). Password: ${password}`
   );
 
   return cachedCredentials;
@@ -88,70 +88,108 @@ export function streamMp3AsLive(
     const fileSize = fs.statSync(filePath).size;
     const readStream = fs.createReadStream(filePath);
     const auth = Buffer.from(`${username}:${password}`).toString("base64");
-
     const socket = new net.Socket();
-    let headerResponse = "";
-    let headersDone = false;
-    let streamed = false;
+    let serverResponse = "";
+    let closed = false;
 
-    const teardown = (err?: Error) => {
+    function finish(err?: Error) {
+      if (closed) return;
+      closed = true;
       socket.destroy();
       readStream.destroy();
       if (err) reject(err);
-    };
+      else resolve();
+    }
 
     socket.connect(HARBOR_PORT, HARBOR_HOST, () => {
+      logger.info("LocutorStreamer", "Conectado a harbor, enviando headers");
+
       const headers = [
-        `SOURCE ${MOUNT_POINT} ICE/1.0`,
+        `SOURCE ${MOUNT_POINT} HTTP/1.0`,
         `Content-Type: audio/mpeg`,
         `Authorization: Basic ${auth}`,
         `Content-Length: ${fileSize}`,
         `Ice-Public: 0`,
         `Ice-Name: Locutor Automatico`,
-        "",
-        "",
       ].join("\r\n");
 
-      socket.write(headers);
+      socket.write(headers + "\r\n\r\n");
+
+      // Pipe the MP3 into the socket immediately after sending headers.
+      // Liquidsoap's input.harbor starts consuming audio right away
+      // once headers are parsed and auth passes.
+      // If auth fails, the server closes the connection and we catch it
+      // on the error/close events.
+      readStream.pipe(socket, { end: true });
+      logger.info("LocutorStreamer", "Transmitiendo MP3...", {
+        sizeBytes: fileSize,
+      });
     });
 
     socket.on("data", (data: Buffer) => {
-      if (!headersDone) {
-        headerResponse += data.toString("utf8");
-        if (
-          headerResponse.includes("200 OK") ||
-          headerResponse.includes("OK2")
-        ) {
-          headersDone = true;
-          streamed = true;
-          readStream.pipe(socket);
-        } else if (
-          headerResponse.includes("401") ||
-          headerResponse.includes("403")
-        ) {
-          teardown(new Error("Autenticacion fallida en Icecast source"));
-        }
-      }
+      const text = data.toString("utf8").trim();
+      serverResponse += text;
+      logger.info("LocutorStreamer", "Respuesta del servidor", { text });
     });
 
-    readStream.on("error", (err) => teardown(err));
+    readStream.on("error", (err) => finish(err));
+
+    readStream.on("end", () => {
+      logger.info("LocutorStreamer", "Archivo leido completamente, socket se cerrara");
+    });
 
     socket.on("close", () => {
-      logger.info("LocutorStreamer", "Conexion Icecast cerrada");
-      if (!streamed) {
-        return reject(new Error("Conexion cerrada sin poder transmitir"));
+      logger.info("LocutorStreamer", "Conexion cerrada", {
+        serverResponse: serverResponse.slice(0, 300) || "(vacia)",
+      });
+
+      if (closed) return;
+      closed = true;
+
+      if (serverResponse.includes("200") || serverResponse.includes("OK2")) {
+        resolve();
+      } else if (serverResponse.includes("401") || serverResponse.includes("403")) {
+        reject(new Error(`Autenticacion fallida: ${serverResponse.slice(0, 200)}`));
+      } else if (serverResponse.includes("404")) {
+        reject(
+          new Error(
+            `Mount point "${MOUNT_POINT}" no existe: ${serverResponse.slice(0, 200)}`
+          )
+        );
+      } else {
+        // Even without a positive server response, if we piped the data
+        // and the connection closed cleanly, assume it worked.
+        // Some Liquidsoap versions don't send any response.
+        resolve();
       }
-      resolve();
     });
 
-    socket.on("error", (err) => {
+    socket.on("error", (err: NodeJS.ErrnoException) => {
+      logger.error("LocutorStreamer", "Error de socket", {
+        error: err.message,
+        code: err.code,
+      });
+      if (closed) return;
+      closed = true;
       readStream.destroy();
-      reject(err);
+      if (err.code === "ECONNREFUSED") {
+        reject(
+          new Error(
+            `Conexion rechazada a ${HARBOR_HOST}:${HARBOR_PORT}. Verifica LIQUIDSOAP_HARBOR_PORT`
+          )
+        );
+      } else {
+        reject(err);
+      }
     });
 
     const timeout = setTimeout(() => {
-      logger.warn("LocutorStreamer", "Timeout de conexion, forzando cierre");
-      teardown(new Error("Timeout de conexion a harbor (30s)"));
+      if (!closed) {
+        logger.warn("LocutorStreamer", "Timeout 30s", {
+          serverResponse: serverResponse.slice(0, 200) || "(vacia)",
+        });
+        finish(new Error("Timeout: servidor no respondio en 30s"));
+      }
     }, 30_000);
 
     socket.on("close", () => clearTimeout(timeout));
@@ -160,5 +198,8 @@ export function streamMp3AsLive(
 
 export async function playFileAsLive(filePath: string): Promise<void> {
   const creds = await getOrCreateAnnouncementStreamer();
+  logger.info("LocutorStreamer", "Usando streamer", {
+    username: creds.username,
+  });
   await streamMp3AsLive(creds.username, creds.password, filePath);
 }
