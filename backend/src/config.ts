@@ -30,6 +30,11 @@ export const config = {
         mediaDir: process.env.MEDIA_DIR || '/var/azuracast/stations/1/media/locutores',
         timezone: process.env.TIMEZONE || 'America/Bogota',
         stationName: process.env.STATION_NAME || 'Radio',
+        harborHost: process.env.LIQUIDSOAP_HARBOR_HOST || 'localhost',
+        harborPort: parseInt(process.env.LIQUIDSOAP_HARBOR_PORT || '8005', 10),
+        mountPoint: process.env.LIQUIDSOAP_MOUNT_POINT || '/live',
+        streamerUser: process.env.LOCUTOR_STREAMER_USER || '',
+        streamerPassword: process.env.LOCUTOR_STREAMER_PASSWORD || '',
     },
     google: {
         clientId: required('GOOGLE_CLIENT_ID'),

@@ -6,10 +6,9 @@ import { getAudioStats } from "../services/timeSlotPlanner.service";
 import { getAudioCountByStatus, generateOrReuseAudio, scheduleAudioForDate } from "../services/audioGeneration.service";
 import { analyzeSafeHours as analyzeSafeHoursSafe, getBlockedHours } from "../services/scheduleAnalyzer.service";
 import { 
-  queueAnnouncementNext, 
   uploadAudioToAzuraCast, 
-  addToAnnouncementPlaylist 
 } from "../services/playbackAzuracast.service";
+import { playFileAsLive } from "../services/locutorStreamer.service";
 import { runNightlyGeneration } from "../jobs/nightly.job";
 import { config } from "../config";
 import { logger } from "../utils/logger";
@@ -346,17 +345,26 @@ router.post("/play-now/:hour", async (req, res) => {
 
     const audio = schedule.audio;
 
-    if (audio.status !== "ready" || !audio.azuracastMediaId) {
+    if (audio.status !== "ready") {
       return res.json({
         success: false,
         hour,
         reason: "audio_not_ready",
-        message: "Audio is not ready or missing AzuraCast ID",
+        message: "Audio status is not ready",
+      });
+    }
+
+    if (!audio.filepath) {
+      return res.json({
+        success: false,
+        hour,
+        reason: "no_file",
+        message: "Audio has no local file path",
       });
     }
 
     try {
-      await queueAnnouncementNext(audio.azuracastMediaId);
+      await playFileAsLive(audio.filepath);
 
       await prisma.audioSchedule.update({
         where: { id: schedule.id },
@@ -366,14 +374,14 @@ router.post("/play-now/:hour", async (req, res) => {
       return res.json({
         success: true,
         hour,
-        mediaId: audio.azuracastMediaId,
-        message: "Announcement queued in AzuraCast successfully",
+        file: audio.filepath,
+        message: "Announcement played via live streamer",
       });
     } catch (err: any) {
       return res.status(500).json({
         success: false,
         hour,
-        reason: "queue_failed",
+        reason: "streamer_failed",
         error: err.message,
       });
     }
@@ -395,7 +403,6 @@ router.post("/retry-upload/:audioId", async (req, res) => {
     }
 
     const mediaId = await uploadAudioToAzuraCast(audio.filepath, audio.filename);
-    await addToAnnouncementPlaylist(mediaId);
 
     await prisma.generatedAudio.update({
       where: { id: audio.id },
@@ -406,7 +413,7 @@ router.post("/retry-upload/:audioId", async (req, res) => {
       success: true,
       audioId: audio.id,
       mediaId,
-      message: "Audio uploaded and added to playlist",
+      message: "Audio uploaded to AzuraCast",
     });
   } catch (err: any) {
     logger.error("LocutorRoutes", "Retry upload failed", { error: err.message });

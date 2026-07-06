@@ -2,7 +2,7 @@ import path from "path";
 import { prisma } from "../lib/prisma";
 import { synthesize } from "./tts.service";
 import { renderTemplate } from "./template.service";
-import { uploadAudioToAzuraCast, addToAnnouncementPlaylist } from "./playbackAzuracast.service";
+import { uploadAudioToAzuraCast } from "./playbackAzuracast.service";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import type { TimeSlotGroup } from "./timeSlotPlanner.service";
@@ -192,7 +192,6 @@ async function generateNewAudio(
   let azuracastMediaId: string | null = null;
   try {
     azuracastMediaId = await uploadAudioToAzuraCast(filepath, filename);
-    await addToAnnouncementPlaylist(azuracastMediaId);
   } catch (err: any) {
     logger.warn("AudioGeneration", "Failed to upload to AzuraCast, audio will be local only", {
       filename,
