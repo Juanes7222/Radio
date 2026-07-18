@@ -92,3 +92,11 @@ export function formatScheduleTime(timestampInSeconds: number): string {
     hour12: true,
   }).format(date);
 }
+
+export function normalizeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}

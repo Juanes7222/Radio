@@ -38,7 +38,7 @@ export async function processVideo(job: VideoJob): Promise<void> {
     await updateStatus(videoId, "UPLOADING", { localPath });
 
     const playlistId = config.azuracast.playlistId || undefined;
-    const { fileId, azuraPath } = await uploadMp3ToAzuracast(localPath, title, playlistId);
+    const { fileId, azuraPath } = await uploadMp3ToAzuracast(localPath, title, "", playlistId);
 
     await updateStatus(videoId, "DONE", {
       azuracastFileId: fileId,

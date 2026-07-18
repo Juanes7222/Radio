@@ -8,7 +8,8 @@ const router = Router();
 async function fetchFromAzuraCast(
   req: Request,
   azuracastPath: string,
-  transform?: (data: unknown) => unknown
+  transform?: (data: unknown) => unknown,
+  customParams?: Record<string, unknown>
 ): Promise<{ status: number; data: unknown }> {
   const axiosConfig: AxiosRequestConfig = {
     method: req.method as Method,
@@ -17,7 +18,7 @@ async function fetchFromAzuraCast(
       Authorization: `Bearer ${config.azuracast.apiKey}`,
       'Content-Type': req.headers['content-type'] ?? 'application/json',
     },
-    params: req.query,
+    params: { ...req.query, ...customParams },
     timeout: 15000,
   };
 
@@ -148,6 +149,126 @@ function rewriteInternalUrls(data: unknown, publicUrl: string): unknown {
 
   return JSON.parse(rewritten);
 }
+
+type SongRequest = {
+  request_id: string;
+  song: {
+    title: string;
+    artist: string;
+    art?: string;
+  };
+};
+
+const REQUESTS_CACHE_TTL_MS = 1000 * 60 * 10; // 10 minutos
+
+let requestsCache: {
+  data: SongRequest[];
+  expiresAt: number;
+} | null = null;
+
+function normalizeSearch(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+function extractSongRequests(payload: unknown): SongRequest[] {
+  if (Array.isArray(payload)) {
+    return payload as SongRequest[];
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+
+  const obj = payload as Record<string, unknown>;
+
+  const candidates = [
+    obj.rows,
+    obj.result,
+    obj.data,
+    obj.items,
+    obj.results,
+    obj.records,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate as SongRequest[];
+    }
+  }
+
+  if (obj.data && typeof obj.data === 'object') {
+    const nested = obj.data as Record<string, unknown>;
+    const nestedCandidates = [
+      obj.rows,
+      obj.result,
+      nested.data,
+      nested.items,
+      nested.results,
+      nested.records,
+    ];
+
+    for (const candidate of nestedCandidates) {
+      if (Array.isArray(candidate)) {
+        return candidate as SongRequest[];
+      }
+    }
+  }
+
+  return [];
+}
+
+async function getAllRequestableSongs(
+  req: Request,
+  publicUrl: string,
+): Promise<SongRequest[]> {
+  if (requestsCache && requestsCache.expiresAt > Date.now()) {
+    return requestsCache.data;
+  }
+
+  const allSongs: SongRequest[] = [];
+  const perPage = 100;
+  let page = 1;
+
+  while (true) {
+    const { data } = await fetchFromAzuraCast(
+      req,
+      `/api/station/${config.azuracast.stationId}/requests`,
+      (d) => rewriteInternalUrls(d, publicUrl),
+      {
+        page,
+        per_page: perPage,
+      },
+    );
+
+    const batch = extractSongRequests(data);
+
+    console.log('[search] page:', page, 'batch:', batch.length);
+
+    allSongs.push(...batch);
+
+    if (batch.length < perPage) {
+      break;
+    }
+
+    page++;
+  }
+
+  const uniqueSongs = Array.from(
+    new Map(allSongs.map(song => [song.request_id, song])).values(),
+  );
+
+  requestsCache = {
+    data: uniqueSongs,
+    expiresAt: Date.now() + REQUESTS_CACHE_TTL_MS,
+  };
+
+  return uniqueSongs;
+}
+
 publicRouter.get('/nowplaying', async (req, res) => {
   const publicUrl = buildPublicUrl(req);
   try {
@@ -182,10 +303,74 @@ publicRouter.get('/nowplaying', async (req, res) => {
   }
 });
 
-publicRouter.get('/search', (req, res) => {
+publicRouter.get('/search', async (req, res) => {
   const publicUrl = buildPublicUrl(req);
-  proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/requests`, 
-    (data) => rewriteInternalUrls(data, publicUrl));
+
+  try {
+    const page = Math.max(
+      1,
+      Number(req.query.page ?? 1),
+    );
+
+    const perPage = Math.min(
+      100,
+      Math.max(
+        1,
+        Number(req.query.per_page ?? 25),
+      ),
+    );
+
+    const search = normalizeSearch(
+      String(req.query.search ?? ''),
+    );
+
+    const allSongs = await getAllRequestableSongs(
+      req,
+      publicUrl,
+    );
+
+    const filteredSongs = !search
+      ? allSongs
+      : allSongs.filter((item) => {
+          const haystack = normalizeSearch(
+            [
+              item.song?.title ?? '',
+              item.song?.artist ?? '',
+            ].join(' '),
+          );
+
+          return haystack.includes(search);
+        });
+
+    const start = (page - 1) * perPage;
+    const end = start + perPage;
+
+    res.status(200).json(
+      filteredSongs.slice(start, end),
+    );
+  } catch (err: any) {
+    if (
+      err.code === 'ECONNRESET' ||
+      err.code === 'ECONNREFUSED' ||
+      err.code === 'ENOTFOUND'
+    ) {
+      return res.status(502).json({
+        error: 'AzuraCast not available yet',
+      });
+    }
+
+    if (axios.isAxiosError(err) && err.response) {
+      return res
+        .status(err.response.status)
+        .json(err.response.data);
+    }
+
+    console.error('Search error:', err);
+
+    return res.status(502).json({
+      error: 'Error de conexión con AzuraCast',
+    });
+  }
 });
 
 publicRouter.get('/schedule', (req, res) => {

@@ -16,7 +16,7 @@ import { useAzuraCast } from '@radio/api';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { useProgramSubscriptions } from '@/hooks/useProgramSubscriptions';
-import { formatMediaTitle } from '@/lib/formatMedia';
+import { formatMediaTitle, normalizeTitle } from '@/lib/formatMedia';
 
 interface NotificationsModalProps {
   visible: boolean;
@@ -35,7 +35,14 @@ export function NotificationsModal({
 }: NotificationsModalProps) {
   const insets = useSafeAreaInsets();
   const { fetchSchedule } = useAzuraCast({ apiBaseUrl: BACKEND_URL });
-  const { subscribedPrograms, toggleSubscription } = useProgramSubscriptions();
+  
+  // Extraer las nuevas funciones
+  const { 
+    subscribedPrograms, 
+    toggleSubscription, 
+    subscribeAll, 
+    unsubscribeAll 
+  } = useProgramSubscriptions();
   
   const [programs, setPrograms] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +52,6 @@ export function NotificationsModal({
       setLoading(true);
       fetchSchedule().then((schedule) => {
         if (schedule) {
-          // Extract unique programs to display in the list
           const uniquePrograms = Array.from(
             new Set(schedule.map((item) => item.title))
           ).filter(title => {
@@ -78,7 +84,6 @@ export function NotificationsModal({
           </View>
 
           <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
-            {/* Current Track Section */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Sonando Ahora</Text>
               <View style={styles.row}>
@@ -99,30 +104,45 @@ export function NotificationsModal({
 
             <View style={styles.divider} />
 
-            {/* Programs Section */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Programas Especiales</Text>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>Programas Especiales</Text>
+                {programs.length > 0 && (
+                  <View style={styles.bulkActions}>
+                    <TouchableOpacity onPress={() => subscribeAll(programs)}>
+                      <Text style={styles.bulkText}>Todas</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.bulkSeparator}>·</Text>
+                    <TouchableOpacity onPress={unsubscribeAll}>
+                      <Text style={styles.bulkText}>Ninguna</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
               {loading ? (
                 <ActivityIndicator size="small" color={Colors.accent} style={styles.loader} />
               ) : programs.length > 0 ? (
                 programs.map((program) => {
-                  const isSubscribed = subscribedPrograms.includes(program);
-                  const { title } = formatMediaTitle(program);
-                  
-                  return (
-                    <View key={program} style={styles.row}>
-                      <View style={styles.rowTextContainer}>
-                        <Text style={styles.rowTitle}>{title}</Text>
+                    const isSubscribed = subscribedPrograms.some(
+                      sub => normalizeTitle(sub) === normalizeTitle(program)
+                    );
+                    const { title } = formatMediaTitle(program);
+                    
+                    return (
+                      <View key={program} style={styles.row}>
+                        <View style={styles.rowTextContainer}>
+                          <Text style={styles.rowTitle}>{title}</Text>
+                        </View>
+                        <Switch
+                          value={isSubscribed}
+                          onValueChange={() => toggleSubscription(program)}
+                          trackColor={{ false: Colors.border, true: Colors.accent }}
+                          thumbColor={Platform.OS === 'ios' ? '#fff' : isSubscribed ? '#fff' : '#f4f3f4'}
+                        />
                       </View>
-                      <Switch
-                        value={isSubscribed}
-                        onValueChange={() => toggleSubscription(program)}
-                        trackColor={{ false: Colors.border, true: Colors.accent }}
-                        thumbColor={Platform.OS === 'ios' ? '#fff' : isSubscribed ? '#fff' : '#f4f3f4'}
-                      />
-                    </View>
-                  );
-                })
+                    );
+                  })
               ) : (
                 <Text style={styles.emptyText}>No hay programas disponibles.</Text>
               )}
@@ -170,13 +190,32 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: Spacing.md,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
   sectionTitle: {
     ...Typography.caption,
     color: Colors.accent,
     fontWeight: '700',
     textTransform: 'uppercase',
-    marginBottom: Spacing.sm,
     letterSpacing: 1,
+  },
+  bulkActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  bulkText: {
+    ...Typography.caption,
+    color: Colors.accent,
+    fontWeight: '600',
+  },
+  bulkSeparator: {
+    ...Typography.caption,
+    color: Colors.textFaint,
   },
   row: {
     flexDirection: 'row',

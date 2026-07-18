@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
@@ -18,106 +17,231 @@ import { useAzuraCast } from '@radio/api';
 import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 import { formatMediaTitle } from '@/lib/formatMedia';
-
 import { scale, TAB_BAR_HEIGHT } from '../../lib/responsive';
 
 const PAGE_SIZE = 25;
-const ESTIMATED_TOTAL = 3000;
-const CACHE_KEY = 'requestable_songs_cache';
+const CACHE_KEY = 'requestable_songs_cache_v2';
 const CACHE_TTL_MS = 1000 * 60 * 30;
-const FETCH_CHUNK_SIZE = 10;
+const DEBOUNCE_MS = 350;
+
+function dedupeSongs(items: SongRequest[]) {
+  const seen = new Map<string, SongRequest>();
+  for (const item of items) seen.set(item.request_id, item);
+  return Array.from(seen.values());
+}
+
+type SongRowProps = {
+  item: SongRequest;
+  isSent: boolean;
+  isRequesting: boolean;
+  onRequest: (item: SongRequest) => void;
+};
+
+const SongRow = memo(function SongRow({
+  item,
+  isSent,
+  isRequesting,
+  onRequest,
+}: SongRowProps) {
+  const { title, artist, isPreaching } = formatMediaTitle(
+    item.song.title,
+    item.song.artist,
+  );
+
+  return (
+    <View style={styles.row}>
+      {item.song.art ? (
+        <Image
+          source={{ uri: item.song.art }}
+          style={styles.art}
+          contentFit="cover"
+          transition={150}
+        />
+      ) : (
+        <View style={[styles.art, styles.artFallback]} />
+      )}
+
+      <View style={styles.info}>
+        {isPreaching && <Text style={styles.preachingBadge}>Prédica</Text>}
+        <Text style={styles.title} numberOfLines={1}>{title}</Text>
+        {artist ? (
+          <Text style={styles.artist} numberOfLines={1}>{artist}</Text>
+        ) : null}
+      </View>
+
+      <TouchableOpacity
+        onPress={() => onRequest(item)}
+        disabled={isSent || isRequesting}
+        style={[styles.btn, isSent && styles.btnSent]}
+        activeOpacity={0.8}
+      >
+        {isRequesting ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : isSent ? (
+          <Ionicons name="checkmark" size={16} color="#fff" />
+        ) : (
+          <Text style={styles.btnText}>Pedir</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+});
 
 export default function RequestScreen() {
   const insets = useSafeAreaInsets();
+  const { requestSong, fetchRequestableSongs } = useAzuraCast({
+    apiBaseUrl: BACKEND_URL,
+  });
+
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [songs, setSongs] = useState<SongRequest[]>([]);
-  const [isFetchingSongs, setIsFetchingSongs] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   const [requesting, setRequesting] = useState<string | null>(null);
   const [sent, setSent] = useState<string[]>([]);
   const [requestError, setRequestError] = useState<string | null>(null);
 
-  const { requestSong, fetchRequestableSongs } = useAzuraCast({ apiBaseUrl: BACKEND_URL });
+  const requestSeq = useRef(0);
+
+  const sentSet = useMemo(() => new Set(sent), [sent]);
+  const normalizedQuery = debouncedQuery.trim();
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), 400);
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, DEBOUNCE_MS);
+
     return () => clearTimeout(timer);
   }, [query]);
 
-  const filteredSongs = useMemo(() => {
-    const normalized = debouncedQuery.toLowerCase().trim();
-    if (!normalized) return songs;
-    return songs.filter(({ song }) =>
-      song.title.toLowerCase().includes(normalized) ||
-      song.artist.toLowerCase().includes(normalized)
-    );
-  }, [songs, debouncedQuery]);
+  const loadPage = useCallback(
+    async ({
+      pageToLoad,
+      search,
+      reset = false,
+    }: {
+      pageToLoad: number;
+      search: string;
+      reset?: boolean;
+    }) => {
+      const seq = ++requestSeq.current;
 
-  const loadAll = useCallback(async () => {
-    setIsFetchingSongs(true);
-    try {
-      const cached = await AsyncStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const { songs: cachedSongs, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_TTL_MS) {
-          setSongs(cachedSongs);
-          return;
+      try {
+        if (reset) {
+          setSongs([]);
+          setPage(1);
+          setHasMore(true);
+          setIsInitialLoading(true);
+        } else {
+          setIsLoadingMore(true);
+        }
+
+        const isFirstPageWithoutSearch = pageToLoad === 1 && !search;
+
+        if (isFirstPageWithoutSearch) {
+          const cached = await AsyncStorage.getItem(CACHE_KEY);
+          if (cached) {
+            const parsed = JSON.parse(cached) as {
+              songs: SongRequest[];
+              timestamp: number;
+            };
+
+            if (Date.now() - parsed.timestamp < CACHE_TTL_MS) {
+              if (seq === requestSeq.current) {
+                setSongs(parsed.songs);
+                setPage(1);
+                setHasMore(parsed.songs.length === PAGE_SIZE);
+                setIsInitialLoading(false);
+              }
+              return;
+            }
+          }
+        }
+
+        const result = await fetchRequestableSongs({
+          page: pageToLoad,
+          perPage: PAGE_SIZE,
+          search,
+        });
+
+        const safe = Array.isArray(result) ? result : [];
+        if (seq !== requestSeq.current) return;
+
+        setSongs(prev => {
+          const merged = reset ? safe : [...prev, ...safe];
+          return dedupeSongs(merged);
+        });
+        setPage(pageToLoad);
+        setHasMore(safe.length === PAGE_SIZE);
+
+        if (isFirstPageWithoutSearch) {
+          await AsyncStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({
+              songs: safe,
+              timestamp: Date.now(),
+            }),
+          );
+        }
+      } catch {
+        if (seq === requestSeq.current) {
+          setHasMore(false);
+        }
+      } finally {
+        if (seq === requestSeq.current) {
+          setIsInitialLoading(false);
+          setIsLoadingMore(false);
         }
       }
-
-      const firstBatch = await fetchRequestableSongs({ page: 1, perPage: PAGE_SIZE, search: '' });
-      const safe = Array.isArray(firstBatch) ? firstBatch : [];
-
-      if (safe.length < PAGE_SIZE) {
-        setSongs(safe);
-        return;
-      }
-
-      const totalPages = Math.ceil(ESTIMATED_TOTAL / PAGE_SIZE);
-      const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-      const all = [...safe];
-
-      for (let i = 0; i < remainingPages.length; i += FETCH_CHUNK_SIZE) {
-        const chunk = remainingPages.slice(i, i + FETCH_CHUNK_SIZE);
-        const batches = await Promise.all(
-          chunk.map(p =>
-            fetchRequestableSongs({ page: p, perPage: PAGE_SIZE, search: '' })
-              .then(r => (Array.isArray(r) ? r : []))
-              .catch(() => [])
-          )
-        );
-        all.push(...batches.flat());
-      }
-
-      const seen = new Map<string, SongRequest>();
-      for (const item of all) seen.set(item.request_id, item);
-      const unique = Array.from(seen.values());
-
-      setSongs(unique);
-      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ songs: unique, timestamp: Date.now() }));
-    } catch {
-      // keep existing list
-    } finally {
-      setIsFetchingSongs(false);
-    }
-  }, [fetchRequestableSongs]);
+    },
+    [fetchRequestableSongs],
+  );
 
   useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+    loadPage({
+      pageToLoad: 1,
+      search: normalizedQuery,
+      reset: true,
+    });
+  }, [normalizedQuery, loadPage]);
 
-  const handleRequest = async (item: SongRequest) => {
-    setRequesting(item.request_id);
-    setRequestError(null);
-    const result = await requestSong(item.request_id);
-    if (result.success) {
-      setSent(prev => [...prev, item.request_id]);
-    } else {
-      setRequestError(result.errorMessage);
-      setTimeout(() => setRequestError(null), 4000);
-    }
-    setRequesting(null);
-  };
+  const handleLoadMore = useCallback(() => {
+    if (isInitialLoading || isLoadingMore || !hasMore) return;
+
+    loadPage({
+      pageToLoad: page + 1,
+      search: normalizedQuery,
+      reset: false,
+    });
+  }, [isInitialLoading, isLoadingMore, hasMore, loadPage, page, normalizedQuery]);
+
+  const handleRequest = useCallback(
+    async (item: SongRequest) => {
+      setRequesting(item.request_id);
+      setRequestError(null);
+
+      try {
+        const result = await requestSong(item.request_id);
+
+        if (result.success) {
+          setSent(prev =>
+            prev.includes(item.request_id) ? prev : [...prev, item.request_id],
+          );
+        } else {
+          setRequestError(result.errorMessage);
+          setTimeout(() => setRequestError(null), 4000);
+        }
+      } finally {
+        setRequesting(null);
+      }
+    },
+    [requestSong],
+  );
 
   return (
     <View style={styles.container}>
@@ -139,6 +263,9 @@ export default function RequestScreen() {
           placeholderTextColor="#374151"
           value={query}
           onChangeText={setQuery}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => setQuery('')} activeOpacity={0.7}>
@@ -148,58 +275,29 @@ export default function RequestScreen() {
       </View>
 
       <FlatList
-        data={filteredSongs}
+        data={songs}
         keyExtractor={(item) => item.request_id}
-        renderItem={({ item }) => {
-          const isSent = sent.includes(item.request_id);
-          const isRequesting = requesting === item.request_id;
-          const { title, artist, isPreaching } = formatMediaTitle(
-            item.song.title,
-            item.song.artist,
-          );
-
-          return (
-            <View style={styles.row}>
-              {item.song.art ? (
-                <Image
-                  source={{ uri: item.song.art }}
-                  style={styles.art}
-                  contentFit="cover"
-                  transition={300}
-                />
-              ) : (
-                <View style={[styles.art, styles.artFallback]} />
-              )}
-              <View style={styles.info}>
-                {isPreaching && (
-                  <Text style={styles.preachingBadge}>Prédica</Text>
-                )}
-                <Text style={styles.title} numberOfLines={1}>{title}</Text>
-                {artist ? (
-                  <Text style={styles.artist} numberOfLines={1}>{artist}</Text>
-                ) : null}
-              </View>
-              <TouchableOpacity
-                onPress={() => handleRequest(item)}
-                disabled={isSent || isRequesting}
-                style={[styles.btn, isSent && styles.btnSent]}
-                activeOpacity={0.8}
-              >
-                {isRequesting ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : isSent ? (
-                  <Ionicons name="checkmark" size={16} color="#fff" />
-                ) : (
-                  <Text style={styles.btnText}>Pedir</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          );
-        }}
+        renderItem={({ item }) => (
+          <SongRow
+            item={item}
+            isSent={sentSet.has(item.request_id)}
+            isRequesting={requesting === item.request_id}
+            onRequest={handleRequest}
+          />
+        )}
         ListEmptyComponent={
-          isFetchingSongs
-            ? <ActivityIndicator style={styles.loadingIndicator} color="#818cf8" />
-            : <Text style={styles.empty}>No se encontraron canciones</Text>
+          isInitialLoading ? (
+            <ActivityIndicator style={styles.loadingIndicator} color="#818cf8" />
+          ) : (
+            <Text style={styles.empty}>
+              {normalizedQuery ? 'No se encontraron coincidencias' : 'No se encontraron canciones'}
+            </Text>
+          )
+        }
+        ListFooterComponent={
+          isLoadingMore ? (
+            <ActivityIndicator style={{ marginVertical: 16 }} color="#818cf8" />
+          ) : null
         }
         contentContainerStyle={[
           styles.list,
@@ -207,6 +305,17 @@ export default function RequestScreen() {
         ]}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         showsVerticalScrollIndicator={false}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.6}
+        initialNumToRender={8}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
+        getItemLayout={(_, index) => ({
+          length: 74,
+          offset: 74 * index,
+          index,
+        })}
       />
 
       {requestError && (

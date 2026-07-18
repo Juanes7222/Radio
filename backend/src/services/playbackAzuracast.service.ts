@@ -1,36 +1,16 @@
-import axios from "axios";
 import { prisma } from "../lib/prisma";
-import { getOrCreatePlaylist, addMediaToPlaylist } from "./azuracast.service";
 import { uploadMp3ToAzuracast } from "./azuracast/upload.service";
-import { config } from "../config";
+import { playFileAsLive } from "./locutorStreamer.service";
 import { logger } from "../utils/logger";
-
-const PLAYLIST_NAME = "Avisos de Hora";
-
-let cachedPlaylistId: string | null = null;
-
-const azApi = axios.create({
-  baseURL: `${config.azuracast.url}/api`,
-  headers: { "X-API-Key": config.azuracast.apiKey },
-  timeout: 10_000,
-});
-
-const STATION = config.azuracast.stationId;
-
-async function getPlaylistId(): Promise<string> {
-  if (cachedPlaylistId) return cachedPlaylistId;
-  cachedPlaylistId = await getOrCreatePlaylist(PLAYLIST_NAME);
-  return cachedPlaylistId;
-}
 
 /**
  * Uploads an audio file to AzuraCast and returns the media ID.
- * Uses the proven base64+JSON approach to avoid AzuraCast's multipart deserialization bug.
+ * Kept for record-keeping; playback now uses the live streamer approach.
  */
 export async function uploadAudioToAzuraCast(filePath: string, filename: string): Promise<string> {
   try {
     const title = filename.replace(/\.mp3$/, "");
-    const result = await uploadMp3ToAzuracast(filePath, title, undefined, "locutores");
+    const result = await uploadMp3ToAzuracast(filePath, title, "", undefined, "locutores");
     logger.info("PlaybackAzuracast", "Uploaded audio to AzuraCast", {
       mediaId: result.fileId,
       azuraPath: result.azuraPath,
@@ -47,38 +27,8 @@ export async function uploadAudioToAzuraCast(filePath: string, filename: string)
 }
 
 /**
- * Assigns an uploaded media to the Time Announcements playlist.
- */
-export async function addToAnnouncementPlaylist(mediaId: string): Promise<void> {
-  try {
-    const playlistId = await getPlaylistId();
-    await addMediaToPlaylist(playlistId, mediaId);
-    logger.info("PlaybackAzuracast", "Added to announcement playlist", { mediaId, playlistId });
-  } catch (err: any) {
-    logger.warn("PlaybackAzuracast", "Could not add to playlist", { mediaId, error: err.message });
-  }
-}
-
-/**
- * Pushes the media item into the upcoming playback queue.
- * This avoids cutting off the current song and handles transitions smoothly.
- */
-export async function queueAnnouncementNext(mediaId: string): Promise<void> {
-  try {
-    await azApi.post(`/station/${STATION}/queue`, {
-      media_id: mediaId,
-      is_asap: true,
-    });
-    logger.info("PlaybackAzuracast", "Queued announcement successfully", { mediaId });
-  } catch (err: any) {
-    logger.error("PlaybackAzuracast", "Failed to queue announcement", { mediaId, error: err.message });
-    throw err;
-  }
-}
-
-/**
- * Finds the scheduled audio for the current hour and plays it.
- * Returns true if an announcement was played.
+ * Finds the scheduled audio for the given hour and plays it via the
+ * Icecast live streamer connection. Returns true if played.
  */
 export async function playScheduledAnnouncementForHour(hour: number): Promise<boolean> {
   const today = new Date();
@@ -100,33 +50,47 @@ export async function playScheduledAnnouncementForHour(hour: number): Promise<bo
     return false;
   }
 
-  if (schedule.audio.status !== "ready") {
-    logger.warn("PlaybackAzuracast", "Scheduled audio not ready", { hour, audioId: schedule.audio.id, status: schedule.audio.status });
+  const audio = schedule.audio;
+
+  if (audio.status !== "ready") {
+    logger.warn("PlaybackAzuracast", "Scheduled audio not ready", {
+      hour,
+      audioId: audio.id,
+      status: audio.status,
+    });
     return false;
   }
 
-  if (!schedule.audio.azuracastMediaId) {
-    logger.warn("PlaybackAzuracast", "Scheduled audio has no AzuraCast media ID", { hour, audioId: schedule.audio.id });
+  const filePath = audio.filepath;
+  if (!filePath) {
+    logger.warn("PlaybackAzuracast", "Scheduled audio has no local file path", {
+      hour,
+      audioId: audio.id,
+    });
     return false;
   }
 
   try {
-    await queueAnnouncementNext(schedule.audio.azuracastMediaId);
+    await playFileAsLive(filePath);
 
     await prisma.audioSchedule.update({
       where: { id: schedule.id },
       data: { playedAt: new Date() },
     });
 
-    logger.info("PlaybackAzuracast", "Processed scheduled announcement queueing", {
+    logger.info("PlaybackAzuracast", "Played announcement via live streamer", {
       hour,
-      audioId: schedule.audio.id,
-      mediaId: schedule.audio.azuracastMediaId,
+      audioId: audio.id,
+      filePath,
     });
 
     return true;
   } catch (err: any) {
-    logger.error("PlaybackAzuracast", "Failed to process scheduled announcement", { hour, error: err.message });
+    logger.error("PlaybackAzuracast", "Failed to play announcement via streamer", {
+      hour,
+      audioId: audio.id,
+      error: err.message,
+    });
     return false;
   }
 }

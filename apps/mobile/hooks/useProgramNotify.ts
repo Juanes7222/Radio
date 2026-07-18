@@ -7,30 +7,18 @@ import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAzuraCast } from '@radio/api';
 import { BACKEND_URL } from '@/constants/api';
-import { formatMediaTitle, formatScheduleTime } from '@/lib/formatMedia';
-import { SUBSCRIPTIONS_KEY, SUBSCRIPTIONS_EVENT } from './useProgramSubscriptions';
+import { formatMediaTitle, formatScheduleTime, normalizeTitle } from '@/lib/formatMedia';
+import { 
+  SUBSCRIPTIONS_KEY, 
+  SUBSCRIPTIONS_EVENT, 
+  DEFAULT_SUBSCRIPTIONS 
+} from './useProgramSubscriptions';
 
 const PROGRAM_NOTIFY_MINUTES_BEFORE = 10;
-const LAST_SCHEDULE_HASH_KEY = 'radio-schedule-hash';
+const LOOK_AHEAD_HOURS = 24;
 const SCHEDULE_TASK = 'program-notify-schedule';
 
-function formatStationTime(timestampSeconds: number): string {
-  const date = new Date((timestampSeconds) * 1000);
-  return date.toLocaleTimeString('es-CO', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: 'America/Bogota',
-  });
-}
-
 type FetchSchedule = ReturnType<typeof useAzuraCast>['fetchSchedule'];
-
-const AZURACAST_UTC_OFFSET_SECONDS = 5 * 60 * 60;
-
-function toUtcSeconds(azuracastTimestamp: number): number {
-  return azuracastTimestamp - AZURACAST_UTC_OFFSET_SECONDS;
-}
 
 async function ensureExactAlarmPermission() {
   if (Platform.OS !== 'android') return;
@@ -42,51 +30,48 @@ async function ensureExactAlarmPermission() {
   }
 }
 
+/**
+ * Fetches the schedule, filters by user subscriptions and the look-ahead window,
+ * and schedules local notifications for upcoming programs.
+ */
 export async function setupNotifications(fetchSchedule: FetchSchedule) {
+  
   await ensureExactAlarmPermission();
 
   const schedule = await fetchSchedule();
-  if (!schedule || schedule.length === 0) return;
-
-  const { status } = await Notifications.getPermissionsAsync();
-  if (status !== 'granted') return;
-
-  const subsData = await AsyncStorage.getItem(SUBSCRIPTIONS_KEY);
-  const subscribedTitles: string[] = subsData ? JSON.parse(subsData) : [];
-
-  const existingScheduled = await Notifications.getAllScheduledNotificationsAsync();
-  const existingProgramNotifs = existingScheduled.filter(
-    n => n.content.data?.isProgramNotify
-  );
-
-  const scheduleHash = schedule.map(i => `${i.id}-${i.start_timestamp}`).join('|');
-  const subsHash = subscribedTitles.join('|');
-  const finalHash = `${scheduleHash}-${subsHash}`;
-  
-  const savedHash = await AsyncStorage.getItem(LAST_SCHEDULE_HASH_KEY);
-
-  if (savedHash === finalHash && existingProgramNotifs.length > 0) return;
-
-  for (const notif of existingProgramNotifs) {
-    await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+  if (!schedule || schedule.length === 0) {
+    return;
   }
 
-  await AsyncStorage.setItem(LAST_SCHEDULE_HASH_KEY, finalHash);
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted') {
+    return;
+  }
+
+  const subsData = await AsyncStorage.getItem(SUBSCRIPTIONS_KEY);
+  const subscribedTitles: string[] = subsData ? JSON.parse(subsData) : DEFAULT_SUBSCRIPTIONS;
+  
 
   const nowUtcSeconds = Math.floor(Date.now() / 1000);
+  const maxFutureUtcSeconds = nowUtcSeconds + (LOOK_AHEAD_HOURS * 3600);
+  const validNotificationIds: string[] = [];
 
   for (const item of schedule) {
-    if (!subscribedTitles.includes(item.title)) continue;
+    if (item.start_timestamp <= nowUtcSeconds || item.start_timestamp > maxFutureUtcSeconds) {
+      continue;
+    }
 
-    const itemUtcSeconds = toUtcSeconds(item.start_timestamp);
-    if (itemUtcSeconds <= nowUtcSeconds) continue;
+    const isSubscribed = subscribedTitles.some(
+      sub => normalizeTitle(sub) === normalizeTitle(item.title)
+    );
+    
+    if (!isSubscribed) continue;
 
-    const notifyUtcSeconds = itemUtcSeconds - PROGRAM_NOTIFY_MINUTES_BEFORE * 60;
+    const notifyUtcSeconds = item.start_timestamp - (PROGRAM_NOTIFY_MINUTES_BEFORE * 60);
     if (notifyUtcSeconds <= nowUtcSeconds) continue;
 
     const { title, artist, isPreaching } = formatMediaTitle(item.title);
-    const startTime = formatScheduleTime(itemUtcSeconds);
-
+    const startTime = formatScheduleTime(item.start_timestamp);
 
     let notificationBody: string;
     if (isPreaching) {
@@ -97,7 +82,14 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
       notificationBody = `El programa "${title}" empieza a las ${startTime}.`;
     }
 
+    const notificationId = `radio-program-${item.id}`;
+    validNotificationIds.push(notificationId);
+
+    const triggerDate = new Date(notifyUtcSeconds * 1000);
+    
+
     await Notifications.scheduleNotificationAsync({
+      identifier: notificationId,
       content: {
         title: 'Transmisión en vivo pronto',
         body: notificationBody,
@@ -106,10 +98,24 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
       },
       trigger: {
         type: 'date',
-        date: notifyUtcSeconds * 1000,
+        date: triggerDate,
       } as Notifications.NotificationTriggerInput,
     });
   }
+
+  const existingScheduled = await Notifications.getAllScheduledNotificationsAsync();
+  let cancelledCount = 0;
+  
+  for (const notif of existingScheduled) {
+    const isProgramNotif = notif.content.data?.isProgramNotify;
+    const isStillValid = validNotificationIds.includes(notif.identifier);
+
+    if (isProgramNotif && !isStillValid) {
+      await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+      cancelledCount++;
+    }
+  }
+  
 }
 
 export async function registerScheduleBackgroundTask(fetchSchedule: FetchSchedule) {
@@ -117,7 +123,7 @@ export async function registerScheduleBackgroundTask(fetchSchedule: FetchSchedul
     try {
       await setupNotifications(fetchSchedule);
       return BackgroundTask.BackgroundTaskResult.Success;
-    } catch {
+    } catch (error) {
       return BackgroundTask.BackgroundTaskResult.Failed;
     }
   });
