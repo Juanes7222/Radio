@@ -20,6 +20,13 @@ interface FileRecord {
     type: string;
     path: string;
     media: MediaItem | null;
+    timestamp: number;
+}
+
+interface HistoryRecord {
+    song: {
+        id: string;
+    };
 }
 
 export async function cleanupNewsFolder(): Promise<void> {
@@ -40,8 +47,14 @@ export async function cleanupNewsFolder(): Promise<void> {
             return;
         }
 
-        const playedSongIds = await fetchPlayedSongIds();
+        const oldestFileTimestamp = Math.min(...files.map((file) => file.timestamp));
+        const playedSongIds = await fetchPlayedSongIds(new Date(oldestFileTimestamp * 1000));
+
+        logger.info('FolderCleanup', 'Fetched played song IDs', { count: playedSongIds.size });
+        logger.info('FolderCleanup', 'Fetched files from folder', { firstFile: files[0], totalFiles: files.length });
+
         const filesToRemove = getPlayedFiles(files, playedSongIds);
+        logger.info('FolderCleanup', 'Identified files to remove', { count: filesToRemove.length });
 
         if (filesToRemove.length === 0) {
             logger.info('FolderCleanup', 'No played files found, nothing to clean');
@@ -75,19 +88,28 @@ async function fetchDirectoryFiles(directory: string): Promise<FileRecord[]> {
             timeout: 90_000
         }
     );
+    console.log('Fetched files from directory:', response.data);
     return response.data || [];
 }
 
-async function fetchPlayedSongIds(): Promise<Set<string>> {
-    // You must implement a call to the /station/{station_id}/history endpoint here
-    // and extract the song_id of each played track into a Set for fast lookup.
-    return new Set<string>();
+async function fetchPlayedSongIds(since: Date): Promise<Set<string>> {
+    const response = await azApi.get<HistoryRecord[]>(
+        `/station/${STATION_ID}/history`,
+        {
+            params: {
+                start: since.toISOString(),
+                end: new Date().toISOString()
+            },
+            timeout: 90_000
+        }
+    );
+    return new Set(response.data.map((record) => record.song.id));
 }
 
 function getPlayedFiles(files: FileRecord[], playedSongIds: Set<string>): FileRecord[] {
-    return files.filter(file => 
-        file.type === 'media' && 
-        file.media && 
+    return files.filter((file) =>
+        file.type === 'file' &&
+        file.media?.song_id !== undefined &&
         playedSongIds.has(file.media.song_id)
     );
 }

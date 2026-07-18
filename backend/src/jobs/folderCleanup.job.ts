@@ -5,7 +5,7 @@ import { logger } from '../utils/logger';
 
 const CLEANUP_SCHEDULES = [
     { time: '0 7 * * *', label: '07:00 AM' },
-    { time: '0 14 * * *', label: '02:00 PM' },
+    { time: '0 13 * * *', label: '01:00 PM' },
     { time: '0 19 * * *', label: '07:00 PM' },
 ];
 
