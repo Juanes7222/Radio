@@ -9,16 +9,16 @@
 # After this script completes, run deploy.sh to build and start the app.
 #
 # USAGE:
-#   PANEL_PASS=<password> CERTBOT_EMAIL=<email> bash setup.sh
+#   sudo bash setup.sh --panel-pass <password> --certbot-email <email> [OPTIONS]
 #
-# REQUIRED ENV VARS:
-#   PANEL_PASS       htpasswd password for the AzuraCast panel
-#   CERTBOT_EMAIL    email for Let's Encrypt registration
+# REQUIRED:
+#   --panel-pass <password>    htpasswd password for the panel
+#   --certbot-email <email>    email for Let's Encrypt registration
 #
-# OPTIONAL ENV VARS:
-#   SSH_PORT     (default: 2222)
-#   SERVICE_USER (default: radio)
-#   DEPLOY_DIR   (default: /var/www/radio)
+# OPTIONAL:
+#   --ssh-port <port>          SSH port to configure (default: 2222)
+#   --service-user <user>      system user for the backend service (default: radio)
+#   --deploy-dir <path>        root directory of the app (default: /var/www/radio)
 # ==============================================================================
 
 set -euo pipefail
@@ -30,13 +30,52 @@ info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
-if [[ $EUID -ne 0 ]]; then
-  error "This script must be run as root."
-  error "Usage: sudo PANEL_PASS=... CERTBOT_EMAIL=... bash setup.sh"
+usage() {
+  grep '^#' "$0" | grep -v '#!/' | sed 's/^# \{0,2\}//'
+  exit 0
+}
+
+PANEL_PASS=""
+CERTBOT_EMAIL=""
+SSH_PORT="2222"
+SERVICE_USER="radio"
+DEPLOY_DIR="/var/www/radio"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --panel-pass)     PANEL_PASS="$2";    shift 2 ;;
+    --panel-pass=*)   PANEL_PASS="${1#*=}"; shift ;;
+    --certbot-email)  CERTBOT_EMAIL="$2"; shift 2 ;;
+    --certbot-email=*) CERTBOT_EMAIL="${1#*=}"; shift ;;
+    --ssh-port)       SSH_PORT="$2";      shift 2 ;;
+    --ssh-port=*)     SSH_PORT="${1#*=}"; shift ;;
+    --service-user)   SERVICE_USER="$2";  shift 2 ;;
+    --service-user=*) SERVICE_USER="${1#*=}"; shift ;;
+    --deploy-dir)     DEPLOY_DIR="$2";    shift 2 ;;
+    --deploy-dir=*)   DEPLOY_DIR="${1#*=}"; shift ;;
+    --help|-h)        usage ;;
+    *) error "Unknown option: $1"; exit 1 ;;
+  esac
+done
+
+MISSING_FLAGS=()
+[[ -z "$PANEL_PASS"    ]] && MISSING_FLAGS+=("--panel-pass")
+[[ -z "$CERTBOT_EMAIL" ]] && MISSING_FLAGS+=("--certbot-email")
+
+if [[ ${#MISSING_FLAGS[@]} -gt 0 ]]; then
+  error "Missing required flags:"
+  for f in "${MISSING_FLAGS[@]}"; do
+    error "  $f"
+  done
+  error "Run with --help for usage."
   exit 1
 fi
 
-DEPLOY_DIR="${DEPLOY_DIR:-/var/www/radio}"
+if [[ $EUID -ne 0 ]]; then
+  error "This script must be run as root (sudo bash setup.sh ...)."
+  exit 1
+fi
+
 BACKEND_DIR="$DEPLOY_DIR/backend"
 SCRIPTS_DIR="$DEPLOY_DIR/scripts"
 
@@ -44,21 +83,6 @@ NGINX_CONF="/etc/nginx/sites-available/radio"
 NGINX_GLOBAL_CONF="/etc/nginx/conf.d/radio-global.conf"
 BACKEND_SERVICE="radio-backend"
 SERVICE_FILE="/etc/systemd/system/${BACKEND_SERVICE}.service"
-
-SSH_PORT="${SSH_PORT:-2222}"
-SERVICE_USER="${SERVICE_USER:-radio}"
-
-MISSING_VARS=()
-[[ -z "${PANEL_PASS:-}"    ]] && MISSING_VARS+=("PANEL_PASS")
-[[ -z "${CERTBOT_EMAIL:-}" ]] && MISSING_VARS+=("CERTBOT_EMAIL")
-
-if [[ ${#MISSING_VARS[@]} -gt 0 ]]; then
-  error "Missing required environment variables:"
-  for v in "${MISSING_VARS[@]}"; do
-    error "  - $v"
-  done
-  exit 1
-fi
 
 # ------------------------------------------------------------------------------
 # Step 1 — System packages
