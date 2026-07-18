@@ -80,10 +80,6 @@ router.get('/nowplaying', requireAuth, (req, res) => {
   proxyToAzuraCast(req, res, `/api/nowplaying/${config.azuracast.stationId}`);
 });
 
-router.post('/station/nowplaying/update', requireAuth, (req, res) => {
-    proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/nowplaying/update`);
-});
-
 export default router;
 
 // Public routes — no authentication required
@@ -417,4 +413,12 @@ publicRouter.post('/requests/:songId', (req, res) => {
   const publicUrl = buildPublicUrl(req);
   proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/request/${songId}`, 
     (data) => rewriteInternalUrls(data, publicUrl));
+});
+
+publicRouter.post('/station/nowplaying/update', (req, res) => {
+    const secret = req.headers['x-webhook-secret'] || '';
+    if (!secret || secret !== config.webhook.secret) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/nowplaying/update`);
 });

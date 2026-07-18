@@ -79,4 +79,7 @@ export const config = {
             .map(e => e.trim())
             .filter(Boolean),
     },
+    webhook: {
+        secret: required('WEBHOOK_SECRET'),
+    },
 };

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { notifyLiveStart, notifyLiveEnd } from '../sse';
+import { config } from '../config';
 
 const router = Router();
 
@@ -18,7 +19,7 @@ router.get('/facebook', (req, res) => {
 router.post('/facebook', (req, res) => {
   const secret = req.headers['x-webhook-secret'] || '';
 
-  if (secret !== process.env.WEBHOOK_SECRET) {
+  if (secret !== config.webhook.secret) {
     console.warn('Invalid Webhook :', secret);
     return res.sendStatus(403);
   }
