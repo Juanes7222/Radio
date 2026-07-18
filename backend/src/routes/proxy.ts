@@ -418,7 +418,6 @@ publicRouter.post('/requests/:songId', (req, res) => {
 publicRouter.post('/station/nowplaying/update', (req, res) => {
     const secret = req.headers['x-webhook-secret'] || '';
     if (!secret || secret !== config.webhook.secret) {
-        console.warn('Invalid Webhook secret provided:', secret);
         return res.status(403).json({ error: 'Invalid Webhook secret' });
     }
     proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/nowplaying/update`,
