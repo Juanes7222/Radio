@@ -47,6 +47,14 @@ export async function cleanupNewsFolder(): Promise<void> {
             return;
         }
 
+        files.forEach((file) => {
+            logger.info('FolderCleanup', 'Checking file', {
+                path: file.path,
+                songId: file.media?.song_id,
+                wasPlayed: file.media?.song_id ? playedSongIds.has(file.media.song_id) : false
+            });
+        });
+
         const oldestFileTimestamp = Math.min(...files.map((file) => file.timestamp));
         const playedSongIds = await fetchPlayedSongIds(new Date(oldestFileTimestamp * 1000));
 
@@ -108,7 +116,7 @@ async function fetchPlayedSongIds(since: Date): Promise<Set<string>> {
 
 function getPlayedFiles(files: FileRecord[], playedSongIds: Set<string>): FileRecord[] {
     return files.filter((file) =>
-        file.type === 'file' &&
+        file.type === 'media' &&
         file.media?.song_id !== undefined &&
         playedSongIds.has(file.media.song_id)
     );
