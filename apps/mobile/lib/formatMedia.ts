@@ -13,7 +13,7 @@ interface ParsedMedia {
 function toTitleCase(str: string): string {
   return str
     .toLowerCase()
-    .replace(/(?:^|\s)\S/g, (char) => char.toUpperCase());
+    .replace(/(^|[\s¿¡"'([{])(\p{L})/gu, (_, boundary, letter) => boundary + letter.toUpperCase());
 }
 
 function normalizeSegment(segment: string): string {
