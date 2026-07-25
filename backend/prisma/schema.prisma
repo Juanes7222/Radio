@@ -117,7 +117,7 @@ model AnnouncementTemplate {
   name          String
   textTemplate  String           @map("text_template")
   voice         String           @default("ef_dora")
-  speed         Float            @default(0.95)
+  speed         Float            @default(0.85)
   active        Boolean          @default(true)
   createdAt     DateTime         @default(now()) @map("created_at")
   updatedAt     DateTime         @updatedAt @map("updated_at")

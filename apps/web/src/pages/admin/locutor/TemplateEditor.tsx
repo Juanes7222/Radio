@@ -41,7 +41,7 @@ export default function TemplateEditor() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Plantillas de Anuncios</h2>
         <button 
-          onClick={() => setEditingTemplate({ type: 'custom', name: '', text_template: '', voice: 'ef_dora', speed: 0.95 })}
+          onClick={() => setEditingTemplate({ type: 'custom', name: '', text_template: '', voice: 'ef_dora', speed: 0.85 })}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm"
         >
           + Nueva Plantilla
@@ -73,7 +73,8 @@ export default function TemplateEditor() {
           <div className="mb-4">
              <label className="block text-sm text-gray-700">Plantilla de Texto</label>
              <textarea required rows={3} value={editingTemplate.text_template} onChange={e => setEditingTemplate({...editingTemplate, text_template: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
-             <p className="text-xs text-gray-500 mt-1">Variables: {'{{hour}}'}, {'{{period}}'}, {'{{station_name}}'}, {'{{day}}'}, {'{{date}}'}</p>
+              <p className="text-xs text-gray-500 mt-1">Variables: {'{{hour}}'}, {'{{period}}'}, {'{{station_name}}'}, {'{{day}}'}, {'{{date}}'}, {'{{time_text}}'}</p>
+              <p className="text-xs text-gray-500">Ej: "Muy buenas {'{{period_greeting}}'}. {'{{time_text}}'}. Esto es {'{{station_name}}'}."</p>
           </div>
           <div className="flex justify-end space-x-3">
              <button type="button" onClick={() => setEditingTemplate(null)} className="px-4 py-2 border rounded-md text-sm">Cancelar</button>

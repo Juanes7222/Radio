@@ -83,6 +83,7 @@ export interface GenerationResult {
 export interface GenerationRequest {
   templateId?: string;
   hour: number;
+  minutes?: number;
   group: TimeSlotGroup;
   text?: string;
   voice?: string;
@@ -233,7 +234,7 @@ async function findReusableAudio(
 async function generateNewAudio(
   request: GenerationRequest
 ): Promise<GenerationResult> {
-  const { templateId, hour, group, text, voice, speed } = request;
+  const { templateId, hour, minutes, group, text, voice, speed } = request;
 
   const template = await prisma.announcementTemplate.findUnique({
     where: { id: templateId },
@@ -246,6 +247,7 @@ async function generateNewAudio(
   const hour12 = hour % 12 || 12;
   const hourText = numberToSpanishHour(hour);
   const periodText = periodInSpanish(hour);
+  const minute = minutes !== undefined ? minutes : 0;
   const renderedText =
     text ||
     renderTemplate(template.textTemplate, {
@@ -254,6 +256,7 @@ async function generateNewAudio(
       hour_text: hourText,
       period: periodText,
       period_greeting: periodText,
+      minutes: String(minute).padStart(2, '0'),
     });
 
   const filename = `hora_${String(hour).padStart(2, "0")}_${Date.now()}.mp3`;

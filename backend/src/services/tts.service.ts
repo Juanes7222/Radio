@@ -22,7 +22,7 @@ export interface SynthesizeResult {
 export async function synthesize({
   text,
   voice = 'ef_dora',
-  speed = 0.95,
+  speed = 0.85,
   outputPath,
 }: SynthesizeParams): Promise<SynthesizeResult> {
   const KOKORO_URL = config.locutor.kokoroUrl;

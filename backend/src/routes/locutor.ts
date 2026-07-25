@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma";
 import { synthesize } from "../services/tts.service";
 import { renderTemplate } from "../services/template.service";
 import { getAudioStats } from "../services/timeSlotPlanner.service";
-import { getAudioCountByStatus, generateOrReuseAudio, scheduleAudioForDate } from "../services/audioGeneration.service";
+import { getAudioCountByStatus, generateOrReuseAudio, scheduleAudioForDate, getTemplateForHour } from "../services/audioGeneration.service";
 import { analyzeSafeHours as analyzeSafeHoursSafe, getBlockedHours } from "../services/scheduleAnalyzer.service";
 import { 
   uploadAudioToAzuraCast, 
@@ -281,7 +281,7 @@ router.post("/generate-now/:hour", async (req, res) => {
         ? "evening"
         : "night";
 
-    const result = await generateOrReuseAudio({ hour, group });
+    const result = await generateOrReuseAudio({ hour, minutes: new Date().getMinutes(), group });
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -310,60 +310,38 @@ router.post("/play-now/:hour", async (req, res) => {
       return res.status(400).json({ error: "Invalid hour (0-23)" });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const minute = now.getMinutes();
 
-    const schedule = await prisma.audioSchedule.findFirst({
-      where: {
-        scheduledDate: today,
-        scheduledHour: hour,
-        enabled: true,
-      },
-      include: { audio: true },
+    const template = await getTemplateForHour(hour);
+
+    const renderedText = renderTemplate(template.textTemplate, {
+      hour: String(hour % 12 || 12),
+      hour24: String(hour),
+      minutes: String(minute).padStart(2, "0"),
     });
 
-    if (!schedule || !schedule.audio) {
-      return res.json({
-        success: false,
-        hour,
-        reason: "no_schedule",
-        message: "No schedule found for this hour",
-      });
-    }
+    const filename = `hora_${String(hour).padStart(2, "0")}_${String(minute).padStart(2, "0")}_${now.getTime()}.mp3`;
+    const filepath = path.join(config.locutor.mediaDir, filename);
 
-    const audio = schedule.audio;
-
-    if (audio.status !== "ready") {
-      return res.json({
-        success: false,
-        hour,
-        reason: "audio_not_ready",
-        message: "Audio status is not ready",
-      });
-    }
-
-    if (!audio.filepath) {
-      return res.json({
-        success: false,
-        hour,
-        reason: "no_file",
-        message: "Audio has no local file path",
-      });
-    }
+    const { duration_ms } = await synthesize({
+      text: renderedText,
+      voice: template.voice,
+      speed: template.speed,
+      outputPath: filepath,
+    });
 
     try {
-      await playFileAsLive(audio.filepath);
-
-      await prisma.audioSchedule.update({
-        where: { id: schedule.id },
-        data: { playedAt: new Date() },
-      });
+      await playFileAsLive(filepath);
 
       return res.json({
         success: true,
         hour,
-        file: audio.filepath,
-        message: "Announcement played via live streamer",
+        minute,
+        text: renderedText,
+        durationMs: duration_ms,
+        file: filepath,
+        message: "Announcement generated and played via live streamer",
       });
     } catch (err: any) {
       return res.status(500).json({

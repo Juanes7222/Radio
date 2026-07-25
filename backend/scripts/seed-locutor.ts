@@ -6,7 +6,7 @@ const DEFAULT_TEMPLATES = [
   {
     type: "hourly",
     name: "Aviso de Hora (Dinamico)",
-    textTemplate: "Estas escuchando {{station_name}}, la hora en este momento es {{hour_text}}.",
+    textTemplate: "Estás escuchando {{station_name}}, la hora en este momento es {{hour_text}}.",
     voice: "ef_dora",
     speed: 1.0,
     active: true,
@@ -14,7 +14,7 @@ const DEFAULT_TEMPLATES = [
   {
     type: "hourly",
     name: "Aviso de Hora (Calido)",
-    textTemplate: "Sigue en sintonia con {{station_name}}. En este momento, son las {{hour_text}}.",
+    textTemplate: "Sigue en sintonía con {{station_name}}. En este momento, son las {{hour_text}}.",
     voice: "ef_dora",
     speed: 1.0,
     active: true,
@@ -22,7 +22,7 @@ const DEFAULT_TEMPLATES = [
   {
     type: "hourly",
     name: "Aviso de Hora (Nocturno)",
-    textTemplate: "Te acompanamos en {{station_name}}... Son las {{hour_text}}.",
+    textTemplate: "Te acompañamos en {{station_name}}... Son las {{hour_text}}.",
     voice: "ef_dora",
     speed: 0.95,
     active: true,
