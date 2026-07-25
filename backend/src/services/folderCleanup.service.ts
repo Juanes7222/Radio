@@ -31,21 +31,23 @@ interface HistoryRecord {
 
 export async function cleanupNewsFolder(): Promise<void> {
     const folderPath = config.azuracast.newsFolderPath;
-    
+
     if (!folderPath) {
         logger.warn('FolderCleanup', 'No news folder path configured, skipping cleanup');
         return;
     }
-
     try {
         logger.info('FolderCleanup', 'Starting cleanup', { folderPath });
-        
-        const files = await fetchDirectoryFiles(folderPath);
 
+        const files = await fetchDirectoryFiles(folderPath);
         if (files.length === 0) {
             logger.info('FolderCleanup', 'Folder is empty, nothing to clean');
             return;
         }
+
+        const oldestFileTimestamp = Math.min(...files.map((file) => file.timestamp));
+        const playedSongIds = await fetchPlayedSongIds(new Date(oldestFileTimestamp * 1000));
+        logger.info('FolderCleanup', 'Fetched played song IDs', { count: playedSongIds.size });
 
         files.forEach((file) => {
             logger.info('FolderCleanup', 'Checking file', {
@@ -55,12 +57,6 @@ export async function cleanupNewsFolder(): Promise<void> {
             });
         });
 
-        const oldestFileTimestamp = Math.min(...files.map((file) => file.timestamp));
-        const playedSongIds = await fetchPlayedSongIds(new Date(oldestFileTimestamp * 1000));
-
-        logger.info('FolderCleanup', 'Fetched played song IDs', { count: playedSongIds.size });
-        logger.info('FolderCleanup', 'Fetched files from folder', { firstFile: files[0], totalFiles: files.length });
-
         const filesToRemove = getPlayedFiles(files, playedSongIds);
         logger.info('FolderCleanup', 'Identified files to remove', { count: filesToRemove.length });
 
@@ -69,17 +65,16 @@ export async function cleanupNewsFolder(): Promise<void> {
             return;
         }
 
-        logger.info('FolderCleanup', 'Found played files to remove', { 
+        logger.info('FolderCleanup', 'Found played files to remove', {
             count: filesToRemove.length,
-            totalFiles: files.length 
+            totalFiles: files.length
         });
 
         await deleteFiles(filesToRemove);
-
     } catch (error: any) {
-        logger.error('FolderCleanup', 'Failed to cleanup folder', { 
+        logger.error('FolderCleanup', 'Failed to cleanup folder', {
             error: error.message,
-            folderPath 
+            folderPath
         });
         throw error;
     }
