@@ -15,7 +15,7 @@ interface AdminAuthContextType {
   user: AdminUser | null;
   isLoading: boolean;
   error: string | null;
-  login: (googleCredential: string) => Promise<boolean>;
+  login: (idToken: string) => Promise<boolean>;
   logout: () => void;
   token: string | null;
   apiKey: string | null;
@@ -36,14 +36,14 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const login = useCallback(async (googleCredential: string): Promise<boolean> => {
+  const login = useCallback(async (idToken: string): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
     try {
       const res = await axios.post<{
         token: string;
         user: { email: string; name: string; picture: string; stationName: string };
-      }>('/admin-api/auth/google', { credential: googleCredential }, { timeout: 10000 });
+      }>('/admin-api/auth/google', { credential: idToken }, { timeout: 10000 });
 
       const adminUser: AdminUser = {
         ...res.data.user,

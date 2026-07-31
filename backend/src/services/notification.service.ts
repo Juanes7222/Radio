@@ -1,7 +1,4 @@
-import { config } from '../config';
-
-let firebaseApp: unknown = null;
-let initialized = false;
+import { getFirebaseAdmin } from '../lib/firebase-admin';
 
 interface NotificationPayload {
   title: string;
@@ -9,38 +6,14 @@ interface NotificationPayload {
   data?: Record<string, string>;
 }
 
-function tryInitialize(): boolean {
-  if (initialized) return !!firebaseApp;
-  initialized = true;
-
-  const jsonStr = config.firebase.serviceAccountJson;
-  if (!jsonStr) {
-    console.warn('[FCM] FIREBASE_SERVICE_ACCOUNT_JSON not configured. Push notifications disabled.');
-    return false;
-  }
-
-  try {
-    const serviceAccount = JSON.parse(jsonStr);
-    const admin = require('firebase-admin');
-    firebaseApp = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    console.log('[FCM] Firebase Admin initialized successfully');
-    return true;
-  } catch (err) {
-    console.error('[FCM] Failed to initialize Firebase Admin:', err);
-    return false;
-  }
-}
-
 export async function sendPushNotification(
   token: string,
   payload: NotificationPayload
 ): Promise<boolean> {
-  if (!tryInitialize()) return false;
+  const admin = getFirebaseAdmin();
+  if (!admin) return false;
 
   try {
-    const admin = require('firebase-admin');
     const message = {
       token,
       notification: {

@@ -36,9 +36,6 @@ export const config = {
         streamerUser: process.env.LOCUTOR_STREAMER_USER || '',
         streamerPassword: process.env.LOCUTOR_STREAMER_PASSWORD || '',
     },
-    google: {
-        clientId: required('GOOGLE_CLIENT_ID'),
-    },
     jwt: {
         secret:    required('JWT_SECRET'),
         expiresIn: '24h' as const,
