@@ -9,6 +9,7 @@ import { StyleSheet } from 'react-native';
 import TrackPlayer from 'react-native-track-player';
 import { PlaybackService } from '../service';
 import { FacebookLiveProvider } from '@/hooks/useFacebookLive';
+import { registerDevice, updateFCMToken, getFCMToken } from '@/lib/device';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,8 +26,9 @@ export default function RootLayout() {
           await Notifications.requestPermissionsAsync();
         }
         await TrackPlayer.setupPlayer();
+        registerDevice();
       } catch (e) {
-        console.warn('Error durante la inicialización:', e);
+        console.warn('Error durante la inicializacion:', e);
       } finally {
         setAppIsReady(true);
         await SplashScreen.hideAsync();
@@ -34,6 +36,16 @@ export default function RootLayout() {
     }
     
     prepareApp();
+  }, []);
+
+  useEffect(() => {
+    const sub = Notifications.addPushTokenListener((tokenData) => {
+      const token = tokenData.data;
+      if (token && typeof token === 'string') {
+        updateFCMToken(token);
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   if (!appIsReady) {

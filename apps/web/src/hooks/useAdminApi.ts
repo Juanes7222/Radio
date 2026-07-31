@@ -120,8 +120,18 @@ export function useAdminApi() {
     // ── Peticiones de oración ──────────────────────────────────
     const getPrayerRequests = useCallback(
       () =>
-        request<{ rows: unknown[] }>({
-          url: '/admin-api/prayer',
+        request<{ rows: unknown[]; total: number; page: number; totalPages: number }>({
+          url: '/api/prayer',
+        }),
+      [request]
+    );
+
+    const updatePrayerRequest = useCallback(
+      (id: string, data: { estado?: string; respuesta?: string }) =>
+        request({
+          method: 'PUT',
+          url: `/api/prayer/${id}`,
+          data,
         }),
       [request]
     );
@@ -174,6 +184,7 @@ export function useAdminApi() {
     getPendingRequests,
     approveRequest,
     getPrayerRequests,
+    updatePrayerRequest,
     getStreamers,
     createStreamer,
     deleteStreamer,

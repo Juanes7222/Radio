@@ -30,6 +30,7 @@ async function bootstrap() {
   const { default: youtubeRouter } = await import('./routes/youtube');
   const { default: workerAdminRouter } = await import('./routes/workerAdmin');
   const { default: prayerRouter } = await import('./routes/prayer');
+  const { default: devicesRouter } = await import('./routes/devices');
   const { startWorkerServer } = await import('./workers/workerServer');
   const { dispatchPendingJobs } = await import('./jobs/jobDispatcher');
   const { subscribeToAllConfiguredChannels } = await import('./services/youtube/subscription.service');
@@ -70,6 +71,7 @@ async function bootstrap() {
   app.use('/api/bible', bibleRouter);
   app.use('/admin-api/workers', workerAdminRouter);
   app.use('/internal', internalTestRouter);
+  app.use('/api/devices', devicesRouter);
   app.use('/api/prayer', prayerRouter);
 
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));

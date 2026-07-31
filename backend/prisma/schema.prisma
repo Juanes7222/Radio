@@ -204,12 +204,37 @@ model GenerationLog {
   @@index([startedAt])
 }
 
+model Device {
+  id         String   @id @default(uuid())
+  deviceId   String   @unique
+  fcmToken   String?
+  platform   String?
+  appVersion String?
+  lastSeen   DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  prayerRequests PrayerRequest[]
+
+  @@map("devices")
+  @@index([deviceId])
+  @@index([fcmToken])
+}
+
 model PrayerRequest {
-  id        String   @id @default(uuid())
-  name      String
-  request   String
-  createdAt DateTime @default(now()) @map("created_at")
+  id         String    @id @default(uuid())
+  deviceId   String?
+  device     Device?   @relation(fields: [deviceId], references: [deviceId])
+  name       String
+  request    String
+  estado     String    @default("PENDIENTE")
+  respuesta  String?
+  answeredAt DateTime?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
   @@map("prayer_requests")
+  @@index([deviceId])
   @@index([createdAt])
+  @@index([estado])
 }

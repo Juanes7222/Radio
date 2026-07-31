@@ -7,21 +7,23 @@ export default function NotificationClickScreen() {
 
   useEffect(() => {
     Notifications.getLastNotificationResponseAsync().then(response => {
-      const data = response?.notification.request.content.data;
+      const data = response?.notification.request.content.data as Record<string, string> | undefined;
 
       if (data?.isLiveNotify) {
-        // La app se abre en la pantalla principal, que ya muestra el reproductor de live
         router.replace('/');
         return;
       }
 
       if (data?.isProgramNotify) {
-        // Notificación de programa programado
         router.replace('/');
         return;
       }
 
-      // Fallback
+      if (data?.type === 'prayer_response' && data?.prayerId) {
+        router.replace(`/prayer/${data.prayerId}`);
+        return;
+      }
+
       router.replace('/');
     });
   }, []);

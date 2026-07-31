@@ -1,11 +1,53 @@
+export const PRAYER_STATUS = {
+  PENDIENTE: 'PENDIENTE',
+  EN_REVISION: 'EN_REVISION',
+  RESPONDIDA: 'RESPONDIDA',
+  CERRADA: 'CERRADA',
+} as const;
+
+export type PrayerStatus = (typeof PRAYER_STATUS)[keyof typeof PRAYER_STATUS];
+
 export interface PrayerRequest {
   id: string;
+  deviceId: string | null;
   name: string;
   request: string;
+  estado: PrayerStatus;
+  respuesta: string | null;
+  answeredAt: string | null;
+  readAt: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface PrayerRequestPayload {
+  deviceId: string;
   name: string;
   request: string;
+}
+
+export interface PrayerRequestUpdatePayload {
+  estado?: PrayerStatus;
+  respuesta?: string;
+}
+
+export interface DeviceInfo {
+  id: string;
+  deviceId: string;
+  fcmToken: string | null;
+  platform: string | null;
+  appVersion: string | null;
+  lastSeen: string;
+  createdAt: string;
+}
+
+export interface DeviceRegistrationPayload {
+  deviceId: string;
+  fcmToken: string;
+  platform: string;
+  appVersion: string;
+}
+
+export interface DeviceTokenUpdatePayload {
+  fcmToken: string;
 }

@@ -79,6 +79,9 @@ export const config = {
             .map(e => e.trim())
             .filter(Boolean),
     },
+    firebase: {
+        serviceAccountJson: process.env.FIREBASE_SERVICE_ACCOUNT_JSON ?? '',
+    },
     webhook: {
         secret: required('WEBHOOK_SECRET'),
     },

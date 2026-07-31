@@ -15,7 +15,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
+import { getDeviceId } from '@/lib/device';
 
 import { scale, TAB_BAR_HEIGHT } from '../../lib/responsive';
 
@@ -23,6 +25,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function PrayerScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [name, setName] = useState('');
   const [request, setRequest] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,16 +38,17 @@ export default function PrayerScreen() {
     const trimmedRequest = request.trim();
 
     if (!trimmedName || !trimmedRequest) {
-      Alert.alert('Campos incompletos', 'Por favor ingresa tu nombre y la petición.');
+      Alert.alert('Campos incompletos', 'Por favor ingresa tu nombre y la peticion.');
       return;
     }
 
     setLoading(true);
     try {
+      const deviceId = await getDeviceId();
       const res = await fetch(`${BACKEND_URL}/api/prayer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmedName, request: trimmedRequest }),
+        body: JSON.stringify({ name: trimmedName, request: trimmedRequest, deviceId }),
       });
 
       if (res.ok) {
@@ -53,10 +57,10 @@ export default function PrayerScreen() {
         setRequest('');
       } else {
         const data = await res.json().catch(() => ({}));
-        Alert.alert('Error', data.error || 'No se pudo enviar la petición.');
+        Alert.alert('Error', data.error || 'No se pudo enviar la peticion.');
       }
     } catch {
-      Alert.alert('Error', 'Error de conexión. Intenta más tarde.');
+      Alert.alert('Error', 'Error de conexion. Intenta mas tarde.');
     } finally {
       setLoading(false);
     }
@@ -102,17 +106,29 @@ export default function PrayerScreen() {
           </Text>
         </View>
 
+        {!sent && !loading && (
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={() => router.push('/prayer-history')} style={styles.historyLink} activeOpacity={0.8}>
+              <Ionicons name="list-outline" size={14} color="#6366f1" />
+              <Text style={styles.historyLinkText}>Mis peticiones</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {sent ? (
           <View style={[styles.successCard, isSmallScreen && styles.successCardSmall]}>
             <Ionicons name="checkmark-circle" size={isSmallScreen ? 36 : 48} color="#22c55e" />
             <Text style={[styles.successTitle, isSmallScreen && styles.successTitleSmall]}>
-              Petición enviada
+              Peticion enviada
             </Text>
             <Text style={[styles.successText, isSmallScreen && styles.successTextSmall]}>
-              Tu petición ha sido recibida. Oraremos por ti.
+              Tu peticion ha sido recibida. Oraremos por ti.
             </Text>
             <TouchableOpacity onPress={handleReset} style={styles.resetBtn} activeOpacity={0.8}>
-              <Text style={styles.resetBtnText}>Enviar otra petición</Text>
+              <Text style={styles.resetBtnText}>Enviar otra peticion</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/prayer-history')} style={styles.viewHistoryBtn} activeOpacity={0.8}>
+              <Ionicons name="list-outline" size={14} color="#6366f1" />
+              <Text style={styles.viewHistoryBtnText}>Ver mis peticiones</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -248,6 +264,15 @@ const styles = StyleSheet.create({
   successTitleSmall: { fontSize: 16 },
   successText: { color: '#9ca3af', fontSize: 14, textAlign: 'center' },
   successTextSmall: { fontSize: 12 },
+  headerActions: { flexDirection: 'row', justifyContent: 'flex-end' },
+  historyLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  historyLinkText: { color: '#6366f1', fontSize: 12, fontWeight: '600' },
   resetBtn: {
     marginTop: 8,
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -256,4 +281,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   resetBtnText: { color: '#f1f5f9', fontSize: 13, fontWeight: '600' },
+  viewHistoryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(99,102,241,0.12)',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  viewHistoryBtnText: { color: '#6366f1', fontSize: 13, fontWeight: '600' },
 });
