@@ -3,10 +3,12 @@ packages:
   - "backend"
   - "packages/*"
 allowBuilds:
+  '@firebase/util': true
   '@prisma/client': true
   '@prisma/engines': true
   '@scarf/scarf': true
   better-sqlite3: true
   esbuild: true
   prisma: true
+  protobufjs: true
   sharp: true
