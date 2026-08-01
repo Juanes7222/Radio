@@ -1,4 +1,5 @@
 import { config } from '../config';
+import { logger } from '../utils/logger';
 
 const SPANISH_NUMBERS: Record<number, string> = {
   0: 'cero',
@@ -44,11 +45,6 @@ const PERIOD_WORDS: Record<number, string> = {
   19: 'de la noche', 20: 'de la noche', 21: 'de la noche',
   22: 'de la noche', 23: 'de la noche',
 };
-
-function getCurrentHour12(): number {
-  const hour = new Date().getHours() % 12;
-  return hour === 0 ? 12 : hour;
-}
 
 function getPeriod(): string {
   const hour = new Date().getHours();
@@ -107,10 +103,12 @@ export function renderTemplate(template: string, variables: Record<string, strin
   const now = new Date();
   const currentHour = now.getHours();
   const currentMinutes = now.getMinutes();
+  const currentHour12 = currentHour % 12 || 12;
 
   const computedDefaults: Record<string, string | number> = {
-    hour: getCurrentHour12(),
+    hour: currentHour12,
     hour24: currentHour,
+    hour_text: HOUR_WORDS[currentHour12] ?? String(currentHour12),
     period: getPeriod(),
     period_greeting: getPeriodGreeting(),
     station_name: config.locutor.stationName,
@@ -142,7 +140,8 @@ export function renderTemplate(template: string, variables: Record<string, strin
 
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
     const value = merged[key];
-    if (value === undefined || value === null || value === '') {
+    if (value === undefined || value === null) {
+      logger.warn('TemplateService', 'Unknown template variable', { key, template });
       return '';
     }
     return String(value);

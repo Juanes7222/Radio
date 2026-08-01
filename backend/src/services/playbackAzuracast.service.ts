@@ -1,7 +1,15 @@
 import { prisma } from "../lib/prisma";
 import { uploadMp3ToAzuracast } from "./azuracast/upload.service";
 import { playFileAsLive } from "./locutorStreamer.service";
+import axios from "axios";
+import { config } from "../config";
 import { logger } from "../utils/logger";
+
+const azApi = axios.create({
+  baseURL: `${config.azuracast.url}/api`,
+  headers: { "X-API-Key": config.azuracast.apiKey },
+  timeout: 10_000,
+});
 
 /**
  * Uploads an audio file to AzuraCast and returns the media ID.
@@ -92,5 +100,37 @@ export async function playScheduledAnnouncementForHour(hour: number): Promise<bo
       error: err.message,
     });
     return false;
+  }
+}
+
+/**
+ * Returns whether the station currently reports a live source
+ * connected (i.e. Liquidsoap is on the live harbor input).
+ */
+export async function isLiveActive(): Promise<boolean> {
+  try {
+    const { data } = await azApi.get(`/nowplaying/${config.azuracast.stationId}`);
+    return data?.live?.is_live === true;
+  } catch (err: any) {
+    logger.warn("PlaybackAzuracast", "Failed to check live status", {
+      error: err.message,
+    });
+    return false;
+  }
+}
+
+/**
+ * Best-effort kick of the live source so Liquidsoap falls back to
+ * the auto-DJ. Used when the locutor connection leaves the switch
+ * stuck on the live input.
+ */
+export async function disconnectLiveSource(): Promise<void> {
+  try {
+    await azApi.post(`/station/${config.azuracast.stationId}/backend/disconnect`);
+    logger.warn("PlaybackAzuracast", "Live source disconnected after stuck switch");
+  } catch (err: any) {
+    logger.error("PlaybackAzuracast", "Failed to disconnect live source", {
+      error: err.message,
+    });
   }
 }

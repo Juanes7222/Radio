@@ -35,6 +35,10 @@ export const config = {
         mountPoint: process.env.LIQUIDSOAP_MOUNT_POINT || '/live',
         streamerUser: process.env.LOCUTOR_STREAMER_USER || '',
         streamerPassword: process.env.LOCUTOR_STREAMER_PASSWORD || '',
+        bedsDir: process.env.LOCUTOR_BEDS_DIR || '../packages/assets/audio',
+        bedVolume: parseFloat(process.env.LOCUTOR_BED_VOLUME ?? '0.15'),
+        announcementsPerHour: parseInt(process.env.LOCUTOR_ANNOUNCEMENTS_PER_HOUR ?? '2', 10),
+        minAnnouncementGapMinutes: parseInt(process.env.LOCUTOR_ANNOUNCEMENT_MIN_GAP_MINUTES ?? '20', 10),
     },
     jwt: {
         secret:    required('JWT_SECRET'),

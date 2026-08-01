@@ -65,3 +65,53 @@ async function getAudioDuration(filePath: string): Promise<number> {
   }
   return 0;
 }
+
+/**
+ * Appends a fixed amount of silence to the end of an MP3 file.
+ * A silence tail gives Liquidsoap a clean handoff back to the
+ * auto-DJ when the live harbor source ends, avoiding abrupt cuts.
+ */
+export async function padSilenceTail(
+  inputPath: string,
+  outputPath: string,
+  seconds: number
+): Promise<void> {
+  await execAsync(
+    `ffmpeg -y -v error -i "${inputPath}" -af "apad=pad_dur=${seconds}" -c:a libmp3lame "${outputPath}"`
+  );
+}
+
+export interface MixWithBedParams {
+  voicePath: string;
+  bedPath: string;
+  outputPath: string;
+  durationSeconds: number;
+  bedVolume?: number;
+  tailSeconds?: number;
+}
+
+/**
+ * Mixes a voice track over an instrumental bed, with a fade-in on
+ * the voice, a fade-out before the end, and a bed-only tail so the
+ * transition back to the auto-DJ is seamless.
+ */
+export async function mixWithBed({
+  voicePath,
+  bedPath,
+  outputPath,
+  durationSeconds,
+  bedVolume = 0.15,
+  tailSeconds = 3,
+}: MixWithBedParams): Promise<void> {
+  const totalSeconds = durationSeconds + tailSeconds;
+  const fadeOutStart = Math.max(0, durationSeconds - 0.5);
+
+  await execAsync(
+    `ffmpeg -y -v error -stream_loop -1 -i "${bedPath}" -i "${voicePath}" ` +
+      `-filter_complex ` +
+      `"[0:a]volume=${bedVolume}[bed];` +
+      `[1:a]afade=t=in:d=0.3,afade=t=out:st=${fadeOutStart}:d=0.5[voice];` +
+      `[voice][bed]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[out]" ` +
+      `-map "[out]" -t ${totalSeconds} -c:a libmp3lame "${outputPath}"`
+  );
+}
