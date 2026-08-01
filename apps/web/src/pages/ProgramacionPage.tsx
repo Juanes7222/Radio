@@ -16,7 +16,7 @@ import {
   MessageSquare,
   type LucideIcon,
 } from 'lucide-react';
-import { useTheme, useAzuraCast } from '@/hooks';
+import { useTheme, useAzuraCast, mergeConsecutiveScheduleItems } from '@/hooks';
 import { Header } from '@/components/ui-custom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
@@ -42,14 +42,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
 
 const DEFAULT_ICON: LucideIcon = Radio;
 
-const FALLBACK_ACCENTS = [
-  { dot: '#e8883a', glow: 'rgba(232,136,58,0.18)', label: 'bg-[#e8883a]' },
-  { dot: '#4f98a3', glow: 'rgba(79,152,163,0.18)', label: 'bg-[#4f98a3]' },
-  { dot: '#a86fdf', glow: 'rgba(168,111,223,0.18)', label: 'bg-[#a86fdf]' },
-  { dot: '#6daa45', glow: 'rgba(109,170,69,0.18)',  label: 'bg-[#6daa45]' },
-  { dot: '#dd6974', glow: 'rgba(221,105,116,0.18)', label: 'bg-[#dd6974]' },
-  { dot: '#e8af34', glow: 'rgba(232,175,52,0.18)',  label: 'bg-[#e8af34]' },
-];
+const NEUTRAL_ACCENT = { dot: '#8b92a5', glow: 'rgba(139,146,165,0.18)' };
 
 function getBogotaDayOfWeek(dateInput: Date | number): number {
   const timestampInSeconds =
@@ -66,154 +59,136 @@ function getBogotaDayOfWeek(dateInput: Date | number): number {
   return utcDay;
 }
 
-function getCategoryAccent(category: ScheduleCategorySummary | null | undefined, idx: number) {
-  if (category) {
-    return {
-      dot: category.color,
-      glow: `${category.color}2e`,
-    };
-  }
-  return FALLBACK_ACCENTS[idx % FALLBACK_ACCENTS.length];
-}
-
 function CategoryIcon({
   category,
   className,
-  style,
 }: {
   category: ScheduleCategorySummary | null | undefined;
   className?: string;
-  style?: React.CSSProperties;
 }) {
   const Icon = category ? (CATEGORY_ICONS[category.icon] ?? DEFAULT_ICON) : Music2;
-  return <Icon className={className} style={style} />;
+  return <Icon className={className} />;
 }
 
-function TimelineLine({ count }: { count: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true });
-  return (
-    <div ref={ref} className="absolute left-[22px] top-0 bottom-0 w-px overflow-hidden">
-      <motion.div
-        className="w-full bg-gradient-to-b from-transparent via-current to-transparent opacity-20"
-        initial={{ scaleY: 0, originY: 0 }}
-        animate={inView ? { scaleY: 1 } : { scaleY: 0 }}
-        transition={{ duration: 0.9 + count * 0.08, ease: [0.16, 1, 0.3, 1] }}
-        style={{ height: '100%' }}
-      />
-    </div>
-  );
+interface ScheduleSection {
+  category: ScheduleCategorySummary | null;
+  items: ScheduleItem[];
 }
 
-/** Single timeline entry */
-function ProgramCard({
+/** Single compact entry inside a section */
+function ProgramRow({
   program,
-  idx,
+  accent,
   onClick,
 }: {
   program: ScheduleItem;
+  accent: { dot: string; glow: string };
+  onClick: () => void;
+}) {
+  const startTime = new Date(program.start_timestamp * 1000).toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const endTime = new Date(program.end_timestamp * 1000).toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const isLive = program.type === 'streamer';
+
+  return (
+    <motion.button
+      whileTap={{ scale: 0.99 }}
+      whileHover={{ y: -1 }}
+      onClick={onClick}
+      className="w-full flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors duration-150 shadow-sm hover:shadow-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span
+        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+        style={{ background: accent.dot, boxShadow: `0 0 0 4px ${accent.glow}` }}
+      />
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-sm leading-snug truncate">{program.title}</p>
+        <p className="text-xs mt-0.5 text-muted-foreground">
+          {startTime} → {endTime}
+          {program.slots && program.slots > 1 ? ` · ${program.slots} bloques` : ''}
+        </p>
+      </div>
+      {isLive && (
+        <motion.span
+          animate={{ opacity: [1, 0.4, 1] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+          className="flex-shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+          style={{
+            background: accent.glow,
+            color: accent.dot,
+            border: `1px solid ${accent.dot}40`,
+          }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: accent.dot }} />
+          En Vivo
+        </motion.span>
+      )}
+    </motion.button>
+  );
+}
+
+function ScheduleSection({
+  section,
+  idx,
+  onSelect,
+}: {
+  section: ScheduleSection;
   idx: number;
-  onClick?: () => void;
+  onSelect: (program: ScheduleItem) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: '-60px' });
-  const accent = getCategoryAccent(program.category, idx);
-
-  const startD = new Date(program.start_timestamp * 1000);
-  const endD   = new Date(program.end_timestamp   * 1000);
-  const startTime = startD.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
-  const endTime   = endD.toLocaleTimeString('es-CO',   { hour: '2-digit', minute: '2-digit', hour12: true });
-  const isLive    = program.type === 'streamer';
+  const inView = useInView(ref, { once: true, margin: '-40px' });
+  const accent = section.category
+    ? { dot: section.category.color, glow: `${section.category.color}2e` }
+    : NEUTRAL_ACCENT;
 
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, x: -16 }}
-      animate={inView ? { opacity: 1, x: 0 } : { opacity: 0, x: -16 }}
-      transition={{ duration: 0.5, delay: idx * 0.06, ease: [0.16, 1, 0.3, 1] }}
-      className="relative flex gap-5 pl-14 pb-8 last:pb-0"
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick?.(); }}
+      initial={{ opacity: 0, y: 14 }}
+      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
+      transition={{ duration: 0.45, delay: idx * 0.07, ease: [0.16, 1, 0.3, 1] }}
+      className="mb-7 last:mb-0"
     >
-      {/* Timeline dot */}
-      <span
-        className="absolute left-[14px] top-[18px] w-[18px] h-[18px] rounded-full border-2 border-current flex-shrink-0 z-10 flex items-center justify-center"
-        style={{
-          background: accent.dot,
-          borderColor: accent.dot,
-          boxShadow: `0 0 0 6px ${accent.glow}`,
-        }}
-      />
-
-      {/* Card */}
-      <motion.div
-        whileHover={{ y: -2, boxShadow: `0 8px 24px ${accent.glow}` }}
-        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-        className="flex-1 rounded-2xl overflow-hidden border border-border bg-card text-card-foreground transition-colors duration-200 shadow-sm"
-      >
-        {/* Accent strip */}
-        <div className="h-1 w-full" style={{ background: accent.dot }} />
-
-        <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-          {/* Time column */}
-          <div className="flex-shrink-0 flex flex-row sm:flex-col sm:items-center gap-3 sm:gap-1 sm:w-24">
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 opacity-50" />
-              <span className="font-mono font-semibold text-[15px] tracking-tight">{startTime}</span>
-            </div>
-            <span className="text-xs opacity-40">→ {endTime}</span>
-          </div>
-
-          {/* Divider */}
-          <div className="hidden sm:block w-px self-stretch bg-border" />
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="font-semibold text-[15px] leading-snug truncate">{program.title}</h3>
-              {isLive && (
-                <motion.span
-                  animate={{ opacity: [1, 0.4, 1] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                  className="flex-shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
-                  style={{
-                    background: accent.glow,
-                    color: accent.dot,
-                    border: `1px solid ${accent.dot}40`,
-                  }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: accent.dot }} />
-                  En Vivo
-                </motion.span>
-              )}
-            </div>
-
-            <div className="mt-1.5 flex items-center gap-2">
-              {program.category ? (
-                <>
-                  <CategoryIcon category={program.category} className="w-3.5 h-3.5" />
-                  <span className="text-xs font-medium" style={{ color: accent.dot }}>
-                    {program.category.name}
-                  </span>
-                </>
-              ) : (
-                <>
-                  {isLive ? (
-                    <Mic2 className="w-3.5 h-3.5 opacity-50" />
-                  ) : (
-                    <Music2 className="w-3.5 h-3.5 opacity-50" />
-                  )}
-                  <span className="text-xs text-muted-foreground">
-                    {isLive ? 'Programa en vivo con locutor' : 'Programa automático'}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
+      {/* Section header */}
+      <div className="flex items-center gap-2.5 mb-3">
+        <span
+          className="w-8 h-8 rounded-lg flex items-center justify-center"
+          style={{ background: accent.glow, color: accent.dot }}
+        >
+          <CategoryIcon category={section.category} className="w-4 h-4" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="font-semibold text-sm leading-tight truncate">
+            {section.category ? section.category.name : 'Otros programas'}
+          </h3>
+          <p className="text-[11px] text-muted-foreground">
+            {section.items.length} horario{section.items.length !== 1 ? 's' : ''}
+          </p>
         </div>
-      </motion.div>
+        <span
+          className="flex-1 h-px mx-1 self-center"
+          style={{ background: `${accent.dot}33` }}
+        />
+      </div>
+
+      <div className="space-y-2">
+        {section.items.map((program) => (
+          <ProgramRow
+            key={`${program.id}-${program.start_timestamp}`}
+            program={program}
+            accent={accent}
+            onClick={() => onSelect(program)}
+          />
+        ))}
+      </div>
     </motion.div>
   );
 }
@@ -291,13 +266,10 @@ function CategoryChip({
 
 function SkeletonCard() {
   return (
-    <div className="relative flex gap-5 pl-14 pb-8">
-      <span className="absolute left-[14px] top-[18px] w-[18px] h-[18px] rounded-full bg-border" />
-      <div className="flex-1 rounded-2xl border border-border bg-card p-5 space-y-3">
-        <div className="h-3 w-24 rounded animate-pulse bg-muted" />
-        <div className="h-4 w-48 rounded animate-pulse bg-muted" />
-        <div className="h-3 w-32 rounded animate-pulse bg-secondary" />
-      </div>
+    <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+      <div className="h-3 w-28 rounded animate-pulse bg-muted" />
+      <div className="h-4 w-48 rounded animate-pulse bg-muted" />
+      <div className="h-3 w-32 rounded animate-pulse bg-secondary" />
     </div>
   );
 }
@@ -334,8 +306,8 @@ export function ProgramacionPage() {
     loadSchedule();
   }, [fetchSchedule, fetchScheduleCategories]);
 
-  const programsForDay = useMemo(() => {
-    return schedule
+  const sections = useMemo<ScheduleSection[]>(() => {
+    const programsForDay = schedule
       .filter(item => getBogotaDayOfWeek(item.start_timestamp) === selectedDay)
       .sort((a, b) => a.start_timestamp - b.start_timestamp)
       .filter((item, index, self) =>
@@ -344,9 +316,32 @@ export function ProgramacionPage() {
       .filter(item =>
         selectedCategoryId === null || item.category?.id === selectedCategoryId
       );
-  }, [schedule, selectedDay, selectedCategoryId]);
+
+    const merged = mergeConsecutiveScheduleItems(programsForDay);
+
+    const groups = new Map<string, ScheduleSection>();
+    for (const item of merged) {
+      const key = item.category?.id ?? '__none__';
+      const existing = groups.get(key);
+      if (existing) {
+        existing.items.push(item);
+      } else {
+        groups.set(key, { category: item.category ?? null, items: [item] });
+      }
+    }
+
+    return [...groups.values()].sort((a, b) => {
+      const indexOf = (category: ScheduleCategorySummary | null) => {
+        if (!category) return categories.length;
+        const idx = categories.findIndex(c => c.id === category.id);
+        return idx === -1 ? categories.length : idx;
+      };
+      return indexOf(a.category) - indexOf(b.category);
+    });
+  }, [schedule, selectedDay, selectedCategoryId, categories]);
 
   const filteredCategory = categories.find(c => c.id === selectedCategoryId) ?? null;
+  const totalSlots = sections.reduce((acc, section) => acc + section.items.length, 0);
 
   return (
     <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
@@ -435,9 +430,9 @@ export function ProgramacionPage() {
           >
             <div>
               <h2 className="font-semibold text-lg">{DAYS_FULL[selectedDay]}</h2>
-              {!loading && programsForDay.length > 0 && (
+              {!loading && totalSlots > 0 && (
                 <p className="text-xs mt-0.5 text-muted-foreground">
-                  {programsForDay.length} programa{programsForDay.length !== 1 ? 's' : ''}
+                  {totalSlots} horario{totalSlots !== 1 ? 's' : ''} en {sections.length} tipo{sections.length !== 1 ? 's' : ''}
                 </p>
               )}
             </div>
@@ -462,25 +457,21 @@ export function ProgramacionPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="relative"
           >
             {loading ? (
               /* Skeleton */
               <div>
                 {[0, 1, 2].map(i => <SkeletonCard key={i} />)}
               </div>
-            ) : programsForDay.length > 0 ? (
-              <div className="relative">
-                <TimelineLine count={programsForDay.length} />
-                {programsForDay.map((program, idx) => (
-                  <ProgramCard
-                    key={`${program.id}-${program.start_timestamp}`}
-                    program={program}
-                    idx={idx}
-                    onClick={() => setSelectedProgram(program)}
-                  />
-                ))}
-              </div>
+            ) : sections.length > 0 ? (
+              sections.map((section, idx) => (
+                <ScheduleSection
+                  key={section.category?.id ?? '__none__'}
+                  section={section}
+                  idx={idx}
+                  onSelect={setSelectedProgram}
+                />
+              ))
             ) : (
               /* Empty state */
               <motion.div
@@ -543,6 +534,14 @@ export function ProgramacionPage() {
                       {new Date(selectedProgram.end_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
                     </span>
                   </div>
+                  {selectedProgram.slots && selectedProgram.slots > 1 && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 opacity-60" />
+                      <span className="text-sm">
+                        Programado en {selectedProgram.slots} bloques consecutivos
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     {selectedProgram.type === 'streamer' ? (
                       <>

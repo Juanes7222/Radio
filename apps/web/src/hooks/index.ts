@@ -1,5 +1,5 @@
 export { useAudioPlayer } from './useAudioPlayer';
-export { useAzuraCast } from './useAzuraCast';
+export { useAzuraCast, mergeConsecutiveScheduleItems } from './useAzuraCast';
 export type { UseAzuraCastProps, UseAzuraCastReturn, SongRequestResult } from './useAzuraCast';
 export { useMediaSession } from './useMediaSession';
 export { useWaveform } from './useWaveform';

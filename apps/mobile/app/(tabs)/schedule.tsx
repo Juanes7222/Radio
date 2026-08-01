@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAzuraCast } from '@radio/api';
+import { useAzuraCast, mergeConsecutiveScheduleItems } from '@radio/api';
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 import { formatScheduleTime } from '../../lib/formatMedia';
 import { BACKEND_URL } from '@/constants/api';
@@ -25,14 +25,7 @@ function getBogotaDayOfWeek(dateInput: Date | number): number {
   return utcDay;
 }
 
-const FALLBACK_ACCENTS = [
-  { dot: '#e8883a', glow: 'rgba(232,136,58,0.25)' },
-  { dot: '#4f98a3', glow: 'rgba(79,152,163,0.25)' },
-  { dot: '#a86fdf', glow: 'rgba(168,111,223,0.25)' },
-  { dot: '#6daa45', glow: 'rgba(109,170,69,0.25)' },
-  { dot: '#dd6974', glow: 'rgba(221,105,116,0.25)' },
-  { dot: '#e8af34', glow: 'rgba(232,175,52,0.25)' },
-];
+const NEUTRAL_ACCENT = { dot: '#8b92a5', glow: 'rgba(139,146,165,0.25)' };
 
 const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   music: 'musical-notes',
@@ -53,11 +46,11 @@ const BACKGROUND = '#0c0c1e';
 const CARD_BG = '#16162c';
 const TEXT_MUTED = '#8b92a5';
 
-function getAccent(category: ScheduleCategorySummary | null | undefined, idx: number) {
+function getAccent(category: ScheduleCategorySummary | null | undefined) {
   if (category) {
     return { dot: category.color, glow: `${category.color}40` };
   }
-  return FALLBACK_ACCENTS[idx % FALLBACK_ACCENTS.length];
+  return NEUTRAL_ACCENT;
 }
 
 function getCategoryIcon(category: ScheduleCategorySummary | null | undefined): keyof typeof Ionicons.glyphMap {
@@ -65,71 +58,80 @@ function getCategoryIcon(category: ScheduleCategorySummary | null | undefined): 
   return CATEGORY_ICONS[category.icon] ?? 'radio';
 }
 
-function ProgramCard({ program, idx, onPress }: { program: ScheduleItem; idx: number; onPress?: () => void }) {
-  const accent = getAccent(program.category, idx);
+interface ScheduleSection {
+  category: ScheduleCategorySummary | null;
+  items: ScheduleItem[];
+}
 
+function ProgramRow({
+  program,
+  accent,
+  onPress,
+}: {
+  program: ScheduleItem;
+  accent: { dot: string; glow: string };
+  onPress: () => void;
+}) {
   const startTime = formatScheduleTime(program.start_timestamp);
   const endTime = formatScheduleTime(program.end_timestamp);
-  
   const isLive = program.type === 'streamer';
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.cardWrapper}>
-      <View style={styles.timelineIndicator}>
-        <View style={styles.verticalLine} />
-        <View style={[styles.dot, { backgroundColor: accent.dot }]} />
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.rowCard}>
+      <View style={[styles.rowDot, { backgroundColor: accent.dot }]} />
+      <View style={styles.rowInfo}>
+        <Text style={styles.rowTitle} numberOfLines={1}>{program.title}</Text>
+        <Text style={styles.rowTime}>
+          {startTime} → {endTime}
+          {program.slots && program.slots > 1 ? ` · ${program.slots} bloques` : ''}
+        </Text>
       </View>
-
-      <View style={styles.card}>
-        <View style={[styles.cardAccent, { backgroundColor: accent.dot }]} />
-        
-        <View style={styles.cardContent}>
-          <View style={styles.timeColumn}>
-            <View style={styles.timeRow}>
-              <Ionicons name="time-outline" size={14} color={TEXT_MUTED} />
-              <Text style={styles.startTime}>{startTime}</Text>
-            </View>
-            <Text style={styles.endTime}>→ {endTime}</Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.infoColumn}>
-            <View style={styles.titleRow}>
-              <Text style={styles.title} numberOfLines={1}>{program.title}</Text>
-              {isLive && (
-                <View style={[styles.liveBadge, { backgroundColor: accent.glow, borderColor: accent.dot }]}>
-                  <View style={[styles.liveDot, { backgroundColor: accent.dot }]} />
-                  <Text style={[styles.liveText, { color: accent.dot }]}>EN VIVO</Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.typeRow}>
-              {program.category ? (
-                <>
-                  <Ionicons name={getCategoryIcon(program.category)} size={14} color={accent.dot} />
-                  <Text style={[styles.categoryText, { color: accent.dot }]}>
-                    {program.category.name}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Ionicons 
-                    name={isLive ? "mic-outline" : "musical-notes-outline"} 
-                    size={14} 
-                    color={TEXT_MUTED} 
-                  />
-                  <Text style={styles.typeText}>
-                    {isLive ? 'En vivo' : 'Programa automático'}
-                  </Text>
-                </>
-              )}
-            </View>
-          </View>
+      {isLive && (
+        <View style={[styles.rowLiveBadge, { backgroundColor: accent.glow, borderColor: accent.dot }]}>
+          <View style={[styles.rowLiveDot, { backgroundColor: accent.dot }]} />
         </View>
-      </View>
+      )}
     </TouchableOpacity>
+  );
+}
+
+function ScheduleSectionView({
+  section,
+  onSelect,
+}: {
+  section: ScheduleSection;
+  onSelect: (program: ScheduleItem) => void;
+}) {
+  const accent = getAccent(section.category);
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <View style={[styles.sectionIcon, { backgroundColor: accent.glow }]}>
+          <Ionicons name={getCategoryIcon(section.category)} size={16} color={accent.dot} />
+        </View>
+        <View style={styles.sectionHeaderInfo}>
+          <Text style={styles.sectionTitle} numberOfLines={1}>
+            {section.category ? section.category.name : 'Otros programas'}
+          </Text>
+          <Text style={styles.sectionCount}>
+            {section.items.length} horario{section.items.length !== 1 ? 's' : ''}
+          </Text>
+        </View>
+        <View style={[styles.sectionLine, { backgroundColor: accent.dot }]} />
+      </View>
+
+      <View style={styles.sectionRows}>
+        {section.items.map((program) => (
+          <ProgramRow
+            key={`${program.id}-${program.start_timestamp}`}
+            program={program}
+            accent={accent}
+            onPress={() => onSelect(program)}
+          />
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -195,17 +197,42 @@ export default function ScheduleScreen() {
     loadSchedule();
   }, [fetchSchedule, fetchScheduleCategories]);
 
-  const programsForDay = schedule
-    .filter(item => getBogotaDayOfWeek(item.start_timestamp) === selectedDay)
-    .sort((a, b) => a.start_timestamp - b.start_timestamp)
-    .filter((item, index, self) =>
-      index === self.findIndex(i => i.id === item.id && i.start_timestamp === item.start_timestamp)
-    )
-    .filter(item =>
-      selectedCategoryId === null || item.category?.id === selectedCategoryId
-    );
+  const sections: ScheduleSection[] = React.useMemo(() => {
+    const programsForDay = schedule
+      .filter(item => getBogotaDayOfWeek(item.start_timestamp) === selectedDay)
+      .sort((a, b) => a.start_timestamp - b.start_timestamp)
+      .filter((item, index, self) =>
+        index === self.findIndex(i => i.id === item.id && i.start_timestamp === item.start_timestamp)
+      )
+      .filter(item =>
+        selectedCategoryId === null || item.category?.id === selectedCategoryId
+      );
+
+    const merged = mergeConsecutiveScheduleItems(programsForDay);
+
+    const groups = new Map<string, ScheduleSection>();
+    for (const item of merged) {
+      const key = item.category?.id ?? '__none__';
+      const existing = groups.get(key);
+      if (existing) {
+        existing.items.push(item);
+      } else {
+        groups.set(key, { category: item.category ?? null, items: [item] });
+      }
+    }
+
+    return [...groups.values()].sort((a, b) => {
+      const indexOf = (category: ScheduleCategorySummary | null) => {
+        if (!category) return categories.length;
+        const idx = categories.findIndex(c => c.id === category.id);
+        return idx === -1 ? categories.length : idx;
+      };
+      return indexOf(a.category) - indexOf(b.category);
+    });
+  }, [schedule, selectedDay, selectedCategoryId, categories]);
 
   const selectedCategory = categories.find(c => c.id === selectedCategoryId) ?? null;
+  const totalSlots = sections.reduce((acc, section) => acc + section.items.length, 0);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -281,9 +308,9 @@ export default function ScheduleScreen() {
         <View style={styles.dayHeader}>
           <View>
             <Text style={styles.dayTitle}>{DAYS_FULL[selectedDay]}</Text>
-            {!loading && programsForDay.length > 0 && (
+            {!loading && totalSlots > 0 && (
               <Text style={styles.programCount}>
-                {programsForDay.length} programa{programsForDay.length !== 1 ? 's' : ''}
+                {totalSlots} horario{totalSlots !== 1 ? 's' : ''} en {sections.length} tipo{sections.length !== 1 ? 's' : ''}
               </Text>
             )}
           </View>
@@ -294,13 +321,17 @@ export default function ScheduleScreen() {
           )}
         </View>
 
-        {/* Lista de programas */}
+        {/* Secciones por tipo */}
         {loading ? (
           <ActivityIndicator size="large" color="#4f98a3" style={{ marginTop: 40 }} />
-        ) : programsForDay.length > 0 ? (
-          <View style={styles.timelineContainer}>
-            {programsForDay.map((program, idx) => (
-              <ProgramCard key={`${program.id}-${program.start_timestamp}`} program={program} idx={idx} onPress={() => setSelectedProgram(program)} />
+        ) : sections.length > 0 ? (
+          <View>
+            {sections.map((section) => (
+              <ScheduleSectionView
+                key={section.category?.id ?? '__none__'}
+                section={section}
+                onSelect={setSelectedProgram}
+              />
             ))}
           </View>
         ) : (
@@ -362,6 +393,14 @@ export default function ScheduleScreen() {
                   {selectedProgram && new Date(selectedProgram.end_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
                 </Text>
               </View>
+              {selectedProgram?.slots && selectedProgram.slots > 1 && (
+                <View style={styles.detailRow}>
+                  <Ionicons name="layers-outline" size={18} color={TEXT_MUTED} />
+                  <Text style={styles.detailText}>
+                    Programado en {selectedProgram.slots} bloques consecutivos
+                  </Text>
+                </View>
+              )}
               <View style={styles.detailRow}>
                 <Ionicons 
                   name={selectedProgram?.type === 'streamer' ? "mic-outline" : "musical-notes-outline"} 
@@ -508,121 +547,85 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  timelineContainer: {
-    paddingLeft: 10,
+  section: {
+    marginBottom: 24,
   },
-  cardWrapper: {
+  sectionHeader: {
     flexDirection: 'row',
-    marginBottom: 16,
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
   },
-  timelineIndicator: {
-    width: 30,
+  sectionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  verticalLine: {
-    position: 'absolute',
-    top: 24,
-    bottom: -16, // Conecta con la siguiente tarjeta
-    width: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginTop: 18,
-    borderWidth: 2,
-    borderColor: BACKGROUND,
-  },
-  card: {
+  sectionHeaderInfo: {
     flex: 1,
+    minWidth: 0,
+  },
+  sectionTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  sectionCount: {
+    color: TEXT_MUTED,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  sectionLine: {
+    flex: 1,
+    height: 1,
+    opacity: 0.25,
+    marginLeft: 4,
+  },
+  sectionRows: {
+    gap: 8,
+  },
+  rowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     backgroundColor: CARD_BG,
-    borderRadius: 16,
-    overflow: 'hidden',
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  cardAccent: {
-    height: 4,
-    width: '100%',
+  rowDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
-  cardContent: {
-    padding: 16,
-    flexDirection: 'column',
-    gap: 12,
+  rowInfo: {
+    flex: 1,
+    minWidth: 0,
   },
-  timeColumn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  startTime: {
+  rowTitle: {
     color: '#ffffff',
-    fontFamily: 'monospace',
+    fontSize: 14,
     fontWeight: '600',
-    fontSize: 15,
   },
-  endTime: {
+  rowTime: {
     color: TEXT_MUTED,
     fontSize: 12,
+    marginTop: 2,
   },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    width: '100%',
-  },
-  infoColumn: {
-    flex: 1,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-  },
-  title: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '600',
-    flex: 1,
-  },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  rowLiveBadge: {
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
   },
-  liveDot: {
+  rowLiveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-  },
-  liveText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  typeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  typeText: {
-    color: TEXT_MUTED,
-    fontSize: 12,
-  },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: '600',
-    flexShrink: 1,
   },
   emptyState: {
     alignItems: 'center',

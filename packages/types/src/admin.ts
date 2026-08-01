@@ -122,6 +122,8 @@ export interface ScheduleItem {
   type: 'playlist' | 'streamer';
   title: string;
   category?: ScheduleCategorySummary | null;
+  /** Number of consecutive AzuraCast slots merged into this entry */
+  slots?: number;
 }
 
 export interface ListenerStats {
