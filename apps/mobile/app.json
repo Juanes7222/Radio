@@ -34,8 +34,7 @@
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "POST_NOTIFICATIONS",
-        "SCHEDULE_EXACT_ALARM",
-        "USE_EXACT_ALARM"
+        "SCHEDULE_EXACT_ALARM"
       ],
       "blockedPermissions": [
         "RECORD_AUDIO"
@@ -45,6 +44,16 @@
       "bundler": "metro"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "buildToolsVersion": "36.0.0"
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-notifications",

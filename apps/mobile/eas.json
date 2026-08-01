@@ -16,7 +16,12 @@
     },
     "production": {
       "autoIncrement": true,
-      "prebuildCommand": "npx expo prebuild --clean"
+      "prebuildCommand": "npx expo prebuild --clean",
+      "android": {
+        "buildProperties": {
+          "android.suppressUnsupportedCompileSdk": "36"
+        }
+      }
     }
   },
   "submit": {

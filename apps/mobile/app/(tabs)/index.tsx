@@ -27,7 +27,7 @@ import { useAzuraCast } from '@radio/api';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
-import { useProgramNotify, debugFireNextNotification } from '@/hooks/useProgramNotify';
+import { useProgramNotify } from '@/hooks/useProgramNotify';
 import { useNotificationReminder } from '@/hooks/useNotificationReminder';
 import {
   useFavoriteNotify,
@@ -80,7 +80,7 @@ export default function PlayerScreen() {
     await pause();
   }, [pause]));
 
-  useProgramNotify();
+  const { exactAlarmGranted } = useProgramNotify();
 
   const [favoriteSongKeys, setFavoriteSongKeys] = useState<string[]>([]);
 
@@ -412,6 +412,7 @@ export default function PlayerScreen() {
         notifyEnabled={notifyEnabled}
         onToggleCurrent={handleToggleNotify}
         currentSongTitle={title}
+        exactAlarmGranted={exactAlarmGranted}
       />
 
       <BiblePanel 

@@ -8,7 +8,8 @@ import {
   ScrollView,
   Switch,
   ActivityIndicator,
-  Platform
+  Platform,
+  Linking
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +25,7 @@ interface NotificationsModalProps {
   notifyEnabled: boolean;
   onToggleCurrent: () => void;
   currentSongTitle?: string;
+  exactAlarmGranted?: boolean | null;
 }
 
 export function NotificationsModal({
@@ -32,6 +34,7 @@ export function NotificationsModal({
   notifyEnabled,
   onToggleCurrent,
   currentSongTitle,
+  exactAlarmGranted,
 }: NotificationsModalProps) {
   const insets = useSafeAreaInsets();
   const { fetchSchedule } = useAzuraCast({ apiBaseUrl: BACKEND_URL });
@@ -84,6 +87,24 @@ export function NotificationsModal({
           </View>
 
           <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
+            {Platform.OS === 'android' && exactAlarmGranted === false && (
+              <View style={styles.exactAlarmBanner}>
+                <Ionicons name="alarm-outline" size={20} color={Colors.warning} />
+                <View style={styles.exactAlarmTextContainer}>
+                  <Text style={styles.exactAlarmTitle}>Avisos más puntuales</Text>
+                  <Text style={styles.exactAlarmBody}>
+                    Las alertas de programas pueden llegar con unos minutos de retraso. Activa "Alarmas y recordatorios" en los ajustes para que lleguen a la hora exacta.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => Linking.openSettings()}
+                  style={styles.exactAlarmButton}
+                >
+                  <Text style={styles.exactAlarmButtonText}>Activar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Sonando Ahora</Text>
               <View style={styles.row}>
@@ -249,5 +270,38 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.textMuted,
     fontStyle: 'italic',
+  },
+  exactAlarmBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.warningMuted,
+    borderRadius: Radii.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  exactAlarmTextContainer: {
+    flex: 1,
+  },
+  exactAlarmTitle: {
+    ...Typography.body,
+    color: Colors.warning,
+    fontWeight: '700',
+  },
+  exactAlarmBody: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  exactAlarmButton: {
+    backgroundColor: 'rgba(245,158,11,0.25)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radii.sm,
+  },
+  exactAlarmButtonText: {
+    ...Typography.caption,
+    color: Colors.warning,
+    fontWeight: '700',
   },
 });

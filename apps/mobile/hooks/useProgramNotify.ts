@@ -1,6 +1,6 @@
 // hooks/useProgramNotify.ts
-import { useEffect } from 'react';
-import { DeviceEventEmitter, Platform, Linking } from 'react-native';
+import { useEffect, useState } from 'react';
+import { DeviceEventEmitter, Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
@@ -20,14 +20,20 @@ const SCHEDULE_TASK = 'program-notify-schedule';
 
 type FetchSchedule = ReturnType<typeof useAzuraCast>['fetchSchedule'];
 
-async function ensureExactAlarmPermission() {
-  if (Platform.OS !== 'android') return;
-  if (parseInt(Platform.Version as unknown as string) < 31) return;
+interface ExactAlarmPermissionStatus {
+  canScheduleExactNotifications?: boolean;
+}
 
-  const { canScheduleExactNotifications } = await Notifications.getPermissionsAsync() as any;
-  if (canScheduleExactNotifications === false) {
-    Linking.openSettings();
-  }
+/**
+ * Returns true when exact scheduling is available for notifications.
+ * On Android 14+ this depends on the SCHEDULE_EXACT_ALARM special access
+ * being granted by the user; expo-notifications falls back to inexact
+ * scheduling otherwise.
+ */
+export async function canScheduleExactAlarms(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  const permissions = await Notifications.getPermissionsAsync() as ExactAlarmPermissionStatus;
+  return permissions.canScheduleExactNotifications !== false;
 }
 
 /**
@@ -35,9 +41,6 @@ async function ensureExactAlarmPermission() {
  * and schedules local notifications for upcoming programs.
  */
 export async function setupNotifications(fetchSchedule: FetchSchedule) {
-  
-  await ensureExactAlarmPermission();
-
   const schedule = await fetchSchedule();
   if (!schedule || schedule.length === 0) {
     return;
@@ -138,13 +141,30 @@ export async function registerScheduleBackgroundTask(fetchSchedule: FetchSchedul
 
 export function useProgramNotify() {
   const { fetchSchedule } = useAzuraCast({ apiBaseUrl: BACKEND_URL });
+  const [exactAlarmGranted, setExactAlarmGranted] = useState<boolean | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
+    const refreshExactAlarmPermission = async () => {
+      const granted = await canScheduleExactAlarms();
+      if (mounted) {
+        setExactAlarmGranted(granted);
+      }
+    };
+
+    refreshExactAlarmPermission();
     setupNotifications(fetchSchedule);
     registerScheduleBackgroundTask(fetchSchedule);
 
     const subscription = DeviceEventEmitter.addListener(SUBSCRIPTIONS_EVENT, () => {
       setupNotifications(fetchSchedule);
+    });
+
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        refreshExactAlarmPermission();
+      }
     });
 
     const interval = setInterval(
@@ -153,8 +173,12 @@ export function useProgramNotify() {
     );
     
     return () => {
+      mounted = false;
       clearInterval(interval);
       subscription.remove();
+      appStateSubscription.remove();
     };
   }, [fetchSchedule]);
+
+  return { exactAlarmGranted };
 }
