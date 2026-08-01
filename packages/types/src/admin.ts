@@ -90,6 +90,28 @@ export interface Streamer {
   links: { self: string; art: string };
 }
 
+export interface ScheduleCategory {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  icon: string;
+  keywords: string;
+  isVisible: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Public summary of a schedule category sent to listeners */
+export interface ScheduleCategorySummary {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  icon: string;
+}
+
 export interface ScheduleItem {
   id: number;
   start_timestamp: number;
@@ -99,6 +121,7 @@ export interface ScheduleItem {
   is_now: boolean;
   type: 'playlist' | 'streamer';
   title: string;
+  category?: ScheduleCategorySummary | null;
 }
 
 export interface ListenerStats {

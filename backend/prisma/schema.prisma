@@ -204,6 +204,23 @@ model GenerationLog {
   @@index([startedAt])
 }
 
+model ScheduleCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  color       String   @default("#4f98a3")
+  icon        String   @default("radio")
+  keywords    String   @default("") // Comma-separated title matches, e.g. "REV JOSE SOTO,REV J. SOTO"
+  isVisible   Boolean  @default(true) @map("is_visible")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("schedule_categories")
+  @@index([isVisible])
+  @@index([sortOrder])
+}
+
 model Device {
   id         String   @id @default(uuid())
   deviceId   String   @unique

@@ -35,6 +35,7 @@ async function bootstrap() {
   const { dispatchPendingJobs } = await import('./jobs/jobDispatcher');
   const { subscribeToAllConfiguredChannels } = await import('./services/youtube/subscription.service');
   const { default: internalTestRouter } = await import('./routes/internalTest');
+  const { default: scheduleCategoriesRouter } = await import('./routes/scheduleCategories');
 
   const app = express.default();
 
@@ -71,6 +72,7 @@ async function bootstrap() {
   app.use('/api/bible', bibleRouter);
   app.use('/admin-api/workers', workerAdminRouter);
   app.use('/internal', internalTestRouter);
+  app.use('/admin-api/schedule-categories', scheduleCategoriesRouter);
   app.use('/api/devices', devicesRouter);
   app.use('/api/prayer', prayerRouter);
 

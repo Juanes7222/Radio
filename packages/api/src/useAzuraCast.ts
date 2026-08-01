@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import type { NowPlayingData, SongRequest, StreamQuality, ScheduleItem } from '@radio/types';
+import type {
+  NowPlayingData,
+  SongRequest,
+  StreamQuality,
+  ScheduleItem,
+  ScheduleCategorySummary,
+} from '@radio/types';
 
 export interface UseAzuraCastProps {
   apiBaseUrl?: string;
@@ -18,6 +24,7 @@ export interface UseAzuraCastReturn {
   requestSong: (requestId: string) => Promise<SongRequestResult>;
   fetchRequestableSongs: (options?: { page?: number; perPage?: number; search?: string }) => Promise<SongRequest[]>;
   fetchSchedule: () => Promise<ScheduleItem[] | null>;
+  fetchScheduleCategories: () => Promise<ScheduleCategorySummary[] | null>;
   refresh: () => Promise<NowPlayingData | null | void>;
   getStreamUrl: (quality: StreamQuality) => string;
 }
@@ -256,6 +263,21 @@ export function useAzuraCast({
     [apiBaseUrl]
   );
 
+  const fetchScheduleCategories = useCallback(
+    async (): Promise<ScheduleCategorySummary[] | null> => {
+      try {
+        const response = await axios.get(`${apiBaseUrl}/api/schedule/categories`, {
+          timeout: 10000,
+          headers: { Accept: 'application/json' },
+        });
+        return Array.isArray(response.data) ? response.data : null;
+      } catch {
+        return null;
+      }
+    },
+    [apiBaseUrl]
+  );
+
   const getStreamUrl = useCallback(
     (quality: StreamQuality): string => {
       if (!data?.station) return '';
@@ -290,6 +312,7 @@ export function useAzuraCast({
     requestSong,
     fetchRequestableSongs,
     fetchSchedule,
+    fetchScheduleCategories,
     refresh: fetchNowPlaying,
     getStreamUrl,
   };

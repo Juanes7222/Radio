@@ -17,6 +17,7 @@ import {
   AdminPrayerRequests,
   AdminStreaming,
   AdminSchedule,
+  AdminScheduleCategories,
   AdminUpload,
 } from './pages/admin'
 import { AboutPage, PrivacyPolicyPage } from './pages/info';
@@ -49,6 +50,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="prayer" element={<AdminPrayerRequests />} />
                 <Route path="streaming" element={<AdminStreaming />} />
                 <Route path="schedule" element={<AdminSchedule />} />
+                <Route path="schedule/categories" element={<AdminScheduleCategories />} />
                 <Route path="upload" element={<AdminUpload />} />
               </Route>
 

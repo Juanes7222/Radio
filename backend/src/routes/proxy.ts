@@ -2,13 +2,19 @@ import { Router, type Request, type Response } from 'express';
 import axios, { type AxiosRequestConfig, type Method } from 'axios';
 import { config } from '../config';
 import { requireAuth } from '../middleware/auth';
+import {
+  categorizeSchedule,
+  categoryToSummary,
+  filterVisibleSchedule,
+  getVisibleCategories,
+} from '../services/scheduleCategorizer.service';
 
 const router = Router();
 
 async function fetchFromAzuraCast(
   req: Request,
   azuracastPath: string,
-  transform?: (data: unknown) => unknown,
+  transform?: (data: unknown) => unknown | Promise<unknown>,
   customParams?: Record<string, unknown>
 ): Promise<{ status: number; data: unknown }> {
   const axiosConfig: AxiosRequestConfig = {
@@ -42,7 +48,7 @@ async function fetchFromAzuraCast(
   }
 
   const response = await axios(axiosConfig);
-  const body = transform ? transform(response.data) : response.data;
+  const body = transform ? await transform(response.data) : response.data;
   return { status: response.status, data: body };
 }
 
@@ -50,7 +56,7 @@ async function proxyToAzuraCast(
   req: Request,
   res: Response,
   azuracastPath: string,
-  transform?: (data: unknown) => unknown
+  transform?: (data: unknown) => unknown | Promise<unknown>
 ): Promise<void> {
   try {
     const { status, data } = await fetchFromAzuraCast(req, azuracastPath, transform);
@@ -91,8 +97,6 @@ function buildPublicUrl(req: Request): string {
   return `${protocol}://${host}`;
 }
 
-const SCHEDULE_EXCLUSIONS = ['CONTENIDO VARIADO', 'MUSICA', 'JINGLES', 'JINGLE'];
-
 function getBogotaDateString(daysOffset = 0): string {
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Bogota',
@@ -106,15 +110,6 @@ function getBogotaDateString(daysOffset = 0): string {
   target.setDate(now.getDate() + daysOffset);
 
   return formatter.format(target);
-}
-
-function filterSchedule(data: unknown): unknown {
-  if (!Array.isArray(data)) return data;
-  return data.filter((item: any) => {
-    const title = item?.title ?? '';
-    const normalized = title.toLowerCase();
-    return !SCHEDULE_EXCLUSIONS.some(ex => normalized.includes(ex.toLowerCase()));
-  });
 }
 
 function rewriteInternalUrls(data: unknown, publicUrl: string): unknown {
@@ -369,7 +364,7 @@ publicRouter.get('/search', async (req, res) => {
   }
 });
 
-publicRouter.get('/schedule', (req, res) => {
+publicRouter.get('/schedule', async (req, res) => {
   const publicUrl = buildPublicUrl(req);
 
   if (!req.query.start || !req.query.end) {
@@ -381,8 +376,22 @@ publicRouter.get('/schedule', (req, res) => {
     req,
     res,
     `/api/station/${config.azuracast.stationId}/schedule`,
-    (data) => rewriteInternalUrls(filterSchedule(data), publicUrl)
+    async (data) => {
+      const filtered = await filterVisibleSchedule(Array.isArray(data) ? data : []);
+      const categorized = await categorizeSchedule(filtered as unknown[]);
+      return rewriteInternalUrls(categorized, publicUrl);
+    }
   );
+});
+
+publicRouter.get('/schedule/categories', async (_req, res) => {
+  try {
+    const categories = await getVisibleCategories();
+    res.status(200).json(categories.map(categoryToSummary));
+  } catch (err) {
+    console.error('Error fetching schedule categories:', err);
+    res.status(500).json({ error: 'Error al obtener las categorías de programación' });
+  }
 });
 
 publicRouter.get('/station/:stationId/art/:artId', async (req, res) => {

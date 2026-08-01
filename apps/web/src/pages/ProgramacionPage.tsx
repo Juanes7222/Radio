@@ -1,14 +1,55 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
-import { Clock, Radio, Mic2, Music2 } from 'lucide-react';
+import {
+  Clock,
+  Radio,
+  Mic2,
+  Music2,
+  Book,
+  Flag,
+  Bell,
+  Heart,
+  Newspaper,
+  Sparkles,
+  User,
+  Star,
+  MessageSquare,
+  type LucideIcon,
+} from 'lucide-react';
 import { useTheme, useAzuraCast } from '@/hooks';
 import { Header } from '@/components/ui-custom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import type { ScheduleItem } from '@radio/types';
+import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  music: Music2,
+  mic: Mic2,
+  radio: Radio,
+  book: Book,
+  flag: Flag,
+  bell: Bell,
+  heart: Heart,
+  news: Newspaper,
+  sparkles: Sparkles,
+  user: User,
+  star: Star,
+  message: MessageSquare,
+};
+
+const DEFAULT_ICON: LucideIcon = Radio;
+
+const FALLBACK_ACCENTS = [
+  { dot: '#e8883a', glow: 'rgba(232,136,58,0.18)', label: 'bg-[#e8883a]' },
+  { dot: '#4f98a3', glow: 'rgba(79,152,163,0.18)', label: 'bg-[#4f98a3]' },
+  { dot: '#a86fdf', glow: 'rgba(168,111,223,0.18)', label: 'bg-[#a86fdf]' },
+  { dot: '#6daa45', glow: 'rgba(109,170,69,0.18)',  label: 'bg-[#6daa45]' },
+  { dot: '#dd6974', glow: 'rgba(221,105,116,0.18)', label: 'bg-[#dd6974]' },
+  { dot: '#e8af34', glow: 'rgba(232,175,52,0.18)',  label: 'bg-[#e8af34]' },
+];
 
 function getBogotaDayOfWeek(dateInput: Date | number): number {
   const timestampInSeconds =
@@ -25,14 +66,28 @@ function getBogotaDayOfWeek(dateInput: Date | number): number {
   return utcDay;
 }
 
-const SLOT_ACCENTS = [
-  { dot: '#e8883a', glow: 'rgba(232,136,58,0.18)', label: 'bg-[#e8883a]' },
-  { dot: '#4f98a3', glow: 'rgba(79,152,163,0.18)', label: 'bg-[#4f98a3]' },
-  { dot: '#a86fdf', glow: 'rgba(168,111,223,0.18)', label: 'bg-[#a86fdf]' },
-  { dot: '#6daa45', glow: 'rgba(109,170,69,0.18)',  label: 'bg-[#6daa45]' },
-  { dot: '#dd6974', glow: 'rgba(221,105,116,0.18)', label: 'bg-[#dd6974]' },
-  { dot: '#e8af34', glow: 'rgba(232,175,52,0.18)',  label: 'bg-[#e8af34]' },
-];
+function getCategoryAccent(category: ScheduleCategorySummary | null | undefined, idx: number) {
+  if (category) {
+    return {
+      dot: category.color,
+      glow: `${category.color}2e`,
+    };
+  }
+  return FALLBACK_ACCENTS[idx % FALLBACK_ACCENTS.length];
+}
+
+function CategoryIcon({
+  category,
+  className,
+  style,
+}: {
+  category: ScheduleCategorySummary | null | undefined;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const Icon = category ? (CATEGORY_ICONS[category.icon] ?? DEFAULT_ICON) : Music2;
+  return <Icon className={className} style={style} />;
+}
 
 function TimelineLine({ count }: { count: number }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -62,7 +117,7 @@ function ProgramCard({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-60px' });
-  const accent = SLOT_ACCENTS[idx % SLOT_ACCENTS.length];
+  const accent = getCategoryAccent(program.category, idx);
 
   const startD = new Date(program.start_timestamp * 1000);
   const endD   = new Date(program.end_timestamp   * 1000);
@@ -136,14 +191,25 @@ function ProgramCard({
             </div>
 
             <div className="mt-1.5 flex items-center gap-2">
-              {isLive ? (
-                <Mic2 className="w-3.5 h-3.5 opacity-50" />
+              {program.category ? (
+                <>
+                  <CategoryIcon category={program.category} className="w-3.5 h-3.5" />
+                  <span className="text-xs font-medium" style={{ color: accent.dot }}>
+                    {program.category.name}
+                  </span>
+                </>
               ) : (
-                <Music2 className="w-3.5 h-3.5 opacity-50" />
+                <>
+                  {isLive ? (
+                    <Mic2 className="w-3.5 h-3.5 opacity-50" />
+                  ) : (
+                    <Music2 className="w-3.5 h-3.5 opacity-50" />
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    {isLive ? 'Programa en vivo con locutor' : 'Programa automático'}
+                  </span>
+                </>
               )}
-              <span className="text-xs text-muted-foreground">
-                {isLive ? 'Programa en vivo con locutor' : 'Programa automático'}
-              </span>
             </div>
           </div>
         </div>
@@ -187,6 +253,42 @@ function DayPill({
   );
 }
 
+function CategoryChip({
+  label,
+  color,
+  isSelected,
+  onClick,
+}: {
+  label: string;
+  color?: string;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.93 }}
+      onClick={onClick}
+      className={`
+        flex-shrink-0 flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-medium transition-colors duration-150 outline-none
+        focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+        ${isSelected
+          ? 'text-white shadow-sm'
+          : 'text-muted-foreground hover:text-foreground bg-card border border-border'
+        }
+      `}
+      style={isSelected && color ? { background: color } : undefined}
+    >
+      {color && (
+        <span
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{ background: isSelected ? '#ffffff' : color }}
+        />
+      )}
+      {label}
+    </motion.button>
+  );
+}
+
 function SkeletonCard() {
   return (
     <div className="relative flex gap-5 pl-14 pb-8">
@@ -204,10 +306,12 @@ export function ProgramacionPage() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
-  const { fetchSchedule } = useAzuraCast({});
+  const { fetchSchedule, fetchScheduleCategories } = useAzuraCast({});
   const [schedule, setSchedule]   = useState<ScheduleItem[]>([]);
+  const [categories, setCategories] = useState<ScheduleCategorySummary[]>([]);
   const [loading, setLoading]     = useState(true);
   const [selectedProgram, setSelectedProgram] = useState<ScheduleItem | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   const currentDay = getBogotaDayOfWeek(new Date());
   const [selectedDay, setSelectedDay] = useState(currentDay);
@@ -215,8 +319,12 @@ export function ProgramacionPage() {
   useEffect(() => {
     async function loadSchedule() {
       try {
-        const data = await fetchSchedule();
+        const [data, categoryData] = await Promise.all([
+          fetchSchedule(),
+          fetchScheduleCategories(),
+        ]);
         if (data) setSchedule(data);
+        if (categoryData) setCategories(categoryData);
       } catch (err) {
         console.error('Error fetching schedule:', err);
       } finally {
@@ -224,14 +332,21 @@ export function ProgramacionPage() {
       }
     }
     loadSchedule();
-  }, [fetchSchedule]);
+  }, [fetchSchedule, fetchScheduleCategories]);
 
-  const programsForDay = schedule
-    .filter(item => getBogotaDayOfWeek(item.start_timestamp) === selectedDay)
-    .sort((a, b) => a.start_timestamp - b.start_timestamp)
-    .filter((item, index, self) =>
-      index === self.findIndex(i => i.id === item.id && i.start_timestamp === item.start_timestamp)
-    );
+  const programsForDay = useMemo(() => {
+    return schedule
+      .filter(item => getBogotaDayOfWeek(item.start_timestamp) === selectedDay)
+      .sort((a, b) => a.start_timestamp - b.start_timestamp)
+      .filter((item, index, self) =>
+        index === self.findIndex(i => i.id === item.id && i.start_timestamp === item.start_timestamp)
+      )
+      .filter(item =>
+        selectedCategoryId === null || item.category?.id === selectedCategoryId
+      );
+  }, [schedule, selectedDay, selectedCategoryId]);
+
+  const filteredCategory = categories.find(c => c.id === selectedCategoryId) ?? null;
 
   return (
     <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
@@ -271,7 +386,7 @@ export function ProgramacionPage() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.15 }}
           aria-label="Seleccionar día"
-          className="flex gap-1 p-1.5 rounded-2xl mb-10 overflow-x-auto no-scrollbar bg-muted"
+          className="flex gap-1 p-1.5 rounded-2xl mb-6 overflow-x-auto no-scrollbar bg-muted"
         >
           {DAYS.map((day, i) => (
             <DayPill
@@ -283,6 +398,31 @@ export function ProgramacionPage() {
             />
           ))}
         </motion.nav>
+
+        {categories.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            aria-label="Filtrar por tipo de programa"
+            className="flex gap-2 mb-8 overflow-x-auto no-scrollbar pb-1"
+          >
+            <CategoryChip
+              label="Todas"
+              isSelected={selectedCategoryId === null}
+              onClick={() => setSelectedCategoryId(null)}
+            />
+            {categories.map((category) => (
+              <CategoryChip
+                key={category.id}
+                label={category.name}
+                color={category.color}
+                isSelected={selectedCategoryId === category.id}
+                onClick={() => setSelectedCategoryId(category.id)}
+              />
+            ))}
+          </motion.div>
+        )}
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -317,7 +457,7 @@ export function ProgramacionPage() {
 
         <AnimatePresence mode="wait">
           <motion.div
-            key={`day-${selectedDay}`}
+            key={`day-${selectedDay}-${selectedCategoryId}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -353,9 +493,13 @@ export function ProgramacionPage() {
                   <Music2 className="w-5 h-5 opacity-40 text-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-[15px] mb-1">Programación continua</h3>
+                  <h3 className="font-semibold text-[15px] mb-1">
+                    {selectedCategoryId ? 'Sin programas en esta categoría' : 'Programación continua'}
+                  </h3>
                   <p className="text-sm leading-relaxed max-w-[28ch] text-muted-foreground">
-                    La radio transmite música continua este día. No hay eventos especiales agendados.
+                    {selectedCategoryId
+                      ? `No hay programas de "${filteredCategory?.name ?? 'esta categoría'}" agendados para este día.`
+                      : 'La radio transmite música continua este día. No hay eventos especiales agendados.'}
                   </p>
                 </div>
               </motion.div>
@@ -373,6 +517,25 @@ export function ProgramacionPage() {
             <DialogDescription>
               {selectedProgram && (
                 <div className="space-y-3 mt-2">
+                  {selectedProgram.category && (
+                    <div className="flex items-center gap-2">
+                      <CategoryIcon
+                        category={selectedProgram.category}
+                        className="w-4 h-4"
+                      />
+                      <span
+                        className="text-sm font-medium"
+                        style={{ color: selectedProgram.category.color }}
+                      >
+                        {selectedProgram.category.name}
+                      </span>
+                    </div>
+                  )}
+                  {selectedProgram.category?.description && (
+                    <p className="text-sm text-muted-foreground">
+                      {selectedProgram.category.description}
+                    </p>
+                  )}
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 opacity-60" />
                     <span className="text-sm">

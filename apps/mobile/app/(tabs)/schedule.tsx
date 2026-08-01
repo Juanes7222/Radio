@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAzuraCast } from '@radio/api';
-import type { ScheduleItem } from '@radio/types';
+import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 import { formatScheduleTime } from '../../lib/formatMedia';
 import { BACKEND_URL } from '@/constants/api';
 
@@ -25,7 +25,7 @@ function getBogotaDayOfWeek(dateInput: Date | number): number {
   return utcDay;
 }
 
-const SLOT_ACCENTS = [
+const FALLBACK_ACCENTS = [
   { dot: '#e8883a', glow: 'rgba(232,136,58,0.25)' },
   { dot: '#4f98a3', glow: 'rgba(79,152,163,0.25)' },
   { dot: '#a86fdf', glow: 'rgba(168,111,223,0.25)' },
@@ -34,16 +34,40 @@ const SLOT_ACCENTS = [
   { dot: '#e8af34', glow: 'rgba(232,175,52,0.25)' },
 ];
 
+const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  music: 'musical-notes',
+  mic: 'mic',
+  radio: 'radio',
+  book: 'book',
+  flag: 'flag',
+  bell: 'notifications',
+  heart: 'heart',
+  news: 'newspaper',
+  sparkles: 'sparkles',
+  user: 'person',
+  star: 'star',
+  message: 'chatbubble',
+};
+
 const BACKGROUND = '#0c0c1e';
 const CARD_BG = '#16162c';
 const TEXT_MUTED = '#8b92a5';
 
-function ProgramCard({ program, idx, onPress }: { program: ScheduleItem; idx: number; onPress?: () => void }) {
-  const accent = SLOT_ACCENTS[idx % SLOT_ACCENTS.length];
+function getAccent(category: ScheduleCategorySummary | null | undefined, idx: number) {
+  if (category) {
+    return { dot: category.color, glow: `${category.color}40` };
+  }
+  return FALLBACK_ACCENTS[idx % FALLBACK_ACCENTS.length];
+}
 
-  // const startD = new Date(program.start_timestamp * 1000);
-  // const endD = new Date(program.end_timestamp * 1000);
-  
+function getCategoryIcon(category: ScheduleCategorySummary | null | undefined): keyof typeof Ionicons.glyphMap {
+  if (!category) return 'musical-notes';
+  return CATEGORY_ICONS[category.icon] ?? 'radio';
+}
+
+function ProgramCard({ program, idx, onPress }: { program: ScheduleItem; idx: number; onPress?: () => void }) {
+  const accent = getAccent(program.category, idx);
+
   const startTime = formatScheduleTime(program.start_timestamp);
   const endTime = formatScheduleTime(program.end_timestamp);
   
@@ -82,14 +106,25 @@ function ProgramCard({ program, idx, onPress }: { program: ScheduleItem; idx: nu
             </View>
 
             <View style={styles.typeRow}>
-              <Ionicons 
-                name={isLive ? "mic-outline" : "musical-notes-outline"} 
-                size={14} 
-                color={TEXT_MUTED} 
-              />
-              <Text style={styles.typeText}>
-                {isLive ? 'En vivo' : 'Programa automático'}
-              </Text>
+              {program.category ? (
+                <>
+                  <Ionicons name={getCategoryIcon(program.category)} size={14} color={accent.dot} />
+                  <Text style={[styles.categoryText, { color: accent.dot }]}>
+                    {program.category.name}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons 
+                    name={isLive ? "mic-outline" : "musical-notes-outline"} 
+                    size={14} 
+                    color={TEXT_MUTED} 
+                  />
+                  <Text style={styles.typeText}>
+                    {isLive ? 'En vivo' : 'Programa automático'}
+                  </Text>
+                </>
+              )}
             </View>
           </View>
         </View>
@@ -98,12 +133,46 @@ function ProgramCard({ program, idx, onPress }: { program: ScheduleItem; idx: nu
   );
 }
 
+function CategoryChip({
+  label,
+  color,
+  isSelected,
+  onPress,
+}: {
+  label: string;
+  color?: string;
+  isSelected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={[styles.chip, isSelected && color ? { backgroundColor: color } : null]}
+    >
+      {color && (
+        <View
+          style={[
+            styles.chipDot,
+            { backgroundColor: isSelected ? '#ffffff' : color },
+          ]}
+        />
+      )}
+      <Text style={[styles.chipText, isSelected && styles.chipTextSelected]} numberOfLines={1}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
-  const { fetchSchedule } = useAzuraCast({ apiBaseUrl: BACKEND_URL });
+  const { fetchSchedule, fetchScheduleCategories } = useAzuraCast({ apiBaseUrl: BACKEND_URL });
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+  const [categories, setCategories] = useState<ScheduleCategorySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProgram, setSelectedProgram] = useState<ScheduleItem | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   const currentDay = getBogotaDayOfWeek(new Date());
   const [selectedDay, setSelectedDay] = useState(currentDay);
@@ -111,8 +180,12 @@ export default function ScheduleScreen() {
   useEffect(() => {
     async function loadSchedule() {
       try {
-        const data = await fetchSchedule();
+        const [data, categoryData] = await Promise.all([
+          fetchSchedule(),
+          fetchScheduleCategories(),
+        ]);
         if (data) setSchedule(data);
+        if (categoryData) setCategories(categoryData);
       } catch (err) {
         console.error('Error fetching schedule:', err);
       } finally {
@@ -120,14 +193,19 @@ export default function ScheduleScreen() {
       }
     }
     loadSchedule();
-  }, [fetchSchedule]);
+  }, [fetchSchedule, fetchScheduleCategories]);
 
   const programsForDay = schedule
     .filter(item => getBogotaDayOfWeek(item.start_timestamp) === selectedDay)
     .sort((a, b) => a.start_timestamp - b.start_timestamp)
     .filter((item, index, self) =>
       index === self.findIndex(i => i.id === item.id && i.start_timestamp === item.start_timestamp)
+    )
+    .filter(item =>
+      selectedCategoryId === null || item.category?.id === selectedCategoryId
     );
+
+  const selectedCategory = categories.find(c => c.id === selectedCategoryId) ?? null;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -174,6 +252,31 @@ export default function ScheduleScreen() {
           ))}
         </ScrollView>
 
+        {/* Filtro por categoría */}
+        {categories.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoriesScroll}
+            contentContainerStyle={styles.categoriesContainer}
+          >
+            <CategoryChip
+              label="Todas"
+              isSelected={selectedCategoryId === null}
+              onPress={() => setSelectedCategoryId(null)}
+            />
+            {categories.map((category) => (
+              <CategoryChip
+                key={category.id}
+                label={category.name}
+                color={category.color}
+                isSelected={selectedCategoryId === category.id}
+                onPress={() => setSelectedCategoryId(category.id)}
+              />
+            ))}
+          </ScrollView>
+        )}
+
         {/* Cabecera del día */}
         <View style={styles.dayHeader}>
           <View>
@@ -205,9 +308,13 @@ export default function ScheduleScreen() {
             <View style={styles.emptyIconContainer}>
               <Ionicons name="musical-notes" size={24} color={TEXT_MUTED} />
             </View>
-            <Text style={styles.emptyTitle}>Programación continua</Text>
+            <Text style={styles.emptyTitle}>
+              {selectedCategoryId ? 'Sin programas en esta categoría' : 'Programación continua'}
+            </Text>
             <Text style={styles.emptyDesc}>
-              La radio transmite música continua este día. No hay eventos especiales agendados.
+              {selectedCategoryId
+                ? `No hay programas de "${selectedCategory?.name ?? 'esta categoría'}" agendados para este día.`
+                : 'La radio transmite música continua este día. No hay eventos especiales agendados.'}
             </Text>
           </View>
         )}
@@ -229,6 +336,25 @@ export default function ScheduleScreen() {
               </Pressable>
             </View>
             <View style={styles.modalBody}>
+              {selectedProgram?.category && (
+                <>
+                  <View style={styles.detailRow}>
+                    <Ionicons
+                      name={getCategoryIcon(selectedProgram.category)}
+                      size={18}
+                      color={selectedProgram.category.color}
+                    />
+                    <Text style={[styles.categoryName, { color: selectedProgram.category.color }]}>
+                      {selectedProgram.category.name}
+                    </Text>
+                  </View>
+                  {selectedProgram.category.description && (
+                    <Text style={styles.categoryDescription}>
+                      {selectedProgram.category.description}
+                    </Text>
+                  )}
+                </>
+              )}
               <View style={styles.detailRow}>
                 <Ionicons name="time-outline" size={18} color={TEXT_MUTED} />
                 <Text style={styles.detailText}>
@@ -291,7 +417,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   daysScroll: {
-    marginBottom: 24,
+    marginBottom: 12,
   },
   daysContainer: {
     gap: 8,
@@ -322,6 +448,38 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: '#4f98a3',
+  },
+  categoriesScroll: {
+    marginBottom: 20,
+  },
+  categoriesContainer: {
+    gap: 8,
+    paddingRight: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    maxWidth: 180,
+  },
+  chipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  chipText: {
+    color: TEXT_MUTED,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chipTextSelected: {
+    color: '#ffffff',
   },
   dayHeader: {
     flexDirection: 'row',
@@ -461,6 +619,11 @@ const styles = StyleSheet.create({
     color: TEXT_MUTED,
     fontSize: 12,
   },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
   emptyState: {
     alignItems: 'center',
     padding: 40,
@@ -483,6 +646,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptyDesc: {
     color: TEXT_MUTED,
@@ -536,5 +700,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     flex: 1,
+  },
+  categoryName: {
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+  },
+  categoryDescription: {
+    color: TEXT_MUTED,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

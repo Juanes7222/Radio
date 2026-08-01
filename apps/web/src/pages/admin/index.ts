@@ -6,4 +6,5 @@ export { default as AdminRequests } from './AdminRequests';
 export { default as AdminPrayerRequests } from './AdminPrayerRequests';
 export { default as AdminStreaming } from './AdminStreaming';
 export { default as AdminSchedule } from './AdminSchedule';
+export { default as AdminScheduleCategories } from './AdminScheduleCategories';
 export { default as AdminUpload } from './AdminUpload';

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import axios, { type AxiosRequestConfig } from 'axios';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import type { ScheduleCategory } from '@radio/types';
 
 const STATION_ID = import.meta.env.VITE_STATION_ID || 'la_voz_de_la_verdad';
 
@@ -162,6 +163,41 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Categorías de programación ──────────────────────────────
+  const getScheduleCategories = useCallback(
+    () => request<ScheduleCategory[]>({ url: '/admin-api/schedule-categories' }),
+    [request]
+  );
+
+  const createScheduleCategory = useCallback(
+    (data: Partial<ScheduleCategory>) =>
+      request<ScheduleCategory>({
+        method: 'POST',
+        url: '/admin-api/schedule-categories',
+        data,
+      }),
+    [request]
+  );
+
+  const updateScheduleCategory = useCallback(
+    (id: string, data: Partial<ScheduleCategory>) =>
+      request<ScheduleCategory>({
+        method: 'PUT',
+        url: `/admin-api/schedule-categories/${id}`,
+        data,
+      }),
+    [request]
+  );
+
+  const deleteScheduleCategory = useCallback(
+    (id: string) =>
+      request({
+        method: 'DELETE',
+        url: `/admin-api/schedule-categories/${id}`,
+      }),
+    [request]
+  );
+
   // ── Controles de estación ─────────────────────────────────────
   const skipCurrentTrack = useCallback(
     () => request({ method: 'POST', url: '/admin-api/station/backend/skip' }),
@@ -190,6 +226,10 @@ export function useAdminApi() {
     deleteStreamer,
     getSchedule,
     getMedia,
+    getScheduleCategories,
+    createScheduleCategory,
+    updateScheduleCategory,
+    deleteScheduleCategory,
     skipCurrentTrack,
     restartStation,
     stationId,

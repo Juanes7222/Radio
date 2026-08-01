@@ -8,6 +8,7 @@ import {
   Heart,
   Mic2,
   CalendarDays,
+  Tags,
   LogOut,
   Radio,
   Menu,
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { to: '/admin/prayer', label: 'Oración', icon: Heart },
   { to: '/admin/streaming', label: 'Streaming / DJs', icon: Mic2 },
   { to: '/admin/schedule', label: 'Programación', icon: CalendarDays },
+  { to: '/admin/schedule/categories', label: 'Tipos de programa', icon: Tags },
 ];
 
 const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
