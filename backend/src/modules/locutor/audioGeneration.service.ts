@@ -1,0 +1,367 @@
+import path from "path";
+import { prisma } from "../../infrastructure/database/prisma";
+import { synthesize } from "./tts.service";
+import { renderTemplate } from "./template.service";
+import { uploadAudioToAzuraCast } from "../azuracast/playback.service";
+import { config } from "../../config";
+import { logger } from "../../shared/logger/logger";
+import type { TimeSlotGroup } from "./timeSlotPlanner.service";
+
+const MEDIA_DIR = config.locutor.mediaDir;
+
+const HOUR_WORDS: Record<number, string> = {
+  0: "doce",
+  1: "una",
+  2: "dos",
+  3: "tres",
+  4: "cuatro",
+  5: "cinco",
+  6: "seis",
+  7: "siete",
+  8: "ocho",
+  9: "nueve",
+  10: "diez",
+  11: "once",
+  12: "doce",
+  13: "una",
+  14: "dos",
+  15: "tres",
+  16: "cuatro",
+  17: "cinco",
+  18: "seis",
+  19: "siete",
+  20: "ocho",
+  21: "nueve",
+  22: "diez",
+  23: "once",
+};
+
+const PERIOD_WORDS: Record<number, string> = {
+  0: "de la noche",
+  1: "de la madrugada",
+  2: "de la madrugada",
+  3: "de la madrugada",
+  4: "de la madrugada",
+  5: "de la madrugada",
+  6: "de la mañana",
+  7: "de la mañana",
+  8: "de la mañana",
+  9: "de la mañana",
+  10: "de la mañana",
+  11: "de la mañana",
+  12: "del mediodía",
+  13: "de la tarde",
+  14: "de la tarde",
+  15: "de la tarde",
+  16: "de la tarde",
+  17: "de la tarde",
+  18: "de la tarde",
+  19: "de la noche",
+  20: "de la noche",
+  21: "de la noche",
+  22: "de la noche",
+  23: "de la noche",
+};
+
+function numberToSpanishHour(hour24: number): string {
+  return HOUR_WORDS[hour24] ?? `${hour24}`;
+}
+
+function periodInSpanish(hour24: number): string {
+  return PERIOD_WORDS[hour24] ?? "de la noche";
+}
+
+export interface GenerationResult {
+  audioId: string;
+  filename: string;
+  filepath: string;
+  durationMs: number;
+  fileSizeBytes: number;
+  wasReused: boolean;
+}
+
+export interface GenerationRequest {
+  templateId?: string;
+  hour: number;
+  minutes?: number;
+  group: TimeSlotGroup;
+  text?: string;
+  voice?: string;
+  speed?: number;
+  stationName?: string;
+}
+
+function getDayIndex(): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Returns the active template for a given hour, rotating across
+ * available templates based on the hour and day index.
+ */
+export async function getTemplateForHour(hour: number): Promise<{
+  id: string;
+  voice: string;
+  speed: number;
+  textTemplate: string;
+  name: string;
+}> {
+  const templates = await prisma.announcementTemplate.findMany({
+    where: { type: "hourly", active: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (templates.length === 0) {
+    throw new Error("No active hourly templates found");
+  }
+
+  const index = (hour + getDayIndex()) % templates.length;
+  const template = templates[index];
+
+  return {
+    id: template.id,
+    voice: template.voice,
+    speed: template.speed,
+    textTemplate: template.textTemplate,
+    name: template.name,
+  };
+}
+
+/**
+ * Generates or reuses a time announcement audio.
+ * If no templateId is provided, picks one automatically by
+ * rotating across active templates based on (hour + dayIndex).
+ * When reusing, it only reuses audio generated with the same template.
+ */
+export async function generateOrReuseAudio(request: GenerationRequest): Promise<GenerationResult> {
+  let { templateId, hour, group, voice, speed } = request;
+
+  if (!templateId) {
+    const picked = await getTemplateForHour(hour);
+    templateId = picked.id;
+    voice = voice || picked.voice;
+    speed = speed || picked.speed;
+  }
+
+  const existing = await findReusableAudio(hour, group, templateId);
+  if (existing) {
+    logger.info("AudioGeneration", "Reusing existing audio", {
+      audioId: existing.id,
+      hour,
+      group,
+      templateId,
+    });
+
+    return {
+      audioId: existing.id,
+      filename: existing.filename,
+      filepath: existing.filepath,
+      durationMs: existing.durationMs || 0,
+      fileSizeBytes: existing.fileSizeBytes || 0,
+      wasReused: true,
+    };
+  }
+
+  return generateNewAudio({ ...request, templateId, voice, speed });
+}
+
+/**
+ * Finds a reusable audio matching the hour and group criteria.
+ */
+async function findReusableAudio(hour: number, group: TimeSlotGroup, templateId: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return prisma.generatedAudio.findFirst({
+    where: {
+      hourValue: hour,
+      timeSlotGroup: group,
+      templateId,
+      status: "ready",
+      OR: [{ lastUsedDate: null }, { lastUsedDate: { lt: today } }],
+    },
+    orderBy: [{ useCount: "asc" }, { generatedAt: "desc" }],
+  });
+}
+
+/**
+ * Generates a new audio file using TTS.
+ */
+async function generateNewAudio(request: GenerationRequest): Promise<GenerationResult> {
+  const { templateId, hour, minutes, group, text, voice, speed } = request;
+
+  const template = await prisma.announcementTemplate.findUnique({
+    where: { id: templateId },
+  });
+
+  if (!template) {
+    throw new Error(`Template ${templateId} not found`);
+  }
+
+  const hour12 = hour % 12 || 12;
+  const hourText = numberToSpanishHour(hour);
+  const periodText = periodInSpanish(hour);
+  const minute = minutes !== undefined ? minutes : 0;
+  const renderedText =
+    text ||
+    renderTemplate(template.textTemplate, {
+      hour: String(hour12),
+      hour24: String(hour),
+      hour_text: hourText,
+      period: periodText,
+      period_greeting: periodText,
+      minutes: String(minute).padStart(2, "0"),
+    });
+
+  const filename = `hora_${String(hour).padStart(2, "0")}_${Date.now()}.mp3`;
+  const filepath = path.join(MEDIA_DIR, filename);
+
+  const { duration_ms, file_size_bytes } = await synthesize({
+    text: renderedText,
+    voice: voice || template.voice,
+    speed: speed || template.speed,
+    outputPath: filepath,
+  });
+
+  let azuracastMediaId: string | null = null;
+  try {
+    azuracastMediaId = await uploadAudioToAzuraCast(filepath, filename);
+  } catch (err) {
+    logger.warn("AudioGeneration", "Failed to upload to AzuraCast, audio will be local only", {
+      filename,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  const audio = await prisma.generatedAudio.create({
+    data: {
+      templateId: template.id,
+      filename,
+      filepath,
+      textRendered: renderedText,
+      durationMs: Math.round(duration_ms),
+      fileSizeBytes: file_size_bytes,
+      voice: voice || template.voice,
+      hourValue: hour,
+      timeSlotGroup: group,
+      status: "ready",
+      azuracastMediaId: azuracastMediaId || null,
+    },
+  });
+
+  logger.info("AudioGeneration", "Generated new audio", {
+    audioId: audio.id,
+    hour,
+    group,
+    durationMs: Math.round(duration_ms),
+  });
+
+  return {
+    audioId: audio.id,
+    filename,
+    filepath,
+    durationMs: Math.round(duration_ms),
+    fileSizeBytes: file_size_bytes,
+    wasReused: false,
+  };
+}
+
+/**
+ * Marks an audio as used for scheduling and creates the schedule entry.
+ */
+export async function scheduleAudioForDate(
+  audioId: string,
+  date: Date,
+  hour: number,
+  azuracastPlaylistId?: string
+): Promise<void> {
+  const dateOnly = new Date(date);
+  dateOnly.setHours(0, 0, 0, 0);
+
+  await prisma.generatedAudio.update({
+    where: { id: audioId },
+    data: {
+      lastUsedAt: new Date(),
+      lastUsedDate: dateOnly,
+      useCount: { increment: 1 },
+    },
+  });
+
+  await prisma.audioSchedule.upsert({
+    where: {
+      scheduledDate_scheduledHour: {
+        scheduledDate: date,
+        scheduledHour: hour,
+      },
+    },
+    create: {
+      audioId,
+      scheduledDate: date,
+      scheduledHour: hour,
+      azuracastPlaylistId: azuracastPlaylistId || null,
+      enabled: true,
+    },
+    update: {
+      audioId,
+      azuracastPlaylistId: azuracastPlaylistId || null,
+      enabled: true,
+    },
+  });
+
+  logger.info("AudioGeneration", "Scheduled audio", {
+    audioId,
+    date: dateOnly.toISOString().split("T")[0],
+    hour,
+  });
+}
+
+/**
+ * Expires old audios that haven't been used in a long time
+ * to free up disk space.
+ */
+export async function expireOldAudios(maxUnusedDays: number = 30): Promise<number> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - maxUnusedDays);
+
+  const oldAudios = await prisma.generatedAudio.findMany({
+    where: {
+      status: "ready",
+      lastUsedAt: { lt: cutoff },
+      useCount: { gt: 0 },
+    },
+  });
+
+  let expired = 0;
+  for (const audio of oldAudios) {
+    await prisma.generatedAudio.update({
+      where: { id: audio.id },
+      data: { status: "expired" },
+    });
+    expired++;
+  }
+
+  if (expired > 0) {
+    logger.info("AudioGeneration", "Expired old audios", { count: expired });
+  }
+
+  return expired;
+}
+
+/**
+ * Returns count of audios by status.
+ */
+export async function getAudioCountByStatus(): Promise<Record<string, number>> {
+  const result = await prisma.generatedAudio.groupBy({
+    by: ["status"],
+    _count: { id: true },
+  });
+
+  const counts: Record<string, number> = {};
+  for (const row of result) {
+    counts[row.status] = row._count.id;
+  }
+  return counts;
+}

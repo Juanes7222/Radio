@@ -1,17 +1,18 @@
-import { registerNightlyJob } from './nightly.job';
-import { registerHourlyJob } from './hourly.job';
-// import { registerPlaylistCleanupJob } from './playlistCleanup.job';
-import { registerFolderCleanupJob } from './folderCleanup.job';
-import { registerPlaybackJob } from './playback.job';
-import { registerJobRecovery } from './jobRecovery';
+import { registerNightlyJob } from "../modules/locutor/nightly.job";
+import { registerHourlyJob } from "../modules/locutor/hourly.job";
+import { registerFolderCleanupJob } from "../modules/azuracast/cleanup/folderCleanup.job";
+import { registerPlaybackJob } from "../modules/locutor/playback.job";
+import { registerJobRecovery } from "../modules/workers/jobRecovery.job";
+import { logger } from "../shared/logger/logger";
 
 export function startScheduler() {
-    registerNightlyJob();
-    registerHourlyJob();
-    // registerPlaylistCleanupJob();
-    registerFolderCleanupJob();
-    registerPlaybackJob();
-    registerJobRecovery();
-    console.log('[Scheduler] Jobs registrados: Nightly (2:30 AM), Hourly Check (:45), Playlist Cleanup (07:00, 14:00, 19:00), Playback (avisos aleatorios en horas seguras), Job Recovery (cada 5 min)');
-    console.log('[Scheduler] Nightly job now uses Prisma and intelligent time-slot planning.');
+  registerNightlyJob();
+  registerHourlyJob();
+  registerFolderCleanupJob();
+  registerPlaybackJob();
+  registerJobRecovery();
+  logger.info(
+    "Scheduler",
+    "Jobs registered: Nightly (2:30 AM), Hourly Check (:45), Folder Cleanup (07:00, 13:00, 19:00), Playback (random announcements in safe hours), Job Recovery (every 5 min)"
+  );
 }
