@@ -117,22 +117,27 @@ export default function AdminUpload() {
   // ── Carga inicial ────────────────────────────────────────────────────────────
 
   const loadData = useCallback(async () => {
-    setLoadingFiles(true);
     try {
-      const [playlistsRes, filesRes] = await Promise.all([
+      const result = await Promise.all([
         axios.get<AdminPlaylist[]>('/admin-api/station/playlists', { headers: authHeaders }),
         axios.get<{ rows: MediaFile[] }>('/admin-api/upload/recent', { headers: authHeaders }),
-      ]);
+      ]).catch(() => null);
+      if (!result) return;
+
+      const [playlistsRes, filesRes] = result;
       setPlaylists(playlistsRes.data.filter((p) => p.is_enabled));
       setRecentFiles((filesRes.data.rows ?? []).slice(0, 20));
-    } catch {
-      // lista vacía
     } finally {
       setLoadingFiles(false);
     }
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const handleRefresh = useCallback(() => {
+    setLoadingFiles(true);
+    void loadData();
+  }, [loadData]);
+
+  useEffect(() => { void loadData(); }, [loadData]);
 
   // ── Agregar archivos a la cola ───────────────────────────────────────────────
 
@@ -594,7 +599,7 @@ export default function AdminUpload() {
               <Music className="w-4 h-4 text-primary" />
               Archivos en la biblioteca
             </CardTitle>
-            <Button variant="ghost" size="icon" onClick={loadData} disabled={loadingFiles}>
+            <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={loadingFiles}>
               <RefreshCw className={`w-4 h-4 ${loadingFiles ? 'animate-spin' : ''}`} />
             </Button>
           </div>

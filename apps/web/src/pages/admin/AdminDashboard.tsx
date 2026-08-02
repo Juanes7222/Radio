@@ -57,7 +57,6 @@ export default function AdminDashboard() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
   const loadData = useCallback(async () => {
-    setLoading(true);
     try {
       const [npData, listData, status] = await Promise.allSettled([
         getNowPlaying(),
@@ -77,8 +76,13 @@ export default function AdminDashboard() {
     }
   }, [getNowPlaying, getListeners, getStatus]);
 
+  const handleRefresh = useCallback(() => {
+    setLoading(true);
+    void loadData();
+  }, [loadData]);
+
   useEffect(() => {
-    loadData();
+    void loadData();
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, [loadData]);
@@ -133,7 +137,7 @@ export default function AdminDashboard() {
             <RotateCcw className={`w-4 h-4 ${restartLoading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Reiniciar</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading} className="gap-1.5">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Actualizar</span>
           </Button>

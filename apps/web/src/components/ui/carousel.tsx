@@ -91,13 +91,18 @@ function Carousel({
     setApi(api)
   }, [api, setApi])
 
-  React.useEffect(() => {
+  // Layout effect so the "init" subscription is registered before Embla's
+  // deferred init event fires (it is emitted via setTimeout after activation).
+  React.useLayoutEffect(() => {
     if (!api) return
-    onSelect(api)
+
+    api.on("init", onSelect)
     api.on("reInit", onSelect)
     api.on("select", onSelect)
 
     return () => {
+      api?.off("init", onSelect)
+      api?.off("reInit", onSelect)
       api?.off("select", onSelect)
     }
   }, [api, onSelect])

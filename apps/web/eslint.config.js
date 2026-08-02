@@ -20,4 +20,13 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // shadcn/ui primitives intentionally export cva variants and helper
+    // hooks alongside components (e.g. buttonVariants, useFormField),
+    // which is not compatible with fast refresh's component-only rule.
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

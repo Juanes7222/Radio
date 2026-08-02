@@ -7,6 +7,26 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { signInWithPopup, type UserCredential } from 'firebase/auth';
 
+interface FirebaseAuthError {
+  code?: string;
+  message?: string;
+}
+
+function isPopupClosedByUser(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as FirebaseAuthError).code === 'auth/popup-closed-by-user'
+  );
+}
+
+function getFirebaseErrorMessage(err: unknown): string {
+  if (typeof err === 'object' && err !== null && 'message' in err) {
+    return String((err as FirebaseAuthError).message ?? 'Error al iniciar sesion con Google.');
+  }
+  return 'Error al iniciar sesion con Google.';
+}
+
 export default function AdminLogin() {
   const { login, isLoading, error, user } = useAdminAuth();
   const navigate = useNavigate();
@@ -29,11 +49,11 @@ export default function AdminLogin() {
       const idToken = await result.user.getIdToken();
       const ok = await login(idToken);
       if (ok) navigate('/admin/dashboard');
-    } catch (err: any) {
-      if (err.code === 'auth/popup-closed-by-user') {
+    } catch (err: unknown) {
+      if (isPopupClosedByUser(err)) {
         return;
       }
-      setFirebaseError(err.message ?? 'Error al iniciar sesion con Google.');
+      setFirebaseError(getFirebaseErrorMessage(err));
     }
   };
 

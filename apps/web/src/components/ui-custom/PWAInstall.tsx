@@ -14,38 +14,38 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000;
+
 export function PWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallDialog, setShowInstallDialog] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(display-mode: standalone)').matches;
+  });
+  const [isDismissed, setIsDismissed] = useState(() => {
+    const dismissedAt = localStorage.getItem('pwa-install-dismissed');
+    if (!dismissedAt) return false;
+    return Date.now() - Number.parseInt(dismissedAt, 10) < SEVEN_DAYS_IN_MS;
+  });
 
   useEffect(() => {
-    // Verificar si ya está instalada
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true);
-      return;
-    }
-
-    // Escuchar evento beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      
-      // Mostrar diálogo después de 5 segundos
+
       setTimeout(() => {
         setShowInstallDialog(true);
       }, 5000);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // Escuchar evento appinstalled
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
       setShowInstallDialog(false);
     };
 
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
@@ -69,17 +69,11 @@ export function PWAInstall() {
 
   const handleDismiss = () => {
     setShowInstallDialog(false);
-    // Guardar en localStorage para no mostrar de nuevo
     localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+    setIsDismissed(true);
   };
 
-  // No mostrar si ya está instalada o fue descartada recientemente
-  if (isInstalled) return null;
-  
-  const dismissed = localStorage.getItem('pwa-install-dismissed');
-  if (dismissed && Date.now() - parseInt(dismissed) < 7 * 24 * 60 * 60 * 1000) {
-    return null;
-  }
+  if (isInstalled || isDismissed) return null;
 
   return (
     <Dialog open={showInstallDialog} onOpenChange={setShowInstallDialog}>

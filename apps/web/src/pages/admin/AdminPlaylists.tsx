@@ -28,7 +28,6 @@ export default function AdminPlaylists() {
   const [createError, setCreateError] = useState('');
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await getPlaylists();
       setPlaylists(data as AdminPlaylist[]);
@@ -37,7 +36,12 @@ export default function AdminPlaylists() {
     }
   }, [getPlaylists]);
 
-  useEffect(() => { load(); }, [load]);
+  const handleRefresh = useCallback(() => {
+    setLoading(true);
+    void load();
+  }, [load]);
+
+  useEffect(() => { void load(); }, [load]);
 
   const handleToggle = async (id: number) => {
     setActionId(id);
@@ -97,7 +101,7 @@ export default function AdminPlaylists() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>

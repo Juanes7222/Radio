@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- data module with JSX icons, not a component file */
 import { Facebook, Instagram, Youtube } from 'lucide-react';
 
 export const SOCIAL_LINKS = [

@@ -33,20 +33,24 @@ export default function AdminSchedule() {
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'timeline'>('list');
+  const [now, setNow] = useState(() => Date.now() / 1000);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await getSchedule();
       setSchedule(data as ScheduleItem[]);
+      setNow(Date.now() / 1000);
     } finally {
       setLoading(false);
     }
   }, [getSchedule]);
 
-  useEffect(() => { load(); }, [load]);
+  const handleRefresh = useCallback(() => {
+    setLoading(true);
+    void load();
+  }, [load]);
 
-  const now = Date.now() / 1000;
+  useEffect(() => { void load(); }, [load]);
 
   const upcoming = schedule.filter((s) => s.end_timestamp > now);
   const active = upcoming.filter((s) => s.start_timestamp <= now);
@@ -84,7 +88,7 @@ export default function AdminSchedule() {
               Línea de tiempo
             </button>
           </div>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>

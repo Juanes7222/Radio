@@ -11,6 +11,14 @@ import type { Streamer } from '@radio/types';
 
 const STATION_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 
+function getStreamersErrorMessage(err: unknown): string {
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  if (status === 500) {
+    return 'Los streamers no están disponibles o la clave API no tiene permisos de administrador.';
+  }
+  return 'Error al conectar con AzuraCast. Verifica que el servidor esté en línea.';
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
@@ -60,24 +68,32 @@ export default function AdminStreaming() {
   const stationId = user?.stationId ?? '';
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setStreamersError(null);
     try {
-      const data = await getStreamers();
-      setStreamers(data as Streamer[]);
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 500) {
-        setStreamersError('Los streamers no están disponibles o la clave API no tiene permisos de administrador.');
+      const result = await getStreamers().then(
+        (data): { ok: true; data: Streamer[] } => ({ ok: true, data: data as Streamer[] }),
+        (err): { ok: false; error: string } => ({
+          ok: false,
+          error: getStreamersErrorMessage(err),
+        })
+      );
+      if (result.ok) {
+        setStreamers(result.data as Streamer[]);
+        setStreamersError(null);
       } else {
-        setStreamersError('Error al conectar con AzuraCast. Verifica que el servidor esté en línea.');
+        setStreamersError(result.error);
       }
     } finally {
       setLoading(false);
     }
   }, [getStreamers]);
 
-  useEffect(() => { load(); }, [load]);
+  const handleRefresh = useCallback(() => {
+    setLoading(true);
+    setStreamersError(null);
+    void load();
+  }, [load]);
+
+  useEffect(() => { void load(); }, [load]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,7 +144,7 @@ export default function AdminStreaming() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>
@@ -229,7 +245,7 @@ export default function AdminStreaming() {
           <CardContent className="pt-10 pb-10 text-center space-y-3">
             <Mic2 className="w-10 h-10 mx-auto text-slate-400 opacity-50" />
             <p className="text-sm text-slate-400">{streamersError}</p>
-            <Button variant="outline" size="sm" onClick={load} className="gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
               <RefreshCw className="w-3 h-3" />
               Reintentar
             </Button>

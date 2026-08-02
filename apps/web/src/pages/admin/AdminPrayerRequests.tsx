@@ -39,23 +39,40 @@ export default function AdminPrayerRequests() {
   const [responseText, setResponseText] = useState('');
   const [responseStatus, setResponseStatus] = useState<PrayerStatus>('RESPONDIDA');
   const [saving, setSaving] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     try {
-      const data = await getPrayerRequests();
-      const rows = (data as { rows?: PrayerRequest[] })?.rows ?? [];
-      setRequests(rows);
-    } catch {
-      setError('Error al obtener peticiones de oracion.');
+      const result = await getPrayerRequests().then(
+        (data): { ok: true; rows: PrayerRequest[] } => ({
+          ok: true,
+          rows: (data as { rows?: PrayerRequest[] })?.rows ?? [],
+        }),
+        (): { ok: false; error: string } => ({
+          ok: false,
+          error: 'Error al obtener peticiones de oracion.',
+        })
+      );
+      if (result.ok) {
+        setRequests(result.rows);
+        setError(null);
+        setNow(Date.now());
+      } else {
+        setError(result.error);
+      }
     } finally {
       setLoading(false);
     }
   }, [getPrayerRequests]);
 
+  const handleRefresh = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    void load();
+  }, [load]);
+
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   const handleRespond = async (id: string) => {
@@ -78,7 +95,7 @@ export default function AdminPrayerRequests() {
   };
 
   const getTimeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const diff = now - new Date(dateStr).getTime();
     const days = Math.floor(diff / 86400000);
     if (days > 0) return `Hace ${days} dia${days > 1 ? 's' : ''}`;
     const hours = Math.floor(diff / 3600000);
@@ -95,7 +112,7 @@ export default function AdminPrayerRequests() {
           <h1 className="text-2xl font-bold">Peticiones de oracion</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>
@@ -118,7 +135,7 @@ export default function AdminPrayerRequests() {
           {error ? (
             <div className="py-8 text-center space-y-2">
               <p className="text-sm text-slate-400">{error}</p>
-              <Button variant="outline" size="sm" onClick={load} className="mt-2 gap-2">
+              <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-2 gap-2">
                 <RefreshCw className="w-3 h-3" />
                 Reintentar
               </Button>

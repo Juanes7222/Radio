@@ -9,6 +9,14 @@ import type { AdminSongRequest as SongRequest } from '@radio/types';
 
 const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 
+function getRequestsErrorMessage(err: unknown): string {
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  if (status === 500) {
+    return 'Las solicitudes de canciones no están habilitadas en esta estación o la clave API no tiene permisos suficientes.';
+  }
+  return 'Error al obtener solicitudes. Verifica la conexión con AzuraCast.';
+}
+
 export default function AdminRequests() {
   const { getPendingRequests, approveRequest } = useAdminApi();
 
@@ -18,26 +26,36 @@ export default function AdminRequests() {
   const [actionId, setActionId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     try {
-      const data = await getPendingRequests();
-      const rows = (data as { rows?: SongRequest[] })?.rows ?? [];
-      setRequests(rows);
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 500) {
-        setError('Las solicitudes de canciones no están habilitadas en esta estación o la clave API no tiene permisos suficientes.');
+      const result = await getPendingRequests().then(
+        (data): { ok: true; rows: SongRequest[] } => ({
+          ok: true,
+          rows: (data as { rows?: SongRequest[] })?.rows ?? [],
+        }),
+        (err): { ok: false; error: string } => ({
+          ok: false,
+          error: getRequestsErrorMessage(err),
+        })
+      );
+      if (result.ok) {
+        setRequests(result.rows);
+        setError(null);
       } else {
-        setError('Error al obtener solicitudes. Verifica la conexión con AzuraCast.');
+        setError(result.error);
       }
     } finally {
       setLoading(false);
     }
   }, [getPendingRequests]);
 
+  const handleRefresh = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    void load();
+  }, [load]);
+
   useEffect(() => {
-    load();
+    void load();
     const interval = setInterval(load, 20000);
     return () => clearInterval(interval);
   }, [load]);
@@ -60,7 +78,7 @@ export default function AdminRequests() {
           
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>
@@ -94,7 +112,7 @@ export default function AdminRequests() {
             <div className={`py-8 text-center space-y-2`}>
               <XCircle className="w-8 h-8 mx-auto text-destructive opacity-60" />
               <p className="text-sm text-slate-400">{error}</p>
-              <Button variant="outline" size="sm" onClick={load} className="mt-2 gap-2">
+              <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-2 gap-2">
                 <RefreshCw className="w-3 h-3" />
                 Reintentar
               </Button>

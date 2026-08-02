@@ -11,27 +11,24 @@ interface UseNotificationsReturn {
 }
 
 export function useNotifications(): UseNotificationsReturn {
-  const [permission, setPermission] = useState<NotificationPermission>('default');
+  const [permission, setPermission] = useState<NotificationPermission>(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return 'default';
+    return Notification.permission;
+  });
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [isSupported, setIsSupported] = useState(false);
+  const [isSupported] = useState(
+    () => typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator
+  );
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    const supported = 'Notification' in window && 'serviceWorker' in navigator;
-    setIsSupported(supported);
-    
-    if (supported) {
-      setPermission(Notification.permission);
-      
-      // Verificar si ya está suscrito
-      navigator.serviceWorker.ready.then(registration => {
-        registration.pushManager.getSubscription().then(subscription => {
-          setIsSubscribed(!!subscription);
-        });
+    if (!isSupported) return;
+
+    navigator.serviceWorker.ready.then(registration => {
+      registration.pushManager.getSubscription().then(subscription => {
+        setIsSubscribed(!!subscription);
       });
-    }
-  }, []);
+    });
+  }, [isSupported]);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!isSupported) return false;
@@ -123,7 +120,7 @@ export function useNotifications(): UseNotificationsReturn {
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
+    .replace(/-/g, '+')
     .replace(/_/g, '/');
 
   const rawData = window.atob(base64);

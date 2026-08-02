@@ -14,15 +14,7 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
 
-  if (typeof window !== 'undefined' && !audioRef.current) {
-    const audio = new Audio();
-    audio.crossOrigin = 'anonymous';
-    audio.preload = 'none';
-    audioRef.current = audio;
-  }
-
   const streamUrlRef = useRef(streamUrl);
-  streamUrlRef.current = streamUrl;
 
   const retryRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -42,6 +34,17 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
   useEffect(() => {
+    streamUrlRef.current = streamUrl;
+  }, [streamUrl]);
+
+  useEffect(() => {
+    if (!audioRef.current && typeof window !== 'undefined') {
+      const audio = new Audio();
+      audio.crossOrigin = 'anonymous';
+      audio.preload = 'none';
+      audioRef.current = audio;
+    }
+
     const audio = audioRef.current!;
 
     const handlePlay = () => {
