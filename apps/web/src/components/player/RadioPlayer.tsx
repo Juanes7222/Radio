@@ -123,7 +123,6 @@ export function RadioPlayer({
   const listeners = stationData?.listeners?.current || 0;
   const [shareOpen, setShareOpen] = useState(false);
   const [bibleOpen, setBibleOpen] = useState(false);
-  const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 
   return (
     <>
@@ -141,14 +140,11 @@ export function RadioPlayer({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`
+        className="
           relative overflow-hidden rounded-3xl 
-          ${theme === 'dark' 
-            ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' 
-            : 'bg-gradient-to-br from-white via-slate-50 to-slate-100'
-          }
-          shadow-2xl border ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}
-        `}
+          bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900
+          shadow-2xl border border-slate-700
+        "
       >
         <AnimatePresence>
           {playerState.requiresUserGesture && (
@@ -274,7 +270,7 @@ export function RadioPlayer({
                   <DropdownMenuItem
                     key={q}
                     onClick={() => handleQualityChange(q)}
-                    className={quality === q ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium' : ''}
+                    className={quality === q ? 'bg-blue-500/10 text-blue-400 font-medium' : ''}
                   >
                     {q} kbps {quality === q && '✓'}
                   </DropdownMenuItem>
@@ -304,7 +300,6 @@ export function RadioPlayer({
           <WaveformVisualizer 
             analyserNode={analyserRef}
             isPlaying={playerState.isPlaying}
-            theme={theme}
           />
         </div>
 
@@ -312,7 +307,6 @@ export function RadioPlayer({
           <SongInfo 
             song={currentSong}
             isLoading={isLoading}
-            theme={theme}
           />
         </div>
 
@@ -323,14 +317,11 @@ export function RadioPlayer({
               whileTap={{ scale: 0.95 }}
               onClick={onTogglePlay}
               disabled={playerState.isLoading}
-              className={`
+              className="
                 w-20 h-20 rounded-full flex items-center justify-center
-                ${theme === 'dark'
-                  ? 'bg-blue-500 text-white hover:bg-blue-600'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-                }
-                shadow-[0_8px_30px_rgb(59,130,246,0.3)] transition-all disabled:opacity-50
-              `}
+                bg-blue-500 text-white hover:bg-blue-600
+                play-button-shadow transition-all disabled:opacity-50
+              "
             >
               {playerState.isLoading ? (
                 <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin" />
@@ -390,12 +381,12 @@ export function RadioPlayer({
             </div>
 
             <div className="flex items-center gap-2">
-              <BibleButton onClick={() => setBibleOpen(true)} theme={theme} />
+              <BibleButton onClick={() => setBibleOpen(true)} />
               
               <Button
                 size="sm"
                 onClick={onShowRequests}
-                className="gap-2 bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+                className="gap-2 bg-slate-900 text-white hover:bg-slate-800"
               >
                 <Send className="w-4 h-4" />
                 Pedir canción
@@ -436,7 +427,7 @@ export function RadioPlayer({
               <span>{formatTime(currentSong.duration)}</span>
             </div>
             {/* Barra de progreso en blanco */}
-            <div className="h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
               <motion.div
                 className="h-full bg-white rounded-full"
                 initial={{ width: 0 }}

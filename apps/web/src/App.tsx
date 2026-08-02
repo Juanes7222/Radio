@@ -14,14 +14,11 @@ import {
   AppFooter,
 } from '@/components/ui-custom';
 import { PrayerRequestDialog, PrayerRequestButton } from '@/components/prayer';
-import { useTheme } from '@/hooks';
 import { useGlobalAudio } from '@/hooks/useGlobalAudio';
 import { getSocialLinksWithLiveStatus } from '@/utils/socialLinks';
 import MaintenancePage from '@/pages/MaintenancePage';
 
 function App() {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
   const [artworkErrorSongId, setArtworkErrorSongId] = useState<string | null>(null);
   
   const {
@@ -60,11 +57,11 @@ function App() {
   }
 
   return (
-    <div className={`min-h-screen w-full overflow-x-hidden transition-colors duration-300 bg-slate-950 text-white-900`}>
+    <div className="min-h-screen w-full overflow-x-hidden transition-colors duration-300 bg-background text-foreground">
       <Header stationName={data?.station?.name} onOpenPrayer={openPrayer} />
 
       <main className="bottom-player-clearance">
-        <DesktopHeroSection isDark={isDark} />
+        <DesktopHeroSection />
 
         <section className="hidden md:block max-w-2xl mx-auto px-4 py-8">
           <RadioPlayer
@@ -88,7 +85,6 @@ function App() {
         <MobilePlayerHero
           song={data?.now_playing ?? null}
           isLoading={isLoading}
-          isDark={isDark}
           playerState={playerState}
           artworkLoadFailed={artworkLoadFailed}
           onTogglePlay={togglePlay}
@@ -100,23 +96,21 @@ function App() {
 
         <FacebookLivePlayer liveUrl={liveUrl} />
 
-        <MobileSocialLinks links={socialLinks} isDark={isDark} />
+        <MobileSocialLinks links={socialLinks} />
 
-        <DesktopSocialLinks links={socialLinks} isDark={isDark} />
+        <DesktopSocialLinks links={socialLinks} />
 
-        <AppFooter isDark={isDark} stationName={data?.station?.name} />
+        <AppFooter stationName={data?.station?.name} />
       </main>
 
       <SongRequest
         isOpen={showRequests}
         onClose={closeRequests}
-        theme={resolvedTheme}
         requestSong={requestSong}
       />
       <PrayerRequestDialog
         isOpen={showPrayer}
         onClose={closePrayer}
-        theme={resolvedTheme}
       />
     </div>
   );

@@ -3,8 +3,6 @@ export { useAzuraCast, mergeConsecutiveScheduleItems } from './useAzuraCast';
 export type { UseAzuraCastProps, UseAzuraCastReturn, SongRequestResult } from './useAzuraCast';
 export { useMediaSession } from './useMediaSession';
 export { useWaveform } from './useWaveform';
-export { useTheme } from './useTheme';
-export { ThemeProvider } from './ThemeProvider';
 export { useNotifications } from './useNotifications';
 export { useAdminAuth, AdminAuthProvider } from './useAdminAuth';
 export { useAdminApi } from './useAdminApi';

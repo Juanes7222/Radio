@@ -28,11 +28,10 @@ interface SongRequestItem {
 interface SongRequestProps {
   isOpen: boolean;
   onClose: () => void;
-  theme: 'dark' | 'light';
   requestSong: UseAzuraCastReturn['requestSong'];
 }
 
-export const SongRequest = memo(function SongRequest({ isOpen, onClose, theme, requestSong }: SongRequestProps) {
+export const SongRequest = memo(function SongRequest({ isOpen, onClose, requestSong }: SongRequestProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SongRequestItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -117,9 +116,7 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, theme, r
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className={`max-w-md w-full flex flex-col gap-0 p-0 max-h-[85vh] overflow-hidden ${
-          theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white'
-        }`}
+        className="max-w-md w-full flex flex-col gap-0 p-0 max-h-[85vh] overflow-hidden bg-slate-900 border-slate-700"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           inputRef.current?.focus();
@@ -168,16 +165,12 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, theme, r
                 </div>
               ))
             ) : searchQuery.length < 3 ? (
-              <div className={`text-center py-8 ${
-                theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-              }`}>
+              <div className="text-center py-8 text-slate-400">
                 <Music className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>Busca una canción para solicitar</p>
               </div>
             ) : searchResults.length === 0 ? (
-              <div className={`text-center py-8 ${
-                theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-              }`}>
+              <div className="text-center py-8 text-slate-400">
                 <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No se encontraron canciones</p>
               </div>
@@ -193,16 +186,10 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, theme, r
                     onClick={() => handleRequest(item)}
                     className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer select-none transition-all ${
                       requestedSongs.has(item.request_id)
-                        ? theme === 'dark'
-                          ? 'bg-green-500/15 border border-green-500/30'
-                          : 'bg-green-50 border border-green-200'
+                        ? 'bg-green-500/15 border border-green-500/30'
                         : loadingSong === item.request_id
-                        ? theme === 'dark'
-                          ? 'bg-slate-800/50 opacity-70'
-                          : 'bg-slate-50 opacity-70'
-                        : theme === 'dark'
-                        ? 'bg-slate-800/50 hover:bg-slate-700/70 active:scale-[0.98]'
-                        : 'bg-slate-50 hover:bg-slate-100 active:scale-[0.98]'
+                        ? 'bg-slate-800/50 opacity-70'
+                        : 'bg-slate-800/50 hover:bg-slate-700/70 active:scale-[0.98]'
                     }`}
                   >
                     {/* Carátula mini */}
@@ -217,9 +204,7 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, theme, r
                           }}
                         />
                       ) : (
-                        <div className={`w-full h-full flex items-center justify-center ${
-                          theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'
-                        }`}>
+                        <div className="w-full h-full flex items-center justify-center bg-slate-700">
                           <Music className="w-5 h-5 opacity-50" />
                         </div>
                       )}
@@ -238,13 +223,11 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, theme, r
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p className={`font-medium truncate ${
-                        requestedSongs.has(item.request_id) ? 'text-green-600 dark:text-green-400' : ''
+                        requestedSongs.has(item.request_id) ? 'text-green-400' : ''
                       }`} title={item.song.title}>
                         {item.song.title}
                       </p>
-                      <p className={`text-sm truncate ${
-                        theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                      }`} title={item.song.artist}>
+                      <p className="text-sm truncate text-slate-400" title={item.song.artist}>
                         {item.song.artist}
                       </p>
                     </div>
@@ -253,7 +236,7 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, theme, r
                     <div className={`flex-shrink-0 ${
                       requestedSongs.has(item.request_id)
                         ? 'text-green-500'
-                        : theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+                        : 'text-slate-500'
                     }`}>
                       {requestedSongs.has(item.request_id) ? (
                         <CheckCircle className="w-5 h-5" />

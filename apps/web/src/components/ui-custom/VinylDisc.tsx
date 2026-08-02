@@ -5,7 +5,7 @@ export function VinylDisc() {
   return (
     <svg viewBox="0 0 200 200" className="w-full h-full" aria-hidden>
       {/* Base */}
-      <circle cx="100" cy="100" r="100" fill="#08080f" />
+      <circle cx="100" cy="100" r="100" fill="var(--vinyl-base)" />
 
       {/* Groove rings */}
       {VINYL_GROOVE_RADII.map((r) => (
@@ -13,7 +13,7 @@ export function VinylDisc() {
           key={r}
           cx="100" cy="100" r={r}
           fill="none"
-          stroke="rgba(255,255,255,0.045)"
+          stroke="var(--vinyl-groove)"
           strokeWidth="0.7"
         />
       ))}
@@ -22,19 +22,17 @@ export function VinylDisc() {
       <path
         d="M 42 55 A 68 68 0 0 1 138 42"
         fill="none"
-        stroke="rgba(255,255,255,0.07)"
+        stroke="var(--vinyl-sheen)"
         strokeWidth="10"
         strokeLinecap="round"
       />
 
       {/* Label circle */}
-      <circle cx="100" cy="100" r="32" fill="#1e1b4b" />
-      <circle cx="100" cy="100" r="30" fill="none" stroke="rgba(99,102,241,0.35)" strokeWidth="1" />
-
-      
+      <circle cx="100" cy="100" r="32" fill="var(--vinyl-label)" />
+      <circle cx="100" cy="100" r="30" fill="none" stroke="var(--vinyl-label-ring)" strokeWidth="1" />
 
       {/* Center spindle hole */}
-      <circle cx="100" cy="100" r="3.5" fill="#030712" />
+      <circle cx="100" cy="100" r="3.5" fill="var(--vinyl-hole)" />
     </svg>
   );
 }

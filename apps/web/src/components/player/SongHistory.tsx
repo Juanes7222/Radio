@@ -15,7 +15,6 @@ interface SongHistoryProps {
   isOpen: boolean;
   onClose: () => void;
   isLoading: boolean;
-  theme: 'dark' | 'light';
 }
 
 export function SongHistory({ 
@@ -23,7 +22,6 @@ export function SongHistory({
   isOpen, 
   onClose, 
   isLoading,
-  theme 
 }: SongHistoryProps) {
   const formatPlayedAt = (timestamp: number) => {
     const date = new Date(timestamp * 1000);
@@ -35,13 +33,9 @@ export function SongHistory({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`max-w-md h-[80vh] flex flex-col gap-0 p-0 overflow-hidden ${
-        theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white'
-      }`}>
+      <DialogContent className={`max-w-md h-[80vh] flex flex-col gap-0 p-0 overflow-hidden bg-slate-900 border-slate-700`}>
         {/* Cabecera fija */}
-        <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b ${
-          theme === 'dark' ? 'border-slate-700' : 'border-slate-200'
-        }">
+        <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-slate-700">
           <DialogTitle className="flex items-center gap-2">
             <History className="w-5 h-5" />
             Historial de reproducción
@@ -64,9 +58,7 @@ export function SongHistory({
                 </div>
               ))
             ) : history.length === 0 ? (
-              <div className={`text-center py-12 ${
-                theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-              }`}>
+              <div className="text-center py-12 text-slate-400">
                 <Music className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No hay historial disponible</p>
               </div>
@@ -80,9 +72,7 @@ export function SongHistory({
                     exit={{ opacity: 0, x: 16 }}
                     transition={{ delay: index * 0.04 }}
                     className={`flex items-center gap-3 p-3 rounded-lg ${
-                      theme === 'dark'
-                        ? 'bg-slate-800/50 hover:bg-slate-800'
-                        : 'bg-slate-50 hover:bg-slate-100'
+                      'bg-slate-800/50 hover:bg-slate-800'
                     } transition-colors`}
                   >
                     {/* Carátula mini */}
@@ -97,9 +87,7 @@ export function SongHistory({
                           }}
                         />
                       ) : (
-                        <div className={`w-full h-full flex items-center justify-center ${
-                          theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'
-                        }`}>
+                        <div className="w-full h-full flex items-center justify-center bg-slate-700">
                           <Music className="w-5 h-5 opacity-50" />
                         </div>
                       )}
@@ -110,24 +98,18 @@ export function SongHistory({
                       <p className="font-medium truncate text-sm leading-snug" title={item.song.title}>
                         {item.song.title}
                       </p>
-                      <p className={`text-xs truncate mt-0.5 ${
-                        theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                      }`} title={item.song.artist}>
+                      <p className={`text-xs truncate mt-0.5 text-slate-400`} title={item.song.artist}>
                         {item.song.artist}
                       </p>
                       {item.playlist && (
-                        <span className={`text-xs ${
-                          theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
-                        }`}>
+                        <span className="text-xs text-slate-500">
                           {item.playlist}
                         </span>
                       )}
                     </div>
 
                     {/* Hora — flex-shrink-0 para que no empuje al título */}
-                    <div className={`flex-shrink-0 flex items-center gap-1 text-xs ${
-                      theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
-                    }`}>
+                    <div className="flex-shrink-0 flex items-center gap-1 text-xs text-slate-500">
                       <Clock className="w-3 h-3" />
                       {formatPlayedAt(item.played_at)}
                     </div>

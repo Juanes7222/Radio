@@ -4,28 +4,28 @@ export const SOCIAL_LINKS = [
   {
     label: 'Facebook',
     href: 'https://www.facebook.com/profile.php?id=100074024491964',
-    bg: 'bg-[#1877F2]',
+    bg: 'bg-facebook',
     shadow: 'shadow-blue-500/20',
     icon: <Facebook className="w-5 h-5" />,
   },
   {
     label: 'Instagram',
     href: 'https://www.instagram.com/iglesiacartagommm/',
-    bg: 'bg-gradient-to-br from-[#833ab4] via-[#fd1d1d] to-[#fcb045]',
+    bg: 'bg-gradient-to-br from-instagram-start via-instagram-mid to-instagram-end',
     shadow: 'shadow-pink-500/20',
     icon: <Instagram className="w-5 h-5" />,
   },
   {
     label: 'YouTube',
     href: 'https://www.youtube.com/@emisoralavozdelaverdad9188',
-    bg: 'bg-[#cf0a0a]',
+    bg: 'bg-youtube',
     shadow: 'shadow-red-500/20',
     icon: <Youtube className="w-5 h-5" />,
   },
   {
     label: 'Spotify',
     href: 'https://open.spotify.com/show/7hSkCQDHvdjr4aYE5X6Gv4?si=a4cfd87d109543a2',
-    bg: 'bg-[#1DB954]',
+    bg: 'bg-spotify',
     shadow: 'shadow-green-500/20',
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
@@ -46,10 +46,10 @@ export const SOCIAL_LINKS = [
 function GooglePlayIcon({ size = 32 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M48 28.3L275.6 256 48 483.7C40.9 479.3 36 471.7 36 463V49C36 40.3 40.9 32.7 48 28.3Z" fill="#EA4335"/>
-      <path d="M352.3 182.7L296.8 238.2 48 28.3C54.3 24.7 62.1 24.5 68.7 28.1L352.3 182.7Z" fill="#FBBC04"/>
-      <path d="M352.3 329.3L68.7 483.9C62.1 487.5 54.3 487.3 48 483.7L296.8 273.8L352.3 329.3Z" fill="#34A853"/>
-      <path d="M476 256C476 264.8 471 272.4 463.7 276.7L352.3 329.3L296.8 256L352.3 182.7L463.7 235.3C471 239.6 476 247.2 476 256Z" fill="#4285F4"/>
+      <path d="M48 28.3L275.6 256 48 483.7C40.9 479.3 36 471.7 36 463V49C36 40.3 40.9 32.7 48 28.3Z" fill="var(--google-red)"/>
+      <path d="M352.3 182.7L296.8 238.2 48 28.3C54.3 24.7 62.1 24.5 68.7 28.1L352.3 182.7Z" fill="var(--google-yellow)"/>
+      <path d="M352.3 329.3L68.7 483.9C62.1 487.5 54.3 487.3 48 483.7L296.8 273.8L352.3 329.3Z" fill="var(--google-green)"/>
+      <path d="M476 256C476 264.8 471 272.4 463.7 276.7L352.3 329.3L296.8 256L352.3 182.7L463.7 235.3C471 239.6 476 247.2 476 256Z" fill="var(--google-blue)"/>
     </svg>
   );
 }

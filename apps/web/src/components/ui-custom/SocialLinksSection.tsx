@@ -11,18 +11,15 @@ interface SocialLink {
 }
 interface SocialLinksSectionProps {
   links: SocialLink[];
-  isDark: boolean;
 }
 
-export function DesktopSocialLinks({ links, isDark }: SocialLinksSectionProps) {
+export function DesktopSocialLinks({ links }: SocialLinksSectionProps) {
   const regularLinks = links.filter(l => !l.featured);
   const featuredLinks = links.filter(l => l.featured);
 
   return (
     <section className="hidden md:block px-4 pt-6 pb-8 max-w-2xl mx-auto">
-      <h2 className={`font-semibold text-base mb-4 flex items-center gap-2 ${
-        isDark ? 'text-slate-300' : 'text-slate-700'
-      }`}>
+      <h2 className="font-semibold text-base mb-4 flex items-center gap-2 text-slate-300">
         Síguenos
       </h2>
       <div className="grid grid-cols-2 gap-3">
@@ -73,13 +70,13 @@ export function DesktopSocialLinks({ links, isDark }: SocialLinksSectionProps) {
   );
 }
 
-export function MobileSocialLinks({ links, isDark }: SocialLinksSectionProps) {
+export function MobileSocialLinks({ links }: SocialLinksSectionProps) {
   const regularLinks = links.filter(l => !l.featured);
   const featuredLinks = links.filter(l => l.featured);
 
   return (
     <section className="md:hidden px-5 pt-3 pb-4">
-      <p className={`text-xs font-medium mb-3 text-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+      <p className="text-xs font-medium mb-3 text-center text-slate-500">
         Síguenos
       </p>
       <div className="flex items-center justify-center gap-3 mb-3">

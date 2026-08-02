@@ -48,6 +48,20 @@ module.exports = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        brand: {
+          DEFAULT: "hsl(var(--brand) / <alpha-value>)",
+          foreground: "hsl(var(--brand-foreground) / <alpha-value>)",
+        },
+        facebook: "var(--facebook)",
+        whatsapp: "var(--whatsapp)",
+        telegram: "var(--telegram)",
+        youtube: "var(--youtube)",
+        spotify: "var(--spotify)",
+        instagram: {
+          start: "var(--instagram-start)",
+          mid: "var(--instagram-mid)",
+          end: "var(--instagram-end)",
+        },
       },
       borderRadius: {
         xl: "calc(var(--radius) + 4px)",

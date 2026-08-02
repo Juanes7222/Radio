@@ -95,7 +95,7 @@ export function PWAInstall() {
         </DialogHeader>
         
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg">
+          <div className="flex items-center gap-4 p-4 bg-slate-800 rounded-lg">
             <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center">
               <span className="text-2xl font-bold text-primary-foreground">R</span>
             </div>

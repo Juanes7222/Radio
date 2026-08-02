@@ -3,96 +3,49 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* Fondos y textos base (Slate 50 / Slate 900) */
-    --background: 210 40% 98%;
-    --foreground: 222.2 47.4% 11.2%;
-    
-    /* Tarjetas (Blanco / Slate 900) */
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
-    
-    /* Popovers */
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
-    
-    /* Colores Primarios (Indigo 600) */
-    --primary: 243 75% 59%;
-    --primary-foreground: 210 40% 98%;
-    
-    /* Colores Secundarios (Indigo 50) */
-    --secondary: 226 100% 97%;
-    --secondary-foreground: 243 75% 59%;
-    
-    /* Muted (Slate 200 / Slate 500) */
-    --muted: 214.3 31.8% 91.4%;
-    --muted-foreground: 215.3 16.3% 46.9%;
-    
-    /* Acentos (Igual a secundario para hover states) */
-    --accent: 226 100% 97%;
-    --accent-foreground: 243 75% 59%;
-    
-    /* Destructivo (Rojo) */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    
-    /* Bordes y Contornos (Slate 200) */
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 243 75% 59%;
-    
-    --radius: 0.625rem;
-    
-    /* Sidebar (Claro) */
-    --sidebar-background: 210 40% 98%;
-    --sidebar-foreground: 222.2 47.4% 11.2%;
-    --sidebar-primary: 243 75% 59%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 214.3 31.8% 91.4%;
-    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
-    --sidebar-border: 214.3 31.8% 91.4%;
-    --sidebar-ring: 243 75% 59%;
-  }
+  /* ─── Design tokens (dark only) ─────────────────────────────────────── */
 
-  .dark {
-    /* Fondos y textos base (Slate 950 / Blanco) */
+  :root {
+    /* Surfaces */
     --background: 222.2 84% 4.9%;
     --foreground: 0 0% 100%;
-    
-    /* Tarjetas (Slate 800) - Coincide con tu bg-slate-800 */
+
+    /* Cards */
     --card: 215 28% 17%;
     --card-foreground: 0 0% 100%;
-    
+
     /* Popovers */
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 0 0% 100%;
-    
-    /* Colores Primarios (Indigo 400) */
+
+    /* Primary (indigo) */
     --primary: 244 83% 74%;
     --primary-foreground: 222.2 84% 4.9%;
-    
-    /* Colores Secundarios (Slate 800) */
+
+    /* Secondary */
     --secondary: 215 28% 17%;
     --secondary-foreground: 244 83% 74%;
-    
-    /* Muted (Slate 800 / Slate 400) */
+
+    /* Muted */
     --muted: 215 28% 17%;
     --muted-foreground: 215 20% 65%;
-    
-    /* Acentos */
+
+    /* Accent */
     --accent: 215 28% 17%;
     --accent-foreground: 244 83% 74%;
-    
-    /* Destructivo (Rojo oscuro) */
+
+    /* Destructive (red) */
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
-    
-    /* Bordes y Contornos (Slate 700) */
+
+    /* Borders and outlines */
     --border: 215 16% 27%;
     --input: 215 16% 27%;
     --ring: 244 83% 74%;
-    
-    /* Sidebar (Oscuro) */
+
+    --radius: 0.625rem;
+
+    /* Sidebar */
     --sidebar-background: 222.2 84% 4.9%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 244 83% 74%;
@@ -101,19 +54,54 @@
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 215 16% 27%;
     --sidebar-ring: 244 83% 74%;
-  }
-}
 
-@layer base {
+    /* Station brand accent (teal) */
+    --brand: 188 35% 47%;
+    --brand-foreground: 183 77% 22%;
+
+    /* Neutral accent for schedule sections without a category */
+    --accent-neutral: 224 13% 60%;
+
+    /* Social brand colors */
+    --facebook: #1877f2;
+    --whatsapp: #25d366;
+    --telegram: #229ed9;
+    --youtube: #cf0a0a;
+    --spotify: #1db954;
+    --instagram-start: #833ab4;
+    --instagram-mid: #fd1d1d;
+    --instagram-end: #fcb045;
+
+    /* Google brand colors (login + store badge) */
+    --google-red: #ea4335;
+    --google-yellow: #fbbc04;
+    --google-green: #34a853;
+    --google-blue: #4285f4;
+
+    /* Vinyl disc */
+    --vinyl-base: #08080f;
+    --vinyl-label: #1e1b4b;
+    --vinyl-label-ring: rgba(99, 102, 241, 0.35);
+    --vinyl-hole: #030712;
+    --vinyl-groove: rgba(255, 255, 255, 0.045);
+    --vinyl-sheen: rgba(255, 255, 255, 0.07);
+
+    /* Waveform visualization */
+    --wave-start: #60a5fa;
+    --wave-end: #3b82f6;
+  }
+
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
 }
 
-/* Custom scrollbar */
+/* ─── Scrollbar ──────────────────────────────────────────────────────── */
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -132,69 +120,83 @@
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* Smooth scrolling */
+/* ─── Base document behavior ─────────────────────────────────────────── */
+
 html {
   scroll-behavior: smooth;
-}
-
-/* Native app feel: no horizontal overscroll, no horizontal scroll */
-html {
   overscroll-behavior-x: none;
 }
+
 body {
   overscroll-behavior-x: none;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* iOS safe-area utilities */
+/* ─── iOS safe-area utilities ───────────────────────────────────────── */
+
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 .pl-safe { padding-left: env(safe-area-inset-left); }
 .pr-safe { padding-right: env(safe-area-inset-right); }
 .mb-safe { margin-bottom: env(safe-area-inset-bottom); }
 
-/* Reserve space for fixed bottom player on mobile */
+/* Reserve space for the fixed bottom player on mobile */
 .bottom-player-clearance {
   padding-bottom: calc(6rem + env(safe-area-inset-bottom));
 }
+
 @media (min-width: 768px) {
   .bottom-player-clearance {
     padding-bottom: 0;
   }
 }
 
-/* Touch-active feedback for interactive elements */
+/* Touch feedback for interactive elements */
 @media (hover: none) {
   .active-scale:active {
     transform: scale(0.95);
   }
 }
 
-/* Marquee for long song titles */
+/* ─── Scrolling text (marquee) ──────────────────────────────────────── */
+
 @keyframes marquee {
-  0%   { transform: translateX(0%); }
-  40%  { transform: translateX(-100%); }
-  41%  { transform: translateX(100%); }
-  100% { transform: translateX(0%); }
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
+
 .animate-marquee {
   animation: marquee 12s linear infinite;
   white-space: nowrap;
 }
 
-/* Audio element hidden */
+/* ─── Hide horizontal scrollbar on tab strips ───────────────────────── */
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Audio element hidden ───────────────────────────────────────────── */
+
 audio {
   display: none;
 }
 
 /* Touch-friendly buttons */
-button, [role="button"] {
+button,
+[role="button"] {
   min-height: 44px;
   min-width: 44px;
 }
 
-/* Reduced motion */
+/* ─── Reduced motion ────────────────────────────────────────────────── */
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -205,7 +207,8 @@ button, [role="button"] {
   }
 }
 
-/* Custom animations */
+/* ─── Custom animations ─────────────────────────────────────────────── */
+
 @keyframes pulse-ring {
   0% {
     transform: scale(0.8);
@@ -217,22 +220,88 @@ button, [role="button"] {
   }
 }
 
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-
 .animate-pulse-ring {
   animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Glass effect */
+/* ─── Glass effect ──────────────────────────────────────────────────── */
+
 .glass {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
 
-.dark .glass {
-  background: rgba(0, 0, 0, 0.3);
+/* ─── Typography helpers ────────────────────────────────────────────── */
+
+/* Responsive display title (ProgramacionPage) */
+.fluid-title {
+  font-size: clamp(2rem, 6vw, 2.8rem);
+}
+
+/* ─── Player decorative elements ────────────────────────────────────── */
+
+/* Disc artwork layered shadows (SongInfo) */
+.disc-shadow {
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.06),
+    0 0 0 6px rgba(0, 0, 0, 0.35),
+    0 6px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* Grooves engraved on the disc (SongInfo) */
+.disc-grooves {
+  box-shadow:
+    inset 0 0 0 8px rgba(0, 0, 0, 0.18),
+    inset 0 0 0 18px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 28px rgba(0, 0, 0, 0.06);
+}
+
+/* Center spindle hole (SongInfo) */
+.disc-hole {
+  background: radial-gradient(
+    circle,
+    rgba(80, 80, 80, 0.9) 0%,
+    rgba(20, 20, 20, 0.95) 100%
+  );
+}
+
+/* Glow behind the main play button (RadioPlayer) */
+.play-button-shadow {
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.3);
+}
+
+/* Ambient tint over the mobile hero background */
+.hero-glow {
+  background: radial-gradient(
+    ellipse 70% 50% at 50% 10%,
+    rgba(69, 63, 237, 0.08),
+    transparent
+  );
+}
+
+/* Waveform fallback bars */
+.wave-bar-active {
+  background-color: var(--wave-start);
+}
+
+.wave-bar-idle {
+  background-color: var(--wave-end);
+  opacity: 0.35;
+}
+
+/* Groove rings overlay on disc artwork (MobilePlayerHero) */
+.vinyl-groove-overlay {
+  background: radial-gradient(
+    circle,
+    transparent 28%,
+    rgba(0, 0, 0, 0.22) 29%,
+    transparent 31%,
+    rgba(0, 0, 0, 0.12) 44%,
+    transparent 46%,
+    rgba(0, 0, 0, 0.12) 58%,
+    transparent 60%,
+    rgba(0, 0, 0, 0.08) 73%,
+    transparent 75%
+  );
 }

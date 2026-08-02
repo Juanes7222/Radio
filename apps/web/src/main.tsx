@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
-import { AdminAuthProvider, ThemeProvider } from './hooks/index.ts'
+import { AdminAuthProvider } from './hooks/index.ts'
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext.tsx'
 import { PublicLayout } from './components/layout/PublicLayout.tsx'
 import { Toaster } from './components/ui/sonner.tsx'
@@ -24,10 +24,9 @@ import { AboutPage, PrivacyPolicyPage } from './pages/info';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider>
-      <AdminAuthProvider>
-        <AudioPlayerProvider>
-          <BrowserRouter>
+    <AdminAuthProvider>
+      <AudioPlayerProvider>
+        <BrowserRouter>
             <Toaster richColors position="bottom-center" />
             <Routes>
               {/* Rutas Publicas con Layout (incluye MiniPlayer) */}
@@ -60,6 +59,5 @@ createRoot(document.getElementById('root')!).render(
           </BrowserRouter>
         </AudioPlayerProvider>
       </AdminAuthProvider>
-    </ThemeProvider>
   </StrictMode>,
 )

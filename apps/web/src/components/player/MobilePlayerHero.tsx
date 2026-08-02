@@ -10,7 +10,6 @@ import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 interface MobilePlayerHeroProps {
   song: NowPlaying | null;
   isLoading: boolean;
-  isDark: boolean;
   playerState: PlayerState;
   artworkLoadFailed: boolean;
   onTogglePlay: () => void;
@@ -25,7 +24,7 @@ function EqualizerBars({ isPlaying }: { isPlaying: boolean }) {
       {EQUALIZER_BAR_SCALES.map((peak, i) => (
         <motion.div
           key={i}
-          className="w-[3px] rounded-full bg-indigo-400"
+          className="w-[3px] rounded-full bg-primary"
           style={{ height: 20, originY: 1 }}
           animate={
             isPlaying
@@ -45,7 +44,7 @@ function EqualizerBars({ isPlaying }: { isPlaying: boolean }) {
 
 function PlayIcon() {
   return (
-    <div className="w-14 h-14 rounded-full bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/50">
+    <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/50">
       <svg className="w-6 h-6 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
         <path d="M8 5v14l11-7z" />
       </svg>
@@ -115,7 +114,7 @@ export function MobilePlayerHero({
           )}
         </AnimatePresence>
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-950/70 to-slate-950" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_10%,rgba(69,63,237,0.08),transparent)]" />
+        <div className="absolute inset-0 hero-glow" />
       </div>
 
       <div className="relative flex flex-col items-center px-6 pt-8 pb-8 gap-6">
@@ -128,7 +127,7 @@ export function MobilePlayerHero({
           onClick={() => setIsBibleOpen(true)}
           className="absolute top-8 right-6 z-20 flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 backdrop-blur-md transition-all active:scale-95"
         >
-          <BookOpen className="w-4 h-4 text-indigo-300" />
+          <BookOpen className="w-4 h-4 text-primary" />
           <span className="text-xs font-bold text-white/90 uppercase tracking-widest">Biblia</span>
         </motion.button>
 
@@ -163,15 +162,15 @@ export function MobilePlayerHero({
             {/* Loading pulse ring — replaces the generic border spinner */}
             {playerState.isLoading && (
               <motion.div
-                className="absolute -inset-3 rounded-full border border-indigo-400/60 pointer-events-none"
+                className="absolute -inset-3 rounded-full border border-primary/60 pointer-events-none"
                 animate={{ opacity: [0.6, 0.15, 0.6], scale: [1, 1.05, 1] }}
                 transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
               />
             )}
 
             {/* Decorative rings */}
-            <div className="absolute -inset-2 rounded-full border border-indigo-400/20" />
-            <div className="absolute -inset-4 rounded-full border border-indigo-400/10" />
+            <div className="absolute -inset-2 rounded-full border border-primary/20" />
+            <div className="absolute -inset-4 rounded-full border border-primary/10" />
 
             {/* Rotating disc */}
             <motion.div
@@ -191,13 +190,13 @@ export function MobilePlayerHero({
               )}
 
               {/* Groove rings overlay on top of artwork for vinyl texture */}
-              <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,transparent_28%,rgba(0,0,0,0.22)_29%,transparent_31%,rgba(0,0,0,0.12)_44%,transparent_46%,rgba(0,0,0,0.12)_58%,transparent_60%,rgba(0,0,0,0.08)_73%,transparent_75%)]" />
+              <div className="absolute inset-0 rounded-full vinyl-groove-overlay" />
 
               {/* Center spindle over artwork */}
               {artworkUrl && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-6 h-6 rounded-full bg-slate-950/90 border border-white/10 flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400/60" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
                   </div>
                 </div>
               )}
@@ -244,7 +243,7 @@ export function MobilePlayerHero({
             ) : (
               <>
                 {isPreaching ? (
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 border border-indigo-400/35 rounded-full px-3 py-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-primary border border-primary/35 rounded-full px-3 py-0.5">
                     Prédica
                   </span>
                 ) : (

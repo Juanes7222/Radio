@@ -7,14 +7,12 @@ interface ListenerStatsProps {
   listeners: Listeners;
   isLive: boolean;
   streamerName: string | null;
-  theme: 'dark' | 'light';
 }
 
 export function ListenerStats({ 
   listeners, 
   isLive, 
   streamerName,
-  theme 
 }: ListenerStatsProps) {
   const stats = [
     {
@@ -49,7 +47,7 @@ export function ListenerStats({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1 }}
         >
-          <Card className={theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : ''}>
+          <Card className="bg-slate-800/50 border-slate-700">
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
                 <div className={`p-3 rounded-lg ${stat.bgColor}`}>
@@ -72,7 +70,7 @@ export function ListenerStats({
         transition={{ delay: 0.3 }}
         className="md:col-span-3"
       >
-        <Card className={theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : ''}>
+        <Card className="bg-slate-800/50 border-slate-700">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">

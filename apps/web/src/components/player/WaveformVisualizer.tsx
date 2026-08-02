@@ -2,16 +2,14 @@ import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 
 interface WaveformVisualizerProps {
-  /** AnalyserNode creado en useAudioPlayer — ya conectado al stream. */
+  /** AnalyserNode created in useAudioPlayer — already connected to the stream. */
   analyserNode: RefObject<AnalyserNode | null>;
   isPlaying: boolean;
-  theme: 'dark' | 'light';
 }
 
 export function WaveformVisualizer({
   analyserNode,
   isPlaying,
-  theme,
 }: WaveformVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
@@ -66,17 +64,15 @@ export function WaveformVisualizer({
 
       ctx.clearRect(0, 0, width, height);
 
+      const rootStyles = getComputedStyle(document.documentElement);
+      const gradientStart = rootStyles.getPropertyValue('--wave-start').trim();
+      const gradientEnd = rootStyles.getPropertyValue('--wave-end').trim();
+
       for (let i = 0; i < bufferLength; i++) {
         const barHeight = (dataArray[i] / 255) * height * 0.8;
         const gradient = ctx.createLinearGradient(0, height - barHeight, 0, height);
-
-        if (theme === 'dark') {
-          gradient.addColorStop(0, '#60a5fa');
-          gradient.addColorStop(1, '#3b82f6');
-        } else {
-          gradient.addColorStop(0, '#3b82f6');
-          gradient.addColorStop(1, '#1d4ed8');
-        }
+        gradient.addColorStop(0, gradientStart);
+        gradient.addColorStop(1, gradientEnd);
 
         ctx.fillStyle = gradient;
 
@@ -113,13 +109,7 @@ export function WaveformVisualizer({
           <div
             key={i}
             className={`w-2 rounded-t transition-all duration-300 ${
-              isPlaying
-                ? theme === 'dark'
-                  ? 'bg-blue-400'
-                  : 'bg-blue-600'
-                : theme === 'dark'
-                  ? 'bg-slate-600'
-                  : 'bg-slate-300'
+              isPlaying ? 'wave-bar-active' : 'wave-bar-idle'
             }`}
             style={{
               height: isPlaying ? `${20 + Math.sin(i * 0.5) * 16}px` : '4px',

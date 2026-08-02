@@ -56,7 +56,7 @@ export function ShareModal({ open, onOpenChange, stationName }: ShareModalProps)
       label: 'Facebook',
       icon: SiFacebook,
       action: () => openLink(links.facebook),
-      className: 'hover:bg-[#1877F2] hover:text-white',
+      className: 'hover:bg-facebook hover:text-white',
     },
     {
       label: 'WhatsApp',
@@ -66,13 +66,13 @@ export function ShareModal({ open, onOpenChange, stationName }: ShareModalProps)
         </svg>
       ),
       action: () => openLink(links.whatsapp),
-      className: 'hover:bg-[#25D366] hover:text-white',
+      className: 'hover:bg-whatsapp hover:text-white',
     },
     {
       label: 'Telegram',
       icon: Send,
       action: () => openLink(links.telegram),
-      className: 'hover:bg-[#229ED9] hover:text-white',
+      className: 'hover:bg-telegram hover:text-white',
     },
   ];
 

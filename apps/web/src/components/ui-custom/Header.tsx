@@ -10,7 +10,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { useTheme } from '@/hooks';
 import { ShareModal } from './SharedModla';
 import LOGO1 from '@assets/img/LOGO_COMPLETO_SINFONDO.png';
 import LOGO2 from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
@@ -28,8 +27,6 @@ interface HeaderProps {
 }
 
 export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: HeaderProps) {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
   const navigate = useNavigate();
   const location = useLocation();
   const isHome = location.pathname === '/';
@@ -48,7 +45,7 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
     <motion.header
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`sticky top-0 z-50 w-full border-b backdrop-blur-lg bg-slate-900/80 border-slate-800`}
+      className="sticky top-0 z-50 w-full border-b backdrop-blur-lg bg-slate-900/80 border-slate-800"
     >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
@@ -60,7 +57,7 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
               className="w-15 h-10 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer"
               onClick={() => navigate('/')}
             >
-              <img src={isDark ? LOGO2 : LOGO1} alt="Logo" className="w-full h-full object-cover" />
+              <img src={LOGO2} alt="Logo" className="w-full h-full object-cover" />
             </motion.div>
           )}
           <div className="hidden sm:block">
@@ -138,9 +135,7 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
                 <Menu className="w-5 h-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className={
-              isDark ? 'bg-slate-900 border-slate-800' : ''
-            }>
+            <SheetContent side="right" className="bg-slate-900 border-slate-800">
               <SheetHeader className="sr-only">
                 <SheetTitle>Menú</SheetTitle>
                 <SheetDescription>Opciones de la aplicación de radio</SheetDescription>
@@ -182,7 +177,7 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
                   <FileKey className="w-5 h-5 mr-2" />
                   Política de Privacidad
                 </Button>
-                <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
+                <div className="border-t border-slate-800 pt-4">
                   <p className="text-sm text-muted-foreground px-4">
                     {stationName}
                   </p>

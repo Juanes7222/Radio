@@ -9,10 +9,9 @@ import { ScrollingText } from '../ui/ScrollingText';
 interface SongInfoProps {
   song: NowPlaying | null;
   isLoading: boolean;
-  theme: 'dark' | 'light';
 }
 
-function SongInfoComponent({ song, isLoading, theme }: SongInfoProps) {
+function SongInfoComponent({ song, isLoading }: SongInfoProps) {
   if (isLoading) {
     return (
       <div className="flex items-center gap-4">
@@ -28,7 +27,7 @@ function SongInfoComponent({ song, isLoading, theme }: SongInfoProps) {
 
   if (!song) {
     return (
-      <div className={`text-center py-8 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+      <div className="text-center py-8 text-slate-400">
         <Disc className="w-16 h-16 mx-auto mb-4 opacity-50" />
         <p>No hay información disponible</p>
       </div>
@@ -56,10 +55,7 @@ function SongInfoComponent({ song, isLoading, theme }: SongInfoProps) {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-          className="relative w-28 h-28 rounded-full overflow-hidden shadow-2xl"
-          style={{
-            boxShadow: '0 0 0 3px rgba(255,255,255,0.06), 0 0 0 6px rgba(0,0,0,0.35), 0 6px 24px rgba(0,0,0,0.6)',
-          }}
+          className="relative w-28 h-28 rounded-full overflow-hidden shadow-2xl disc-shadow"
         >
           {songData.art ? (
             <img
@@ -71,28 +67,17 @@ function SongInfoComponent({ song, isLoading, theme }: SongInfoProps) {
               }}
             />
           ) : (
-            <div className={`w-full h-full flex items-center justify-center ${
-              theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'
-            }`}>
+            <div className="w-full h-full flex items-center justify-center bg-slate-700">
               <Music className="w-10 h-10 opacity-50" />
             </div>
           )}
 
           {/* Surcos del disco */}
-          <div
-            className="absolute inset-0 rounded-full pointer-events-none"
-            style={{
-              boxShadow:
-                'inset 0 0 0 8px rgba(0,0,0,0.18), inset 0 0 0 18px rgba(0,0,0,0.10), inset 0 0 0 28px rgba(0,0,0,0.06)',
-            }}
-          />
+          <div className="absolute inset-0 rounded-full pointer-events-none disc-grooves" />
 
           {/* Agujero central */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div
-              className="w-4 h-4 rounded-full border border-white/20"
-              style={{ background: 'radial-gradient(circle, rgba(80,80,80,0.9) 0%, rgba(20,20,20,0.95) 100%)' }}
-            />
+            <div className="w-4 h-4 rounded-full border border-white/20 disc-hole" />
           </div>
         </motion.div>
         
@@ -110,7 +95,7 @@ function SongInfoComponent({ song, isLoading, theme }: SongInfoProps) {
           <motion.span
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="inline-block text-[10px] font-semibold uppercase tracking-wider text-indigo-400 mb-1"
+            className="inline-block text-[10px] font-semibold uppercase tracking-wider text-primary mb-1"
           >
             Prédica
           </motion.span>
@@ -143,11 +128,7 @@ function SongInfoComponent({ song, isLoading, theme }: SongInfoProps) {
             transition={{ delay: 0.3 }}
             className="mt-2"
           >
-            <span className={`inline-block text-xs px-2 py-1 rounded-full ${
-              theme === 'dark'
-                ? 'bg-slate-700 text-slate-300'
-                : 'bg-slate-200 text-slate-600'
-            }`}>
+            <span className="inline-block text-xs px-2 py-1 rounded-full bg-slate-700 text-slate-300">
               {playlist}
             </span>
           </motion.div>
@@ -161,6 +142,5 @@ export const SongInfo = memo(
   SongInfoComponent,
   (prev, next) =>
     prev.isLoading === next.isLoading &&
-    prev.theme === next.theme &&
     prev.song?.song?.id === next.song?.song?.id,
 );

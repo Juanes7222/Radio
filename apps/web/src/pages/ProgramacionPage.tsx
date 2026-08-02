@@ -16,7 +16,7 @@ import {
   MessageSquare,
   type LucideIcon,
 } from 'lucide-react';
-import { useTheme, useAzuraCast, mergeConsecutiveScheduleItems } from '@/hooks';
+import { useAzuraCast, mergeConsecutiveScheduleItems } from '@/hooks';
 import { Header } from '@/components/ui-custom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
@@ -42,7 +42,10 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
 
 const DEFAULT_ICON: LucideIcon = Radio;
 
-const NEUTRAL_ACCENT = { dot: '#8b92a5', glow: 'rgba(139,146,165,0.18)' };
+const NEUTRAL_ACCENT = {
+  dot: 'hsl(var(--accent-neutral))',
+  glow: 'hsl(var(--accent-neutral) / 0.18)',
+};
 
 function getBogotaDayOfWeek(dateInput: Date | number): number {
   const timestampInSeconds =
@@ -221,7 +224,7 @@ function DayPill({
       {isToday && (
         <span
           className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
-          style={{ background: '#4f98a3' }}
+          style={{ background: 'hsl(var(--brand))' }}
         />
       )}
     </motion.button>
@@ -275,9 +278,6 @@ function SkeletonCard() {
 }
 
 export function ProgramacionPage() {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
-
   const { fetchSchedule, fetchScheduleCategories } = useAzuraCast({});
   const [schedule, setSchedule]   = useState<ScheduleItem[]>([]);
   const [categories, setCategories] = useState<ScheduleCategorySummary[]>([]);
@@ -356,19 +356,13 @@ export function ProgramacionPage() {
         >
           {/* Eyebrow */}
           <div className="flex items-center gap-2 mb-4">
-            <Radio className="w-4 h-4" style={{ color: '#4f98a3' }} />
-            <span
-              className="text-xs font-semibold uppercase tracking-[0.14em]"
-              style={{ color: '#4f98a3' }}
-            >
+            <Radio className="w-4 h-4 text-brand" />
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-brand">
               Horarios y Emisiones
             </span>
           </div>
 
-          <h1
-            className="font-bold leading-[1.1] tracking-tight mb-3"
-            style={{ fontSize: 'clamp(2rem, 6vw, 2.8rem)' }}
-          >
+          <h1 className="fluid-title font-bold leading-[1.1] tracking-tight mb-3">
             Programación
           </h1>
           <p className="text-sm leading-relaxed max-w-sm text-muted-foreground">
@@ -437,13 +431,7 @@ export function ProgramacionPage() {
               )}
             </div>
             {currentDay === selectedDay && (
-              <span
-                className="text-xs font-medium px-2.5 py-1 rounded-full"
-                style={{
-                  background: isDark ? 'rgba(79,152,163,0.15)' : 'rgba(1,105,111,0.08)',
-                  color: isDark ? '#4f98a3' : '#01696f',
-                }}
-              >
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-brand/15 text-brand">
                 Hoy
               </span>
             )}
@@ -562,8 +550,7 @@ export function ProgramacionPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Scrollbar hide */}
-      <style>{`.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`}</style>
+      {/* Scrollbar hide is handled globally in index.css (.no-scrollbar) */}
     </div>
   );
 }

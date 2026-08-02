@@ -15,13 +15,11 @@ import { Button } from '@/components/ui/button';
 interface PrayerRequestDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  theme: 'dark' | 'light';
 }
 
 export const PrayerRequestDialog = memo(function PrayerRequestDialog({
   isOpen,
   onClose,
-  theme,
 }: PrayerRequestDialogProps) {
   const [name, setName] = useState('');
   const [request, setRequest] = useState('');
@@ -30,7 +28,6 @@ export const PrayerRequestDialog = memo(function PrayerRequestDialog({
   const [message, setMessage] = useState('');
 
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
-  const isDark = theme === 'dark';
 
   const handleSubmit = useCallback(async () => {
     const trimmedName = name.trim();
@@ -77,11 +74,7 @@ export const PrayerRequestDialog = memo(function PrayerRequestDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent
-        className={`max-w-md w-full flex flex-col gap-0 p-0 max-h-[85vh] overflow-hidden ${
-          isDark ? 'bg-slate-900 border-slate-700' : 'bg-white'
-        }`}
-      >
+      <DialogContent className="max-w-md w-full flex flex-col gap-0 p-0 max-h-[85vh] overflow-hidden bg-slate-900 border-slate-700">
         <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Heart className="w-5 h-5 text-rose-500" />
@@ -94,7 +87,7 @@ export const PrayerRequestDialog = memo(function PrayerRequestDialog({
 
         <div className="px-6 pb-6 space-y-4 overflow-y-auto">
           <div className="space-y-2">
-            <label className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            <label className="text-sm font-medium text-slate-300">
               Nombre
             </label>
             <Input
@@ -102,12 +95,12 @@ export const PrayerRequestDialog = memo(function PrayerRequestDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={loading}
-              className={isDark ? 'bg-slate-800 border-slate-700' : ''}
+              className="bg-slate-800 border-slate-700"
             />
           </div>
 
           <div className="space-y-2">
-            <label className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            <label className="text-sm font-medium text-slate-300">
               Petición
             </label>
             <Textarea
@@ -116,7 +109,7 @@ export const PrayerRequestDialog = memo(function PrayerRequestDialog({
               onChange={(e) => setRequest(e.target.value)}
               disabled={loading}
               rows={4}
-              className={isDark ? 'bg-slate-800 border-slate-700' : ''}
+              className="bg-slate-800 border-slate-700"
             />
           </div>
 
