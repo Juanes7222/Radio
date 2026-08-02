@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { useTheme } from '@/hooks';
 import type { Streamer } from '@radio/types';
 
 const STATION_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
@@ -28,11 +27,9 @@ function CopyButton({ text }: { text: string }) {
 }
 
 function InfoRow({ label, value, monospace = false }: { label: string; value: string; monospace?: boolean }) {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className={`text-xs shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{label}</span>
+      <span className="text-xs shrink-0 text-slate-400">{label}</span>
       <div className="flex items-center gap-1 min-w-0">
         <span className={`text-xs truncate ${monospace ? 'font-mono' : ''}`}>{value}</span>
         <CopyButton text={value} />
@@ -44,8 +41,6 @@ function InfoRow({ label, value, monospace = false }: { label: string; value: st
 export default function AdminStreaming() {
   const { getStreamers, createStreamer, deleteStreamer } = useAdminApi();
   const { user } = useAdminAuth();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
 
   const [streamers, setStreamers] = useState<Streamer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,7 +123,7 @@ export default function AdminStreaming() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Streaming / DJs</h1>
-          <p className={`text-sm mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          <p className="text-sm mt-0.5 text-slate-400">
             Gestión de streamers y credenciales de transmisión
           </p>
         </div>
@@ -145,7 +140,7 @@ export default function AdminStreaming() {
       </div>
 
       {/* Datos de conexión Icecast */}
-      <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+      <Card className="border-slate-700 bg-slate-800/60">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm">
             <Mic2 className="w-4 h-4 text-primary" />
@@ -157,7 +152,7 @@ export default function AdminStreaming() {
           <InfoRow label="Puerto" value={icecastPort} monospace />
           <InfoRow label="Mount point" value={mountPoint} monospace />
           <InfoRow label="Protocolo" value="Icecast" />
-          <p className={`text-xs pt-2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+          <p className="text-xs pt-2 text-slate-500">
             Cada DJ usa su propio usuario y contraseña configurados abajo.
           </p>
         </CardContent>
@@ -166,7 +161,7 @@ export default function AdminStreaming() {
       {/* Formulario nuevo DJ */}
       {showForm && (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className={isDark ? 'border-primary/40 bg-slate-800/60' : 'border-primary/40'}>
+          <Card className="border-primary/40 bg-slate-800/60">
             <CardHeader>
               <CardTitle className="text-base">Crear nuevo DJ</CardTitle>
             </CardHeader>
@@ -179,7 +174,7 @@ export default function AdminStreaming() {
                       placeholder="DJ Juanes"
                       value={formData.display_name}
                       onChange={(e) => setFormData((d) => ({ ...d, display_name: e.target.value }))}
-                      className={isDark ? 'bg-slate-900 border-slate-600' : ''}
+                      className="bg-slate-900 border-slate-600"
                     />
                   </div>
                   <div className="space-y-1">
@@ -188,7 +183,7 @@ export default function AdminStreaming() {
                       placeholder="Programa los miércoles..."
                       value={formData.comments}
                       onChange={(e) => setFormData((d) => ({ ...d, comments: e.target.value }))}
-                      className={isDark ? 'bg-slate-900 border-slate-600' : ''}
+                      className="bg-slate-900 border-slate-600"
                     />
                   </div>
                   <div className="space-y-1">
@@ -197,7 +192,7 @@ export default function AdminStreaming() {
                       placeholder="dj_juanes"
                       value={formData.streamer_username}
                       onChange={(e) => setFormData((d) => ({ ...d, streamer_username: e.target.value }))}
-                      className={`font-mono ${isDark ? 'bg-slate-900 border-slate-600' : ''}`}
+                      className="font-mono bg-slate-900 border-slate-600"
                     />
                   </div>
                   <div className="space-y-1">
@@ -207,7 +202,7 @@ export default function AdminStreaming() {
                       placeholder="••••••••"
                       value={formData.streamer_password}
                       onChange={(e) => setFormData((d) => ({ ...d, streamer_password: e.target.value }))}
-                      className={isDark ? 'bg-slate-900 border-slate-600' : ''}
+                      className="bg-slate-900 border-slate-600"
                     />
                   </div>
                 </div>
@@ -230,10 +225,10 @@ export default function AdminStreaming() {
 
       {/* Lista de DJs */}
       {streamersError ? (
-        <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+        <Card className="border-slate-700 bg-slate-800/60">
           <CardContent className="pt-10 pb-10 text-center space-y-3">
             <Mic2 className="w-10 h-10 mx-auto text-slate-400 opacity-50" />
-            <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{streamersError}</p>
+            <p className="text-sm text-slate-400">{streamersError}</p>
             <Button variant="outline" size="sm" onClick={load} className="gap-2">
               <RefreshCw className="w-3 h-3" />
               Reintentar
@@ -243,19 +238,19 @@ export default function AdminStreaming() {
       ) : loading && streamers.length === 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[...Array(3)].map((_, i) => (
-            <Card key={i} className={`animate-pulse ${isDark ? 'border-slate-700 bg-slate-800/60' : ''}`}>
+            <Card key={i} className="animate-pulse border-slate-700 bg-slate-800/60">
               <CardContent className="pt-6 space-y-3">
-                <div className={`h-4 rounded ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
-                <div className={`h-3 w-1/2 rounded ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+                <div className="h-4 rounded bg-slate-700" />
+                <div className="h-3 w-1/2 rounded bg-slate-700" />
               </CardContent>
             </Card>
           ))}
         </div>
       ) : streamers.length === 0 ? (
-        <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+        <Card className="border-slate-700 bg-slate-800/60">
           <CardContent className="pt-10 pb-10 text-center space-y-3">
             <Mic2 className="w-10 h-10 mx-auto text-slate-400" />
-            <p className={isDark ? 'text-slate-400' : 'text-slate-500'}>No hay DJs configurados.</p>
+            <p className="text-slate-400">No hay DJs configurados.</p>
             <Button size="sm" className="gap-2" onClick={() => setShowForm(true)}>
               <Plus className="w-4 h-4" />
               Agregar DJ
@@ -271,7 +266,7 @@ export default function AdminStreaming() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
             >
-              <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+              <Card className="border-slate-700 bg-slate-800/60">
                 <CardContent className="pt-5 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -279,7 +274,7 @@ export default function AdminStreaming() {
                         {s.display_name || s.streamer_username}
                       </p>
                       {s.comments && (
-                        <p className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <p className="text-xs truncate text-slate-400">
                           {s.comments}
                         </p>
                       )}
@@ -291,10 +286,10 @@ export default function AdminStreaming() {
                     </div>
                   </div>
 
-                  <div className={`p-3 rounded-lg space-y-2 ${isDark ? 'bg-slate-900' : 'bg-slate-50'}`}>
+                  <div className="p-3 rounded-lg space-y-2 bg-slate-900">
                     <InfoRow label="Usuario" value={s.streamer_username} monospace />
                     <div className="flex items-center justify-between gap-2">
-                      <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Contraseña</span>
+                      <span className="text-xs text-slate-400">Contraseña</span>
                       <div className="flex items-center gap-1">
                         <span className={`text-xs font-mono ${!showPasswords[s.id] ? 'tracking-widest' : ''}`}>
                           {showPasswords[s.id] ? s.streamer_password : '••••••••'}

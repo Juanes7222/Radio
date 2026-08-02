@@ -5,15 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAdminApi } from '@/hooks/useAdminApi';
-import { useTheme } from '@/hooks';
 import type { AdminSongRequest as SongRequest } from '@radio/types';
 
 const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 
 export default function AdminRequests() {
   const { getPendingRequests, approveRequest } = useAdminApi();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
 
   const [requests, setRequests] = useState<SongRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +77,7 @@ export default function AdminRequests() {
         </div>
       </div>
 
-      <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+      <Card className="border-slate-700 bg-slate-800/60">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -96,7 +93,7 @@ export default function AdminRequests() {
           {error ? (
             <div className={`py-8 text-center space-y-2`}>
               <XCircle className="w-8 h-8 mx-auto text-destructive opacity-60" />
-              <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{error}</p>
+              <p className="text-sm text-slate-400">{error}</p>
               <Button variant="outline" size="sm" onClick={load} className="mt-2 gap-2">
                 <RefreshCw className="w-3 h-3" />
                 Reintentar
@@ -107,14 +104,14 @@ export default function AdminRequests() {
               {[...Array(3)].map((_, i) => (
                 <div
                   key={i}
-                  className={`h-16 rounded-lg animate-pulse ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}
+                  className="h-16 rounded-lg animate-pulse bg-slate-700"
                 />
               ))}
             </div>
           ) : requests.length === 0 ? (
             <div className="py-10 text-center space-y-2">
               <CheckCircle2 className="w-10 h-10 mx-auto text-green-500 opacity-60" />
-              <p className={isDark ? 'text-slate-400' : 'text-slate-500'}>
+              <p className="text-slate-400">
                 No hay solicitudes pendientes
               </p>
             </div>
@@ -129,11 +126,7 @@ export default function AdminRequests() {
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <div
-                      className={`flex items-center gap-4 p-3 rounded-lg ${
-                        isDark ? 'bg-slate-900 border border-slate-700' : 'bg-slate-50 border border-slate-200'
-                      }`}
-                    >
+                    <div className="flex items-center gap-4 p-3 rounded-lg bg-slate-900 border border-slate-700">
                       {req.song.art && (
                         <img
                           src={req.song.art}
@@ -143,10 +136,10 @@ export default function AdminRequests() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{req.song.title}</p>
-                        <p className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <p className="text-xs truncate text-slate-400">
                           {req.song.artist}
                         </p>
-                        <div className={`flex items-center gap-1 mt-1 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                        <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
                           <Clock className="w-3 h-3" />
                           {new Date(req.timestamp * 1000).toLocaleTimeString()}
                         </div>
@@ -172,9 +165,9 @@ export default function AdminRequests() {
         </CardContent>
       </Card>
 
-      <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+      <Card className="border-slate-700 bg-slate-800/60">
         <CardContent className="pt-5 pb-5">
-          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          <p className="text-xs text-slate-400">
             💡 Las solicitudes aprobadas por AzuraCast se reproducen automáticamente según la configuración de la playlist. Para habilitar/deshabilitar solicitudes ve a{' '}
             <a
               href={`${AZURACAST_URL}/station/1/playlists`}

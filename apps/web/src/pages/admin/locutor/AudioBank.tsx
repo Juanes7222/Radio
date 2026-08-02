@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react';
 
+interface AudioItem {
+  id: number;
+  filename: string;
+  text_rendered: string;
+  voice: string;
+  status: string;
+}
+
 export default function AudioBank() {
-  const [audios, setAudios] = useState<any[]>([]);
+  const [audios, setAudios] = useState<AudioItem[]>([]);
 
   useEffect(() => {
     fetch('/admin-api/locutor/audios')
@@ -17,37 +25,37 @@ export default function AudioBank() {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Banco de Audios</h2>
+    <div className="bg-slate-900 border border-slate-700 p-6 rounded-lg shadow-sm">
+      <h2 className="text-xl font-semibold mb-4 text-white">Banco de Audios</h2>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <table className="min-w-full divide-y divide-slate-700">
           <thead>
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Archivo</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Texto Generado</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Voz</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Archivo</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Texto Generado</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Voz</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Estado</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="divide-y divide-slate-700">
             {audios.map(audio => (
               <tr key={audio.id}>
-                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{audio.filename}</td>
-                <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate" title={audio.text_rendered}>
+                <td className="px-4 py-3 text-sm text-slate-300">{audio.filename}</td>
+                <td className="px-4 py-3 text-sm text-slate-400 max-w-xs truncate" title={audio.text_rendered}>
                   {audio.text_rendered}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-500">{audio.voice}</td>
+                <td className="px-4 py-3 text-sm text-slate-400">{audio.voice}</td>
                 <td className="px-4 py-3 text-sm">
                   <span className={`px-2 py-1 text-xs rounded-full ${
-                    audio.status === 'ready' ? 'bg-green-100 text-green-800' : 
-                    audio.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                    audio.status === 'ready' ? 'bg-green-500/10 text-green-500' : 
+                    audio.status === 'pending' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-red-500/10 text-red-500'
                   }`}>
                     {audio.status}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm space-x-2">
-                  <button onClick={() => handleDelete(audio.id)} className="text-red-600 hover:text-red-900">
+                  <button onClick={() => handleDelete(audio.id)} className="text-red-500 hover:text-red-400">
                     Eliminar
                   </button>
                 </td>
@@ -55,7 +63,7 @@ export default function AudioBank() {
             ))}
             {audios.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-4 text-center text-gray-500">
+                <td colSpan={5} className="px-4 py-4 text-center text-slate-400">
                   No hay audios generados
                 </td>
               </tr>

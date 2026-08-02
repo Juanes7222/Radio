@@ -6,4 +6,4 @@ export { FacebookLivePlayer } from './FacebookLivePlayer';
 export { DesktopHeroSection } from './DesktopHeroSection';
 export { SongRequestButton } from './SongRequestButton';
 export { AppFooter } from './AppFooter';
-export { VinylDisc, VinylDiscPlaceholder } from './VinylDisc';
+export { VinylDisc } from './VinylDisc';

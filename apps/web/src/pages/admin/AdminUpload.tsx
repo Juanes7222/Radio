@@ -31,7 +31,6 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { useTheme } from '@/hooks';
 import type { AdminPlaylist, MediaFile } from '@radio/types';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -89,8 +88,6 @@ const CONCURRENCY = 2; // subidas simultáneas máximas
 
 export default function AdminUpload() {
   const { token } = useAdminAuth();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
   const uid = useId();
 
   // Modo de selección
@@ -276,7 +273,7 @@ export default function AdminUpload() {
   // ── Status badge color ───────────────────────────────────────────────────────
 
   const statusColor: Record<UploadStatus, string> = {
-    pending : isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-500',
+    pending : 'bg-slate-700 text-slate-300',
     uploading: 'bg-blue-500/20 text-blue-400',
     done    : 'bg-green-500/20 text-green-500',
     error   : 'bg-red-500/20 text-red-400',
@@ -298,7 +295,7 @@ export default function AdminUpload() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Subir archivos</h1>
-          <p className={`text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          <p className="text-sm mt-1 text-slate-400">
             Sube música o predicaciones de forma individual o masiva (por carpeta completa)
           </p>
         </div>
@@ -315,7 +312,7 @@ export default function AdminUpload() {
       </div>
 
       {/* ── Tarjeta SFTP ─────────────────────────────────────────────────────── */}
-      <Card className={`border ${isDark ? 'bg-blue-950/30 border-blue-800/40' : 'bg-blue-50 border-blue-200'}`}>
+      <Card className="border bg-blue-950/30 border-blue-800/40">
         <button
           type="button"
           className="w-full text-left"
@@ -324,8 +321,8 @@ export default function AdminUpload() {
           <CardHeader className="py-3 px-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Info className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-                <span className={`font-semibold text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
+                <Info className="w-4 h-4 text-blue-400" />
+                <span className="font-semibold text-sm text-blue-300">
                   Subida masiva recomendada: SFTP directo al VPS
                 </span>
               </div>
@@ -346,13 +343,13 @@ export default function AdminUpload() {
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              <CardContent className={`px-4 pb-4 text-sm ${isDark ? 'text-blue-200' : 'text-blue-800'}`}>
+              <CardContent className="px-4 pb-4 text-sm text-blue-200">
                 <p className="mb-3">
                   Para subir <strong>cientos de canciones o álbumes completos</strong> desde tu PC, usa SFTP
                   directamente al servidor. Es más rápido, reanuda transferencias fallidas y respeta la
                   estructura de carpetas sin passar por este servidor.
                 </p>
-                <div className={`rounded-lg p-3 font-mono text-xs space-y-1 ${isDark ? 'bg-slate-900' : 'bg-white/70'}`}>
+                <div className="rounded-lg p-3 font-mono text-xs space-y-1 bg-slate-900">
                   <div><span className="opacity-50">Host:</span>  <strong>IP_DE_TU_VPS</strong></div>
                   <div><span className="opacity-50">Puerto:</span> <strong>2022</strong></div>
                   <div><span className="opacity-50">Usuario/Contraseña:</span> <em>los que creaste en AzuraCast → Media → SFTP Users</em></div>
@@ -369,18 +366,18 @@ export default function AdminUpload() {
       </Card>
 
       {/* ── Zona de selección ────────────────────────────────────────────────── */}
-      <Card className={isDark ? 'bg-slate-900 border-slate-700' : ''}>
+      <Card className="bg-slate-900 border-slate-700">
         <CardContent className="p-6 space-y-5">
 
           {/* Selector de modo */}
-          <div className={`flex items-center gap-1 p-1 rounded-lg w-fit ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+          <div className="flex items-center gap-1 p-1 rounded-lg w-fit bg-slate-800">
             <button
               type="button"
               onClick={() => setMode('files')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                 mode === 'files'
-                  ? isDark ? 'bg-slate-700 text-white shadow-sm' : 'bg-white text-slate-900 shadow-sm'
-                  : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-slate-700 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               <Files className="w-4 h-4" />
@@ -391,8 +388,8 @@ export default function AdminUpload() {
               onClick={() => setMode('folder')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                 mode === 'folder'
-                  ? isDark ? 'bg-slate-700 text-white shadow-sm' : 'bg-white text-slate-900 shadow-sm'
-                  : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-slate-700 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               <FolderTree className="w-4 h-4" />
@@ -410,9 +407,7 @@ export default function AdminUpload() {
               relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer select-none
               ${isDragging
                 ? 'border-primary bg-primary/5 scale-[1.01]'
-                : isDark
-                ? 'border-slate-600 hover:border-slate-400 hover:bg-slate-800/50'
-                : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'
+                : 'border-slate-600 hover:border-slate-400 hover:bg-slate-800/50'
               }
             `}
           >
@@ -438,8 +433,8 @@ export default function AdminUpload() {
 
             <div className="flex flex-col items-center gap-3">
               {mode === 'folder'
-                ? <FolderOpen className={`w-10 h-10 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                : <Upload className={`w-10 h-10 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+                ? <FolderOpen className="w-10 h-10 text-slate-500" />
+                : <Upload className="w-10 h-10 text-slate-500" />
               }
               <div>
                 <p className="font-medium">
@@ -448,7 +443,7 @@ export default function AdminUpload() {
                     : 'Arrastra archivos o haz clic para seleccionar'
                   }
                 </p>
-                <p className={`text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <p className="text-sm mt-1 text-slate-400">
                   {mode === 'folder'
                     ? 'Se preservará la estructura de subcarpetas (Artista/Álbum/track.mp3)'
                     : 'MP3, OGG, FLAC, WAV, AAC · Múltiples archivos permitidos · máx. 200 MB c/u'
@@ -460,24 +455,20 @@ export default function AdminUpload() {
 
           {/* Carpeta base opcional */}
           <div className="flex items-center gap-2">
-            <FolderTree className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+            <FolderTree className="w-4 h-4 flex-shrink-0 text-slate-400" />
             <input
               type="text"
               placeholder="Carpeta base en AzuraCast (opcional) — ej: Música/Gospel"
               value={baseFolder}
               onChange={(e) => setBaseFolder(e.target.value)}
-              className={`flex-1 text-sm rounded-md border px-3 py-1.5 outline-none focus:ring-2 focus:ring-primary/50 ${
-                isDark
-                  ? 'bg-slate-800 border-slate-600 text-white placeholder:text-slate-500'
-                  : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400'
-              }`}
+              className="flex-1 text-sm rounded-md border px-3 py-1.5 outline-none focus:ring-2 focus:ring-primary/50 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
             />
           </div>
 
           {/* Selector de playlist + botón iniciar */}
           <div className="flex flex-col sm:flex-row gap-3">
             <Select value={selectedPlaylist || 'none'} onValueChange={(v) => setSelectedPlaylist(v === 'none' ? '' : v)}>
-              <SelectTrigger className={`flex-1 ${isDark ? 'bg-slate-800 border-slate-600' : ''}`}>
+              <SelectTrigger className="flex-1 bg-slate-800 border-slate-600">
                 <SelectValue placeholder="Asignar a playlist (opcional)" />
               </SelectTrigger>
               <SelectContent>
@@ -513,7 +504,7 @@ export default function AdminUpload() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
           >
-            <Card className={isDark ? 'bg-slate-900 border-slate-700' : ''}>
+            <Card className="bg-slate-900 border-slate-700">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -525,7 +516,7 @@ export default function AdminUpload() {
                     {qStats.done > 0    && <Badge variant="outline" className="text-green-500 border-green-500/30">{qStats.done} listos</Badge>}
                     {qStats.uploading > 0 && <Badge variant="outline" className="text-blue-400 border-blue-400/30">{qStats.uploading} subiendo</Badge>}
                     {qStats.error > 0   && <Badge variant="outline" className="text-red-400 border-red-400/30">{qStats.error} errores</Badge>}
-                    {qStats.pending > 0 && <Badge variant="outline" className={isDark ? 'text-slate-300 border-slate-600' : 'text-slate-500'}>{qStats.pending} en espera</Badge>}
+                    {qStats.pending > 0 && <Badge variant="outline" className="text-slate-300 border-slate-600">{qStats.pending} en espera</Badge>}
                     <Button variant="ghost" size="sm" onClick={clearDone} disabled={qStats.done === 0} className="text-xs h-7">
                       Limpiar listos
                     </Button>
@@ -539,7 +530,7 @@ export default function AdminUpload() {
                 {(isRunning || qStats.done > 0) && (
                   <div className="space-y-1 pt-2">
                     <Progress value={overallProgress} className="h-1.5" />
-                    <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <p className="text-xs text-slate-400">
                       {qStats.done} / {qStats.total} archivos · {overallProgress}%
                     </p>
                   </div>
@@ -555,13 +546,13 @@ export default function AdminUpload() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      className={`rounded-lg p-2.5 ${isDark ? 'bg-slate-800/60' : 'bg-slate-50'}`}
+                      className="rounded-lg p-2.5 bg-slate-800/60"
                     >
                       <div className="flex items-center gap-2">
                         <FileAudio className="w-4 h-4 flex-shrink-0 opacity-50" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{item.file.name}</p>
-                          <p className={`text-xs truncate ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                          <p className="text-xs truncate text-slate-500">
                             {item.uploadPath} · {formatBytes(item.file.size)}
                           </p>
                           {item.status === 'uploading' && (
@@ -596,7 +587,7 @@ export default function AdminUpload() {
       </AnimatePresence>
 
       {/* ── Archivos recientes en AzuraCast ──────────────────────────────────── */}
-      <Card className={isDark ? 'bg-slate-900 border-slate-700' : ''}>
+      <Card className="bg-slate-900 border-slate-700">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
@@ -621,7 +612,7 @@ export default function AdminUpload() {
               </div>
             ))
           ) : recentFiles.length === 0 ? (
-            <div className={`text-center py-8 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+            <div className="text-center py-8 text-slate-500">
               <Music className="w-10 h-10 mx-auto mb-2 opacity-30" />
               <p className="text-sm">No hay archivos en la biblioteca aún</p>
             </div>
@@ -634,14 +625,10 @@ export default function AdminUpload() {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 10, height: 0 }}
-                  className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                    isDark ? 'bg-slate-800/50 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100'
-                  }`}
+                  className="flex items-center gap-3 p-3 rounded-lg transition-colors bg-slate-800/50 hover:bg-slate-800"
                 >
                   {/* Miniatura / Icono */}
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    isDark ? 'bg-slate-700' : 'bg-slate-200'
-                  }`}>
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-700">
                     {file.links?.art ? (
                       <img
                         src={file.links.art} alt=""
@@ -658,7 +645,7 @@ export default function AdminUpload() {
                     <p className="font-medium text-sm truncate">
                       {file.title || file.path.split('/').pop()}
                     </p>
-                    <div className={`flex items-center gap-2 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
                       {file.artist && <span className="truncate">{file.artist}</span>}
                       {file.length > 0 && (
                         <span className="flex-shrink-0">
@@ -703,9 +690,7 @@ export default function AdminUpload() {
       </Card>
 
       {/* Nota de seguridad */}
-      <div className={`flex items-start gap-2 p-3 rounded-lg text-xs ${
-        isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'
-      }`}>
+      <div className="flex items-start gap-2 p-3 rounded-lg text-xs bg-blue-500/10 text-blue-400">
         <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
         <span>
           Los archivos se envían a AzuraCast a través del servidor seguro y se organizan respetando

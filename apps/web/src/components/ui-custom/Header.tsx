@@ -11,7 +11,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { ShareModal } from './SharedModla';
-import LOGO1 from '@assets/img/LOGO_COMPLETO_SINFONDO.png';
 import LOGO2 from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -185,7 +184,6 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
               </div>
             </SheetContent>
           </Sheet>
-          <ShareModal open={shareOpen} onOpenChange={setShareOpen} stationName={stationName} />
         </div>
       </div>
     </motion.header>

@@ -98,7 +98,7 @@ export function WaveformVisualizer({
     return () => {
       stopAnimation();
     };
-  }, [isPlaying, theme, analyserNode]);
+  }, [isPlaying, analyserNode]);
 
   const renderFallback = () => {
     const bars = 30;

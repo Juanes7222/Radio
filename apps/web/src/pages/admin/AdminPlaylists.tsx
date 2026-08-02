@@ -6,15 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useAdminApi } from '@/hooks/useAdminApi';
-import { useTheme } from '@/hooks';
 import type { AdminPlaylist } from '@radio/types';
 
 const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 
 export default function AdminPlaylists() {
   const { getPlaylists, createPlaylist, togglePlaylist, deletePlaylist } = useAdminApi();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
 
   const [playlists, setPlaylists] = useState<AdminPlaylist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,7 +92,7 @@ export default function AdminPlaylists() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Playlists</h1>
-          <p className={`text-sm mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          <p className="text-sm mt-0.5 text-slate-400">
             {playlists.length} playlist{playlists.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -114,7 +111,7 @@ export default function AdminPlaylists() {
       {/* Formulario crear playlist */}
       {showCreateForm && (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className={isDark ? 'border-primary/40 bg-slate-800/60' : 'border-primary/40'}>
+          <Card className="border-primary/40 bg-slate-800/60">
             <CardHeader>
               <CardTitle className="text-base">Nueva playlist</CardTitle>
             </CardHeader>
@@ -127,7 +124,7 @@ export default function AdminPlaylists() {
                       placeholder="Ej: Música cristiana"
                       value={createForm.name}
                       onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
-                      className={isDark ? 'bg-slate-900 border-slate-600' : ''}
+                      className="bg-slate-900 border-slate-600"
                     />
                   </div>
                   <div className="space-y-1">
@@ -135,9 +132,7 @@ export default function AdminPlaylists() {
                     <select
                       value={createForm.type}
                       onChange={(e) => setCreateForm((f) => ({ ...f, type: e.target.value }))}
-                      className={`w-full h-9 rounded-md border px-3 text-sm ${
-                        isDark ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-slate-200'
-                      }`}
+                      className="w-full h-9 rounded-md border px-3 text-sm bg-slate-900 border-slate-600 text-white"
                     >
                       <option value="default">Estándar</option>
                       <option value="scheduled">Programada</option>
@@ -150,9 +145,7 @@ export default function AdminPlaylists() {
                     <select
                       value={createForm.order}
                       onChange={(e) => setCreateForm((f) => ({ ...f, order: e.target.value }))}
-                      className={`w-full h-9 rounded-md border px-3 text-sm ${
-                        isDark ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-slate-200'
-                      }`}
+                      className="w-full h-9 rounded-md border px-3 text-sm bg-slate-900 border-slate-600 text-white"
                     >
                       <option value="shuffle">Aleatoria</option>
                       <option value="sequential">Secuencial</option>
@@ -196,19 +189,19 @@ export default function AdminPlaylists() {
       {loading && playlists.length === 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <Card key={i} className={`animate-pulse ${isDark ? 'border-slate-700 bg-slate-800/60' : ''}`}>
+            <Card key={i} className="animate-pulse border-slate-700 bg-slate-800/60">
               <CardContent className="pt-6 space-y-3">
-                <div className={`h-4 rounded ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
-                <div className={`h-3 w-2/3 rounded ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+                <div className="h-4 rounded bg-slate-700" />
+                <div className="h-3 w-2/3 rounded bg-slate-700" />
               </CardContent>
             </Card>
           ))}
         </div>
       ) : playlists.length === 0 ? (
-        <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+        <Card className="border-slate-700 bg-slate-800/60">
           <CardContent className="pt-10 pb-10 text-center space-y-3">
             <ListMusic className="w-10 h-10 mx-auto text-slate-400" />
-            <p className={isDark ? 'text-slate-400' : 'text-slate-500'}>
+            <p className="text-slate-400">
               No hay playlists configuradas.
             </p>
             <a href={`${AZURACAST_URL}/station/1/playlists`} target="_blank" rel="noopener noreferrer">
@@ -231,7 +224,7 @@ export default function AdminPlaylists() {
               <Card
                 className={`h-full transition-opacity ${
                   !pl.is_enabled ? 'opacity-50' : ''
-                } ${isDark ? 'border-slate-700 bg-slate-800/60' : ''}`}
+                } border-slate-700 bg-slate-800/60`}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
@@ -248,9 +241,7 @@ export default function AdminPlaylists() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div
-                    className={`flex flex-wrap gap-2 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}
-                  >
+                  <div className="flex flex-wrap gap-2 text-xs text-slate-400">
                     <span>{playlistTypeLabel(pl.type)}</span>
                     <span>·</span>
                     <span>{pl.num_songs} canciones</span>

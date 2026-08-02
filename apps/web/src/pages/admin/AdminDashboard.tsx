@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAdminApi } from '@/hooks/useAdminApi';
-import { useTheme } from '@/hooks';
 import type { NowPlayingData } from '@radio/types';
 import type { ListenerDetail } from '@radio/types';
 
@@ -18,27 +17,25 @@ interface StatCardProps {
 }
 
 function StatCard({ title, value, icon: Icon, description, accent }: StatCardProps) {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
   return (
-    <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+    <Card className="border-slate-700 bg-slate-800/60">
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div>
-            <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <p className="text-sm font-medium text-slate-400">
               {title}
             </p>
             <p className={`text-3xl font-bold mt-1 ${accent ? 'text-primary' : ''}`}>
               {value}
             </p>
             {description && (
-              <p className={`text-xs mt-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+              <p className="text-xs mt-1 text-slate-500">
                 {description}
               </p>
             )}
           </div>
-          <div className={`p-3 rounded-full ${accent ? 'bg-primary/10' : isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>
-            <Icon className={`w-5 h-5 ${accent ? 'text-primary' : isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+          <div className={`p-3 rounded-full ${accent ? 'bg-primary/10' : 'bg-slate-700'}`}>
+            <Icon className={`w-5 h-5 ${accent ? 'text-primary' : 'text-slate-300'}`} />
           </div>
         </div>
       </CardContent>
@@ -50,8 +47,6 @@ const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 
 export default function AdminDashboard() {
   const { getStatus, getListeners, getNowPlaying, skipCurrentTrack, restartStation } = useAdminApi();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
 
   const [nowPlaying, setNowPlaying] = useState<NowPlayingData | null>(null);
   const [listeners, setListeners] = useState<ListenerDetail[]>([]);
@@ -111,7 +106,7 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className={`text-sm mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          <p className="text-sm mt-0.5 text-slate-400">
             Última actualización: {lastRefresh.toLocaleTimeString()}
           </p>
         </div>
@@ -182,7 +177,7 @@ export default function AdminDashboard() {
 
       {/* Now Playing */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+        <Card className="border-slate-700 bg-slate-800/60">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Music className="w-4 h-4 text-primary" />
@@ -202,7 +197,7 @@ export default function AdminDashboard() {
                   )}
                   <div className="min-w-0">
                     <p className="font-semibold text-lg truncate">{song.title || 'Sin título'}</p>
-                    <p className={`text-sm truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <p className="text-sm truncate text-slate-400">
                       {song.artist || 'Artista desconocido'}
                     </p>
                     {nowPlaying?.now_playing?.is_request && (
@@ -212,20 +207,20 @@ export default function AdminDashboard() {
                 </div>
                 {/* Barra de progreso */}
                 <div className="space-y-1">
-                  <div className={`w-full h-1.5 rounded-full ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                  <div className="w-full h-1.5 rounded-full bg-slate-700">
                     <div
                       className="h-full rounded-full bg-primary transition-all duration-1000"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <div className={`flex justify-between text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                  <div className="flex justify-between text-xs text-slate-500">
                     <span>{formatTime(elapsed)}</span>
                     <span>{formatTime(duration)}</span>
                   </div>
                 </div>
               </div>
             ) : (
-              <p className={isDark ? 'text-slate-400' : 'text-slate-500'}>Sin información disponible</p>
+              <p className="text-slate-400">Sin información disponible</p>
             )}
           </CardContent>
         </Card>
@@ -233,7 +228,7 @@ export default function AdminDashboard() {
 
       {/* Lista de oyentes conectados */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-        <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+        <Card className="border-slate-700 bg-slate-800/60">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -253,7 +248,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             {listeners.length === 0 ? (
-              <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <p className="text-sm text-slate-400">
                 No hay oyentes conectados en este momento.
               </p>
             ) : (
@@ -261,17 +256,15 @@ export default function AdminDashboard() {
                 {listeners.map((l: ListenerDetail, i: number) => (
                   <div
                     key={i}
-                    className={`flex items-center justify-between p-2 rounded-lg text-sm ${
-                      isDark ? 'bg-slate-900' : 'bg-slate-50'
-                    }`}
+                    className="flex items-center justify-between p-2 rounded-lg text-sm bg-slate-900"
                   >
                     <div className="min-w-0">
                       <p className="font-mono text-xs truncate">{l.ip}</p>
-                      <p className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <p className="text-xs truncate text-slate-400">
                         {l.location?.city ? `${l.location.city}, ${l.location.country}` : l.mount_name}
                       </p>
                     </div>
-                    <span className={`text-xs shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <span className="text-xs shrink-0 text-slate-400">
                       {formatDuration(l.connected_time)}
                     </span>
                   </div>

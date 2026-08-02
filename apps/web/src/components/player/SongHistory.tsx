@@ -71,9 +71,7 @@ export function SongHistory({
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 16 }}
                     transition={{ delay: index * 0.04 }}
-                    className={`flex items-center gap-3 p-3 rounded-lg ${
-                      'bg-slate-800/50 hover:bg-slate-800'
-                    } transition-colors`}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors"
                   >
                     {/* Carátula mini */}
                     <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0">

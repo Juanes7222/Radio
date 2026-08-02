@@ -37,10 +37,4 @@ export function VinylDisc() {
   );
 }
 
-export function VinylDiscPlaceholder() {
-  return (
-    <div className="w-full h-full rounded-full bg-gradient-to-tr from-slate-700/60 to-slate-900/60 animate-pulse" />
-  );
-}
-
 export default VinylDisc;

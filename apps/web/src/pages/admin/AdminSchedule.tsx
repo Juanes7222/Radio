@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAdminApi } from '@/hooks/useAdminApi';
-import { useTheme } from '@/hooks';
 import type { ScheduleItem } from '@radio/types';
 
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -30,8 +29,6 @@ const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 
 export default function AdminSchedule() {
   const { getSchedule } = useAdminApi();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
 
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,18 +57,18 @@ export default function AdminSchedule() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">Programación</h1>
-          <p className={`text-sm mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          <p className="text-sm mt-0.5 text-slate-400">
             {new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className={`flex rounded-lg p-1 ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+          <div className="flex rounded-lg p-1 bg-slate-800">
             <button
               onClick={() => setView('list')}
               className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                 view === 'list'
                   ? 'bg-primary text-primary-foreground'
-                  : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Lista
@@ -81,7 +78,7 @@ export default function AdminSchedule() {
               className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                 view === 'timeline'
                   ? 'bg-primary text-primary-foreground'
-                  : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Línea de tiempo
@@ -107,7 +104,7 @@ export default function AdminSchedule() {
       {/* En curso ahora */}
       {active.length > 0 && (
         <div className="space-y-2">
-          <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             En curso ahora
           </h2>
           {active.map((item) => (
@@ -116,9 +113,9 @@ export default function AdminSchedule() {
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
             >
-              <Card className={`border-primary/50 ${isDark ? 'bg-slate-800/60' : ''}`}>
+              <Card className="border-primary/50 bg-slate-800/60">
                 <CardContent className="pt-4 pb-4">
-                  <ScheduleRow item={item} isDark={isDark} isActive />
+                  <ScheduleRow item={item} isActive />
                 </CardContent>
               </Card>
             </motion.div>
@@ -127,7 +124,7 @@ export default function AdminSchedule() {
       )}
 
       {view === 'list' ? (
-        <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+        <Card className="border-slate-700 bg-slate-800/60">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <CalendarDays className="w-4 h-4 text-primary" />
@@ -139,13 +136,13 @@ export default function AdminSchedule() {
             {loading && schedule.length === 0 ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className={`h-14 rounded-lg animate-pulse ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`} />
+                  <div key={i} className="h-14 rounded-lg animate-pulse bg-slate-700" />
                 ))}
               </div>
             ) : next.length === 0 ? (
               <div className="py-8 text-center space-y-2">
                 <CalendarDays className="w-10 h-10 mx-auto text-slate-400" />
-                <p className={isDark ? 'text-slate-400' : 'text-slate-500'}>
+                <p className="text-slate-400">
                   No hay eventos programados próximamente.
                 </p>
                 <a href="http://localhost/station/1/playlists" target="_blank" rel="noopener noreferrer">
@@ -165,7 +162,7 @@ export default function AdminSchedule() {
                     transition={{ delay: i * 0.03 }}
                     className="py-3 first:pt-0 last:pb-0"
                   >
-                    <ScheduleRow item={item} isDark={isDark} />
+                    <ScheduleRow item={item} />
                   </motion.div>
                 ))}
               </div>
@@ -174,7 +171,7 @@ export default function AdminSchedule() {
         </Card>
       ) : (
         /* Vista línea de tiempo */
-        <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+        <Card className="border-slate-700 bg-slate-800/60">
           <CardHeader>
             <CardTitle className="text-base">Hoy — {DAY_NAMES[getBogotaDayOfWeek(new Date())]}</CardTitle>
           </CardHeader>
@@ -186,7 +183,7 @@ export default function AdminSchedule() {
                 {HOURS.map((h) => (
                   <div
                     key={h}
-                    className={`flex-1 text-center text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}
+                    className="flex-1 text-center text-xs text-slate-500"
                   >
                     {h.toString().padStart(2, '0')}
                   </div>
@@ -194,9 +191,7 @@ export default function AdminSchedule() {
               </div>
               {/* Línea de tiempo */}
               <div className="relative">
-                <div
-                  className={`relative h-12 rounded-lg overflow-hidden ${isDark ? 'bg-slate-900' : 'bg-slate-100'}`}
-                >
+                <div className="relative h-12 rounded-lg overflow-hidden bg-slate-900">
                   {next.concat(active).map((item) => {
                     const startDate = new Date(item.start_timestamp * 1000);
                     const endDate = new Date(item.end_timestamp * 1000);
@@ -231,15 +226,15 @@ export default function AdminSchedule() {
               <div className="flex items-center gap-4 mt-3 text-xs">
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-3 rounded bg-primary/80" />
-                  <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>Playlist</span>
+                  <span className="text-slate-400">Playlist</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-3 rounded bg-blue-500/80" />
-                  <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>Streamer</span>
+                  <span className="text-slate-400">Streamer</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="w-0.5 h-3 bg-red-500" />
-                  <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>Ahora</span>
+                  <span className="text-slate-400">Ahora</span>
                 </div>
               </div>
             </div>
@@ -250,19 +245,19 @@ export default function AdminSchedule() {
   );
 }
 
-function ScheduleRow({ item, isDark, isActive }: { item: ScheduleItem; isDark: boolean; isActive?: boolean }) {
+function ScheduleRow({ item, isActive }: { item: ScheduleItem; isActive?: boolean }) {
   const Icon = item.type === 'streamer' ? Radio : ListMusic;
   return (
     <div className="flex items-center gap-3">
-      <div className={`p-2 rounded-lg ${isActive ? 'bg-primary/10' : isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>
-        <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+      <div className={`p-2 rounded-lg ${isActive ? 'bg-primary/10' : 'bg-slate-700'}`}>
+        <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-slate-300'}`} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="font-medium text-sm truncate">{item.title}</p>
           {isActive && <Badge variant="default" className="text-xs">En vivo</Badge>}
         </div>
-        <div className={`flex items-center gap-1 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+        <div className="flex items-center gap-1 text-xs text-slate-400">
           <Clock className="w-3 h-3" />
           {item.start} → {item.end}
         </div>

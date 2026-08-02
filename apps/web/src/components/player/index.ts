@@ -5,4 +5,3 @@ export { SongInfo } from './SongInfo';
 export { SongHistory } from './SongHistory';
 export { SongRequest } from './SongRequest';
 export { ListenerStats } from './ListenerStats';
-export { VinylDisc } from './VinylDisc';

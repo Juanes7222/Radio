@@ -16,9 +16,7 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ThemeToggle } from '@/components/ui-custom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { useTheme } from '@/hooks';
 import type { AdminUser } from '@radio/types';
 
 const NAV_ITEMS = [
@@ -35,28 +33,25 @@ const NAV_ITEMS = [
 const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 
 interface AdminSidebarProps {
-  isDark: boolean;
   user: AdminUser;
   onCloseMobile: () => void;
   onLogout: () => void;
 }
 
-function AdminSidebar({ isDark, user, onCloseMobile, onLogout }: AdminSidebarProps) {
-  const sidebarClasses = `flex flex-col h-full ${
-    isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
-  } border-r`;
+function AdminSidebar({ user, onCloseMobile, onLogout }: AdminSidebarProps) {
+  const sidebarClasses = 'flex flex-col h-full bg-slate-900 border-slate-700 border-r';
 
   return (
     <div className={sidebarClasses}>
       {/* Logo */}
-      <div className={`p-5 border-b ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+      <div className="p-5 border-b border-slate-700">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/10">
             <Radio className="w-5 h-5 text-primary" />
           </div>
           <div className="min-w-0">
             <p className="font-semibold text-sm truncate">{user.stationName || 'Radio'}</p>
-            <p className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <p className="text-xs truncate text-slate-400">
               {user.name || user.email}
             </p>
           </div>
@@ -74,9 +69,7 @@ function AdminSidebar({ isDark, user, onCloseMobile, onLogout }: AdminSidebarPro
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive
                   ? 'bg-primary text-primary-foreground'
-                  : isDark
-                  ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               }`
             }
           >
@@ -87,27 +80,19 @@ function AdminSidebar({ isDark, user, onCloseMobile, onLogout }: AdminSidebarPro
       </nav>
 
       {/* Footer */}
-      <div className={`p-3 border-t space-y-1 ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+      <div className="p-3 border-t border-slate-700 space-y-1">
         <a
           href={AZURACAST_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-colors ${
-            isDark
-              ? 'text-slate-400 hover:bg-slate-800 hover:text-white'
-              : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-          }`}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-colors text-slate-400 hover:bg-slate-800 hover:text-white"
         >
           <ExternalLink className="w-4 h-4" />
           Panel AzuraCast
         </a>
         <button
           onClick={onLogout}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-            isDark
-              ? 'text-slate-400 hover:bg-red-900/30 hover:text-red-400'
-              : 'text-slate-600 hover:bg-red-50 hover:text-red-600'
-          }`}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-slate-400 hover:bg-red-900/30 hover:text-red-400"
         >
           <LogOut className="w-4 h-4" />
           Cerrar sesión
@@ -119,11 +104,8 @@ function AdminSidebar({ isDark, user, onCloseMobile, onLogout }: AdminSidebarPro
 
 export default function AdminLayout() {
   const { user, logout } = useAdminAuth();
-  const { resolvedTheme } = useTheme();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const isDark = resolvedTheme === 'dark';
 
   if (!user) return <Navigate to="/admin/login" replace />;
 
@@ -133,14 +115,10 @@ export default function AdminLayout() {
   };
 
   return (
-    <div
-      className={`min-h-screen flex transition-colors duration-300 ${
-        isDark ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'
-      }`}
-    >
+    <div className="min-h-screen flex transition-colors duration-300 bg-slate-950 text-white">
       {/* Sidebar escritorio */}
       <aside className="hidden md:block w-60 shrink-0 fixed inset-y-0 left-0 z-30">
-        <AdminSidebar isDark={isDark} user={user} onCloseMobile={() => setSidebarOpen(false)} onLogout={handleLogout} />
+        <AdminSidebar user={user} onCloseMobile={() => setSidebarOpen(false)} onLogout={handleLogout} />
       </aside>
 
       {/* Sidebar móvil - overlay */}
@@ -161,7 +139,7 @@ export default function AdminLayout() {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="fixed inset-y-0 left-0 w-60 z-50 md:hidden"
             >
-              <AdminSidebar isDark={isDark} user={user} onCloseMobile={() => setSidebarOpen(false)} onLogout={handleLogout} />
+              <AdminSidebar user={user} onCloseMobile={() => setSidebarOpen(false)} onLogout={handleLogout} />
             </motion.aside>
           </>
         )}
@@ -170,13 +148,7 @@ export default function AdminLayout() {
       {/* Contenido principal */}
       <div className="flex-1 md:ml-60 flex flex-col min-h-screen">
         {/* Topbar */}
-        <header
-          className={`sticky top-0 z-20 flex items-center justify-between gap-4 px-4 py-3 border-b ${
-            isDark
-              ? 'bg-slate-900/95 backdrop-blur border-slate-700'
-              : 'bg-white/95 backdrop-blur border-slate-200'
-          }`}
-        >
+        <header className="sticky top-0 z-20 flex items-center justify-between gap-4 px-4 py-3 border-b bg-slate-900/95 backdrop-blur border-slate-700">
           <Button
             variant="ghost"
             size="icon"
@@ -186,7 +158,6 @@ export default function AdminLayout() {
             <Menu className="w-5 h-5" />
           </Button>
           <div className="flex-1" />
-          <ThemeToggle />
           <Button
             variant="ghost"
             size="sm"

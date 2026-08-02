@@ -20,7 +20,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAdminApi } from '@/hooks/useAdminApi';
-import { useTheme } from '@/hooks';
 import type { PrayerRequest, PrayerStatus } from '@radio/types';
 
 const STATUS_CONFIG: Record<PrayerStatus, { label: string; color: string }> = {
@@ -32,8 +31,6 @@ const STATUS_CONFIG: Record<PrayerStatus, { label: string; color: string }> = {
 
 export default function AdminPrayerRequests() {
   const { getPrayerRequests, updatePrayerRequest } = useAdminApi();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
 
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,7 +102,7 @@ export default function AdminPrayerRequests() {
         </div>
       </div>
 
-      <Card className={isDark ? 'border-slate-700 bg-slate-800/60' : ''}>
+      <Card className="border-slate-700 bg-slate-800/60">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -120,7 +117,7 @@ export default function AdminPrayerRequests() {
         <CardContent>
           {error ? (
             <div className="py-8 text-center space-y-2">
-              <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{error}</p>
+              <p className="text-sm text-slate-400">{error}</p>
               <Button variant="outline" size="sm" onClick={load} className="mt-2 gap-2">
                 <RefreshCw className="w-3 h-3" />
                 Reintentar
@@ -131,14 +128,14 @@ export default function AdminPrayerRequests() {
               {[...Array(3)].map((_, i) => (
                 <div
                   key={i}
-                  className={`h-16 rounded-lg animate-pulse ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}
+                  className="h-16 rounded-lg animate-pulse bg-slate-700"
                 />
               ))}
             </div>
           ) : requests.length === 0 ? (
             <div className="py-10 text-center space-y-2">
               <CheckCircle2 className="w-10 h-10 mx-auto text-green-500 opacity-60" />
-              <p className={isDark ? 'text-slate-400' : 'text-slate-500'}>
+              <p className="text-slate-400">
                 No hay peticiones de oracion recibidas
               </p>
             </div>
@@ -154,9 +151,7 @@ export default function AdminPrayerRequests() {
                     transition={{ duration: 0.2 }}
                   >
                     <div
-                      className={`p-4 rounded-lg space-y-3 ${
-                        isDark ? 'bg-slate-900 border border-slate-700' : 'bg-slate-50 border border-slate-200'
-                      } ${req.readAt ? '' : isDark ? 'border-l-indigo-500 border-l-2' : 'border-l-indigo-500 border-l-2'}`}
+                      className={`p-4 rounded-lg space-y-3 bg-slate-900 border border-slate-700 ${req.readAt ? '' : 'border-l-indigo-500 border-l-2'}`}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -171,18 +166,16 @@ export default function AdminPrayerRequests() {
                               {STATUS_CONFIG[req.estado as PrayerStatus]?.label ?? req.estado}
                             </Badge>
                           </div>
-                          <p className={`text-sm mt-1 whitespace-pre-wrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                          <p className="text-sm mt-1 whitespace-pre-wrap text-slate-300">
                             {req.request}
                           </p>
                           {req.respuesta && (
-                            <div className={`mt-2 p-2 rounded text-sm ${
-                              isDark ? 'bg-indigo-500/10 text-indigo-300' : 'bg-indigo-50 text-indigo-700'
-                            }`}>
+                            <div className="mt-2 p-2 rounded text-sm bg-indigo-500/10 text-indigo-300">
                               <p className="font-medium text-xs mb-1">Respuesta:</p>
                               <p className="whitespace-pre-wrap">{req.respuesta}</p>
                             </div>
                           )}
-                          <div className={`flex items-center gap-1 mt-2 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                          <div className="flex items-center gap-1 mt-2 text-xs text-slate-500">
                             <Clock className="w-3 h-3" />
                             <span>{getTimeAgo(req.createdAt)}</span>
                             {req.answeredAt && (
@@ -220,7 +213,7 @@ export default function AdminPrayerRequests() {
                               value={responseStatus}
                               onValueChange={(v) => setResponseStatus(v as PrayerStatus)}
                             >
-                              <SelectTrigger className={`w-40 ${isDark ? 'bg-slate-800 border-slate-600' : ''}`}>
+                              <SelectTrigger className="w-40 bg-slate-800 border-slate-600">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -236,7 +229,7 @@ export default function AdminPrayerRequests() {
                             value={responseText}
                             onChange={(e) => setResponseText(e.target.value)}
                             rows={3}
-                            className={isDark ? 'bg-slate-800 border-slate-600' : ''}
+                            className="bg-slate-800 border-slate-600"
                           />
                           <div className="flex justify-end gap-2">
                             <Button

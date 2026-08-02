@@ -11,7 +11,7 @@ export default function MaintenancePage() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[50%] bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.18)_0%,transparent_65%)]" />
       </div>
 
-      <div className="relative z-10 border-b border-transparent dark:border-slate-800">
+      <div className="relative z-10 border-b border-slate-800">
         <Header stationName="La Voz de la Verdad" />
       </div>
 

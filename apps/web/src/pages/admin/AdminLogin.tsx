@@ -4,16 +4,12 @@ import { motion } from 'framer-motion';
 import { Radio, ShieldCheck, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { useTheme } from '@/hooks';
-import { ThemeToggle } from '@/components/ui-custom';
 import { auth, googleProvider } from '@/lib/firebase';
 import { signInWithPopup, type UserCredential } from 'firebase/auth';
 
 export default function AdminLogin() {
   const { login, isLoading, error, user } = useAdminAuth();
   const navigate = useNavigate();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,17 +40,7 @@ export default function AdminLogin() {
   const displayError = error ?? firebaseError;
 
   return (
-    <div
-      className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-300 ${
-        isDark
-          ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white'
-          : 'bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900'
-      }`}
-    >
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
-
+    <div className="min-h-screen flex items-center justify-center p-4 transition-colors duration-300 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -67,19 +53,19 @@ export default function AdminLogin() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Panel Admin</h1>
-            <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <p className="text-sm text-slate-400">
               Gestion de la estacion
             </p>
           </div>
         </div>
 
-        <Card className={isDark ? 'border-slate-700 bg-slate-800/60 backdrop-blur' : ''}>
+        <Card className="border-slate-700 bg-slate-800/60 backdrop-blur">
           <CardHeader className="pb-4 text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <ShieldCheck className="w-5 h-5 text-primary" />
               <h2 className="text-lg font-semibold">Acceso seguro</h2>
             </div>
-            <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <p className="text-sm text-slate-400">
               Solo cuentas Google autorizadas pueden acceder
             </p>
           </CardHeader>
@@ -90,11 +76,7 @@ export default function AdminLogin() {
               disabled={isLoading}
               className={`flex items-center justify-center gap-3 w-full px-6 py-3 rounded-lg border text-sm font-medium transition-colors ${
                 isLoading ? 'opacity-50 pointer-events-none' : ''
-              } ${
-                isDark
-                  ? 'bg-white text-slate-900 hover:bg-gray-100 border-gray-300'
-                  : 'bg-white text-slate-900 hover:bg-gray-50 border-gray-300'
-              }`}
+              } bg-white text-slate-900 hover:bg-gray-100 border-gray-300`}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
@@ -131,7 +113,7 @@ export default function AdminLogin() {
               </div>
             )}
 
-            <p className={`text-xs text-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+            <p className="text-xs text-center text-slate-500">
               Si tienes problemas para acceder, contacta al administrador del sistema.
             </p>
           </CardContent>
