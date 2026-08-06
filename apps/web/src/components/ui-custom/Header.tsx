@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/sheet';
 import { ShareModal } from './SharedModla';
 import LOGO2 from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router';
 import {
   Tooltip,
   TooltipContent,
