@@ -1,8 +1,7 @@
 /*
-  Warnings:
-
-  - Added the required column `updated_at` to the `prayer_requests` table without a default value. This is not possible if the table is not empty.
-
+  Note: existing `prayer_requests` rows are copied with `updated_at` set to
+  their `created_at` value, so the NOT NULL constraint is satisfied even when
+  the table already contains data.
 */
 -- CreateTable
 CREATE TABLE "devices" (
@@ -45,7 +44,7 @@ CREATE TABLE "new_prayer_requests" (
     "updated_at" DATETIME NOT NULL,
     CONSTRAINT "prayer_requests_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "devices" ("deviceId") ON DELETE SET NULL ON UPDATE CASCADE
 );
-INSERT INTO "new_prayer_requests" ("created_at", "id", "name", "request") SELECT "created_at", "id", "name", "request" FROM "prayer_requests";
+INSERT INTO "new_prayer_requests" ("created_at", "id", "name", "request", "updated_at") SELECT "created_at", "id", "name", "request", "created_at" FROM "prayer_requests";
 DROP TABLE "prayer_requests";
 ALTER TABLE "new_prayer_requests" RENAME TO "prayer_requests";
 CREATE INDEX "prayer_requests_deviceId_idx" ON "prayer_requests"("deviceId");

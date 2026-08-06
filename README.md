@@ -235,7 +235,10 @@ pnpm dev:mobile    # Expo dev server
 | `pnpm dev` | Generate Swagger docs + start with hot reload |
 | `pnpm build` | Generate Swagger docs + compile with `tsc` |
 | `pnpm prisma:generate` | Regenerate Prisma client |
-| `pnpm prisma:migrate` | Run database migrations |
+| `pnpm prisma:migrate` | Apply pending migrations in **development** (uses `migrate dev`) |
+| `pnpm prisma:migrate:deploy` | Apply pending migrations in **production** (uses `migrate deploy`) |
+| `pnpm prisma:migrate:status` | Show migration status of the database |
+| `pnpm prisma:migrate:resolve` | Mark a failed migration as applied/rolled-back (`prisma migrate resolve`) |
 
 ### Web (`@radio/web`)
 
@@ -299,6 +302,14 @@ pnpm dev
 ## Database
 
 The project uses **SQLite** via Prisma. The database file is located at `backend/prisma/dev.db`.
+
+### Migrations: development vs. production
+
+- **Development**: run `pnpm prisma:migrate` (`prisma migrate dev`). It can create new migrations from schema changes and may reset the database when it detects drift, so it must never be run against a production database.
+- **Production**: run `pnpm prisma:migrate:deploy` (`prisma migrate deploy`). It only applies pending migrations and never resets or modifies migration history. The deploy script already does this automatically.
+- To inspect the applied state, use `pnpm prisma:migrate:status`.
+
+If `prisma migrate deploy` fails with `P3009` (a previously failed migration), resolve it first with `pnpm prisma:migrate:resolve --rolled-back <migration_name>` (when the migration left no usable changes) or `--applied` (when the changes were completed manually), then run `prisma migrate deploy` again. Never run `prisma migrate reset` on a production database.
 
 The schema includes 13 models covering:
 
