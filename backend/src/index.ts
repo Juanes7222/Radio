@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { initializeInfisicalSecrets } from "./infrastructure/secrets/infisical.service";
+import { initializeInfisicalSecrets } from "@radio/infisical-config";
 
 async function bootstrap(): Promise<void> {
   const infisicalInitialized = await initializeInfisicalSecrets();

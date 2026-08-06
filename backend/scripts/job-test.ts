@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { initializeInfisicalSecrets } from "../src/infisical";
+import { initializeInfisicalSecrets } from "@radio/infisical-config";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 

@@ -77,6 +77,15 @@ command -v git >/dev/null || { error "git not found"; exit 1; }
 command -v curl >/dev/null || { error "curl not found"; exit 1; }
 command -v systemctl >/dev/null || { error "systemctl not found"; exit 1; }
 
+# The web build uses react-router 8, which requires Node >=22.22.0. Fail early
+# with a clear message instead of a confusing build error mid-deploy.
+if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
+  if ! node -e 'const [maj, min] = process.versions.node.split(".").map(Number); process.exit(maj > 22 || (maj === 22 && min >= 22) ? 0 : 1)' 2>/dev/null; then
+    error "Node $(node -v 2>/dev/null || echo 'missing') is too old for the web build: react-router 8 requires Node >=22.22.0. Upgrade Node or re-provision with setup.sh."
+    exit 1
+  fi
+fi
+
 # Simple lock with stale-file cleanup
 if [[ -f "$LOCK_FILE" ]]; then
   LOCK_PID="$(cat "$LOCK_FILE" 2>/dev/null || echo '?')"
