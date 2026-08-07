@@ -5,23 +5,32 @@ import * as Notifications from 'expo-notifications';
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAzuraCast } from '@radio/api';
+import { fetchSchedule } from '@radio/api';
 import { BACKEND_URL } from '@/constants/api';
-import { formatMediaTitle, formatScheduleTime, normalizeTitle } from '@/lib/formatMedia';
-import { 
-  SUBSCRIPTIONS_KEY, 
-  SUBSCRIPTIONS_EVENT, 
-  DEFAULT_SUBSCRIPTIONS 
+import { formatMediaTitle, normalizeTitle } from '@/lib/formatMedia';
+import { formatScheduleTime } from '@/lib/time';
+import {
+  SUBSCRIPTIONS_KEY,
+  SUBSCRIPTIONS_EVENT,
+  DEFAULT_SUBSCRIPTIONS,
 } from './useProgramSubscriptions';
 
 const PROGRAM_NOTIFY_MINUTES_BEFORE = 10;
 const LOOK_AHEAD_HOURS = 24;
 const SCHEDULE_TASK = 'program-notify-schedule';
 
-type FetchSchedule = ReturnType<typeof useAzuraCast>['fetchSchedule'];
-
 interface ExactAlarmPermissionStatus {
   canScheduleExactNotifications?: boolean;
+}
+
+function parseSubscriptions(raw: string | null): string[] {
+  if (!raw) return DEFAULT_SUBSCRIPTIONS;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : DEFAULT_SUBSCRIPTIONS;
+  } catch {
+    return DEFAULT_SUBSCRIPTIONS;
+  }
 }
 
 /**
@@ -40,8 +49,8 @@ export async function canScheduleExactAlarms(): Promise<boolean> {
  * Fetches the schedule, filters by user subscriptions and the look-ahead window,
  * and schedules local notifications for upcoming programs.
  */
-export async function setupNotifications(fetchSchedule: FetchSchedule) {
-  const schedule = await fetchSchedule();
+export async function setupNotifications() {
+  const schedule = await fetchSchedule(BACKEND_URL);
   if (!schedule || schedule.length === 0) {
     return;
   }
@@ -51,9 +60,9 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
     return;
   }
 
-  const subsData = await AsyncStorage.getItem(SUBSCRIPTIONS_KEY);
-  const subscribedTitles: string[] = subsData ? JSON.parse(subsData) : DEFAULT_SUBSCRIPTIONS;
-  
+  const subscribedTitles = parseSubscriptions(
+    await AsyncStorage.getItem(SUBSCRIPTIONS_KEY)
+  );
 
   const nowUtcSeconds = Math.floor(Date.now() / 1000);
   const maxFutureUtcSeconds = nowUtcSeconds + (LOOK_AHEAD_HOURS * 3600);
@@ -104,29 +113,25 @@ export async function setupNotifications(fetchSchedule: FetchSchedule) {
         date: triggerDate,
       } as Notifications.NotificationTriggerInput,
     });
-  }
+  }  const existingScheduled = await Notifications.getAllScheduledNotificationsAsync();
 
-  const existingScheduled = await Notifications.getAllScheduledNotificationsAsync();
-  let cancelledCount = 0;
-  
   for (const notif of existingScheduled) {
     const isProgramNotif = notif.content.data?.isProgramNotify;
     const isStillValid = validNotificationIds.includes(notif.identifier);
 
     if (isProgramNotif && !isStillValid) {
       await Notifications.cancelScheduledNotificationAsync(notif.identifier);
-      cancelledCount++;
     }
   }
   
 }
 
-export async function registerScheduleBackgroundTask(fetchSchedule: FetchSchedule) {
+export async function registerScheduleBackgroundTask() {
   TaskManager.defineTask(SCHEDULE_TASK, async () => {
     try {
-      await setupNotifications(fetchSchedule);
+      await setupNotifications();
       return BackgroundTask.BackgroundTaskResult.Success;
-    } catch (error) {
+    } catch {
       return BackgroundTask.BackgroundTaskResult.Failed;
     }
   });
@@ -140,7 +145,6 @@ export async function registerScheduleBackgroundTask(fetchSchedule: FetchSchedul
 }
 
 export function useProgramNotify() {
-  const { fetchSchedule } = useAzuraCast({ apiBaseUrl: BACKEND_URL });
   const [exactAlarmGranted, setExactAlarmGranted] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -154,11 +158,11 @@ export function useProgramNotify() {
     };
 
     refreshExactAlarmPermission();
-    setupNotifications(fetchSchedule);
-    registerScheduleBackgroundTask(fetchSchedule);
+    setupNotifications();
+    registerScheduleBackgroundTask();
 
     const subscription = DeviceEventEmitter.addListener(SUBSCRIPTIONS_EVENT, () => {
-      setupNotifications(fetchSchedule);
+      setupNotifications();
     });
 
     const appStateSubscription = AppState.addEventListener('change', (state) => {
@@ -167,18 +171,15 @@ export function useProgramNotify() {
       }
     });
 
-    const interval = setInterval(
-      () => setupNotifications(fetchSchedule),
-      1000 * 60 * 60
-    );
-    
+    const interval = setInterval(() => setupNotifications(), 1000 * 60 * 60);
+
     return () => {
       mounted = false;
       clearInterval(interval);
       subscription.remove();
       appStateSubscription.remove();
     };
-  }, [fetchSchedule]);
+  }, []);
 
   return { exactAlarmGranted };
 }

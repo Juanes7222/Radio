@@ -13,7 +13,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAzuraCast } from '@radio/api';
+import { fetchRequestableSongs, requestSong } from '@radio/api';
 import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 import { formatMediaTitle } from '@/lib/formatMedia';
@@ -89,9 +89,7 @@ const SongRow = memo(function SongRow({
 
 export default function RequestScreen() {
   const insets = useSafeAreaInsets();
-  const { requestSong, fetchRequestableSongs } = useAzuraCast({
-    apiBaseUrl: BACKEND_URL,
-  });
+
 
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -163,7 +161,7 @@ export default function RequestScreen() {
           }
         }
 
-        const result = await fetchRequestableSongs({
+        const result = await fetchRequestableSongs(BACKEND_URL, {
           page: pageToLoad,
           perPage: PAGE_SIZE,
           search,
@@ -199,7 +197,7 @@ export default function RequestScreen() {
         }
       }
     },
-    [fetchRequestableSongs],
+    [],
   );
 
   useEffect(() => {
@@ -226,7 +224,7 @@ export default function RequestScreen() {
       setRequestError(null);
 
       try {
-        const result = await requestSong(item.request_id);
+        const result = await requestSong(BACKEND_URL, item.request_id);
 
         if (result.success) {
           setSent(prev =>
@@ -240,7 +238,7 @@ export default function RequestScreen() {
         setRequesting(null);
       }
     },
-    [requestSong],
+    [],
   );
 
   return (

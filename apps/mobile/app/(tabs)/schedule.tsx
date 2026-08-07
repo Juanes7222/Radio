@@ -1,29 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAzuraCast, mergeConsecutiveScheduleItems } from '@radio/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';import { fetchSchedule, fetchScheduleCategories, mergeConsecutiveScheduleItems } from '@radio/api';
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
-import { formatScheduleTime } from '../../lib/formatMedia';
 import { BACKEND_URL } from '@/constants/api';
+import { formatScheduleTime, getBogotaDayOfWeek } from '@/lib/time';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-function getBogotaDayOfWeek(dateInput: Date | number): number {
-  const timestampInSeconds =
-    typeof dateInput === 'number' ? dateInput : Math.floor(dateInput.getTime() / 1000);
-  const date = new Date(timestampInSeconds * 1000);
-  const utcDay = date.getUTCDay();
-  const utcHours = date.getUTCHours();
-
-  // Bogota is UTC-5. If UTC hour < 5, subtracting 5 moves to previous day.
-  if (utcHours < 5) {
-    return (utcDay - 1 + 7) % 7;
-  }
-
-  return utcDay;
-}
 
 const NEUTRAL_ACCENT = { dot: '#8b92a5', glow: 'rgba(139,146,165,0.25)' };
 
@@ -169,7 +154,6 @@ function CategoryChip({
 
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
-  const { fetchSchedule, fetchScheduleCategories } = useAzuraCast({ apiBaseUrl: BACKEND_URL });
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [categories, setCategories] = useState<ScheduleCategorySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,8 +167,8 @@ export default function ScheduleScreen() {
     async function loadSchedule() {
       try {
         const [data, categoryData] = await Promise.all([
-          fetchSchedule(),
-          fetchScheduleCategories(),
+          fetchSchedule(BACKEND_URL),
+          fetchScheduleCategories(BACKEND_URL),
         ]);
         if (data) setSchedule(data);
         if (categoryData) setCategories(categoryData);
@@ -195,7 +179,7 @@ export default function ScheduleScreen() {
       }
     }
     loadSchedule();
-  }, [fetchSchedule, fetchScheduleCategories]);
+  }, []);
 
   const sections: ScheduleSection[] = React.useMemo(() => {
     const programsForDay = schedule
@@ -389,8 +373,9 @@ export default function ScheduleScreen() {
               <View style={styles.detailRow}>
                 <Ionicons name="time-outline" size={18} color={TEXT_MUTED} />
                 <Text style={styles.detailText}>
-                  {selectedProgram && new Date(selectedProgram.start_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })} - {' '}
-                  {selectedProgram && new Date(selectedProgram.end_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                  {selectedProgram
+                    ? `${formatScheduleTime(selectedProgram.start_timestamp)} - ${formatScheduleTime(selectedProgram.end_timestamp)}`
+                    : ''}
                 </Text>
               </View>
               {selectedProgram?.slots && selectedProgram.slots > 1 && (

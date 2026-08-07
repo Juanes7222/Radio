@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAzuraCast } from '@radio/api';
+import { fetchSchedule } from '@radio/api';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { useProgramSubscriptions } from '@/hooks/useProgramSubscriptions';
@@ -35,9 +35,8 @@ export function NotificationsModal({
   onToggleCurrent,
   currentSongTitle,
   exactAlarmGranted,
-}: NotificationsModalProps) {
-  const insets = useSafeAreaInsets();
-  const { fetchSchedule } = useAzuraCast({ apiBaseUrl: BACKEND_URL });
+}: NotificationsModalProps) {  const insets = useSafeAreaInsets();
+  
   
   // Extraer las nuevas funciones
   const { 
@@ -53,7 +52,7 @@ export function NotificationsModal({
   useEffect(() => {
     if (visible) {
       setLoading(true);
-      fetchSchedule().then((schedule) => {
+      fetchSchedule(BACKEND_URL).then((schedule) => {
         if (schedule) {
           const uniquePrograms = Array.from(
             new Set(schedule.map((item) => item.title))
@@ -66,7 +65,7 @@ export function NotificationsModal({
         setLoading(false);
       });
     }
-  }, [visible, fetchSchedule]);
+  }, [visible]);
 
   return (
     <Modal
@@ -185,7 +184,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   content: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#12121f',
     borderTopLeftRadius: Radii.xl,
     borderTopRightRadius: Radii.xl,
     paddingHorizontal: Spacing.lg,

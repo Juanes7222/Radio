@@ -82,17 +82,6 @@ export function formatMediaTitle(title: string, artist?: string): ParsedMedia {
   };
 }
 
-export function formatScheduleTime(timestampInSeconds: number): string {
-  const date = new Date(timestampInSeconds * 1000);
-
-  return new Intl.DateTimeFormat('es-CO', {
-    timeZone: 'America/Bogota',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  }).format(date);
-}
-
 export function normalizeTitle(title: string): string {
   return title
     .toLowerCase()
