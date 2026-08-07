@@ -12,32 +12,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
-
-type PrayerStatus = 'PENDIENTE' | 'EN_REVISION' | 'RESPONDIDA' | 'CERRADA';
-
-const STATUS_CONFIG: Record<PrayerStatus, { label: string; icon: string; color: string }> = {
-  PENDIENTE: { label: 'Pendiente', icon: 'time-outline', color: '#eab308' },
-  EN_REVISION: { label: 'En revision', icon: 'sync-outline', color: '#3b82f6' },
-  RESPONDIDA: { label: 'Respondida', icon: 'checkmark-circle', color: '#22c55e' },
-  CERRADA: { label: 'Cerrada', icon: 'lock-closed-outline', color: '#6b7280' },
-};
-
-interface PrayerDetail {
-  id: string;
-  name: string;
-  request: string;
-  estado: PrayerStatus;
-  respuesta: string | null;
-  createdAt: string;
-  answeredAt: string | null;
-  readAt: string | null;
-}
+import { getPrayerStatusConfig, type PrayerItem } from '@/lib/prayer';
 
 export default function PrayerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [detail, setDetail] = useState<PrayerDetail | null>(null);
+  const [detail, setDetail] = useState<PrayerItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,7 +36,7 @@ export default function PrayerDetailScreen() {
             }).catch(() => {});
           }
         } else {
-          setError('Peticion no encontrada');
+          setError('Petición no encontrada');
         }
       } catch {
         setError('Error de conexion');
@@ -97,7 +78,7 @@ export default function PrayerDetailScreen() {
     );
   }
 
-  const config = STATUS_CONFIG[detail.estado] ?? STATUS_CONFIG.PENDIENTE;
+  const config = getPrayerStatusConfig(detail.estado);
 
   return (
     <View style={styles.container}>
@@ -110,7 +91,7 @@ export default function PrayerDetailScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#f9fafb" />
         </TouchableOpacity>
-        <Text style={styles.heading}>Mi peticion</Text>
+        <Text style={styles.heading}>Mi petición</Text>
         <View style={{ width: 30 }} />
       </View>
 
@@ -122,7 +103,7 @@ export default function PrayerDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.statusBadge}>
-          <Ionicons name={config.icon as any} size={18} color={config.color} />
+          <Ionicons name={config.icon} size={18} color={config.color} />
           <Text style={[styles.statusText, { color: config.color }]}>
             {config.label}
           </Text>

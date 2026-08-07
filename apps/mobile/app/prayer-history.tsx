@@ -13,45 +13,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
 import { getDeviceId } from '@/lib/device';
-import { scale, TAB_BAR_HEIGHT } from '../lib/responsive';
-
-type PrayerStatus = 'PENDIENTE' | 'EN_REVISION' | 'RESPONDIDA' | 'CERRADA';
-
-interface PrayerItem {
-  id: string;
-  name: string;
-  request: string;
-  estado: PrayerStatus;
-  respuesta: string | null;
-  createdAt: string;
-  answeredAt: string | null;
-}
-
-const STATUS_CONFIG: Record<PrayerStatus, { label: string; icon: string; color: string }> = {
-  PENDIENTE: { label: 'Pendiente', icon: 'time-outline', color: '#eab308' },
-  EN_REVISION: { label: 'En revision', icon: 'sync-outline', color: '#3b82f6' },
-  RESPONDIDA: { label: 'Respondida', icon: 'checkmark-circle', color: '#22c55e' },
-  CERRADA: { label: 'Cerrada', icon: 'lock-closed-outline', color: '#6b7280' },
-};
-
-function getTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const days = Math.floor(diff / 86400000);
-  if (days > 0) return `Hace ${days} dia${days > 1 ? 's' : ''}`;
-  const hours = Math.floor(diff / 3600000);
-  if (hours > 0) return `Hace ${hours} hora${hours > 1 ? 's' : ''}`;
-  const minutes = Math.floor(diff / 60000);
-  if (minutes > 0) return `Hace ${minutes} min`;
-  return 'Ahora';
-}
+import {
+  getPrayerStatusConfig,
+  getTimeAgo,
+  type PrayerItem,
+} from '@/lib/prayer';
+import { TAB_BAR_HEIGHT } from '../lib/responsive';
 
 function PrayerCard({ item, onPress }: { item: PrayerItem; onPress: () => void }) {
-  const config = STATUS_CONFIG[item.estado] ?? STATUS_CONFIG.PENDIENTE;
+  const config = getPrayerStatusConfig(item.estado);
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.statusRow}>
-          <Ionicons name={config.icon as any} size={16} color={config.color} />
+          <Ionicons name={config.icon} size={16} color={config.color} />
           <Text style={[styles.statusText, { color: config.color }]}>{config.label}</Text>
         </View>
         <Text style={styles.timeText}>{getTimeAgo(item.createdAt)}</Text>
@@ -128,7 +103,7 @@ export default function PrayerHistoryScreen() {
       ) : requests.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="heart-outline" size={48} color="#4b5563" />
-          <Text style={styles.emptyText}>No tienes peticiones aun</Text>
+          <Text style={styles.emptyText}>No tienes peticiones aún</Text>
         </View>
       ) : (
         <FlatList

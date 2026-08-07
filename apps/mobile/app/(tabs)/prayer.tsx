@@ -19,7 +19,7 @@ import { useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
 import { getDeviceId } from '@/lib/device';
 
-import { scale, TAB_BAR_HEIGHT } from '../../lib/responsive';
+import { TAB_BAR_HEIGHT } from '../../lib/responsive';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -38,7 +38,7 @@ export default function PrayerScreen() {
     const trimmedRequest = request.trim();
 
     if (!trimmedName || !trimmedRequest) {
-      Alert.alert('Campos incompletos', 'Por favor ingresa tu nombre y la peticion.');
+      Alert.alert('Campos incompletos', 'Por favor ingresa tu nombre y la petición.');
       return;
     }
 
@@ -57,10 +57,10 @@ export default function PrayerScreen() {
         setRequest('');
       } else {
         const data = await res.json().catch(() => ({}));
-        Alert.alert('Error', data.error || 'No se pudo enviar la peticion.');
+        Alert.alert('Error', data.error || 'No se pudo enviar la petición.');
       }
     } catch {
-      Alert.alert('Error', 'Error de conexion. Intenta mas tarde.');
+      Alert.alert('Error', 'Error de conexión. Intenta más tarde.');
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,6 @@ export default function PrayerScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <LinearGradient
         colors={['#0a0a14', '#130926', '#0a0a14']}
@@ -118,13 +117,13 @@ export default function PrayerScreen() {
           <View style={[styles.successCard, isSmallScreen && styles.successCardSmall]}>
             <Ionicons name="checkmark-circle" size={isSmallScreen ? 36 : 48} color="#22c55e" />
             <Text style={[styles.successTitle, isSmallScreen && styles.successTitleSmall]}>
-              Peticion enviada
+              Petición enviada
             </Text>
             <Text style={[styles.successText, isSmallScreen && styles.successTextSmall]}>
-              Tu peticion ha sido recibida. Oraremos por ti.
+              Tu petición ha sido recibida. Oraremos por ti.
             </Text>
             <TouchableOpacity onPress={handleReset} style={styles.resetBtn} activeOpacity={0.8}>
-              <Text style={styles.resetBtnText}>Enviar otra peticion</Text>
+              <Text style={styles.resetBtnText}>Enviar otra petición</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/prayer-history')} style={styles.viewHistoryBtn} activeOpacity={0.8}>
               <Ionicons name="list-outline" size={14} color="#6366f1" />
