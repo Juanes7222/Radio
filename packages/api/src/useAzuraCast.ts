@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import {
+  fetchRequestableSongs as fetchRequestableSongsApi,
+  fetchSchedule as fetchScheduleApi,
+  fetchScheduleCategories as fetchScheduleCategoriesApi,
+  requestSong as requestSongApi,
+  rewriteLocalhostUrls,
+  type SongRequestResult,
+} from './api';
 import type {
   NowPlayingData,
   SongRequest,
@@ -8,14 +16,12 @@ import type {
   ScheduleCategorySummary,
 } from '@radio/types';
 
+export type { SongRequestResult } from './api';
+
 export interface UseAzuraCastProps {
   apiBaseUrl?: string;
   pollInterval?: number;
 }
-
-export type SongRequestResult =
-  | { success: true }
-  | { success: false; errorMessage: string };
 
 export interface UseAzuraCastReturn {
   data: NowPlayingData | null;
@@ -45,9 +51,7 @@ export function useAzuraCast({
       });
       let responseData = response.data;
       const urlBase = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      if (urlBase) {
-        responseData = JSON.parse(JSON.stringify(responseData).replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, urlBase));
-      }
+      responseData = rewriteLocalhostUrls(responseData, urlBase);
       setData(responseData);
       setError(null);
       return responseData;
@@ -201,80 +205,23 @@ export function useAzuraCast({
   }, [apiBaseUrl, fetchNowPlaying, pollInterval]);
 
   const requestSong = useCallback(
-    async (requestId: string): Promise<SongRequestResult> => {
-      try {
-        await axios.post(`${apiBaseUrl}/api/requests/${requestId}`);
-        return { success: true };
-      } catch (err) {
-        if (axios.isAxiosError(err)) {
-          const serverMessage: string | undefined =
-            err.response?.data?.message ?? err.response?.data?.error;
-          if (serverMessage) return { success: false, errorMessage: serverMessage };
-          if (err.code === 'ECONNABORTED')
-            return { success: false, errorMessage: 'Tiempo de espera agotado.' };
-        }
-        return { success: false, errorMessage: 'No se pudo solicitar la canción.' };
-      }
-    },
+    (requestId: string) => requestSongApi(apiBaseUrl, requestId),
     [apiBaseUrl]
   );
 
   const fetchRequestableSongs = useCallback(
-    async ({ page = 1, perPage = 25, search = '' } = {}): Promise<SongRequest[]> => {
-      const params: Record<string, string> = {
-        page: String(page),
-        per_page: String(perPage),
-      };
-      if (search.trim()) params.search = search.trim();
-
-      const response = await axios.get(`${apiBaseUrl}/api/search`, {
-        params,
-        timeout: 10000,
-        headers: { Accept: 'application/json' },
-      });
-
-      let responseData = response.data;
-      const urlBase = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      if (urlBase) {
-        responseData = JSON.parse(JSON.stringify(responseData).replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, urlBase));
-      }
-      return Array.isArray(responseData) ? responseData : (responseData.result ?? responseData.rows ?? responseData.data ?? []);
-    },
+    (options: { page?: number; perPage?: number; search?: string } = {}) =>
+      fetchRequestableSongsApi(apiBaseUrl, options),
     [apiBaseUrl]
   );
 
   const fetchSchedule = useCallback(
-    async (): Promise<ScheduleItem[] | null> => {
-      try {
-        const response = await axios.get(`${apiBaseUrl}/api/schedule`, {
-          timeout: 10000,
-          headers: { Accept: 'application/json' },
-        });
-        let responseData = response.data;
-        const urlBase = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-        if (urlBase) {
-          responseData = JSON.parse(JSON.stringify(responseData).replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, urlBase));
-        }
-        return Array.isArray(responseData) ? responseData : (responseData.result ?? responseData.rows ?? responseData.data ?? null);
-      } catch {
-        return null;
-      }
-    },
+    () => fetchScheduleApi(apiBaseUrl),
     [apiBaseUrl]
   );
 
   const fetchScheduleCategories = useCallback(
-    async (): Promise<ScheduleCategorySummary[] | null> => {
-      try {
-        const response = await axios.get(`${apiBaseUrl}/api/schedule/categories`, {
-          timeout: 10000,
-          headers: { Accept: 'application/json' },
-        });
-        return Array.isArray(response.data) ? response.data : null;
-      } catch {
-        return null;
-      }
-    },
+    () => fetchScheduleCategoriesApi(apiBaseUrl),
     [apiBaseUrl]
   );
 
@@ -296,9 +243,7 @@ export function useAzuraCast({
 
       // Fix mixed content or localhost URLs coming natively from AzuraCast
       const baseUrl = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      if (baseUrl) {
-        streamUrl = streamUrl.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl);
-      }
+      streamUrl = rewriteLocalhostUrls(streamUrl, baseUrl);
 
       return streamUrl;
     },
