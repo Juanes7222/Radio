@@ -6,12 +6,11 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import TrackPlayer, {
-  AppKilledPlaybackBehavior,
-  Capability,
   Event,
   State,
   usePlaybackState,
 } from 'react-native-track-player';
+import { initTrackPlayer } from '../service';
 
 const RECONNECT_DELAYS = [3000, 5000, 10000, 20000, 30000];
 const STREAM_STABLE_MS = 8000;
@@ -28,16 +27,6 @@ interface AudioPlayerState {
   isBuffering: boolean;
   error: string | null;
   reconnectAttempt: number;
-}
-
-async function configureTrackPlayer(): Promise<void> {
-  await TrackPlayer.updateOptions({
-    android: {
-      appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
-    },
-    capabilities: [Capability.Play, Capability.Pause, Capability.Stop],
-    compactCapabilities: [Capability.Play, Capability.Pause],
-  });
 }
 
 export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPlayerProps): AudioPlayerState & {
@@ -82,9 +71,11 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
   }, [title, artist, artwork, isPlaying]);
 
   useEffect(() => {
-    TrackPlayer.setupPlayer({ autoHandleInterruptions: true })
-      .then(() => configureTrackPlayer())
-      .catch(() => configureTrackPlayer());
+    // The root layout awaits initTrackPlayer() before rendering; this hook
+    // only re-uses the same idempotent promise to stay safe in isolation.
+    initTrackPlayer().catch(() => {
+      // Setup errors surface through playback error events instead.
+    });
 
     return () => {
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
@@ -121,7 +112,7 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
             isLiveStream: true,
           });
           await TrackPlayer.play();
-        } catch (err) {
+        } catch {
           // Defer to next error event
         }
       }, delay);
@@ -174,7 +165,7 @@ export function useAudioPlayer({ streamUrl, title, artist, artwork }: UseAudioPl
 
 
       await TrackPlayer.play();
-    } catch (err) {
+    } catch {
       wasPlayingRef.current = false;
       setError('Playback initiation failed');
     }

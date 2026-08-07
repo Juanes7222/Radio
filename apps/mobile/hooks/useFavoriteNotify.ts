@@ -20,7 +20,7 @@ interface UseFavoriteNotifyReturn {
   isEnabled: boolean;
   permissionState: PermissionState;
   enable: () => Promise<{ granted: boolean; canAskAgain: boolean }>;
-  disable: () => void;
+  disable: () => Promise<void>;
 }
 
 const STORAGE_KEY_ENABLED = 'radio-favorite-notify';

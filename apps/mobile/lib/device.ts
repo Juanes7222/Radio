@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { BACKEND_URL } from '@/constants/api';
@@ -74,7 +75,7 @@ export async function registerDevice(): Promise<void> {
         deviceId,
         fcmToken,
         platform: Platform.OS === 'android' ? 'ANDROID' : 'IOS',
-        appVersion: '1.3.2',
+        appVersion: Constants.expoConfig?.version ?? '1.0.0',
       }),
     });
 

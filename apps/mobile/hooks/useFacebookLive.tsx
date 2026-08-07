@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import EventSource from 'react-native-sse';
 import * as Notifications from 'expo-notifications';
 
+type LiveEventName = 'live_start' | 'live_end';
+
 interface LiveStartPayload {
   status: 'live';
   url: string;
@@ -20,7 +22,7 @@ const FacebookLiveContext = createContext<FacebookLiveContextType>({
 export function FacebookLiveProvider({ children }: { children: React.ReactNode }) {
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
 
-  const eventSourceRef = useRef<any>(null);
+  const eventSourceRef = useRef<EventSource<LiveEventName> | null>(null);
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastNotifiedLiveRef = useRef<string | null>(null);
 
@@ -32,7 +34,7 @@ export function FacebookLiveProvider({ children }: { children: React.ReactNode }
 
     const connect = () => {
       try {
-        const es: any = new EventSource(sseUrl);
+        const es = new EventSource<LiveEventName>(sseUrl);
 
         eventSourceRef.current = es;
 
@@ -46,7 +48,7 @@ export function FacebookLiveProvider({ children }: { children: React.ReactNode }
           retryRef.current = setTimeout(connect, 5000);
         });
 
-        es.addEventListener('live_start', (event: any) => {
+        es.addEventListener('live_start', (event) => {
           try {
             const data: LiveStartPayload = JSON.parse(event?.data ?? '{}');
             if (data.url) {

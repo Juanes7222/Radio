@@ -7,9 +7,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 import TrackPlayer from 'react-native-track-player';
-import { PlaybackService } from '../service';
+import { initTrackPlayer, PlaybackService } from '../service';
 import { FacebookLiveProvider } from '@/hooks/useFacebookLive';
-import { registerDevice, updateFCMToken, getFCMToken } from '@/lib/device';
+import { registerDevice, updateFCMToken } from '@/lib/device';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,8 +25,8 @@ export default function RootLayout() {
         if (status !== 'granted' && canAskAgain) {
           await Notifications.requestPermissionsAsync();
         }
-        await TrackPlayer.setupPlayer();
-        registerDevice();
+        await initTrackPlayer();
+        await registerDevice();
       } catch (e) {
         console.warn('Error durante la inicializacion:', e);
       } finally {
