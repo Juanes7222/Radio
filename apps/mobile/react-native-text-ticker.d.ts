@@ -8,7 +8,7 @@ declare module 'react-native-text-ticker' {
     bounce?: boolean;
     scrollSpeed?: number;
     marqueeDelay?: number;
-    scrollProps?: any;
+    scrollProps?: unknown;
     repeatSpacer?: number;
     marqueeOnMount?: boolean;
     style?: StyleProp<TextStyle>;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, SafeAreaView, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { BibleBook } from '@radio/types';
@@ -156,52 +156,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  tabsRow: {
-    flexDirection: 'row',
-    padding: Spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-    borderRadius: Radii.md,
-  },
-  tabActive: {
-    backgroundColor: Colors.accent,
-  },
-  tabText: {
-    ...Typography.body,
-    fontSize: 14,
-    color: Colors.textMuted,
-  },
-  tabTextActive: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
   gridContainer: {
     padding: Spacing.md,
-  },
-  bookBtn: {
-    width: '47%',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    padding: Spacing.md,
-    borderRadius: Radii.md,
-    marginBottom: Spacing.xs,
-  },
-  bookBtnCurrent: {
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-    borderColor: Colors.accent,
-    borderWidth: 1,
-  },
-  bookBtnText: {
-    ...Typography.body,
-    color: Colors.text,
-    fontSize: 14,
-  },
-  bookBtnTextCurrent: {
-    color: Colors.accent,
-    fontWeight: 'bold',
   },
   instruction: {
     ...Typography.body,

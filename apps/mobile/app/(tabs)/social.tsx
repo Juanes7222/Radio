@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import  FontAwesome  from '@expo/vector-icons/FontAwesome';
@@ -22,7 +22,6 @@ const SOCIAL_LINKS = [
     label: 'Instagram',
     subtitle: 'Síguenos y comparte',
     url: 'https://www.instagram.com/iglesiacartagommm/',
-    bg: 'bg-gradient-to-br from-[#833ab4] via-[#fd1d1d] to-[#fcb045]',
     icon: 'logo-instagram' as const,
     color: '#e1306c',
   },
@@ -31,8 +30,6 @@ const SOCIAL_LINKS = [
     label: 'YouTube',
     subtitle: 'Suscríbete a nuestro canal',
     url: 'https://www.youtube.com/@emisoralavozdelaverdad9188',
-    bg: 'bg-[#cf0a0a]',
-    shadow: 'shadow-red-500/20',
     icon: 'logo-youtube' as const,
     color: '#ff0000',
   },
@@ -41,8 +38,6 @@ const SOCIAL_LINKS = [
     label: 'Spotify',
     subtitle: 'Síguenos en Spotify',
     url: 'https://open.spotify.com/show/7hSkCQDHvdjr4aYE5X6Gv4?si=a4cfd87d109543a2',
-    bg: 'bg-[#1DB954]',
-    shadow: 'shadow-green-500/20',
     icon: null,
     color: '#1DB954',
   },

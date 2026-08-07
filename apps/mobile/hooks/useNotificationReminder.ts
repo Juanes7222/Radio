@@ -22,7 +22,7 @@ export function useNotificationReminder() {
         if (currentCount > 1 && currentCount % PROMPT_FREQUENCY === 0) {
           setShowReminder(true);
         }
-      } catch (error) {
+      } catch {
         // Continue silently if storage access fails
       }
     }

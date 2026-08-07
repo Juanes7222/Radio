@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, View, StyleSheet, AppState, AppStateStatus } from 'react-native';
 import { Image } from 'expo-image';
+import DefaultAlbumArt from '../assets/default-album-art.png';
 import Svg, {
   Circle,
   Defs,
@@ -161,7 +162,7 @@ export function VinylDisc({ artworkUri, isPlaying, size }: VinylDiscProps) {
         }}
       >
         <Image
-          source={artworkUri ? { uri: artworkUri } : require('../assets/default-album-art.png')}
+          source={artworkUri ? { uri: artworkUri } : DefaultAlbumArt}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={500}

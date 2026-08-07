@@ -26,7 +26,7 @@ export default function NotificationClickScreen() {
 
       router.replace('/');
     });
-  }, []);
+  }, [router]);
 
   return <Redirect href="/" />;
 }

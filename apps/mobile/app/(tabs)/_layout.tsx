@@ -25,7 +25,7 @@ export default function TabLayout() {
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: 'rgba(255, 255, 255, 0.15)',
           height: TAB_HEIGHT,
-          paddingBottom: Platform.OS === 'ios' ? insets.bottom: insets.bottom + 8,
+          paddingBottom: Platform.OS === 'ios' ? insets.bottom : insets.bottom + 8,
           paddingTop: 2,
           elevation: 0,
         },
