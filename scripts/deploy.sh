@@ -36,6 +36,13 @@ BACKEND_PACKAGE="radio-admin-backend"
 WEB_PACKAGE="@radio/web"
 INFISICAL_PACKAGE="@radio/infisical-config"
 
+# Advisories allowed to pass the audit (comma-separated GHSA ids, override via env).
+# image-size (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq): the patched version
+# >=2.0.3 is not published on npm yet, and the package is a transitive dependency
+# of metro (mobile build-time tooling only, never used at runtime in production).
+# Remove these entries once image-size 2.0.3+ is available.
+DEPLOY_AUDIT_ALLOWLIST="${DEPLOY_AUDIT_ALLOWLIST:-GHSA-w3rx-r6r6-pgpr,GHSA-5p2g-fcmc-qvqq}"
+
 SKIP_AUDIT=false
 FORCE_DEPLOY=false
 DEPLOY_BACKEND=false
@@ -223,10 +230,37 @@ if [[ "$SKIP_AUDIT" == "true" ]]; then
 else
   if git diff --name-only "$BEFORE_HASH" "$AFTER_HASH" | grep -qE '(^|/)(package\.json|pnpm-lock\.yaml)$'; then
     info "Dependency files changed — running pnpm audit..."
-    "$PNPM_BIN" audit --audit-level=high || {
+    AUDIT_FILE="$(mktemp)"
+    "$PNPM_BIN" audit --json >"$AUDIT_FILE" 2>/dev/null || true
+    if ! node -e '
+      const fs = require("fs");
+      const allowed = new Set((process.env.DEPLOY_AUDIT_ALLOWLIST || "").split(",").filter(Boolean));
+      let data;
+      try {
+        data = JSON.parse(fs.readFileSync(process.argv[process.argv.length - 1], "utf8"));
+      } catch (err) {
+        console.error("Audit JSON could not be parsed: " + err.message);
+        process.exit(2);
+      }
+      const advisories = data.advisories ? Object.values(data.advisories) : [];
+      const blocking = advisories.filter(
+        (a) => !allowed.has(a.github_advisory_id) && (a.severity === "high" || a.severity === "critical")
+      );
+      if (blocking.length > 0) {
+        console.error(
+          "Blocking advisories: " +
+            blocking.map((a) => a.github_advisory_id + " (" + a.module_name + ")").join(", ")
+        );
+        process.exit(1);
+      }
+      console.log("Audit passed (" + advisories.length + " advisories checked).");
+    ' "$AUDIT_FILE"
+    then
       error "High severity vulnerabilities detected. Aborting deploy."
+      rm -f "$AUDIT_FILE"
       exit 1
-    }
+    fi
+    rm -f "$AUDIT_FILE"
   else
     info "No dependency file changes detected. Skipping audit."
   fi
