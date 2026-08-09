@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import type { BibleQueryResponse, BibleTranslation, BibleBook, BibleSearchResult } from '@radio/types';
+import { apiUrl } from '@/config';
 
-const API_BASE = '/api/bible';
+const API_BASE = apiUrl('/api/bible');
 
 export function useBible() {
   const [translations, setTranslations] = useState<BibleTranslation[]>([]);

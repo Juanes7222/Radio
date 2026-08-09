@@ -2,6 +2,7 @@ import React, { createContext, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useAzuraCast, useAudioPlayer, useMediaSession, useSleepTimer, useFacebookLive } from '@/hooks';
 import type { StreamQuality, NowPlayingData } from '@radio/types';
+import { API_BASE_URL } from '@/config';
 
 // Import the specific return types for accurate typing
 type AudioPlayerHookReturn = ReturnType<typeof useAudioPlayer>;
@@ -38,7 +39,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const { liveUrl } = useFacebookLive();
 
   const { data, isLoading, error, getStreamUrl, requestSong } = useAzuraCast({
-    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
+    apiBaseUrl: API_BASE_URL,
     pollInterval: 15000,
   });
 

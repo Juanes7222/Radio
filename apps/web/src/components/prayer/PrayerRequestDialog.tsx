@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { API_BASE_URL } from '@/config';
 
 interface PrayerRequestDialogProps {
   isOpen: boolean;
@@ -27,7 +28,7 @@ export const PrayerRequestDialog = memo(function PrayerRequestDialog({
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
 
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const apiBaseUrl = API_BASE_URL;
 
   const handleSubmit = useCallback(async () => {
     const trimmedName = name.trim();

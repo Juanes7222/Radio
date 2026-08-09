@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { apiUrl } from '@/config';
 
 export function useFacebookLive() {
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
@@ -6,7 +7,7 @@ export function useFacebookLive() {
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const sseUrl = `/live-status/stream`;
+    const sseUrl = apiUrl('/live-status/stream');
 
     const connect = () => {
       try {

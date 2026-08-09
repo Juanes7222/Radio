@@ -1,7 +1,14 @@
 import { useCallback } from 'react';
 import axios, { type AxiosRequestConfig } from 'axios';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import type { ScheduleCategory } from '@radio/types';
+import type {
+  LocutorAudio,
+  LocutorStatus,
+  LocutorTemplate,
+  LocutorTemplateInput,
+  ScheduleCategory,
+} from '@radio/types';
+import { API_BASE_URL } from '@/config';
 
 const STATION_ID = import.meta.env.VITE_STATION_ID || 'la_voz_de_la_verdad';
 
@@ -17,6 +24,12 @@ export function useAdminApi() {
     async <T>(config: AxiosRequestConfig): Promise<T> => {
       const res = await axios<T>({
         ...config,
+        // All routes are relative (e.g. /admin-api/...), so prefix them with
+        // the configured backend origin. Empty API_BASE_URL keeps same-origin.
+        // Absolute URLs pass through untouched.
+        url: config.url?.startsWith('http')
+          ? config.url
+          : `${API_BASE_URL}${config.url ?? ''}`,
         headers: {
           ...(config.headers ?? {}),
           Authorization: `Bearer ${token}`,
@@ -198,6 +211,63 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Locutor (TTS) ──────────────────────────────────────────
+  const getLocutorStatus = useCallback(
+    () => request<LocutorStatus>({ url: '/admin-api/locutor/status' }),
+    [request]
+  );
+
+  const getLocutorTemplates = useCallback(
+    () => request<LocutorTemplate[]>({ url: '/admin-api/locutor/templates' }),
+    [request]
+  );
+
+  const saveLocutorTemplate = useCallback(
+    (data: LocutorTemplateInput, id?: string) => {
+      const body = {
+        type: data.type,
+        name: data.name,
+        text_template: data.textTemplate,
+        voice: data.voice,
+        speed: data.speed,
+        active: data.active,
+      };
+      return request({
+        method: id ? 'PUT' : 'POST',
+        url: id ? `/admin-api/locutor/templates/${id}` : '/admin-api/locutor/templates',
+        data: body,
+      });
+    },
+    [request]
+  );
+
+  const deleteLocutorTemplate = useCallback(
+    (id: string) =>
+      request({ method: 'DELETE', url: `/admin-api/locutor/templates/${id}` }),
+    [request]
+  );
+
+  const getLocutorAudios = useCallback(
+    () => request<LocutorAudio[]>({ url: '/admin-api/locutor/audios' }),
+    [request]
+  );
+
+  const deleteLocutorAudio = useCallback(
+    (id: string) =>
+      request({ method: 'DELETE', url: `/admin-api/locutor/audios/${id}` }),
+    [request]
+  );
+
+  const generateLocutorAudio = useCallback(
+    (templateId: string) =>
+      request({
+        method: 'POST',
+        url: `/admin-api/locutor/audios/generate/${templateId}`,
+        data: { variables: {} },
+      }),
+    [request]
+  );
+
   // ── Controles de estación ─────────────────────────────────────
   const skipCurrentTrack = useCallback(
     () => request({ method: 'POST', url: '/admin-api/station/backend/skip' }),
@@ -230,6 +300,13 @@ export function useAdminApi() {
     createScheduleCategory,
     updateScheduleCategory,
     deleteScheduleCategory,
+    getLocutorStatus,
+    getLocutorTemplates,
+    saveLocutorTemplate,
+    deleteLocutorTemplate,
+    getLocutorAudios,
+    deleteLocutorAudio,
+    generateLocutorAudio,
     skipCurrentTrack,
     restartStation,
     stationId,

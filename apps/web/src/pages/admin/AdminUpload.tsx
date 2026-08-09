@@ -34,6 +34,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import type { AdminPlaylist, MediaFile } from '@radio/types';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { apiUrl } from '@/config';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -119,8 +120,8 @@ export default function AdminUpload() {
   const loadData = useCallback(async () => {
     try {
       const result = await Promise.all([
-        axios.get<AdminPlaylist[]>('/admin-api/station/playlists', { headers: authHeaders }),
-        axios.get<{ rows: MediaFile[] }>('/admin-api/upload/recent', { headers: authHeaders }),
+        axios.get<AdminPlaylist[]>(apiUrl('/admin-api/station/playlists'), { headers: authHeaders }),
+        axios.get<{ rows: MediaFile[] }>(apiUrl('/admin-api/upload/recent'), { headers: authHeaders }),
       ]).catch(() => null);
       if (!result) return;
 
@@ -185,7 +186,7 @@ export default function AdminUpload() {
     if (selectedPlaylist) formData.append('playlist', selectedPlaylist);
 
     try {
-      await axios.post('/admin-api/upload', formData, {
+      await axios.post(apiUrl('/admin-api/upload'), formData, {
         headers: { Authorization: `Bearer ${token}` },
         onUploadProgress: (event) => {
           if (event.total) {
@@ -250,7 +251,7 @@ export default function AdminUpload() {
     if (!window.confirm(`¿Eliminar "${file.title || file.path}"?`)) return;
     setDeletingId(file.unique_id);
     try {
-      await axios.delete(`/admin-api/upload/${encodeURIComponent(file.unique_id)}`, { headers: authHeaders });
+      await axios.delete(apiUrl(`/admin-api/upload/${encodeURIComponent(file.unique_id)}`), { headers: authHeaders });
       toast.success('Archivo eliminado');
       setRecentFiles((prev) => prev.filter((f) => f.unique_id !== file.unique_id));
     } catch {
@@ -265,7 +266,7 @@ export default function AdminUpload() {
   const handleRescan = async () => {
     setIsRescanning(true);
     try {
-      await axios.post('/admin-api/upload/rescan', {}, { headers: authHeaders });
+      await axios.post(apiUrl('/admin-api/upload/rescan'), {}, { headers: authHeaders });
       toast.success('Re-escaneo iniciado en AzuraCast');
       setTimeout(loadData, 3000); // refrescar lista tras unos segundos
     } catch {

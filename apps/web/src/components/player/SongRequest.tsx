@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { UseAzuraCastReturn } from '@/hooks';
+import { API_BASE_URL } from '@/config';
 
 interface SongRequestItem {
   request_id: string;
@@ -47,7 +48,7 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, requestS
 
   // Buscar canciones
   useEffect(() => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+    const apiBaseUrl = API_BASE_URL;
     const searchSongs = async () => {
       if (searchQuery.length < 3) {
         setSearchResults([]);

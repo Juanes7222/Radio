@@ -3,10 +3,12 @@ import {
   useContext,
   useState,
   useCallback,
+  useEffect,
   type ReactNode,
 } from 'react';
 import axios from 'axios';
 import type { AdminUser } from '@radio/types';
+import { apiUrl } from '@/config';
 
 const STORAGE_KEY = 'admin_session';
 const STATION_ID = import.meta.env.VITE_STATION_ID || 'la_voz_de_la_verdad';
@@ -36,6 +38,31 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Validate the persisted session on mount: a stored JWT does not
+  // guarantee it is still valid, so check it against the backend once.
+  // Network failures keep the session; only an explicit 401 clears it.
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+    axios
+      .get(apiUrl('/admin-api/auth/me'), {
+        headers: { Authorization: `Bearer ${user.token}` },
+        timeout: 10000,
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+          localStorage.removeItem(STORAGE_KEY);
+          setUser(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const login = useCallback(async (idToken: string): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
@@ -43,7 +70,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       const res = await axios.post<{
         token: string;
         user: { email: string; name: string; picture: string; stationName: string };
-      }>('/admin-api/auth/google', { credential: idToken }, { timeout: 10000 });
+      }>(apiUrl('/admin-api/auth/google'), { credential: idToken }, { timeout: 10000 });
 
       const adminUser: AdminUser = {
         ...res.data.user,
@@ -74,7 +101,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
     setUser(null);
-    axios.post('/admin-api/auth/logout').catch(() => {});
+    axios.post(apiUrl('/admin-api/auth/logout')).catch(() => {});
   }, []);
 
   return (
