@@ -107,7 +107,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="history" options={{ href: null }} />
     </Tabs>
   );
 }
