@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { normalizeTitle } from '@/lib/formatMedia';
+import { getDeviceId } from '@/lib/device';
+import { BACKEND_URL } from '@/constants/api';
 
 export const SUBSCRIPTIONS_KEY = 'radio-program-subscriptions';
 export const SUBSCRIPTIONS_EVENT = 'onSubscriptionsUpdated';
@@ -10,10 +12,29 @@ export const SUBSCRIPTIONS_EVENT = 'onSubscriptionsUpdated';
 export const DEFAULT_SUBSCRIPTIONS: string[] = [
   "Rev Javier Carrascal", 
   "Rev Humberto Henao", 
-  "Rev José Soto", 
+  "Rev Jos� Soto", 
   "Noticias de Israel", 
   "Lectura Biblica"
 ];
+
+async function syncSubscriptionsToServer(subscriptions: string[]): Promise<void> {
+  try {
+    const deviceId = await getDeviceId();
+    const response = await fetch(
+      `${BACKEND_URL}/api/devices/${deviceId}/subscriptions`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptions }),
+      }
+    );
+    if (!response.ok) {
+      console.warn('[ProgramSubscriptions] Server sync failed', response.status);
+    }
+  } catch (err) {
+    console.warn('[ProgramSubscriptions] Server sync error:', err);
+  }
+}
 
 export function useProgramSubscriptions() {
   const [subscribedPrograms, setSubscribedPrograms] = useState<string[]>(DEFAULT_SUBSCRIPTIONS);
@@ -45,6 +66,7 @@ export function useProgramSubscriptions() {
     AsyncStorage.setItem(SUBSCRIPTIONS_KEY, JSON.stringify(subscribedPrograms)).then(() => {
       DeviceEventEmitter.emit(SUBSCRIPTIONS_EVENT);
     });
+    syncSubscriptionsToServer(subscribedPrograms);
   }, [subscribedPrograms]);
 
   const toggleSubscription = useCallback((programTitle: string) => {

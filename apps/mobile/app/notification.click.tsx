@@ -19,6 +19,16 @@ export default function NotificationClickScreen() {
         return;
       }
 
+      if (data?.type === 'program_start') {
+        router.replace('/schedule');
+        return;
+      }
+
+      if (data?.alarmId) {
+        router.replace('/?autoplay=1');
+        return;
+      }
+
       if (data?.type === 'prayer_response' && data?.prayerId) {
         router.replace(`/prayer/${data.prayerId}`);
         return;
