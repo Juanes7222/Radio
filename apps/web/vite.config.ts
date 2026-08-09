@@ -13,6 +13,11 @@ export default defineConfig(({ command }) => ({
   // production bundle to save bytes and avoid leaking local file paths.
   plugins: [react(), ...(command === 'serve' ? [inspectAttr()] : [])],
   resolve: {
+    // Workspace packages shared with the mobile app (e.g. @radio/api) resolve
+    // react to the root's 19.0.0 copy, which differs from this app's 19.2.8.
+    // Without dedupe, both copies end up in the bundle and hooks break with
+    // "Cannot read properties of null (reading 'useState')".
+    dedupe: ['react', 'react-dom', 'scheduler'],
     alias: {
       "@": path.resolve(__dirname, "./src"),
       '@assets': path.resolve(__dirname, '../../packages/assets'),
