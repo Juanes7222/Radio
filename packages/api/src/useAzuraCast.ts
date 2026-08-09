@@ -35,6 +35,15 @@ export interface UseAzuraCastReturn {
   getStreamUrl: (quality: StreamQuality) => string;
 }
 
+/**
+ * Realtime AzuraCast now-playing data for a single station.
+ *
+ * Guideline: mount this hook in exactly one screen (the player). Each mount
+ * opens its own SSE/WebSocket connection plus a polling fallback, so using it
+ * in more than one screen duplicates connections and drains battery. If other
+ * screens need the data, lift it into a shared context (same pattern as
+ * FacebookLiveProvider) instead of calling the hook again.
+ */
 export function useAzuraCast({
   apiBaseUrl = '',
   pollInterval = 3000,
