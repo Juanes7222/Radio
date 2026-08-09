@@ -222,19 +222,31 @@ model ScheduleCategory {
 }
 
 model Device {
-  id         String   @id @default(uuid())
-  deviceId   String   @unique
-  fcmToken   String?
-  platform   String?
-  appVersion String?
-  lastSeen   DateTime @default(now())
-  createdAt  DateTime @default(now())
+  id            String    @id @default(uuid())
+  deviceId      String    @unique
+  fcmToken      String?
+  platform      String?
+  appVersion    String?
+  subscriptions String? // JSON array of subscribed program titles
+  lastSeen      DateTime  @default(now())
+  createdAt     DateTime  @default(now())
 
   prayerRequests PrayerRequest[]
 
   @@map("devices")
   @@index([deviceId])
   @@index([fcmToken])
+}
+
+model ProgramNotification {
+  id             String   @id @default(uuid())
+  programId      String   @map("program_id")
+  startTimestamp DateTime @map("start_timestamp")
+  notifiedAt     DateTime @default(now()) @map("notified_at")
+
+  @@unique([programId, startTimestamp])
+  @@map("program_notifications")
+  @@index([startTimestamp])
 }
 
 model PrayerRequest {
