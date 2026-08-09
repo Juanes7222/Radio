@@ -78,7 +78,7 @@ export default function TabLayout() {
         options={{
           title: 'Oración',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="heart" size={size - 2} color={color} />
+            <Ionicons name="body-outline" size={size - 2} color={color} />
           ),
         }}
       />

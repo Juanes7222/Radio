@@ -1,16 +1,27 @@
 export const Colors = {
   background: '#0c0c1e',
+  backgroundAlt: '#0a0a14',
+  gradientDeep: '#130926',
   surface: 'rgba(255,255,255,0.08)',
+  surfaceDim: 'rgba(255,255,255,0.04)',
+  surfaceFaint: 'rgba(255,255,255,0.05)',
+  surfaceSoft: 'rgba(255,255,255,0.06)',
+  surfaceBorder: 'rgba(255,255,255,0.07)',
   surfaceElevated: 'rgba(255,255,255,0.13)',
   border: 'rgba(255,255,255,0.14)',
 
   accent: '#6366f1',
+  accentLight: '#818cf8',
   accentMuted: 'rgba(99,102,241,0.22)',
   accentGlow: 'rgba(99,102,241,0.40)',
 
   text: '#f9fafb',
+  textBright: '#ffffff',
+  textSoft: '#f1f5f9',
   textMuted: 'rgba(255,255,255,0.70)',
   textFaint: 'rgba(255,255,255,0.42)',
+  textAlt: '#9ca3af',
+  textAltFaint: '#4b5563',
 
   danger: '#ef4444',
   dangerMuted: 'rgba(239,68,68,0.18)',

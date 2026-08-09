@@ -13,12 +13,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
 import { getDeviceId } from '@/lib/device';
+import { Colors } from '@/constants/theme';
 import {
   getPrayerStatusConfig,
   getTimeAgo,
   type PrayerItem,
 } from '@/lib/prayer';
 import { TAB_BAR_HEIGHT } from '../lib/responsive';
+
+const ACCENT_TINT = 'rgba(99,102,241,0.08)';
 
 function PrayerCard({ item, onPress }: { item: PrayerItem; onPress: () => void }) {
   const config = getPrayerStatusConfig(item.estado);
@@ -35,7 +38,7 @@ function PrayerCard({ item, onPress }: { item: PrayerItem; onPress: () => void }
       <Text style={styles.cardRequest} numberOfLines={2}>{item.request}</Text>
       {item.respuesta && (
         <View style={styles.responsePreview}>
-          <Ionicons name="chatbubble-ellipses" size={14} color="#6366f1" />
+          <Ionicons name="chatbubble-ellipses" size={14} color={Colors.accent} />
           <Text style={styles.responsePreviewText} numberOfLines={1}>{item.respuesta}</Text>
         </View>
       )}
@@ -49,9 +52,10 @@ export default function PrayerHistoryScreen() {
   const [requests, setRequests] = useState<PrayerItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const deviceId = await getDeviceId();
@@ -65,9 +69,15 @@ export default function PrayerHistoryScreen() {
     } catch {
       setError('Error de conexion');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load(true);
+    setRefreshing(false);
+  }, [load]);
 
   useFocusEffect(
     useCallback(() => {
@@ -78,23 +88,23 @@ export default function PrayerHistoryScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#0a0a14', '#130926', '#0a0a14']}
+        colors={[Colors.backgroundAlt, Colors.gradientDeep, Colors.backgroundAlt]}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#f9fafb" />
+          <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.heading}>Mis peticiones</Text>
-        <TouchableOpacity onPress={load} style={styles.refreshBtn}>
-          <Ionicons name="refresh" size={20} color="#6366f1" />
+        <TouchableOpacity onPress={() => load()} style={styles.refreshBtn}>
+          <Ionicons name="refresh" size={20} color={Colors.accent} />
         </TouchableOpacity>
       </View>
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#6366f1" />
+          <ActivityIndicator size="large" color={Colors.accent} />
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -102,7 +112,7 @@ export default function PrayerHistoryScreen() {
         </View>
       ) : requests.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="heart-outline" size={48} color="#4b5563" />
+          <Ionicons name="heart-outline" size={48} color={Colors.textAltFaint} />
           <Text style={styles.emptyText}>No tienes peticiones aún</Text>
         </View>
       ) : (
@@ -120,6 +130,8 @@ export default function PrayerHistoryScreen() {
             { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 16 },
           ]}
           showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
         />
       )}
     </View>
@@ -127,7 +139,7 @@ export default function PrayerHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a14' },
+  container: { flex: 1, backgroundColor: Colors.backgroundAlt },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -138,19 +150,19 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   refreshBtn: { padding: 4 },
   heading: {
-    color: '#f9fafb',
+    color: Colors.text,
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  emptyText: { color: '#4b5563', fontSize: 14 },
+  emptyText: { color: Colors.textAltFaint, fontSize: 14 },
   list: { paddingHorizontal: 16, gap: 12 },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: Colors.surfaceDim,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: Colors.surfaceSoft,
     padding: 16,
     gap: 8,
   },
@@ -161,16 +173,16 @@ const styles = StyleSheet.create({
   },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statusText: { fontSize: 12, fontWeight: '600' },
-  timeText: { color: '#4b5563', fontSize: 11 },
-  cardName: { color: '#f9fafb', fontSize: 13, fontWeight: '700' },
-  cardRequest: { color: '#9ca3af', fontSize: 13, lineHeight: 18 },
+  timeText: { color: Colors.textAltFaint, fontSize: 11 },
+  cardName: { color: Colors.text, fontSize: 13, fontWeight: '700' },
+  cardRequest: { color: Colors.textAlt, fontSize: 13, lineHeight: 18 },
   responsePreview: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(99,102,241,0.08)',
+    backgroundColor: ACCENT_TINT,
     borderRadius: 8,
     padding: 8,
   },
-  responsePreviewText: { color: '#818cf8', fontSize: 12, flex: 1 },
+  responsePreviewText: { color: Colors.accentLight, fontSize: 12, flex: 1 },
 });

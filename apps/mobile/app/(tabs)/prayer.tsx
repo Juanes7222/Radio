@@ -17,11 +17,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
+import { Colors } from '@/constants/theme';
 import { getDeviceId } from '@/lib/device';
 
 import { TAB_BAR_HEIGHT } from '../../lib/responsive';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const ROSE = '#f43f5e';
+const ACCENT_TINT = 'rgba(99,102,241,0.12)';
+const NAME_MAX_LENGTH = 50;
+const REQUEST_MAX_LENGTH = 500;
 
 export default function PrayerScreen() {
   const insets = useSafeAreaInsets();
@@ -78,7 +84,7 @@ export default function PrayerScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={['#0a0a14', '#130926', '#0a0a14']}
+        colors={[Colors.backgroundAlt, Colors.gradientDeep, Colors.backgroundAlt]}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -96,7 +102,7 @@ export default function PrayerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Ionicons name="heart" size={isSmallScreen ? 24 : 32} color="#f43f5e" />
+          <Ionicons name="heart" size={isSmallScreen ? 24 : 32} color={ROSE} />
           <Text style={[styles.heading, isSmallScreen && styles.headingSmall]}>
             Petición de oración
           </Text>
@@ -108,14 +114,14 @@ export default function PrayerScreen() {
         {!sent && !loading && (
           <View style={styles.headerActions}>
             <TouchableOpacity onPress={() => router.push('/prayer-history')} style={styles.historyLink} activeOpacity={0.8}>
-              <Ionicons name="list-outline" size={14} color="#6366f1" />
+              <Ionicons name="list-outline" size={14} color={Colors.accent} />
               <Text style={styles.historyLinkText}>Mis peticiones</Text>
             </TouchableOpacity>
           </View>
         )}
         {sent ? (
           <View style={[styles.successCard, isSmallScreen && styles.successCardSmall]}>
-            <Ionicons name="checkmark-circle" size={isSmallScreen ? 36 : 48} color="#22c55e" />
+            <Ionicons name="checkmark-circle" size={isSmallScreen ? 36 : 48} color={Colors.success} />
             <Text style={[styles.successTitle, isSmallScreen && styles.successTitleSmall]}>
               Petición enviada
             </Text>
@@ -126,7 +132,7 @@ export default function PrayerScreen() {
               <Text style={styles.resetBtnText}>Enviar otra petición</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/prayer-history')} style={styles.viewHistoryBtn} activeOpacity={0.8}>
-              <Ionicons name="list-outline" size={14} color="#6366f1" />
+              <Ionicons name="list-outline" size={14} color={Colors.accent} />
               <Text style={styles.viewHistoryBtnText}>Ver mis peticiones</Text>
             </TouchableOpacity>
           </View>
@@ -137,9 +143,10 @@ export default function PrayerScreen() {
               <TextInput
                 style={[styles.input, isSmallScreen && styles.inputSmall]}
                 placeholder="Tu nombre"
-                placeholderTextColor="#4b5563"
+                placeholderTextColor={Colors.textAltFaint}
                 value={name}
                 onChangeText={setName}
+                maxLength={NAME_MAX_LENGTH}
                 editable={!loading}
               />
             </View>
@@ -153,14 +160,18 @@ export default function PrayerScreen() {
                   isSmallScreen && styles.textareaSmall,
                 ]}
                 placeholder="Escribe tu petición de oración..."
-                placeholderTextColor="#4b5563"
+                placeholderTextColor={Colors.textAltFaint}
                 value={request}
                 onChangeText={setRequest}
                 multiline
                 numberOfLines={isSmallScreen ? 3 : 4}
                 textAlignVertical="top"
+                maxLength={REQUEST_MAX_LENGTH}
                 editable={!loading}
               />
+              <Text style={styles.charCounter}>
+                {request.length}/{REQUEST_MAX_LENGTH}
+              </Text>
             </View>
 
             <TouchableOpacity
@@ -170,10 +181,10 @@ export default function PrayerScreen() {
               activeOpacity={0.8}
             >
               {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={Colors.textBright} />
               ) : (
                 <>
-                  <Ionicons name="send" size={isSmallScreen ? 14 : 16} color="#fff" />
+                  <Ionicons name="send" size={isSmallScreen ? 14 : 16} color={Colors.textBright} />
                   <Text style={[styles.submitBtnText, isSmallScreen && styles.submitBtnTextSmall]}>
                     Enviar petición
                   </Text>
@@ -188,18 +199,18 @@ export default function PrayerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a14' },
+  container: { flex: 1, backgroundColor: Colors.backgroundAlt },
   scroll: { paddingHorizontal: 20, gap: 20, flexGrow: 1, justifyContent: 'center' },
   header: { alignItems: 'center', gap: 10, marginBottom: 8 },
   heading: {
-    color: '#f9fafb',
+    color: Colors.text,
     fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
   headingSmall: { fontSize: 18 },
   subtitle: {
-    color: '#4b5563',
+    color: Colors.textAltFaint,
     fontSize: 14,
     textAlign: 'center',
     maxWidth: 280,
@@ -207,21 +218,27 @@ const styles = StyleSheet.create({
   subtitleSmall: { fontSize: 12 },
   form: { gap: 16 },
   field: { gap: 6 },
-  label: { color: '#9ca3af', fontSize: 13, fontWeight: '600' },
+  label: { color: Colors.textAlt, fontSize: 13, fontWeight: '600' },
   labelSmall: { fontSize: 12 },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: Colors.surfaceSoft,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: Colors.surfaceBorder,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#f1f5f9',
+    color: Colors.textSoft,
     fontSize: 14,
   },
   inputSmall: {
     paddingVertical: 10,
     fontSize: 13,
+  },
+  charCounter: {
+    color: Colors.textAltFaint,
+    fontSize: 11,
+    alignSelf: 'flex-end',
+    marginTop: 4,
   },
   textarea: {
     minHeight: 100,
@@ -232,7 +249,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   submitBtn: {
-    backgroundColor: '#f43f5e',
+    backgroundColor: ROSE,
     borderRadius: 12,
     paddingVertical: 14,
     flexDirection: 'row',
@@ -244,13 +261,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  submitBtnText: { color: Colors.textBright, fontSize: 14, fontWeight: '700' },
   submitBtnTextSmall: { fontSize: 13 },
   successCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: Colors.surfaceDim,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: Colors.surfaceSoft,
     padding: 24,
     alignItems: 'center',
     gap: 12,
@@ -259,9 +276,9 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 8,
   },
-  successTitle: { color: '#f9fafb', fontSize: 18, fontWeight: '700' },
+  successTitle: { color: Colors.text, fontSize: 18, fontWeight: '700' },
   successTitleSmall: { fontSize: 16 },
-  successText: { color: '#9ca3af', fontSize: 14, textAlign: 'center' },
+  successText: { color: Colors.textAlt, fontSize: 14, textAlign: 'center' },
   successTextSmall: { fontSize: 12 },
   headerActions: { flexDirection: 'row', justifyContent: 'flex-end' },
   historyLink: {
@@ -271,23 +288,23 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
-  historyLinkText: { color: '#6366f1', fontSize: 12, fontWeight: '600' },
+  historyLinkText: { color: Colors.accent, fontSize: 12, fontWeight: '600' },
   resetBtn: {
     marginTop: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: Colors.surface,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  resetBtnText: { color: '#f1f5f9', fontSize: 13, fontWeight: '600' },
+  resetBtnText: { color: Colors.textSoft, fontSize: 13, fontWeight: '600' },
   viewHistoryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(99,102,241,0.12)',
+    backgroundColor: ACCENT_TINT,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  viewHistoryBtnText: { color: '#6366f1', fontSize: 13, fontWeight: '600' },
+  viewHistoryBtnText: { color: Colors.accent, fontSize: 13, fontWeight: '600' },
 });

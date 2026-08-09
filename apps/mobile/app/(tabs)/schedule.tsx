@@ -1,16 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';import { fetchSchedule, fetchScheduleCategories, mergeConsecutiveScheduleItems } from '@radio/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchSchedule, fetchScheduleCategories, mergeConsecutiveScheduleItems } from '@radio/api';
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
+import { Colors } from '@/constants/theme';
 import { formatScheduleTime, getBogotaDayOfWeek } from '@/lib/time';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
+const CACHE_KEY = 'schedule_cache_v1';
+const CACHE_TTL_MS = 1000 * 60 * 30;
 
-const NEUTRAL_ACCENT = { dot: '#8b92a5', glow: 'rgba(139,146,165,0.25)' };
+interface ScheduleCache {
+  schedule: ScheduleItem[];
+  categories: ScheduleCategorySummary[];
+  timestamp: number;
+}
+
+async function readScheduleCache(): Promise<ScheduleCache | null> {
+  try {
+    const raw = await AsyncStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ScheduleCache;
+    if (!Array.isArray(parsed.schedule) || !Array.isArray(parsed.categories)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function writeScheduleCache(cache: ScheduleCache): Promise<void> {
+  try {
+    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // Ignore storage failures
+  }
+}
+
+
+const CARD_BG = '#16162c';
+const TEXT_MUTED = '#8b92a5';
+const CIAN = '#4f98a3';
+const CIAN_MUTED = 'rgba(79,152,163,0.15)';
+const OVERLAY = 'rgba(0,0,0,0.7)';
+const MODAL_BORDER = 'rgba(255,255,255,0.1)';
+
+const NEUTRAL_ACCENT = { dot: TEXT_MUTED, glow: 'rgba(139,146,165,0.25)' };
 
 const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   music: 'musical-notes',
@@ -26,10 +65,6 @@ const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   star: 'star',
   message: 'chatbubble',
 };
-
-const BACKGROUND = '#0c0c1e';
-const CARD_BG = '#16162c';
-const TEXT_MUTED = '#8b92a5';
 
 function getAccent(category: ScheduleCategorySummary | null | undefined) {
   if (category) {
@@ -141,7 +176,7 @@ function CategoryChip({
         <View
           style={[
             styles.chipDot,
-            { backgroundColor: isSelected ? '#ffffff' : color },
+            { backgroundColor: isSelected ? Colors.textBright : color },
           ]}
         />
       )}
@@ -162,23 +197,74 @@ export default function ScheduleScreen() {
 
   const currentDay = getBogotaDayOfWeek(new Date());
   const [selectedDay, setSelectedDay] = useState(currentDay);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [data, categoryData] = await Promise.all([
+        fetchSchedule(BACKEND_URL),
+        fetchScheduleCategories(BACKEND_URL),
+      ]);
+      if (data) setSchedule(data);
+      if (categoryData) setCategories(categoryData);
+      if (data && categoryData) {
+        await writeScheduleCache({
+          schedule: data,
+          categories: categoryData,
+          timestamp: Date.now(),
+        });
+      }
+    } catch (err) {
+      console.error('Error refreshing schedule:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
+    let mounted = true;
+
     async function loadSchedule() {
+      const cached = await readScheduleCache();
+
+      if (mounted && cached) {
+        setSchedule(cached.schedule);
+        setCategories(cached.categories);
+      }
+
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        if (mounted) setLoading(false);
+        return;
+      }
+
       try {
         const [data, categoryData] = await Promise.all([
           fetchSchedule(BACKEND_URL),
           fetchScheduleCategories(BACKEND_URL),
         ]);
+        if (!mounted) return;
         if (data) setSchedule(data);
         if (categoryData) setCategories(categoryData);
+        if (data && categoryData) {
+          await writeScheduleCache({
+            schedule: data,
+            categories: categoryData,
+            timestamp: Date.now(),
+          });
+        }
       } catch (err) {
         console.error('Error fetching schedule:', err);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
+
     loadSchedule();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const sections: ScheduleSection[] = React.useMemo(() => {
@@ -220,12 +306,22 @@ export default function ScheduleScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={Colors.accent}
+            colors={[Colors.accent]}
+          />
+        }
+      >
         
         {/* Cabecera */}
         <View style={styles.header}>
           <View style={styles.eyebrow}>
-            <Ionicons name="radio" size={16} color="#4f98a3" />
+            <Ionicons name="radio" size={16} color={CIAN} />
             <Text style={styles.eyebrowText}>Horarios y Emisiones</Text>
           </View>
           <Text style={styles.mainTitle}>Programación</Text>
@@ -307,7 +403,7 @@ export default function ScheduleScreen() {
 
         {/* Secciones por tipo */}
         {loading ? (
-          <ActivityIndicator size="large" color="#4f98a3" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color={CIAN} style={{ marginTop: 40 }} />
         ) : sections.length > 0 ? (
           <View>
             {sections.map((section) => (
@@ -347,7 +443,7 @@ export default function ScheduleScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{selectedProgram?.title}</Text>
               <Pressable onPress={() => setSelectedProgram(null)} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#ffffff" />
+                <Ionicons name="close" size={24} color={Colors.textBright} />
               </Pressable>
             </View>
             <View style={styles.modalBody}>
@@ -407,7 +503,7 @@ export default function ScheduleScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BACKGROUND,
+    backgroundColor: Colors.background,
   },
   scrollContent: {
     padding: 20,
@@ -423,7 +519,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   eyebrowText: {
-    color: '#4f98a3',
+    color: CIAN,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -432,7 +528,7 @@ const styles = StyleSheet.create({
   mainTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: Colors.textBright,
     marginBottom: 8,
   },
   subtitle: {
@@ -454,7 +550,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   dayPillSelected: {
-    backgroundColor: '#6366f1', // Tu color ACCENT
+    backgroundColor: Colors.accent,
   },
   dayText: {
     color: TEXT_MUTED,
@@ -462,7 +558,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dayTextSelected: {
-    color: '#ffffff',
+    color: Colors.textBright,
   },
   todayIndicator: {
     position: 'absolute',
@@ -471,7 +567,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#4f98a3',
+    backgroundColor: CIAN,
   },
   categoriesScroll: {
     marginBottom: 20,
@@ -489,7 +585,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: CARD_BG,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: Colors.surface,
     maxWidth: 180,
   },
   chipDot: {
@@ -503,7 +599,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chipTextSelected: {
-    color: '#ffffff',
+    color: Colors.textBright,
   },
   dayHeader: {
     flexDirection: 'row',
@@ -514,7 +610,7 @@ const styles = StyleSheet.create({
   dayTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: Colors.textBright,
   },
   programCount: {
     fontSize: 12,
@@ -522,13 +618,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   todayBadge: {
-    backgroundColor: 'rgba(79,152,163,0.15)',
+    backgroundColor: CIAN_MUTED,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
   todayBadgeText: {
-    color: '#4f98a3',
+    color: CIAN,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -553,7 +649,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   sectionTitle: {
-    color: '#ffffff',
+    color: Colors.textBright,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -578,7 +674,7 @@ const styles = StyleSheet.create({
     backgroundColor: CARD_BG,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: Colors.surfaceFaint,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
@@ -592,7 +688,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   rowTitle: {
-    color: '#ffffff',
+    color: Colors.textBright,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -618,19 +714,19 @@ const styles = StyleSheet.create({
     backgroundColor: CARD_BG,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: Colors.surfaceFaint,
   },
   emptyIconContainer: {
     width: 48,
     height: 48,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: Colors.surfaceFaint,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
   emptyTitle: {
-    color: '#ffffff',
+    color: Colors.textBright,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
@@ -644,7 +740,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: OVERLAY,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -653,7 +749,7 @@ const styles = StyleSheet.create({
     backgroundColor: CARD_BG,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: MODAL_BORDER,
     width: '100%',
     maxWidth: 400,
   },
@@ -663,10 +759,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: Colors.surfaceFaint,
   },
   modalTitle: {
-    color: '#ffffff',
+    color: Colors.textBright,
     fontSize: 18,
     fontWeight: '600',
     flex: 1,
@@ -685,7 +781,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   detailText: {
-    color: '#ffffff',
+    color: Colors.textBright,
     fontSize: 14,
     flex: 1,
   },

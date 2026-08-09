@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchRequestableSongs, requestSong } from '@radio/api';
 import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
+import { Colors } from '@/constants/theme';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import { scale, TAB_BAR_HEIGHT } from '../../lib/responsive';
 
@@ -23,6 +24,12 @@ const PAGE_SIZE = 25;
 const CACHE_KEY = 'requestable_songs_cache_v2';
 const CACHE_TTL_MS = 1000 * 60 * 30;
 const DEBOUNCE_MS = 350;
+
+const PLACEHOLDER = '#374151';
+const SUCCESS_DARK = '#16a34a';
+const ERROR_BG = 'rgba(127, 29, 29, 0.92)';
+const ERROR_BORDER = 'rgba(252, 165, 165, 0.2)';
+const ERROR_TEXT = '#fca5a5';
 
 function dedupeSongs(items: SongRequest[]) {
   const seen = new Map<string, SongRequest>();
@@ -76,9 +83,9 @@ const SongRow = memo(function SongRow({
         activeOpacity={0.8}
       >
         {isRequesting ? (
-          <ActivityIndicator size="small" color="#fff" />
+          <ActivityIndicator size="small" color={Colors.textBright} />
         ) : isSent ? (
-          <Ionicons name="checkmark" size={16} color="#fff" />
+          <Ionicons name="checkmark" size={16} color={Colors.textBright} />
         ) : (
           <Text style={styles.btnText}>Pedir</Text>
         )}
@@ -103,6 +110,7 @@ export default function RequestScreen() {
   const [requesting, setRequesting] = useState<string | null>(null);
   const [sent, setSent] = useState<string[]>([]);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const requestSeq = useRef(0);
 
@@ -218,6 +226,31 @@ export default function RequestScreen() {
     });
   }, [isInitialLoading, isLoadingMore, hasMore, loadPage, page, normalizedQuery]);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const result = await fetchRequestableSongs(BACKEND_URL, {
+        page: 1,
+        perPage: PAGE_SIZE,
+        search: normalizedQuery,
+      });
+      const safe = Array.isArray(result) ? result : [];
+      setSongs(dedupeSongs(safe));
+      setPage(1);
+      setHasMore(safe.length === PAGE_SIZE);
+      if (!normalizedQuery) {
+        await AsyncStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({ songs: safe, timestamp: Date.now() }),
+        );
+      }
+    } catch {
+      // keep the current list on failure
+    } finally {
+      setRefreshing(false);
+    }
+  }, [normalizedQuery]);
+
   const handleRequest = useCallback(
     async (item: SongRequest) => {
       setRequesting(item.request_id);
@@ -244,21 +277,26 @@ export default function RequestScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#0a0a14', '#130926', '#0a0a14']}
+          colors={[Colors.backgroundAlt, Colors.gradientDeep, Colors.backgroundAlt]}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />
 
-      <Text style={[styles.heading, { paddingTop: insets.top + 20 }]}>
-        Solicitar canción
-      </Text>
+      <View style={{ paddingTop: insets.top + 20 }}>
+        <Text style={styles.heading}>
+          Solicitar canción
+        </Text>
+        <Text style={styles.subtitle}>
+          Busca entre nuestra discografía y pide la canción que quieras escuchar
+        </Text>
+      </View>
 
       <View style={styles.searchWrapper}>
-        <Ionicons name="search" size={16} color="#4b5563" style={styles.searchIcon} />
+          <Ionicons name="search" size={16} color={Colors.textAltFaint} style={styles.searchIcon} />
         <TextInput
           style={styles.search}
           placeholder="Buscar canción o artista…"
-          placeholderTextColor="#374151"
+              placeholderTextColor={PLACEHOLDER}
           value={query}
           onChangeText={setQuery}
           autoCorrect={false}
@@ -267,7 +305,7 @@ export default function RequestScreen() {
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => setQuery('')} activeOpacity={0.7}>
-            <Ionicons name="close-circle" size={16} color="#4b5563" />
+            <Ionicons name="close-circle" size={16} color={Colors.textAltFaint} />
           </TouchableOpacity>
         )}
       </View>
@@ -285,7 +323,7 @@ export default function RequestScreen() {
         )}
         ListEmptyComponent={
           isInitialLoading ? (
-            <ActivityIndicator style={styles.loadingIndicator} color="#818cf8" />
+            <ActivityIndicator style={styles.loadingIndicator} color={Colors.accentLight} />
           ) : (
             <Text style={styles.empty}>
               {normalizedQuery ? 'No se encontraron coincidencias' : 'No se encontraron canciones'}
@@ -294,7 +332,7 @@ export default function RequestScreen() {
         }
         ListFooterComponent={
           isLoadingMore ? (
-            <ActivityIndicator style={{ marginVertical: 16 }} color="#818cf8" />
+            <ActivityIndicator style={{ marginVertical: 16 }} color={Colors.accentLight} />
           ) : null
         }
         contentContainerStyle={[
@@ -303,6 +341,8 @@ export default function RequestScreen() {
         ]}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.6}
         initialNumToRender={8}
@@ -318,7 +358,7 @@ export default function RequestScreen() {
 
       {requestError && (
         <View style={[styles.errorBanner, { bottom: insets.bottom + TAB_BAR_HEIGHT + 12 }]}>
-          <Ionicons name="alert-circle" size={16} color="#fca5a5" />
+          <Ionicons name="alert-circle" size={16} color={ERROR_TEXT} />
           <Text style={styles.errorBannerText}>{requestError}</Text>
         </View>
       )}
@@ -327,68 +367,75 @@ export default function RequestScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a14' },
+  container: { flex: 1, backgroundColor: Colors.backgroundAlt },
   heading: {
-    color: '#f9fafb',
+    color: Colors.text,
     fontSize: 22,
     fontWeight: '800',
     paddingHorizontal: 20,
-    marginBottom: 14,
+    marginBottom: 6,
     letterSpacing: -0.3,
+  },
+  subtitle: {
+    color: Colors.textAltFaint,
+    fontSize: 14,
+    lineHeight: 20,
+    paddingHorizontal: 20,
+    marginBottom: 14,
   },
   searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
     marginBottom: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: Colors.surfaceSoft,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: Colors.surfaceBorder,
     gap: 8,
   },
   searchIcon: { flexShrink: 0 },
   search: {
     flex: 1,
-    color: '#f1f5f9',
+    color: Colors.textSoft,
     fontSize: 14,
     padding: 0,
   },
   list: { paddingHorizontal: 16 },
-  empty: { color: '#4b5563', textAlign: 'center', marginTop: 48, fontSize: 14 },
+  empty: { color: Colors.textAltFaint, textAlign: 'center', marginTop: 48, fontSize: 14 },
   loadingIndicator: { marginTop: 48 },
-  separator: { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginLeft: 66 },
+  separator: { height: 1, backgroundColor: Colors.surfaceFaint, marginLeft: 66 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   art: { width: scale(50), height: scale(50), borderRadius: 10 },
-  artFallback: { backgroundColor: 'rgba(255,255,255,0.06)' },
+  artFallback: { backgroundColor: Colors.surfaceSoft },
   info: { flex: 1 },
   preachingBadge: {
-    color: '#818cf8',
+    color: Colors.accentLight,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: 2,
   },
-  title: { color: '#f1f5f9', fontSize: 14, fontWeight: '600' },
-  artist: { color: '#4b5563', fontSize: 12, marginTop: 3 },
+  title: { color: Colors.textSoft, fontSize: 14, fontWeight: '600' },
+  artist: { color: Colors.textAltFaint, fontSize: 12, marginTop: 3 },
   btn: {
-    backgroundColor: '#818cf8',
+    backgroundColor: Colors.accentLight,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
     minWidth: 60,
     alignItems: 'center',
   },
-  btnSent: { backgroundColor: '#16a34a' },
-  btnText: { color: '#0a0a14', fontSize: 13, fontWeight: '700' },
+  btnSent: { backgroundColor: SUCCESS_DARK },
+  btnText: { color: Colors.backgroundAlt, fontSize: 13, fontWeight: '700' },
   errorBanner: {
     position: 'absolute',
     left: 16,
     right: 16,
-    backgroundColor: 'rgba(127, 29, 29, 0.92)',
+    backgroundColor: ERROR_BG,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -396,10 +443,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: 'rgba(252, 165, 165, 0.2)',
+    borderColor: ERROR_BORDER,
   },
   errorBannerText: {
-    color: '#fca5a5',
+    color: ERROR_TEXT,
     fontSize: 13,
     flex: 1,
     lineHeight: 18,

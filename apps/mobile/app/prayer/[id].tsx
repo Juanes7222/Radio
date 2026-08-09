@@ -12,7 +12,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
+import { Colors } from '@/constants/theme';
 import { getPrayerStatusConfig, type PrayerItem } from '@/lib/prayer';
+
+const RESPONSE_TEXT = '#e0e7ff';
+const ACCENT_BORDER = 'rgba(99,102,241,0.3)';
+const ACCENT_TINT = 'rgba(99,102,241,0.06)';
 
 export default function PrayerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -51,11 +56,11 @@ export default function PrayerDetailScreen() {
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={['#0a0a14', '#130926', '#0a0a14']}
+          colors={[Colors.backgroundAlt, Colors.gradientDeep, Colors.backgroundAlt]}
           locations={[0, 0.5, 1]}
           style={StyleSheet.absoluteFill}
         />
-        <ActivityIndicator size="large" color="#6366f1" style={{ flex: 1 }} />
+        <ActivityIndicator size="large" color={Colors.accent} style={{ flex: 1 }} />
       </View>
     );
   }
@@ -64,7 +69,7 @@ export default function PrayerDetailScreen() {
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={['#0a0a14', '#130926', '#0a0a14']}
+          colors={[Colors.backgroundAlt, Colors.gradientDeep, Colors.backgroundAlt]}
           locations={[0, 0.5, 1]}
           style={StyleSheet.absoluteFill}
         />
@@ -83,13 +88,13 @@ export default function PrayerDetailScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#0a0a14', '#130926', '#0a0a14']}
+        colors={[Colors.backgroundAlt, Colors.gradientDeep, Colors.backgroundAlt]}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#f9fafb" />
+          <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.heading}>Mi petición</Text>
         <View style={{ width: 30 }} />
@@ -146,10 +151,10 @@ export default function PrayerDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a14' },
+  container: { flex: 1, backgroundColor: Colors.backgroundAlt },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  errorText: { color: '#ef4444', fontSize: 14 },
-  backLink: { color: '#6366f1', fontSize: 14, fontWeight: '600' },
+  errorText: { color: Colors.danger, fontSize: 14 },
+  backLink: { color: Colors.accent, fontSize: 14, fontWeight: '600' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -159,7 +164,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 4 },
   heading: {
-    color: '#f9fafb',
+    color: Colors.text,
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.3,
@@ -169,49 +174,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: Colors.surfaceDim,
     borderRadius: 12,
     padding: 14,
     alignSelf: 'flex-start',
   },
   statusText: { fontSize: 14, fontWeight: '700' },
   section: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: Colors.surfaceDim,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: Colors.surfaceSoft,
     padding: 18,
     gap: 10,
   },
   sectionTitle: {
-    color: '#9ca3af',
+    color: Colors.textAlt,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   sectionBody: {
-    color: '#f1f5f9',
+    color: Colors.textSoft,
     fontSize: 15,
     lineHeight: 22,
   },
   dateText: {
-    color: '#4b5563',
+    color: Colors.textAltFaint,
     fontSize: 11,
   },
   responseSection: {
-    borderColor: 'rgba(99,102,241,0.3)',
-    backgroundColor: 'rgba(99,102,241,0.06)',
+    borderColor: ACCENT_BORDER,
+    backgroundColor: ACCENT_TINT,
   },
   responseTitle: {
-    color: '#818cf8',
+    color: Colors.accentLight,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   responseBody: {
-    color: '#e0e7ff',
+    color: RESPONSE_TEXT,
     fontSize: 15,
     lineHeight: 22,
   },
