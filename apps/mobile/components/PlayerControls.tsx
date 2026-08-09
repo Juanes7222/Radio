@@ -9,6 +9,7 @@ interface PlayerControlsProps {
   isFavorite: boolean;
   onTogglePlay: () => void;
   onToggleFavorite: () => void;
+  onShare: () => void;
 }
 
 export function PlayerControls({
@@ -17,6 +18,7 @@ export function PlayerControls({
   isFavorite,
   onTogglePlay,
   onToggleFavorite,
+  onShare,
 }: PlayerControlsProps) {
   return (
     <View style={styles.row}>
@@ -48,6 +50,14 @@ export function PlayerControls({
             style={!isPlaying ? { marginLeft: scale(4) } : undefined}
           />
         )}
+      </Pressable>
+
+      <Pressable
+        onPress={onShare}
+        style={({ pressed }) => [styles.sideButton, pressed && styles.pressed]}
+        accessibilityLabel="Compartir"
+      >
+        <Ionicons name="share-outline" size={scale(24)} color={Colors.textMuted} />
       </Pressable>
     </View>
   );

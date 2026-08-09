@@ -2,11 +2,18 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, SafeAreaView, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useBible } from '@/hooks/useBible';
 import { BibleChapterNavigator } from './BibleChapterNavigator';
 import { BibleSearch } from './BibleSearch';
 import { Colors, Typography, Radii, Spacing } from '@/constants/theme';
+import type { BibleVerse } from '@radio/types';
+
+const FONT_SIZE_MIN = 14;
+const FONT_SIZE_MAX = 22;
+const FONT_SIZE_STEP = 2;
+const BASE_FONT_SIZE = 18;
 
 interface BiblePanelProps {
   isOpen: boolean;
@@ -18,6 +25,8 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [contentKey, setContentKey] = useState(0);
+  const [fontSize, setFontSize] = useState(BASE_FONT_SIZE);
+  const [copiedVerse, setCopiedVerse] = useState<number | null>(null);
   const { height: windowHeight } = useWindowDimensions();
 
   const isFirstBookAndChapter = currentBook === books[0]?.name && currentChapter === 1;
@@ -31,6 +40,17 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
   const handlePrevChapter = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     actions.prevChapter();
+  };
+
+  const handleCopyVerse = (verse: BibleVerse) => {
+    Clipboard.setStringAsync(
+      `${currentBook} ${currentChapter}:${verse.number} — ${verse.text}`,
+    ).catch(() => {});
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    setCopiedVerse(verse.number);
+    setTimeout(() => {
+      setCopiedVerse(null);
+    }, 1500);
   };
 
   return (
@@ -55,6 +75,20 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
               </View>
               
               <View style={styles.headerActions}>
+                <TouchableOpacity
+                  style={styles.fontSizeBtn}
+                  onPress={() => setFontSize((s) => Math.max(FONT_SIZE_MIN, s - FONT_SIZE_STEP))}
+                  disabled={fontSize <= FONT_SIZE_MIN}
+                >
+                  <Text style={[styles.fontSizeBtnText, fontSize <= FONT_SIZE_MIN && styles.fontSizeBtnDisabled]}>A-</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.fontSizeBtn}
+                  onPress={() => setFontSize((s) => Math.min(FONT_SIZE_MAX, s + FONT_SIZE_STEP))}
+                  disabled={fontSize >= FONT_SIZE_MAX}
+                >
+                  <Text style={[styles.fontSizeBtnText, fontSize >= FONT_SIZE_MAX && styles.fontSizeBtnDisabled]}>A+</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.iconBtn} onPress={() => setIsSearchOpen(true)}>
                   <Ionicons name="search" size={22} color={Colors.text} />
                 </TouchableOpacity>
@@ -82,12 +116,29 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
                   <Text style={styles.chapterSubtitle}>Capítulo {currentChapter}</Text>
                   
                   <View style={styles.readingArea}>
-                    {chapterData.verses.map((verse) => (
-                      <View key={verse.id} style={styles.verseRow}>
-                        <Text style={styles.verseNumber}>{verse.number}</Text>
-                        <Text style={styles.verseText}>{verse.text}</Text>
-                      </View>
-                    ))}
+                    {chapterData.verses.map((verse) => {
+                      const isCopied = copiedVerse === verse.number;
+                      return (
+                        <TouchableOpacity
+                          key={verse.id}
+                          style={styles.verseRow}
+                          activeOpacity={0.6}
+                          onPress={() => handleCopyVerse(verse)}
+                        >
+                          <View style={styles.verseNumberColumn}>
+                            <Text style={styles.verseNumber}>{verse.number}</Text>
+                            {isCopied && (
+                              <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
+                            )}
+                          </View>
+                          <Text
+                            style={[styles.verseText, { fontSize }, isCopied && styles.verseTextCopied]}
+                          >
+                            {verse.text}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 </ScrollView>
               ) : (
@@ -176,6 +227,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.md,
   },
+  fontSizeBtn: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: Radii.full,
+  },
+  fontSizeBtnText: {
+    ...Typography.body,
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  fontSizeBtnDisabled: {
+    opacity: 0.3,
+  },
   iconBtn: {
     padding: Spacing.xs,
     backgroundColor: 'rgba(255,255,255,0.05)',
@@ -211,22 +277,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
+  verseNumberColumn: {
+    alignItems: 'center',
+    width: 22,
+    marginRight: Spacing.md,
+    marginTop: 4,
+    gap: 2,
+  },
   verseNumber: {
     ...Typography.body,
     fontSize: 11,
     fontWeight: '800',
     color: Colors.accent,
-    marginRight: Spacing.md,
-    marginTop: 4,
-    width: 22,
     opacity: 0.8,
   },
   verseText: {
     ...Typography.body,
-    fontSize: 18,
     color: 'rgba(255, 255, 255, 0.9)',
     lineHeight: 28,
     flex: 1,
+  },
+  verseTextCopied: {
+    color: Colors.success,
   },
   floatingNavContainer: {
     position: 'absolute',

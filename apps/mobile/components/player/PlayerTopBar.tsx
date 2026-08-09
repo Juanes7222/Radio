@@ -9,8 +9,11 @@ interface PlayerTopBarProps {
   sleepTimerDisplay: string;
   showTooltip: boolean;
   listenersCount: number;
+  currentQuality: string;
   onOpenNotifications: () => void;
   onOpenSleepTimer: () => void;
+  onOpenQuality: () => void;
+  onOpenAlarm: () => void;
 }
 
 export function PlayerTopBar({
@@ -19,8 +22,11 @@ export function PlayerTopBar({
   sleepTimerDisplay,
   showTooltip,
   listenersCount,
+  currentQuality,
   onOpenNotifications,
   onOpenSleepTimer,
+  onOpenQuality,
+  onOpenAlarm,
 }: PlayerTopBarProps) {
   return (
     <View style={styles.topBar}>
@@ -48,19 +54,40 @@ export function PlayerTopBar({
 
       <LiveBadge listenersCount={listenersCount} />
 
-      <TouchableOpacity
-        onPress={onOpenSleepTimer}
-        style={[styles.iconButton, sleepTimerActive && styles.iconButtonActive]}
-        activeOpacity={0.7}
-        accessibilityLabel="Temporizador de apagado"
-      >
-        <Ionicons
-          name="timer-outline"
-          size={20}
-          color={sleepTimerActive ? Colors.warning : Colors.textFaint}
-        />
-        {sleepTimerActive && <Text style={styles.timerBadge}>{sleepTimerDisplay}</Text>}
-      </TouchableOpacity>
+      <View style={styles.actionsRight}>
+        <TouchableOpacity
+          onPress={onOpenAlarm}
+          style={styles.iconButton}
+          activeOpacity={0.7}
+          accessibilityLabel="Alarma de radio"
+        >
+          <Ionicons name="alarm-outline" size={20} color={Colors.textFaint} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={onOpenQuality}
+          style={styles.iconButton}
+          activeOpacity={0.7}
+          accessibilityLabel="Calidad del stream"
+        >
+          <Ionicons name="options-outline" size={20} color={Colors.textFaint} />
+          <Text style={styles.qualityBadge}>{currentQuality}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={onOpenSleepTimer}
+          style={[styles.iconButton, sleepTimerActive && styles.iconButtonActive]}
+          activeOpacity={0.7}
+          accessibilityLabel="Temporizador de apagado"
+        >
+          <Ionicons
+            name="timer-outline"
+            size={20}
+            color={sleepTimerActive ? Colors.warning : Colors.textFaint}
+          />
+          {sleepTimerActive && <Text style={styles.timerBadge}>{sleepTimerDisplay}</Text>}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -74,6 +101,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   notifyWrapper: { zIndex: 10 },
+  actionsRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
   iconButton: {
     padding: 10,
     borderRadius: Radii.full,
@@ -85,6 +117,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   iconButtonActive: { backgroundColor: Colors.warningMuted },
+  qualityBadge: {
+    ...Typography.caption,
+    color: Colors.textFaint,
+    fontWeight: '600',
+  },
   timerBadge: { ...Typography.caption, color: Colors.warning, fontWeight: '700' },
   tooltipContainer: {
     position: 'absolute',

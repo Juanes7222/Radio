@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   Image,
   Dimensions,
+  Share,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,16 +23,22 @@ import { BiblePanel } from '@/components/bible/BiblePanel';
 import { NotificationsModal } from '@/components/NotificationsModal';
 import { ConnectionBanner } from '@/components/player/ConnectionBanner';
 import { PlayerTopBar } from '@/components/player/PlayerTopBar';
+import { QualityModal } from '@/components/QualityModal';
+import { useStreamQuality } from '@/hooks/useStreamQuality';
+import type { StreamQuality } from '@radio/types';
 import { ReminderBanner } from '@/components/player/ReminderBanner';
 import { NowPlayingInfo } from '@/components/player/NowPlayingInfo';
 import { SleepTimerRow } from '@/components/player/SleepTimerRow';
 import { NextUpCard } from '@/components/player/NextUpCard';
 import { useAzuraCast } from '@radio/api';
+import { useLocalSearchParams } from 'expo-router';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
 import { useProgramNotify } from '@/hooks/useProgramNotify';
 import { useNotificationReminder } from '@/hooks/useNotificationReminder';
+import { useAlarmClock } from '@/hooks/useAlarmClock';
+import { AlarmModal } from '@/components/AlarmModal';
 import {
   useFavoriteNotify,
   loadFavoriteSongKeys,
@@ -64,9 +71,15 @@ export default function PlayerScreen() {
   );
   const artworkUri = song?.art ?? null;
 
-  const streamUrl = getStreamUrl('128');
+  const availableQualities = useMemo<StreamQuality[]>(() => {
+    const bitrates = new Set((data?.station.mounts ?? []).map((m) => m.bitrate));
+    return (['64', '128', '320'] as StreamQuality[]).filter((q) => bitrates.has(Number(q)));
+  }, [data]);
 
-  const { isPlaying, isBuffering, error: audioError, reconnectAttempt, toggle, pause } =
+  const { quality, setQuality } = useStreamQuality(availableQualities);
+  const streamUrl = getStreamUrl(quality);
+
+  const { isPlaying, isBuffering, error: audioError, reconnectAttempt, toggle, pause, play } =
     useAudioPlayer({
       streamUrl,
       title,
@@ -83,8 +96,24 @@ export default function PlayerScreen() {
   }, [liveUrl, pause]);
 
   const [showBible, setShowBible] = useState(false);
+  const [bibleOpened, setBibleOpened] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [showNotifyMenu, setShowNotifyMenu] = useState(false);
+  const [showAlarmMenu, setShowAlarmMenu] = useState(false);
+
+  const { alarms, saveAlarm, removeAlarm } = useAlarmClock();
+
+  const { autoplay } = useLocalSearchParams<{ autoplay?: string }>();
+  const autoplayHandledRef = useRef(false);
+
+  // Alarm notification tapped while app was closed: start the stream.
+  useEffect(() => {
+    if (autoplay !== '1' || autoplayHandledRef.current) return;
+    autoplayHandledRef.current = true;
+    if (!liveUrl) {
+      play();
+    }
+  }, [autoplay, liveUrl, play]);
 
   const sleepTimer = useSleepTimer(useCallback(async () => {
     await pause();
@@ -132,6 +161,39 @@ export default function PlayerScreen() {
   }, [dismissReminder]);
 
   const listenersCount = data?.listeners?.current ?? 0;
+
+  const handleShare = useCallback(async () => {
+    const message = title
+      ? `Escuchando ${title} de ${artist} en La Voz de la Verdad\n${streamUrl}`
+      : `Escuchando La Voz de la Verdad en vivo\n${streamUrl}`;
+    await Share.share({ message });
+  }, [title, artist, streamUrl]);
+
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+
+  const wasPlayingRef = useRef(false);
+  useEffect(() => {
+    wasPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  // Restart the stream with the new mount when the quality changes while playing.
+  const prevQualityRef = useRef<StreamQuality | null>(null);
+  useEffect(() => {
+    if (prevQualityRef.current !== null && prevQualityRef.current !== quality) {
+      if (wasPlayingRef.current) {
+        play();
+      }
+    }
+    prevQualityRef.current = quality;
+  }, [quality, play]);
+
+  const handleQualitySelect = useCallback(
+    (next: StreamQuality) => {
+      setQuality(next);
+      setShowQualityMenu(false);
+    },
+    [setQuality],
+  );
 
   const handleToggleNotify = useCallback(async () => {
     if (notifyEnabled) {
@@ -207,11 +269,14 @@ export default function PlayerScreen() {
             sleepTimerDisplay={sleepTimer.display}
             showTooltip={showTooltip}
             listenersCount={listenersCount}
+            currentQuality={quality}
             onOpenNotifications={() => {
               setShowTooltip(false);
               setShowNotifyMenu(true);
             }}
             onOpenSleepTimer={() => setShowSleepMenu(true)}
+            onOpenQuality={() => setShowQualityMenu(true)}
+            onOpenAlarm={() => setShowAlarmMenu(true)}
           />
 
           {showReminder && (
@@ -232,7 +297,10 @@ export default function PlayerScreen() {
 
           <TouchableOpacity
             style={styles.bibleButton}
-            onPress={() => setShowBible(true)}
+            onPress={() => {
+              setBibleOpened(true);
+              setShowBible(true);
+            }}
             activeOpacity={0.8}
           >
             <Ionicons name="book" size={18} color="#fff" />
@@ -271,6 +339,7 @@ export default function PlayerScreen() {
           isFavorite={isFavorite}
           onTogglePlay={toggle}
           onToggleFavorite={toggleFavorite}
+          onShare={handleShare}
         />
       </View>
 
@@ -288,6 +357,22 @@ export default function PlayerScreen() {
         }}
       />
 
+      <QualityModal
+        visible={showQualityMenu}
+        currentQuality={quality}
+        availableQualities={availableQualities.length > 0 ? availableQualities : ['128']}
+        onClose={() => setShowQualityMenu(false)}
+        onSelect={handleQualitySelect}
+      />
+
+      <AlarmModal
+        visible={showAlarmMenu}
+        alarms={alarms}
+        onClose={() => setShowAlarmMenu(false)}
+        onSave={saveAlarm}
+        onRemove={removeAlarm}
+      />
+
       <NotificationsModal
         visible={showNotifyMenu}
         onClose={() => setShowNotifyMenu(false)}
@@ -297,7 +382,9 @@ export default function PlayerScreen() {
         exactAlarmGranted={exactAlarmGranted}
       />
 
-      <BiblePanel isOpen={showBible} onClose={() => setShowBible(false)} />
+      {bibleOpened && (
+        <BiblePanel isOpen={showBible} onClose={() => setShowBible(false)} />
+      )}
     </View>
   );
 }

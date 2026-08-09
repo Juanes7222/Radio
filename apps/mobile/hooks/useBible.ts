@@ -1,8 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { BibleQueryResponse, BibleTranslation, BibleBook, BibleSearchResult } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 
 const API_BASE = `${BACKEND_URL}/api/bible`;
+const READING_KEY = 'bible-reading-position';
+
+interface SavedReadingPosition {
+  translation?: string;
+  book?: string;
+  chapter?: number;
+}
 
 export function useBible() {
   const [translations, setTranslations] = useState<BibleTranslation[]>([]);
@@ -15,6 +23,48 @@ export function useBible() {
   const [chapterData, setChapterData] = useState<BibleQueryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const savedTranslationRef = useRef<string | null>(null);
+  const hydratedRef = useRef(false);
+
+  // Restore the last reading position so the user keeps their place.
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(READING_KEY).then((raw) => {
+      if (!mounted || !raw) {
+        hydratedRef.current = true;
+        return;
+      }
+      try {
+        const saved = JSON.parse(raw) as SavedReadingPosition;
+        if (typeof saved.translation === 'string') {
+          savedTranslationRef.current = saved.translation;
+          setCurrentTranslation(saved.translation);
+        }
+        if (typeof saved.book === 'string') setCurrentBook(saved.book);
+        if (typeof saved.chapter === 'number') setCurrentChapter(saved.chapter);
+      } catch {
+        // Ignore corrupted storage
+      }
+      hydratedRef.current = true;
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Persist the position on every change (once hydration finished).
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    AsyncStorage.setItem(
+      READING_KEY,
+      JSON.stringify({
+        translation: currentTranslation,
+        book: currentBook,
+        chapter: currentChapter,
+      } as SavedReadingPosition),
+    ).catch(() => {});
+  }, [currentTranslation, currentBook, currentChapter]);
 
   const searchBible = async (query: string): Promise<BibleSearchResult[]> => {
     try {
@@ -79,7 +129,7 @@ export function useBible() {
 
           setTranslations(data);
 
-          if (data.length > 0) {
+          if (data.length > 0 && !savedTranslationRef.current) {
             setCurrentTranslation(data[0].abbreviation);
           }
         }
