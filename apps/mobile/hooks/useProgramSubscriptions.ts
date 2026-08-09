@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { normalizeTitle } from '@/lib/formatMedia';
 
 export const SUBSCRIPTIONS_KEY = 'radio-program-subscriptions';
 export const SUBSCRIPTIONS_EVENT = 'onSubscriptionsUpdated';
@@ -47,11 +48,12 @@ export function useProgramSubscriptions() {
   }, [subscribedPrograms]);
 
   const toggleSubscription = useCallback((programTitle: string) => {
+    const normalized = normalizeTitle(programTitle);
     setSubscribedPrograms(prev => {
-      const next = prev.includes(programTitle)
-        ? prev.filter(title => title !== programTitle)
+      const isSubscribed = prev.some(title => normalizeTitle(title) === normalized);
+      return isSubscribed
+        ? prev.filter(title => normalizeTitle(title) !== normalized)
         : [...prev, programTitle];
-      return next;
     });
   }, []);
 
