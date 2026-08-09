@@ -26,6 +26,8 @@ const AdminSchedule = lazy(() => import('./pages/admin/AdminSchedule.tsx'))
 const AdminScheduleCategories = lazy(() => import('./pages/admin/AdminScheduleCategories.tsx'))
 const AdminUpload = lazy(() => import('./pages/admin/AdminUpload.tsx'))
 const AdminLocutor = lazy(() => import('./pages/admin/locutor/index.tsx'))
+const AdminDevices = lazy(() => import('./pages/admin/AdminDevices.tsx'))
+const AdminYouTube = lazy(() => import('./pages/admin/AdminYouTube.tsx'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -58,6 +60,8 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="schedule/categories" element={<AdminScheduleCategories />} />
                   <Route path="upload" element={<AdminUpload />} />
                   <Route path="locutor" element={<AdminLocutor />} />
+                  <Route path="devices" element={<AdminDevices />} />
+                  <Route path="youtube" element={<AdminYouTube />} />
                 </Route>
 
                 {/* Fallback */}

@@ -4,6 +4,7 @@ import { prisma } from "../../infrastructure/database/prisma";
 import { sendPushToTokens } from "../../infrastructure/firebase/notification.service";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { parseSubscriptions } from "../../shared/utils/subscriptions";
 
 const CRON_SCHEDULE = "*/5 * * * *";
 const LOOK_AHEAD_SECONDS = 10 * 60;
@@ -22,16 +23,6 @@ function normalizeTitle(title: string): string {
     .trim()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
-}
-
-function parseSubscriptions(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
 }
 
 function extractUpcomingPrograms(items: unknown[]): UpcomingProgram[] {

@@ -207,3 +207,54 @@ export interface LocutorStatus {
   stats: Record<string, unknown>;
   timestamp: string;
 }
+
+/** Device registered by the mobile app for FCM notifications */
+export interface AdminDevice {
+  deviceId: string;
+  hasFcmToken: boolean;
+  platform: string | null;
+  appVersion: string | null;
+  subscriptions: string[];
+  lastSeen: string;
+  createdAt: string;
+}
+
+export interface AdminDeviceList {
+  rows: AdminDevice[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+/** Summary of program push notifications sent (admin dashboard cards) */
+export interface NotificationStats {
+  totalAll: number;
+  total7d: number;
+  byProgram: { programId: string; count: number }[];
+}
+
+/** Connected worker node reported by the worker pool */
+export interface WorkerNodeInfo {
+  workerId: string;
+  name: string;
+  status: string;
+  maxConcurrentJobs: number;
+  currentJobs: number;
+  currentJobId: string | null;
+  lastSeenAt: string | null;
+}
+
+/** YouTube processing job with its video summary */
+export interface WorkerJob {
+  id: string;
+  videoId: string;
+  status: string;
+  attempts: number;
+  lastError: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  deadlineAt: string | null;
+  nextRetryAt: string | null;
+  createdAt: string;
+  video: { title: string; videoId: string };
+}

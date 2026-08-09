@@ -15,6 +15,8 @@ import {
   ExternalLink,
   UploadCloud,
   AudioLines,
+  Smartphone,
+  Youtube,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -30,6 +32,8 @@ const NAV_ITEMS = [
   { to: '/admin/schedule', label: 'Programación', icon: CalendarDays },
   { to: '/admin/schedule/categories', label: 'Tipos de programa', icon: Tags },
   { to: '/admin/locutor', label: 'Locutor', icon: AudioLines },
+  { to: '/admin/devices', label: 'Dispositivos', icon: Smartphone },
+  { to: '/admin/youtube', label: 'YouTube', icon: Youtube },
 ];
 
 const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
