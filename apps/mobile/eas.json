@@ -10,12 +10,14 @@
     },
     "preview": {
       "distribution": "internal",
+      "channel": "staging",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
       "prebuildCommand": "npx expo prebuild --clean",
       "android": {
         "buildProperties": {
