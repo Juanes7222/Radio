@@ -18,8 +18,10 @@ import { asyncHandler } from "../../shared/errors/async-handler";
 import { AppError } from "../../shared/errors/app-error";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { requireAuth } from "../auth/auth.middleware";
 
 const router = Router();
+router.use(requireAuth);
 const MEDIA_DIR = config.locutor.mediaDir;
 
 function getGroupForHour(hour: number): "morning" | "afternoon" | "evening" | "night" {

@@ -25,6 +25,7 @@ const AdminStreaming = lazy(() => import('./pages/admin/AdminStreaming.tsx'))
 const AdminSchedule = lazy(() => import('./pages/admin/AdminSchedule.tsx'))
 const AdminScheduleCategories = lazy(() => import('./pages/admin/AdminScheduleCategories.tsx'))
 const AdminUpload = lazy(() => import('./pages/admin/AdminUpload.tsx'))
+const AdminLocutor = lazy(() => import('./pages/admin/locutor/index.tsx'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -56,6 +57,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="schedule" element={<AdminSchedule />} />
                   <Route path="schedule/categories" element={<AdminScheduleCategories />} />
                   <Route path="upload" element={<AdminUpload />} />
+                  <Route path="locutor" element={<AdminLocutor />} />
                 </Route>
 
                 {/* Fallback */}
