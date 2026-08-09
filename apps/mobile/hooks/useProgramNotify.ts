@@ -94,11 +94,10 @@ export async function setupNotifications() {
       notificationBody = `El programa "${title}" empieza a las ${startTime}.`;
     }
 
-    const notificationId = `radio-program-${item.id}`;
+    const notificationId = `radio-program-${item.id}-${item.start_timestamp}`;
     validNotificationIds.push(notificationId);
 
     const triggerDate = new Date(notifyUtcSeconds * 1000);
-    
 
     await Notifications.scheduleNotificationAsync({
       identifier: notificationId,
@@ -113,7 +112,9 @@ export async function setupNotifications() {
         date: triggerDate,
       } as Notifications.NotificationTriggerInput,
     });
-  }  const existingScheduled = await Notifications.getAllScheduledNotificationsAsync();
+  }
+
+  const existingScheduled = await Notifications.getAllScheduledNotificationsAsync();
 
   for (const notif of existingScheduled) {
     const isProgramNotif = notif.content.data?.isProgramNotify;
@@ -123,7 +124,6 @@ export async function setupNotifications() {
       await Notifications.cancelScheduledNotificationAsync(notif.identifier);
     }
   }
-  
 }
 
 export async function registerScheduleBackgroundTask() {
