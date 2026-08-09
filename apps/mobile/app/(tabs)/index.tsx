@@ -76,6 +76,12 @@ export default function PlayerScreen() {
 
   const { liveUrl } = useFacebookLive();
 
+  useEffect(() => {
+    if (liveUrl) {
+      pause();
+    }
+  }, [liveUrl, pause]);
+
   const [showBible, setShowBible] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [showNotifyMenu, setShowNotifyMenu] = useState(false);
