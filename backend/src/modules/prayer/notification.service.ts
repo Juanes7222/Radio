@@ -46,11 +46,13 @@ export async function sendPushNotification(
 export async function sendPrayerResponseNotification(
   fcmToken: string,
   prayerId: string,
-  responderName: string
+  responseText: string
 ): Promise<boolean> {
+  const preview = responseText.length > 140 ? `${responseText.slice(0, 140)}...` : responseText;
+
   return sendPushNotification(fcmToken, {
-    title: "La Voz de la Verdad",
-    body: "Tu peticion de oracion ha sido respondida.",
+    title: "Tu peticion de oracion ha sido respondida",
+    body: preview,
     data: {
       type: "prayer_response",
       prayerId,

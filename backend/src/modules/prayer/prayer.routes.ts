@@ -86,14 +86,21 @@ router.post("/", async (req: Request, res: Response) => {
 router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const { limit, skip } = validatePagination(req.query as Record<string, unknown>);
+    const estado =
+      typeof req.query.estado === "string" && req.query.estado.trim().length > 0
+        ? req.query.estado.trim()
+        : null;
+
+    const where = estado ? { estado } : {};
 
     const [rows, total] = await Promise.all([
       prisma.prayerRequest.findMany({
+        where,
         orderBy: { createdAt: "desc" },
         take: limit,
         skip,
       }),
-      prisma.prayerRequest.count(),
+      prisma.prayerRequest.count({ where }),
     ]);
 
     res.json({
@@ -193,7 +200,7 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
       });
 
       if (device?.fcmToken) {
-        sendPrayerResponseNotification(device.fcmToken, entry.id, entry.name).catch(
+        sendPrayerResponseNotification(device.fcmToken, entry.id, entry.respuesta).catch(
           (err) => {
             logger.error("PrayerRoutes", "Failed to send push notification", {
               error: err instanceof Error ? err.message : String(err),
@@ -225,6 +232,27 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
       error: err instanceof Error ? err.message : String(err),
     });
     res.status(500).json({ error: "Error al actualizar la peticion" });
+  }
+});
+
+router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    await prisma.prayerRequest.delete({
+      where: { id: String(id) },
+    });
+    res.status(204).end();
+  } catch (err) {
+    const error = err as { code?: string };
+    if (error.code === "P2025") {
+      res.status(404).json({ error: "Peticion no encontrada" });
+      return;
+    }
+    logger.error("PrayerRoutes", "Error deleting prayer request", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ error: "Error al eliminar la peticion" });
   }
 });
 

@@ -2,11 +2,15 @@ import { useCallback } from 'react';
 import axios, { type AxiosRequestConfig } from 'axios';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import type {
+  AdminDeviceList,
   LocutorAudio,
   LocutorStatus,
   LocutorTemplate,
   LocutorTemplateInput,
+  NotificationStats,
   ScheduleCategory,
+  WorkerJob,
+  WorkerNodeInfo,
 } from '@radio/types';
 import { API_BASE_URL } from '@/config';
 
@@ -133,9 +137,10 @@ export function useAdminApi() {
 
     // ── Peticiones de oración ──────────────────────────────────
     const getPrayerRequests = useCallback(
-      () =>
+      (params: { page?: number; limit?: number; estado?: string } = {}) =>
         request<{ rows: unknown[]; total: number; page: number; totalPages: number }>({
           url: '/api/prayer',
+          params,
         }),
       [request]
     );
@@ -146,6 +151,24 @@ export function useAdminApi() {
           method: 'PUT',
           url: `/api/prayer/${id}`,
           data,
+        }),
+      [request]
+    );
+
+    const markPrayerRequestRead = useCallback(
+      (id: string) =>
+        request({
+          method: 'POST',
+          url: `/api/prayer/${id}/read`,
+        }),
+      [request]
+    );
+
+    const deletePrayerRequest = useCallback(
+      (id: string) =>
+        request({
+          method: 'DELETE',
+          url: `/api/prayer/${id}`,
         }),
       [request]
     );
@@ -268,6 +291,29 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Dispositivos y notificaciones ─────────────────────────────
+  const getDevices = useCallback(
+    (params: { page?: number; limit?: number; program?: string } = {}) =>
+      request<AdminDeviceList>({ url: '/admin-api/devices', params }),
+    [request]
+  );
+
+  const getNotificationStats = useCallback(
+    () => request<NotificationStats>({ url: '/admin-api/devices/notifications-stats' }),
+    [request]
+  );
+
+  // ── Workers y YouTube ─────────────────────────────────────────
+  const getWorkers = useCallback(
+    () => request<WorkerNodeInfo[]>({ url: '/admin-api/workers/workers' }),
+    [request]
+  );
+
+  const getWorkerJobs = useCallback(
+    () => request<WorkerJob[]>({ url: '/admin-api/workers/jobs' }),
+    [request]
+  );
+
   // ── Controles de estación ─────────────────────────────────────
   const skipCurrentTrack = useCallback(
     () => request({ method: 'POST', url: '/admin-api/station/backend/skip' }),
@@ -291,6 +337,8 @@ export function useAdminApi() {
     approveRequest,
     getPrayerRequests,
     updatePrayerRequest,
+    markPrayerRequestRead,
+    deletePrayerRequest,
     getStreamers,
     createStreamer,
     deleteStreamer,
@@ -307,6 +355,10 @@ export function useAdminApi() {
     getLocutorAudios,
     deleteLocutorAudio,
     generateLocutorAudio,
+    getDevices,
+    getNotificationStats,
+    getWorkers,
+    getWorkerJobs,
     skipCurrentTrack,
     restartStation,
     stationId,
