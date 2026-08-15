@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lavozverdad-v5';
+const CACHE_NAME = 'lavozverdad-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -87,8 +87,13 @@ self.addEventListener('fetch', (event) => {
     url.searchParams.has('t')
   ) return;
 
-  // No interceptar rutas del backend (admin o públicas) — siempre network
-  if (url.pathname.startsWith('/admin-api/') || url.pathname.startsWith('/api/') || url.pathname.startsWith('/live-status/')) return;
+  // No interceptar rutas del backend ni el panel admin (admin o públicas) — siempre network
+  if (
+    url.pathname.startsWith('/admin-api/') ||
+    url.pathname.startsWith('/admin') ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/live-status/')
+  ) return;
 
   // No interceptar requests de streaming de audio ni WebSocket
   if (
@@ -101,21 +106,32 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Assets estáticos: stale-while-revalidate
+  // Assets estáticos: stale-while-revalidate; navegaciones: fallback al HTML cacheado
   event.respondWith(
     caches.match(request).then((cached) => {
+      const isNavigation = request.mode === 'navigate';
+
       const fetchPromise = fetch(request)
         .then((networkResponse) => {
           // cache.put() solo acepta GET — ignorar otros métodos
           if (networkResponse.ok && request.method === 'GET') {
-            const clone = networkResponse.clone();
+            const urlClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clone);
+              cache.put(request, urlClone);
+              // Las rutas SPA devuelven el mismo index.html: guardarlo bajo una clave canónica
+              if (isNavigation) {
+                cache.put('/index.html', networkResponse.clone());
+              }
             });
           }
           return networkResponse;
         })
-        .catch(() => cached ?? Response.error());
+        .catch(() =>
+          cached ??
+          (isNavigation
+            ? caches.match('/index.html')
+            : Promise.resolve(Response.error()))
+        );
 
       return cached || fetchPromise;
     })
