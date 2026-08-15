@@ -33,6 +33,17 @@ router.post("/", async (req: Request, res: Response) => {
   const trimmedDeviceId = typeof deviceId === "string" ? deviceId.trim() : null;
 
   try {
+    if (trimmedDeviceId) {
+      // Ensure the device exists so the foreign key on prayer_requests never fails.
+      // The device may not be registered yet when the app runs for the first time
+      // because registerDevice() depends on a push token that is not ready yet.
+      await prisma.device.upsert({
+        where: { deviceId: trimmedDeviceId },
+        create: { deviceId: trimmedDeviceId },
+        update: { lastSeen: new Date() },
+      });
+    }
+
     const entry = await prisma.prayerRequest.create({
       data: {
         name: trimmedName,
