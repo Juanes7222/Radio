@@ -228,6 +228,9 @@ model Device {
   platform      String?
   appVersion    String?
   subscriptions String? // JSON array of subscribed program titles
+  // Administrative zone assigned to this device (e.g. a city or region).
+  // Used to segment push notifications without requesting device location.
+  zoneId        String?
   lastSeen      DateTime  @default(now())
   createdAt     DateTime  @default(now())
 
@@ -236,6 +239,26 @@ model Device {
   @@map("devices")
   @@index([deviceId])
   @@index([fcmToken])
+  @@index([zoneId])
+}
+
+// History of custom push notifications sent from the admin panel.
+model PushNotificationLog {
+  id            String   @id @default(uuid())
+  title         String
+  body          String
+  // Audience kind used to pick recipients: all, devices, zone, platform, program, active
+  audience      String
+  // JSON-encoded filters that were applied to select the recipients
+  filters       String?
+  targetedCount Int      @default(0)
+  sentCount     Int      @default(0)
+  failedCount   Int      @default(0)
+  invalidTokens Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@map("push_notification_logs")
+  @@index([createdAt])
 }
 
 model ProgramNotification {

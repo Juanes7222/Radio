@@ -3,11 +3,15 @@ import axios, { type AxiosRequestConfig } from 'axios';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import type {
   AdminDeviceList,
+  DeviceZoneList,
   LocutorAudio,
   LocutorStatus,
   LocutorTemplate,
   LocutorTemplateInput,
   NotificationStats,
+  PushCampaignInput,
+  PushCampaignResult,
+  PushNotificationLogList,
   ScheduleCategory,
   WorkerJob,
   WorkerNodeInfo,
@@ -293,8 +297,46 @@ export function useAdminApi() {
 
   // ── Dispositivos y notificaciones ─────────────────────────────
   const getDevices = useCallback(
-    (params: { page?: number; limit?: number; program?: string } = {}) =>
+    (params: { page?: number; limit?: number; program?: string; zone?: string } = {}) =>
       request<AdminDeviceList>({ url: '/admin-api/devices', params }),
+    [request]
+  );
+
+  const getDeviceZones = useCallback(
+    () => request<DeviceZoneList>({ url: '/admin-api/devices/zones' }),
+    [request]
+  );
+
+  const assignDeviceZone = useCallback(
+    (deviceId: string, zoneId: string | null) =>
+      request({ method: 'PUT', url: `/admin-api/devices/${deviceId}/zone`, data: { zoneId } }),
+    [request]
+  );
+
+  const previewPushCampaign = useCallback(
+    (input: PushCampaignInput) =>
+      request<{ targeted: number }>({
+        method: 'POST',
+        url: '/admin-api/devices/preview-notification',
+        data: input,
+      }),
+    [request]
+  );
+
+  const sendPushCampaign = useCallback(
+    (input: PushCampaignInput) =>
+      request<PushCampaignResult>({
+        method: 'POST',
+        url: '/admin-api/devices/send-notification',
+        data: input,
+        timeout: 60000,
+      }),
+    [request]
+  );
+
+  const getPushNotificationLogs = useCallback(
+    (params: { page?: number; limit?: number } = {}) =>
+      request<PushNotificationLogList>({ url: '/admin-api/devices/notification-logs', params }),
     [request]
   );
 
@@ -356,6 +398,11 @@ export function useAdminApi() {
     deleteLocutorAudio,
     generateLocutorAudio,
     getDevices,
+    getDeviceZones,
+    assignDeviceZone,
+    previewPushCampaign,
+    sendPushCampaign,
+    getPushNotificationLogs,
     getNotificationStats,
     getWorkers,
     getWorkerJobs,

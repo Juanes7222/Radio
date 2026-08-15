@@ -215,6 +215,8 @@ export interface AdminDevice {
   platform: string | null;
   appVersion: string | null;
   subscriptions: string[];
+  /** Administrative zone assigned to the device (e.g. a city or region) */
+  zoneId: string | null;
   lastSeen: string;
   createdAt: string;
 }
@@ -224,6 +226,66 @@ export interface AdminDeviceList {
   total: number;
   page: number;
   totalPages: number;
+}
+
+/** Audience kinds supported by custom push notifications */
+export type PushAudience =
+  | 'all'
+  | 'devices'
+  | 'zone'
+  | 'platform'
+  | 'program'
+  | 'active';
+
+/** Payload sent to the backend to preview or send a custom push notification */
+export interface PushCampaignInput {
+  title: string;
+  body: string;
+  audience: PushAudience;
+  deviceIds?: string[];
+  zoneId?: string;
+  platform?: string;
+  program?: string;
+  activeDays?: number;
+}
+
+/** Result of sending a push campaign */
+export interface PushCampaignResult {
+  targeted: number;
+  sent: number;
+  failed: number;
+  invalidTokens: number;
+}
+
+/** Entry of the custom push notification history */
+export interface PushNotificationLog {
+  id: string;
+  title: string;
+  body: string;
+  audience: PushAudience;
+  filters: {
+    deviceIds?: string[];
+    zoneId?: string;
+    platform?: string;
+    program?: string;
+    activeDays?: number;
+  } | null;
+  targetedCount: number;
+  sentCount: number;
+  failedCount: number;
+  invalidTokens: number;
+  createdAt: string;
+}
+
+export interface PushNotificationLogList {
+  rows: PushNotificationLog[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface DeviceZoneList {
+  zones: string[];
 }
 
 /** Summary of program push notifications sent (admin dashboard cards) */
