@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable, RefreshControl, LayoutAnimation, UIManager, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -41,7 +41,6 @@ async function writeScheduleCache(cache: ScheduleCache): Promise<void> {
   }
 }
 
-
 const CARD_BG = '#16162c';
 const TEXT_MUTED = '#8b92a5';
 const CIAN = '#4f98a3';
@@ -50,6 +49,11 @@ const OVERLAY = 'rgba(0,0,0,0.7)';
 const MODAL_BORDER = 'rgba(255,255,255,0.1)';
 
 const NEUTRAL_ACCENT = { dot: TEXT_MUTED, glow: 'rgba(139,146,165,0.25)' };
+
+// Enable LayoutAnimation on Android for smooth section collapse/expand.
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   music: 'musical-notes',
@@ -83,6 +87,140 @@ interface ScheduleSection {
   items: ScheduleItem[];
 }
 
+type ViewMode = 'categories' | 'chronological';
+
+/* ------------------------------------------------------------------ */
+/* Toggle entre vistas                                                 */
+/* ------------------------------------------------------------------ */
+
+function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewMode) => void }) {
+  return (
+    <View style={styles.viewToggle}>
+      <TouchableOpacity
+        onPress={() => onChange('categories')}
+        activeOpacity={0.8}
+        style={[styles.viewToggleSegment, mode === 'categories' && styles.viewToggleSegmentActive]}
+      >
+        <Ionicons
+          name="grid-outline"
+          size={15}
+          color={mode === 'categories' ? Colors.textBright : TEXT_MUTED}
+        />
+        <Text style={[styles.viewToggleText, mode === 'categories' && styles.viewToggleTextActive]}>
+          Por categoría
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => onChange('chronological')}
+        activeOpacity={0.8}
+        style={[styles.viewToggleSegment, mode === 'chronological' && styles.viewToggleSegmentActive]}
+      >
+        <Ionicons
+          name="time-outline"
+          size={15}
+          color={mode === 'chronological' ? Colors.textBright : TEXT_MUTED}
+        />
+        <Text style={[styles.viewToggleText, mode === 'chronological' && styles.viewToggleTextActive]}>
+          Cronológico
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Filtro de categorías                                                */
+/* ------------------------------------------------------------------ */
+
+function CategoryFilterButton({
+  selectedCategory,
+  onPress,
+}: {
+  selectedCategory: ScheduleCategorySummary | null;
+  onPress: () => void;
+}) {
+  const accent = getAccent(selectedCategory);
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.filterButton}>
+      <Ionicons name="funnel-outline" size={15} color={accent.dot} />
+      <Text style={styles.filterButtonText} numberOfLines={1}>
+        {selectedCategory ? selectedCategory.name : 'Todas las categorías'}
+      </Text>
+      <Ionicons name="chevron-down" size={15} color={TEXT_MUTED} />
+    </TouchableOpacity>
+  );
+}
+
+function CategoryPickerModal({
+  visible,
+  categories,
+  selectedId,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  categories: ScheduleCategorySummary[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  onClose: () => void;
+}) {
+  const options: Array<{ id: string | null; name: string; color?: string; icon?: string }> = [
+    { id: null, name: 'Todas las categorías' },
+    ...categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+      color: category.color,
+      icon: category.icon,
+    })),
+  ];
+
+  return (
+    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+      <View style={styles.pickerOverlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.pickerSheet}>
+          <View style={styles.pickerHandle} />
+          <Text style={styles.pickerTitle}>Filtrar por categoría</Text>
+          <ScrollView style={styles.pickerList} bounces={false} showsVerticalScrollIndicator={false}>
+            {options.map((option) => {
+              const isSelected = option.id === selectedId;
+              const dotColor = option.color ?? TEXT_MUTED;
+              const iconName: keyof typeof Ionicons.glyphMap = option.icon
+                ? CATEGORY_ICONS[option.icon] ?? 'radio'
+                : 'albums-outline';
+
+              return (
+                <TouchableOpacity
+                  key={option.id ?? '__all__'}
+                  onPress={() => onSelect(option.id)}
+                  activeOpacity={0.8}
+                  style={[styles.pickerOption, isSelected && styles.pickerOptionSelected]}
+                >
+                  <View style={[styles.pickerOptionIcon, { backgroundColor: `${dotColor}26` }]}>
+                    <Ionicons name={iconName} size={16} color={dotColor} />
+                  </View>
+                  <Text
+                    style={[styles.pickerOptionText, isSelected && styles.pickerOptionTextSelected]}
+                    numberOfLines={1}
+                  >
+                    {option.name}
+                  </Text>
+                  {isSelected && <Ionicons name="checkmark" size={18} color={CIAN} />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Vista por categoría                                                 */
+/* ------------------------------------------------------------------ */
+
 function ProgramRow({
   program,
   accent,
@@ -95,9 +233,14 @@ function ProgramRow({
   const startTime = formatScheduleTime(program.start_timestamp);
   const endTime = formatScheduleTime(program.end_timestamp);
   const isLive = program.type === 'streamer';
+  const isNow = program.is_now;
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.rowCard}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={[styles.rowCard, isNow && styles.rowCardNow]}
+    >
       <View style={[styles.rowDot, { backgroundColor: accent.dot }]} />
       <View style={styles.rowInfo}>
         <Text style={styles.rowTitle} numberOfLines={1}>{program.title}</Text>
@@ -107,8 +250,11 @@ function ProgramRow({
         </Text>
       </View>
       {isLive && (
-        <View style={[styles.rowLiveBadge, { backgroundColor: accent.glow, borderColor: accent.dot }]}>
-          <View style={[styles.rowLiveDot, { backgroundColor: accent.dot }]} />
+        <View style={[styles.liveBadge, { backgroundColor: accent.glow }]}>
+          <View style={[styles.liveBadgeDot, { backgroundColor: accent.dot }]} />
+          <Text style={[styles.liveBadgeText, { color: accent.dot }]}>
+            {isNow ? 'AHORA' : 'EN VIVO'}
+          </Text>
         </View>
       )}
     </TouchableOpacity>
@@ -117,16 +263,20 @@ function ProgramRow({
 
 function ScheduleSectionView({
   section,
+  collapsed,
+  onToggle,
   onSelect,
 }: {
   section: ScheduleSection;
+  collapsed: boolean;
+  onToggle: () => void;
   onSelect: (program: ScheduleItem) => void;
 }) {
   const accent = getAccent(section.category);
 
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
+      <TouchableOpacity onPress={onToggle} activeOpacity={0.8} style={styles.sectionHeader}>
         <View style={[styles.sectionIcon, { backgroundColor: accent.glow }]}>
           <Ionicons name={getCategoryIcon(section.category)} size={16} color={accent.dot} />
         </View>
@@ -139,53 +289,93 @@ function ScheduleSectionView({
           </Text>
         </View>
         <View style={[styles.sectionLine, { backgroundColor: accent.dot }]} />
-      </View>
+        <Ionicons
+          name={collapsed ? 'chevron-down' : 'chevron-up'}
+          size={16}
+          color={TEXT_MUTED}
+        />
+      </TouchableOpacity>
 
-      <View style={styles.sectionRows}>
-        {section.items.map((program) => (
-          <ProgramRow
-            key={`${program.id}-${program.start_timestamp}`}
-            program={program}
-            accent={accent}
-            onPress={() => onSelect(program)}
-          />
-        ))}
-      </View>
+      {!collapsed && (
+        <View style={styles.sectionRows}>
+          {section.items.map((program) => (
+            <ProgramRow
+              key={`${program.id}-${program.start_timestamp}`}
+              program={program}
+              accent={accent}
+              onPress={() => onSelect(program)}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
 
-function CategoryChip({
-  label,
-  color,
-  isSelected,
+/* ------------------------------------------------------------------ */
+/* Vista cronológica                                                   */
+/* ------------------------------------------------------------------ */
+
+function TimelineRow({
+  program,
+  isLast,
   onPress,
 }: {
-  label: string;
-  color?: string;
-  isSelected: boolean;
+  program: ScheduleItem;
+  isLast: boolean;
   onPress: () => void;
 }) {
+  const accent = getAccent(program.category);
+  const startTime = formatScheduleTime(program.start_timestamp);
+  const endTime = formatScheduleTime(program.end_timestamp);
+  const isLive = program.type === 'streamer';
+  const isNow = program.is_now;
+
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.8}
-      style={[styles.chip, isSelected && color ? { backgroundColor: color } : null]}
-    >
-      {color && (
-        <View
-          style={[
-            styles.chipDot,
-            { backgroundColor: isSelected ? Colors.textBright : color },
-          ]}
-        />
-      )}
-      <Text style={[styles.chipText, isSelected && styles.chipTextSelected]} numberOfLines={1}>
-        {label}
-      </Text>
-    </TouchableOpacity>
+    <View style={styles.timelineRow}>
+      <Text style={[styles.timelineTime, isNow && styles.timelineTimeNow]}>{startTime}</Text>
+
+      <View style={styles.timelineRail}>
+        <View style={[styles.timelineDot, { backgroundColor: accent.dot }]} />
+        {!isLast && <View style={[styles.timelineLine, { backgroundColor: accent.glow }]} />}
+      </View>
+
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.8}
+        style={[styles.timelineCard, isNow && styles.timelineCardNow]}
+      >
+        <View style={styles.timelineCardTop}>
+          <Text style={styles.timelineTitle} numberOfLines={1}>
+            {program.title}
+          </Text>
+          {isLive && (
+            <View style={[styles.liveBadge, { backgroundColor: accent.glow }]}>
+              <View style={[styles.liveBadgeDot, { backgroundColor: accent.dot }]} />
+              <Text style={[styles.liveBadgeText, { color: accent.dot }]}>
+                {isNow ? 'AHORA' : 'EN VIVO'}
+              </Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.timelineMeta}>
+          <View style={[styles.timelineCategoryDot, { backgroundColor: accent.dot }]} />
+          <Text style={styles.timelineCategory} numberOfLines={1}>
+            {program.category ? program.category.name : 'Otros programas'}
+          </Text>
+          <Text style={styles.timelineRange}>
+            {endTime}
+            {program.slots && program.slots > 1 ? ` · ${program.slots} bloques` : ''}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </View>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Pantalla principal                                                  */
+/* ------------------------------------------------------------------ */
 
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
@@ -194,6 +384,9 @@ export default function ScheduleScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedProgram, setSelectedProgram] = useState<ScheduleItem | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('categories');
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
   const currentDay = getBogotaDayOfWeek(new Date());
   const [selectedDay, setSelectedDay] = useState(currentDay);
@@ -267,7 +460,7 @@ export default function ScheduleScreen() {
     };
   }, []);
 
-  const sections: ScheduleSection[] = React.useMemo(() => {
+  const dayPrograms = React.useMemo(() => {
     const programsForDay = schedule
       .filter(item => getBogotaDayOfWeek(item.start_timestamp) === selectedDay)
       .sort((a, b) => a.start_timestamp - b.start_timestamp)
@@ -278,10 +471,12 @@ export default function ScheduleScreen() {
         selectedCategoryId === null || item.category?.id === selectedCategoryId
       );
 
-    const merged = mergeConsecutiveScheduleItems(programsForDay);
+    return mergeConsecutiveScheduleItems(programsForDay);
+  }, [schedule, selectedDay, selectedCategoryId]);
 
+  const sections: ScheduleSection[] = React.useMemo(() => {
     const groups = new Map<string, ScheduleSection>();
-    for (const item of merged) {
+    for (const item of dayPrograms) {
       const key = item.category?.id ?? '__none__';
       const existing = groups.get(key);
       if (existing) {
@@ -299,10 +494,88 @@ export default function ScheduleScreen() {
       };
       return indexOf(a.category) - indexOf(b.category);
     });
-  }, [schedule, selectedDay, selectedCategoryId, categories]);
+  }, [dayPrograms, categories]);
 
   const selectedCategory = categories.find(c => c.id === selectedCategoryId) ?? null;
   const totalSlots = sections.reduce((acc, section) => acc + section.items.length, 0);
+
+  const sectionKeys = sections.map((section) => section.category?.id ?? '__none__');
+  const allSectionsCollapsed =
+    sectionKeys.length > 0 && sectionKeys.every((key) => collapsedCategories.has(key));
+
+  const toggleCategoryCollapse = useCallback((key: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleAllSections = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setCollapsedCategories(allSectionsCollapsed ? new Set() : new Set(sectionKeys));
+  };
+
+  const renderContent = () => {
+    if (loading) {
+      return <ActivityIndicator size="large" color={CIAN} style={{ marginTop: 40 }} />;
+    }
+
+    if (dayPrograms.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <View style={styles.emptyIconContainer}>
+            <Ionicons name="musical-notes" size={24} color={TEXT_MUTED} />
+          </View>
+          <Text style={styles.emptyTitle}>
+            {selectedCategoryId ? 'Sin programas en esta categoría' : 'Programación continua'}
+          </Text>
+          <Text style={styles.emptyDesc}>
+            {selectedCategoryId
+              ? `No hay programas de "${selectedCategory?.name ?? 'esta categoría'}" agendados para este día.`
+              : 'La radio transmite música continua este día. No hay eventos especiales agendados.'}
+          </Text>
+        </View>
+      );
+    }
+
+    if (viewMode === 'chronological') {
+      return (
+        <View>
+          {dayPrograms.map((program, index) => (
+            <TimelineRow
+              key={`${program.id}-${program.start_timestamp}`}
+              program={program}
+              isLast={index === dayPrograms.length - 1}
+              onPress={() => setSelectedProgram(program)}
+            />
+          ))}
+        </View>
+      );
+    }
+
+    return (
+      <View>
+        {sections.map((section) => {
+          const sectionKey = section.category?.id ?? '__none__';
+          return (
+            <ScheduleSectionView
+              key={sectionKey}
+              section={section}
+              collapsed={collapsedCategories.has(sectionKey)}
+              onToggle={() => toggleCategoryCollapse(sectionKey)}
+              onSelect={setSelectedProgram}
+            />
+          );
+        })}
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -317,7 +590,6 @@ export default function ScheduleScreen() {
           />
         }
       >
-        
         {/* Cabecera */}
         <View style={styles.header}>
           <View style={styles.eyebrow}>
@@ -331,9 +603,9 @@ export default function ScheduleScreen() {
         </View>
 
         {/* Selector de Días */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
           style={styles.daysScroll}
           contentContainerStyle={styles.daysContainer}
         >
@@ -343,12 +615,12 @@ export default function ScheduleScreen() {
               onPress={() => setSelectedDay(i)}
               style={[
                 styles.dayPill,
-                selectedDay === i && styles.dayPillSelected
+                selectedDay === i && styles.dayPillSelected,
               ]}
             >
               <Text style={[
                 styles.dayText,
-                selectedDay === i && styles.dayTextSelected
+                selectedDay === i && styles.dayTextSelected,
               ]}>
                 {day}
               </Text>
@@ -359,30 +631,14 @@ export default function ScheduleScreen() {
           ))}
         </ScrollView>
 
+        {/* Alternar vista por categoría / cronológica */}
+        <ViewToggle mode={viewMode} onChange={setViewMode} />
+
         {/* Filtro por categoría */}
-        {categories.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.categoriesScroll}
-            contentContainerStyle={styles.categoriesContainer}
-          >
-            <CategoryChip
-              label="Todas"
-              isSelected={selectedCategoryId === null}
-              onPress={() => setSelectedCategoryId(null)}
-            />
-            {categories.map((category) => (
-              <CategoryChip
-                key={category.id}
-                label={category.name}
-                color={category.color}
-                isSelected={selectedCategoryId === category.id}
-                onPress={() => setSelectedCategoryId(category.id)}
-              />
-            ))}
-          </ScrollView>
-        )}
+        <CategoryFilterButton
+          selectedCategory={selectedCategory}
+          onPress={() => setShowCategoryPicker(true)}
+        />
 
         {/* Cabecera del día */}
         <View style={styles.dayHeader}>
@@ -390,8 +646,26 @@ export default function ScheduleScreen() {
             <Text style={styles.dayTitle}>{DAYS_FULL[selectedDay]}</Text>
             {!loading && totalSlots > 0 && (
               <Text style={styles.programCount}>
-                {totalSlots} horario{totalSlots !== 1 ? 's' : ''} en {sections.length} tipo{sections.length !== 1 ? 's' : ''}
+                {viewMode === 'chronological'
+                  ? `${totalSlots} horario${totalSlots !== 1 ? 's' : ''} en orden del día`
+                  : `${totalSlots} horario${totalSlots !== 1 ? 's' : ''} en ${sections.length} tipo${sections.length !== 1 ? 's' : ''}`}
               </Text>
+            )}
+            {viewMode === 'categories' && sectionKeys.length > 1 && (
+              <TouchableOpacity
+                onPress={handleToggleAllSections}
+                activeOpacity={0.8}
+                style={styles.collapseAllButton}
+              >
+                <Ionicons
+                  name={allSectionsCollapsed ? 'expand-outline' : 'contract-outline'}
+                  size={14}
+                  color={CIAN}
+                />
+                <Text style={styles.collapseAllText}>
+                  {allSectionsCollapsed ? 'Expandir todo' : 'Contraer todo'}
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
           {currentDay === selectedDay && (
@@ -401,35 +675,21 @@ export default function ScheduleScreen() {
           )}
         </View>
 
-        {/* Secciones por tipo */}
-        {loading ? (
-          <ActivityIndicator size="large" color={CIAN} style={{ marginTop: 40 }} />
-        ) : sections.length > 0 ? (
-          <View>
-            {sections.map((section) => (
-              <ScheduleSectionView
-                key={section.category?.id ?? '__none__'}
-                section={section}
-                onSelect={setSelectedProgram}
-              />
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconContainer}>
-              <Ionicons name="musical-notes" size={24} color={TEXT_MUTED} />
-            </View>
-            <Text style={styles.emptyTitle}>
-              {selectedCategoryId ? 'Sin programas en esta categoría' : 'Programación continua'}
-            </Text>
-            <Text style={styles.emptyDesc}>
-              {selectedCategoryId
-                ? `No hay programas de "${selectedCategory?.name ?? 'esta categoría'}" agendados para este día.`
-                : 'La radio transmite música continua este día. No hay eventos especiales agendados.'}
-            </Text>
-          </View>
-        )}
+        {/* Contenido según la vista */}
+        {renderContent()}
       </ScrollView>
+
+      {/* Selector de categorías */}
+      <CategoryPickerModal
+        visible={showCategoryPicker}
+        categories={categories}
+        selectedId={selectedCategoryId}
+        onSelect={(id) => {
+          setSelectedCategoryId(id);
+          setShowCategoryPicker(false);
+        }}
+        onClose={() => setShowCategoryPicker(false)}
+      />
 
       {/* Program Detail Modal */}
       <Modal
@@ -483,10 +743,10 @@ export default function ScheduleScreen() {
                 </View>
               )}
               <View style={styles.detailRow}>
-                <Ionicons 
-                  name={selectedProgram?.type === 'streamer' ? "mic-outline" : "musical-notes-outline"} 
-                  size={18} 
-                  color={TEXT_MUTED} 
+                <Ionicons
+                  name={selectedProgram?.type === 'streamer' ? "mic-outline" : "musical-notes-outline"}
+                  size={18}
+                  color={TEXT_MUTED}
                 />
                 <Text style={styles.detailText}>
                   {selectedProgram?.type === 'streamer' ? 'Programa en vivo' : 'Programa automático'}
@@ -569,37 +829,54 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: CIAN,
   },
-  categoriesScroll: {
-    marginBottom: 20,
+  viewToggle: {
+    flexDirection: 'row',
+    backgroundColor: CARD_BG,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    padding: 4,
+    marginBottom: 12,
   },
-  categoriesContainer: {
-    gap: 8,
-    paddingRight: 8,
-  },
-  chip: {
+  viewToggleSegment: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: Colors.surface,
-    maxWidth: 180,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
-  chipDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  viewToggleSegmentActive: {
+    backgroundColor: Colors.accent,
   },
-  chipText: {
+  viewToggleText: {
     color: TEXT_MUTED,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
-  chipTextSelected: {
+  viewToggleTextActive: {
     color: Colors.textBright,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 20,
+    maxWidth: '100%',
+  },
+  filterButtonText: {
+    color: Colors.textBright,
+    fontSize: 13,
+    fontWeight: '600',
+    flexShrink: 1,
   },
   dayHeader: {
     flexDirection: 'row',
@@ -616,6 +893,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: TEXT_MUTED,
     marginTop: 2,
+  },
+  collapseAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  collapseAllText: {
+    color: CIAN,
+    fontSize: 12,
+    fontWeight: '600',
   },
   todayBadge: {
     backgroundColor: CIAN_MUTED,
@@ -678,6 +967,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
+  rowCardNow: {
+    borderColor: CIAN,
+    borderWidth: 1.5,
+  },
   rowDot: {
     width: 10,
     height: 10,
@@ -697,16 +990,102 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  rowLiveBadge: {
-    paddingHorizontal: 6,
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    borderWidth: 1,
   },
-  rowLiveDot: {
+  liveBadgeDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
+  },
+  liveBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  timelineTime: {
+    width: 74,
+    color: TEXT_MUTED,
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'right',
+    paddingTop: 13,
+  },
+  timelineTimeNow: {
+    color: CIAN,
+  },
+  timelineRail: {
+    alignItems: 'center',
+    width: 14,
+  },
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: Colors.background,
+    marginTop: 14,
+    zIndex: 1,
+  },
+  timelineLine: {
+    flex: 1,
+    width: 2,
+    marginTop: 2,
+  },
+  timelineCard: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: CARD_BG,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.surfaceFaint,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  timelineCardNow: {
+    borderColor: CIAN,
+    borderWidth: 1.5,
+  },
+  timelineCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timelineTitle: {
+    flex: 1,
+    color: Colors.textBright,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  timelineMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  timelineCategoryDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  timelineCategory: {
+    flex: 1,
+    color: TEXT_MUTED,
+    fontSize: 12,
+  },
+  timelineRange: {
+    color: TEXT_MUTED,
+    fontSize: 12,
   },
   emptyState: {
     alignItems: 'center',
@@ -737,6 +1116,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: OVERLAY,
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    backgroundColor: CARD_BG,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    borderColor: MODAL_BORDER,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 24,
+    maxHeight: '70%',
+  },
+  pickerHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginBottom: 12,
+  },
+  pickerTitle: {
+    color: Colors.textBright,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  pickerList: {
+    flexShrink: 1,
+  },
+  pickerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  pickerOptionSelected: {
+    backgroundColor: 'rgba(79,152,163,0.12)',
+  },
+  pickerOptionIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerOptionText: {
+    flex: 1,
+    color: Colors.textBright,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  pickerOptionTextSelected: {
+    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
