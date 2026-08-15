@@ -9,6 +9,7 @@ import { StyleSheet } from 'react-native';
 import TrackPlayer from 'react-native-track-player';
 import { initTrackPlayer, PlaybackService } from '../service';
 import { FacebookLiveProvider } from '@/hooks/useFacebookLive';
+import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
 import { registerDevice, updateFCMToken } from '@/lib/device';
 
 SplashScreen.preventAutoHideAsync();
@@ -17,6 +18,8 @@ TrackPlayer.registerPlaybackService(() => PlaybackService);
 
 export default function RootLayout() {
   const [appIsReady, setAppIsReady] = useState(false);
+
+  useNotificationNavigation();
 
   useEffect(() => {
     async function prepareApp() {

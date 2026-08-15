@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable, RefreshControl, LayoutAnimation, UIManager, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchSchedule, fetchScheduleCategories, mergeConsecutiveScheduleItems } from '@radio/api';
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
@@ -377,8 +378,18 @@ function TimelineRow({
 /* Pantalla principal                                                  */
 /* ------------------------------------------------------------------ */
 
+function normalizeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
+  const { programTitle } = useLocalSearchParams<{ programTitle?: string }>();
+  const handledProgramRef = useRef<string | null>(null);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [categories, setCategories] = useState<ScheduleCategorySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -459,6 +470,22 @@ export default function ScheduleScreen() {
       mounted = false;
     };
   }, []);
+
+  // Open the program detail modal when the user arrives from a
+  // program_start notification carrying the program title.
+  useEffect(() => {
+    const target = typeof programTitle === 'string' ? programTitle.trim() : '';
+    if (!target || handledProgramRef.current === target) return;
+    if (loading || schedule.length === 0) return;
+
+    const normalized = normalizeTitle(target);
+    const found = schedule.find((item) => normalizeTitle(item.title) === normalized);
+    if (found) {
+      handledProgramRef.current = target;
+      setSelectedDay(getBogotaDayOfWeek(found.start_timestamp));
+      setSelectedProgram(found);
+    }
+  }, [programTitle, loading, schedule]);
 
   const dayPrograms = React.useMemo(() => {
     const programsForDay = schedule
