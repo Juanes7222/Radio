@@ -101,7 +101,7 @@ export default function PlayerScreen() {
   const [showNotifyMenu, setShowNotifyMenu] = useState(false);
   const [showAlarmMenu, setShowAlarmMenu] = useState(false);
 
-  const { alarms, saveAlarm, removeAlarm } = useAlarmClock();
+  const { alarms, saveAlarm, updateAlarm, removeAlarm, toggleAlarm } = useAlarmClock();
 
   const { autoplay } = useLocalSearchParams<{ autoplay?: string }>();
   const autoplayHandledRef = useRef(false);
@@ -269,13 +269,11 @@ export default function PlayerScreen() {
             sleepTimerDisplay={sleepTimer.display}
             showTooltip={showTooltip}
             listenersCount={listenersCount}
-            currentQuality={quality}
             onOpenNotifications={() => {
               setShowTooltip(false);
               setShowNotifyMenu(true);
             }}
             onOpenSleepTimer={() => setShowSleepMenu(true)}
-            onOpenQuality={() => setShowQualityMenu(true)}
             onOpenAlarm={() => setShowAlarmMenu(true)}
           />
 
@@ -370,7 +368,9 @@ export default function PlayerScreen() {
         alarms={alarms}
         onClose={() => setShowAlarmMenu(false)}
         onSave={saveAlarm}
+        onUpdate={updateAlarm}
         onRemove={removeAlarm}
+        onToggle={toggleAlarm}
       />
 
       <NotificationsModal

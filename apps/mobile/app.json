@@ -68,7 +68,9 @@
         {
           "icon": "./assets/icon.png",
           "color": "#6366f1",
-          "sounds": []
+          "sounds": [
+            "./assets/audio/ring.wav"
+          ]
         }
       ],
       [

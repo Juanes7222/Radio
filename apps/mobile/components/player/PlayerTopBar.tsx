@@ -9,10 +9,8 @@ interface PlayerTopBarProps {
   sleepTimerDisplay: string;
   showTooltip: boolean;
   listenersCount: number;
-  currentQuality: string;
   onOpenNotifications: () => void;
   onOpenSleepTimer: () => void;
-  onOpenQuality: () => void;
   onOpenAlarm: () => void;
 }
 
@@ -22,10 +20,8 @@ export function PlayerTopBar({
   sleepTimerDisplay,
   showTooltip,
   listenersCount,
-  currentQuality,
   onOpenNotifications,
   onOpenSleepTimer,
-  onOpenQuality,
   onOpenAlarm,
 }: PlayerTopBarProps) {
   return (
@@ -62,16 +58,6 @@ export function PlayerTopBar({
           accessibilityLabel="Alarma de radio"
         >
           <Ionicons name="alarm-outline" size={20} color={Colors.textFaint} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={onOpenQuality}
-          style={styles.iconButton}
-          activeOpacity={0.7}
-          accessibilityLabel="Calidad del stream"
-        >
-          <Ionicons name="options-outline" size={20} color={Colors.textFaint} />
-          <Text style={styles.qualityBadge}>{currentQuality}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
