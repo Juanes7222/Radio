@@ -17,7 +17,7 @@ overrides:
   form-data@4: ^4.0.6
   js-yaml@<4: 3.15.1
   js-yaml@4: 4.3.1
-  nanoid@<3.3.17: 3.3.17
+  nanoid@<3.3.18: 3.3.18
   postcss@8: ^8.5.23
   shell-quote: ^1.8.5
   tar: ^7.5.21
@@ -25,7 +25,7 @@ overrides:
   undici@7: 7.29.0
   uuid: ^11.1.1
 
-packageExtensionsChecksum: sha256-Uiz78P0BWZ/F8lZ/ZRXEqOA4Zv8uEcmJj3s0+ovLsCQ=
+packageExtensionsChecksum: sha256-H+U9okxMGkXGdm+adM3jWzD8d/78kgoDAwXiNJXLiWw=
 
 importers:
 
@@ -6091,8 +6091,8 @@ packages:
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
-  nanoid@3.3.17:
-    resolution: {integrity: sha512-xQLf0A3HOMlgHq0n247/LRuAOYmB7dXJ/DvAxGvsSBij45XtBSmQycu+F8ODbHwns/XyFZagyL1+J0Offw1E0g==}
+  nanoid@3.3.18:
+    resolution: {integrity: sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
@@ -9782,7 +9782,7 @@ snapshots:
 
   '@gorhom/portal@1.0.14(react-native@0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)':
     dependencies:
-      nanoid: 3.3.17
+      nanoid: 3.3.18
       react: 19.0.0
       react-native: 0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0)
 
@@ -11098,7 +11098,7 @@ snapshots:
       '@react-navigation/routers': 7.5.5
       escape-string-regexp: 4.0.0
       fast-deep-equal: 3.1.3
-      nanoid: 3.3.17
+      nanoid: 3.3.18
       query-string: 7.1.3
       react: 19.0.0
       react-is: 19.2.7
@@ -11134,14 +11134,14 @@ snapshots:
       '@react-navigation/core': 7.17.5(react@19.0.0)
       escape-string-regexp: 4.0.0
       fast-deep-equal: 3.1.3
-      nanoid: 3.3.17
+      nanoid: 3.3.18
       react: 19.0.0
       react-native: 0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0)
       use-latest-callback: 0.2.6(react@19.0.0)
 
   '@react-navigation/routers@7.5.5':
     dependencies:
-      nanoid: 3.3.17
+      nanoid: 3.3.18
 
   '@rolldown/pluginutils@1.0.0-rc.3': {}
 
@@ -13174,7 +13174,7 @@ snapshots:
       expo-constants: 17.1.8(expo@53.0.27(@babel/core@7.29.7)(@expo/metro-runtime@5.0.5(react-native@0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0)))(react-native-webview@13.13.5(react-native@0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0))(react@19.0.0))(react-native@0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0))(react@19.0.0))(react-native@0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0))
       expo-linking: 7.1.7(expo@53.0.27(@babel/core@7.29.7)(@expo/metro-runtime@5.0.5(react-native@0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0)))(react-native-webview@13.13.5(react-native@0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0))(react@19.0.0))(react-native@0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0))(react@19.0.0))(react-native@0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)
       invariant: 2.2.4
-      nanoid: 3.3.17
+      nanoid: 3.3.18
       react-fast-compare: 3.2.2
       react-native-is-edge-to-edge: 1.3.1(react-native@0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)
       react-native-safe-area-context: 5.4.0(react-native@0.79.6(@babel/core@7.29.7)(@react-native-community/cli@20.1.3(typescript@5.8.3))(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)
@@ -14610,7 +14610,7 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
-  nanoid@3.3.17: {}
+  nanoid@3.3.18: {}
 
   napi-build-utils@2.0.0: {}
 
@@ -14907,7 +14907,7 @@ snapshots:
 
   postcss@8.5.25:
     dependencies:
-      nanoid: 3.3.17
+      nanoid: 3.3.18
       picocolors: 1.1.1
       source-map-js: 1.2.1
 

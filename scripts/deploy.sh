@@ -41,7 +41,9 @@ INFISICAL_PACKAGE="@radio/infisical-config"
 # >=2.0.3 is not published on npm yet, and the package is a transitive dependency
 # of metro (mobile build-time tooling only, never used at runtime in production).
 # Remove these entries once image-size 2.0.3+ is available.
-DEPLOY_AUDIT_ALLOWLIST="${DEPLOY_AUDIT_ALLOWLIST:-GHSA-w3rx-r6r6-pgpr,GHSA-5p2g-fcmc-qvqq}"
+# The variable must be exported so the node audit filter below can read it
+# from process.env; without export the allowlist is silently ignored.
+export DEPLOY_AUDIT_ALLOWLIST="${DEPLOY_AUDIT_ALLOWLIST:-GHSA-w3rx-r6r6-pgpr,GHSA-5p2g-fcmc-qvqq}"
 
 SKIP_AUDIT=false
 FORCE_DEPLOY=false
