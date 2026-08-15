@@ -22,7 +22,7 @@ export default defineConfig(({ command, mode }) => {
       // react to the root's 19.0.0 copy, which differs from this app's 19.2.8.
       // Without dedupe, both copies end up in the bundle and hooks break with
       // "Cannot read properties of null (reading 'useState')".
-      dedupe: ['react', 'react-dom', 'scheduler'],
+      dedupe: ['react', 'react-dom'],
       alias: {
         "@": path.resolve(__dirname, "./src"),
         '@assets': path.resolve(__dirname, '../../packages/assets'),
