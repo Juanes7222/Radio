@@ -1,8 +1,10 @@
 import { useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, CheckCircle, AlertCircle, Loader2, Heart } from 'lucide-react';
+import { Link } from 'react-router';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +26,8 @@ export const PrayerRequestDialog = memo(function PrayerRequestDialog({
 }: PrayerRequestDialogProps) {
   const [name, setName] = useState('');
   const [request, setRequest] = useState('');
+  const [acceptsDataTreatment, setAcceptsDataTreatment] = useState(false);
+  const [acceptsCommunications, setAcceptsCommunications] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -37,6 +41,12 @@ export const PrayerRequestDialog = memo(function PrayerRequestDialog({
     if (!trimmedName || !trimmedRequest) {
       setStatus('error');
       setMessage('Por favor completa todos los campos.');
+      return;
+    }
+
+    if (!acceptsDataTreatment) {
+      setStatus('error');
+      setMessage('Debes aceptar la Política de Tratamiento de Datos Personales.');
       return;
     }
 
@@ -54,6 +64,7 @@ export const PrayerRequestDialog = memo(function PrayerRequestDialog({
         setMessage('Tu petición ha sido enviada. ¡Oraremos por ti!');
         setName('');
         setRequest('');
+        setAcceptsCommunications(false);
       } else {
         const data = await res.json().catch(() => ({}));
         setStatus('error');
@@ -65,7 +76,7 @@ export const PrayerRequestDialog = memo(function PrayerRequestDialog({
     } finally {
       setLoading(false);
     }
-  }, [name, request, apiBaseUrl]);
+  }, [name, request, acceptsDataTreatment, apiBaseUrl]);
 
   const handleClose = () => {
     setStatus('idle');
@@ -112,6 +123,46 @@ export const PrayerRequestDialog = memo(function PrayerRequestDialog({
               rows={4}
               className="bg-slate-800 border-slate-700"
             />
+            <p className="text-xs leading-relaxed text-amber-400/80">
+              Evita incluir datos personales sensibles (salud, situación familiar o económica) o información de otras personas que no sea necesaria para tu petición.
+            </p>
+          </div>
+
+          <div className="space-y-3 pt-1">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox
+                checked={acceptsDataTreatment}
+                onCheckedChange={(checked) => setAcceptsDataTreatment(checked === true)}
+                disabled={loading}
+                aria-label="Aceptar tratamiento de datos personales"
+                className="mt-0.5 bg-slate-800 border-slate-600"
+              />
+              <span className="text-xs leading-relaxed text-slate-400">
+                He leído y acepto la{' '}
+                <Link
+                  to="/info/data-treatment"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Política de Tratamiento de Datos Personales
+                </Link>{' '}
+                y autorizo el tratamiento de mis datos para gestionar esta petición de oración.
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox
+                checked={acceptsCommunications}
+                onCheckedChange={(checked) => setAcceptsCommunications(checked === true)}
+                disabled={loading}
+                aria-label="Autorizar comunicaciones de la emisora"
+                className="mt-0.5 bg-slate-800 border-slate-600"
+              />
+              <span className="text-xs leading-relaxed text-slate-400">
+                Autorizo el envío de comunicaciones relacionadas con la emisora y sus actividades.
+              </span>
+            </label>
           </div>
 
           <Button

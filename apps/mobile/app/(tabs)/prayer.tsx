@@ -16,7 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { BACKEND_URL } from '@/constants/api';
+import { Linking } from 'react-native';
+import { BACKEND_URL, WEB_URL } from '@/constants/api';
 import { Colors } from '@/constants/theme';
 import { getDeviceId } from '@/lib/device';
 
@@ -34,6 +35,7 @@ export default function PrayerScreen() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [request, setRequest] = useState('');
+  const [acceptsDataTreatment, setAcceptsDataTreatment] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -45,6 +47,14 @@ export default function PrayerScreen() {
 
     if (!trimmedName || !trimmedRequest) {
       Alert.alert('Campos incompletos', 'Por favor ingresa tu nombre y la petición.');
+      return;
+    }
+
+    if (!acceptsDataTreatment) {
+      Alert.alert(
+        'Autorización requerida',
+        'Debes aceptar la Política de Tratamiento de Datos Personales para enviar tu petición.'
+      );
       return;
     }
 
@@ -70,7 +80,13 @@ export default function PrayerScreen() {
     } finally {
       setLoading(false);
     }
-  }, [name, request]);
+  }, [name, request, acceptsDataTreatment]);
+
+  const openLegalPage = useCallback((path: string) => {
+    Linking.openURL(`${WEB_URL}${path}`).catch(() => {
+      Alert.alert('Error', 'No se pudo abrir la página. Intenta más tarde.');
+    });
+  }, []);
 
   const handleReset = () => {
     setSent(false);
@@ -172,7 +188,35 @@ export default function PrayerScreen() {
               <Text style={styles.charCounter}>
                 {request.length}/{REQUEST_MAX_LENGTH}
               </Text>
+              <Text style={styles.sensitiveWarning}>
+                Evita incluir datos personales sensibles (salud, situación familiar o económica) o información de otras personas que no sea necesaria para tu petición.
+              </Text>
             </View>
+
+            <TouchableOpacity
+              onPress={() => setAcceptsDataTreatment(prev => !prev)}
+              style={styles.consentRow}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name={acceptsDataTreatment ? 'checkmark-circle' : 'ellipse-outline'}
+                size={20}
+                color={acceptsDataTreatment ? Colors.success : Colors.textAltFaint}
+              />
+              <Text style={styles.consentText}>
+                He leído y acepto la{' '}
+                <Text
+                  style={styles.consentLink}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    openLegalPage('/info/data-treatment');
+                  }}
+                >
+                  Política de Tratamiento de Datos Personales
+                </Text>{' '}
+                y autorizo el tratamiento de mis datos para gestionar esta petición de oración.
+              </Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={handleSubmit}
@@ -240,6 +284,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     marginTop: 4,
   },
+  sensitiveWarning: {
+    color: '#fbbf24',
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 6,
+    opacity: 0.85,
+  },
   textarea: {
     minHeight: 100,
     paddingTop: 12,
@@ -247,6 +298,23 @@ const styles = StyleSheet.create({
   textareaSmall: {
     minHeight: 72,
     paddingTop: 10,
+  },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 2,
+  },
+  consentText: {
+    flex: 1,
+    color: Colors.textAltFaint,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  consentLink: {
+    color: Colors.accent,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   submitBtn: {
     backgroundColor: ROSE,

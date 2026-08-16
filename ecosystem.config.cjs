@@ -16,6 +16,11 @@ module.exports = {
       error_file: "/var/log/pm2/radio-backend-error.log",
       out_file: "/var/log/pm2/radio-backend-out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss",
+      // Retencion de logs: 30 dias, alineada con la politica de privacidad.
+      // Instalar y configurar pm2-logrotate en el servidor:
+      //   pm2 install pm2-logrotate
+      //   pm2 set pm2-logrotate:retain 30
+      //   pm2 set pm2-logrotate:max_size 10M
     },
   ],
 };

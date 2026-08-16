@@ -14,6 +14,9 @@ import { RouteFallback } from './components/RouteFallback.tsx'
 const ProgramacionPage = lazy(() => import('./pages/ProgramacionPage.tsx'))
 const AboutPage = lazy(() => import('./pages/info/who-we-are.tsx'))
 const PrivacyPolicyPage = lazy(() => import('./pages/info/privacy.tsx'))
+const TermsPage = lazy(() => import('./pages/info/terms.tsx'))
+const DataTreatmentPage = lazy(() => import('./pages/info/data-treatment.tsx'))
+const CookiesPage = lazy(() => import('./pages/info/cookies.tsx'))
 
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin.tsx'))
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout.tsx'))
@@ -45,6 +48,9 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/programacion" element={<ProgramacionPage />} />
                   <Route path="/info/who-we-are" element={<AboutPage />} />
                   <Route path="/info/privacy" element={<PrivacyPolicyPage />} />
+                  <Route path="/info/terms" element={<TermsPage />} />
+                  <Route path="/info/data-treatment" element={<DataTreatmentPage />} />
+                  <Route path="/info/cookies" element={<CookiesPage />} />
                 </Route>
 
                 <Route path="/info/*" element={<Navigate to="/info/who-we-are" replace />} />
