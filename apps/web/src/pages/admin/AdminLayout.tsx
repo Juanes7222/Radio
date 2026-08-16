@@ -17,6 +17,8 @@ import {
   AudioLines,
   Smartphone,
   Youtube,
+  Repeat,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -26,6 +28,8 @@ const NAV_ITEMS = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/upload', label: 'Subir archivo', icon: UploadCloud },
   { to: '/admin/playlists', label: 'Playlists', icon: ListMusic },
+  { to: '/admin/rotations', label: 'Rotaciones', icon: Repeat },
+  { to: '/admin/reading-history', label: 'Historial de lectura', icon: BookOpen },
   { to: '/admin/requests', label: 'Solicitudes', icon: MessageSquare },
   { to: '/admin/prayer', label: 'Oración', icon: Heart },
   { to: '/admin/streaming', label: 'Streaming / DJs', icon: Mic2 },

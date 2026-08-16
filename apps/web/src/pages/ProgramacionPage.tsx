@@ -19,7 +19,9 @@ import {
 import { useAzuraCast, mergeConsecutiveScheduleItems } from '@/hooks';
 import { Header } from '@/components/ui-custom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
+import { apiUrl } from '@/config';
+import { formatChapters } from '@/lib/format';
+import type { BibleReadingToday, ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -281,6 +283,7 @@ export function ProgramacionPage() {
   const { fetchSchedule, fetchScheduleCategories } = useAzuraCast({});
   const [schedule, setSchedule]   = useState<ScheduleItem[]>([]);
   const [categories, setCategories] = useState<ScheduleCategorySummary[]>([]);
+  const [reading, setReading]     = useState<BibleReadingToday['reading']>(null);
   const [loading, setLoading]     = useState(true);
   const [selectedProgram, setSelectedProgram] = useState<ScheduleItem | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -291,12 +294,16 @@ export function ProgramacionPage() {
   useEffect(() => {
     async function loadSchedule() {
       try {
-        const [data, categoryData] = await Promise.all([
+        const [data, categoryData, readingData] = await Promise.all([
           fetchSchedule(),
           fetchScheduleCategories(),
+          fetch(`${apiUrl('/api/bible')}/reading/today`).then((res) =>
+            res.ok ? res.json() : ({ reading: null } as BibleReadingToday)
+          ),
         ]);
         if (data) setSchedule(data);
         if (categoryData) setCategories(categoryData);
+        if (readingData) setReading(readingData.reading ?? null);
       } catch (err) {
         console.error('Error fetching schedule:', err);
       } finally {
@@ -369,6 +376,32 @@ export function ProgramacionPage() {
             Todos nuestros programas, de lunes a domingo. Selecciona un día para ver los detalles.
           </p>
         </motion.header>
+
+        {reading && reading.chapters.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-6 rounded-2xl border border-border bg-card p-4 sm:p-5 flex items-start gap-3.5"
+          >
+            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-brand/15 text-brand">
+              <Book className="w-4 h-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand">
+                Lectura de hoy
+              </p>
+              <p className="font-semibold text-sm sm:text-base mt-0.5 leading-snug">
+                {formatChapters(reading.chapters)}
+              </p>
+              {reading.rotationName && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {reading.rotationName}
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
 
         <motion.nav
           initial={{ opacity: 0 }}

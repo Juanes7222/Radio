@@ -300,6 +300,110 @@ export interface DeviceZoneList {
   zones: string[];
 }
 
+/** One media row of a sequential playlist (from AzuraCast playlist order) */
+export interface PlaylistOrderEntry {
+  /** Row id of the playlist-media association, used to reorder. */
+  id: number;
+  weight: number;
+  media: {
+    id: number;
+    unique_id: string;
+    path: string;
+    title: string;
+    artist: string;
+    length: number;
+  };
+}
+
+/** Schedule item embedded in the AzuraCast playlist object */
+export interface PlaylistScheduleItem {
+  id?: number;
+  /** Minutes since midnight. */
+  start_time: number;
+  /** Minutes since midnight. */
+  end_time: number;
+  /** AzuraCast day indices (1=Monday .. 7=Sunday). */
+  days: number[];
+}
+
+/** Playlist detail returned by AzuraCast including its schedule */
+export interface PlaylistDetail {
+  id: number;
+  name: string;
+  source: string;
+  order: string;
+  schedule_items?: PlaylistScheduleItem[];
+}
+
+/** Rotación automática de playlists (lectura bíblica u otras reglas) */
+export interface PlaylistRotation {
+  id: string;
+  name: string;
+  /** Fuente del material: 'playlist' (playlist de AzuraCast) o 'folder' (carpeta de la biblioteca) */
+  sourceType: 'playlist' | 'folder';
+  sourcePlaylistId: number;
+  sourceFolder: string | null;
+  targetPlaylistId: number;
+  itemsPerDay: number;
+  cursor: number;
+  loop: boolean;
+  active: boolean;
+  bibleMode: boolean;
+  translation: string | null;
+  bibleStartOrdinal: number;
+  notifyEnabled: boolean;
+  notifyProgram: string | null;
+  lastRunAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  runs?: RotationRunLog[];
+}
+
+/** Ejecución registrada de una rotación */
+export interface RotationRunLog {
+  id: string;
+  rotationId: string;
+  runDate: string;
+  status: 'success' | 'partial' | 'error';
+  itemsPicked: number;
+  itemsPlaced: number;
+  details: string | null;
+  createdAt: string;
+}
+
+/** Resultado de ejecutar una rotación */
+export interface RotationRunResult {
+  status: 'success' | 'partial' | 'error';
+  itemsPicked: number;
+  itemsPlaced: number;
+  chapters: { ordinal: number; book: string; chapter: number }[];
+  titles: string[];
+  errors: string[];
+  rotationId?: string;
+}
+
+/** Entrada del historial de capítulos emitidos por las rotaciones bíblicas */
+export interface BibleReadingHistoryEntry {
+  id: string;
+  rotationId: string;
+  rotationName: string;
+  runDate: string;
+  /** Fecha (YYYY-MM-DD) del día de emisión en la zona horaria de la estación */
+  dateKey: string;
+  status: 'success' | 'partial' | 'error';
+  itemsPicked: number;
+  itemsPlaced: number;
+  chapters: { ordinal: number; book: string; chapter: number }[];
+}
+
+/** Respuesta pública con la lectura bíblica del día */
+export interface BibleReadingToday {
+  reading: {
+    rotationName: string;
+    chapters: { ordinal: number; book: string; chapter: number }[];
+  } | null;
+}
+
 /** Summary of program push notifications sent (admin dashboard cards) */
 export interface NotificationStats {
   totalAll: number;

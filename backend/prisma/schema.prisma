@@ -288,6 +288,64 @@ model ListenerSnapshot {
   @@index([recordedAt])
 }
 
+// Rotación automática de playlists: copia cada día los siguientes N audios de una
+// playlist fuente (en orden) hacia una playlist destino que se reproduce de forma
+// secuencial. Es la base de la lectura bíblica programada y de rotaciones generales.
+model PlaylistRotation {
+  id               String   @id @default(uuid())
+  name             String
+  // Fuente del material ordenado: 'playlist' (playlist de AzuraCast) o 'folder' (carpeta de la biblioteca)
+  sourceType       String   @default("playlist") @map("source_type")
+  // Playlist de AzuraCast que contiene el material ordenado (solo si sourceType = 'playlist')
+  sourcePlaylistId Int      @map("source_playlist_id")
+  // Carpeta de la biblioteca de AzuraCast (solo si sourceType = 'folder')
+  sourceFolder     String?  @map("source_folder")
+  // Playlist de AzuraCast que se reconstruye cada día con los audios elegidos
+  targetPlaylistId Int      @map("target_playlist_id")
+  // Cuántos audios se colocan en cada ejecución (ej: 7 capítulos)
+  itemsPerDay      Int      @default(7) @map("items_per_day")
+  // Posición (0-based) en la playlist fuente desde donde se toma el siguiente bloque
+  cursor           Int      @default(0)
+  // Si es false, la rotación se detiene al llegar al final de la fuente
+  loop             Boolean  @default(true)
+  active           Boolean  @default(true)
+  // Modo bíblico: la fuente está ordenada por capítulos, para publicar la lectura
+  // del día y notificar a los suscriptores del programa
+  bibleMode        Boolean  @default(false) @map("bible_mode")
+  translation      String? // Ej: "RVR1960"
+  // Ordinal del primer capítulo de la fuente (permite empezar en un punto distinto)
+  bibleStartOrdinal Int     @default(1) @map("bible_start_ordinal")
+  // Notificaciones push a los dispositivos suscritos al programa
+  notifyEnabled    Boolean  @default(false) @map("notify_enabled")
+  notifyProgram    String?  @map("notify_program")
+  lastRunAt        DateTime? @map("last_run_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  runs RotationRunLog[]
+
+  @@map("playlist_rotations")
+  @@index([active])
+}
+
+// Historial de cada ejecución de una rotación.
+model RotationRunLog {
+  id          String           @id @default(uuid())
+  rotationId  String           @map("rotation_id")
+  rotation    PlaylistRotation @relation(fields: [rotationId], references: [id], onDelete: Cascade)
+  runDate     DateTime         @default(now()) @map("run_date")
+  status      String // 'success', 'partial', 'error'
+  itemsPicked Int              @default(0) @map("items_picked")
+  itemsPlaced Int              @default(0) @map("items_placed")
+  // JSON con los títulos colocados y, en modo bíblico, los capítulos del día
+  details     String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@map("rotation_run_logs")
+  @@index([rotationId])
+  @@index([runDate])
+}
+
 model PrayerRequest {
   id         String    @id @default(uuid())
   deviceId   String?

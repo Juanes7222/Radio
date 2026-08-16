@@ -9,10 +9,17 @@ import type {
   LocutorStatus,
   LocutorTemplate,
   LocutorTemplateInput,
+  MediaFile,
+  BibleReadingHistoryEntry,
   NotificationStats,
+  PlaylistDetail,
+  PlaylistOrderEntry,
+  PlaylistRotation,
   PushCampaignInput,
   PushCampaignResult,
   PushNotificationLogList,
+  RotationRunLog,
+  RotationRunResult,
   ScheduleCategory,
   WorkerJob,
   WorkerNodeInfo,
@@ -91,6 +98,110 @@ export function useAdminApi() {
   const deletePlaylist = useCallback(
     (id: number) =>
       request({ method: 'DELETE', url: `/admin-api/station/playlist/${id}` }),
+    [request]
+  );
+
+  // ── Contenido y horarios de playlists ────────────────────────
+  const getPlaylistDetail = useCallback(
+    (id: number) => request<PlaylistDetail>({ url: `/admin-api/station/playlist/${id}` }),
+    [request]
+  );
+
+  const updatePlaylist = useCallback(
+    (id: number, data: Record<string, unknown>) =>
+      request({ method: 'PUT', url: `/admin-api/station/playlist/${id}`, data }),
+    [request]
+  );
+
+  const getPlaylistOrder = useCallback(
+    (id: number) => request<PlaylistOrderEntry[]>({ url: `/admin-api/station/playlist/${id}/order` }),
+    [request]
+  );
+
+  const setPlaylistOrder = useCallback(
+    (id: number, order: Record<number, number>) =>
+      request({ method: 'PUT', url: `/admin-api/station/playlist/${id}/order`, data: { order } }),
+    [request]
+  );
+
+  const clonePlaylist = useCallback(
+    (id: number) =>
+      request<{ id: number; name: string }>({
+        method: 'POST',
+        url: `/admin-api/station/playlist/${id}/clone`,
+      }),
+    [request]
+  );
+
+  const getMediaFile = useCallback(
+    (id: string | number) => request<MediaFile>({ url: `/admin-api/station/file/${id}` }),
+    [request]
+  );
+
+  const getMediaDirectories = useCallback(
+    (currentDirectory = '') =>
+      request<{ rows: { name: string; path: string }[] }>({
+        url: '/admin-api/station/files/directories',
+        params: currentDirectory ? { currentDirectory } : {},
+      }),
+    [request]
+  );
+
+  const setFilePlaylists = useCallback(
+    (id: string | number, playlists: number[]) =>
+      request({ method: 'PUT', url: `/admin-api/station/file/${id}`, data: { playlists } }),
+    [request]
+  );
+
+  // ── Rotaciones de playlists ──────────────────────────────────
+  const getRotations = useCallback(
+    () => request<PlaylistRotation[]>({ url: '/admin-api/rotations' }),
+    [request]
+  );
+
+  const getRotation = useCallback(
+    (id: string) => request<PlaylistRotation>({ url: `/admin-api/rotations/${id}` }),
+    [request]
+  );
+
+  const createRotation = useCallback(
+    (data: Record<string, unknown>) =>
+      request<PlaylistRotation>({ method: 'POST', url: '/admin-api/rotations', data }),
+    [request]
+  );
+
+  const updateRotation = useCallback(
+    (id: string, data: Record<string, unknown>) =>
+      request<PlaylistRotation>({ method: 'PUT', url: `/admin-api/rotations/${id}`, data }),
+    [request]
+  );
+
+  const deleteRotation = useCallback(
+    (id: string) => request({ method: 'DELETE', url: `/admin-api/rotations/${id}` }),
+    [request]
+  );
+
+  const runRotation = useCallback(
+    (id: string) =>
+      request<RotationRunResult>({ method: 'POST', url: `/admin-api/rotations/${id}/run` }),
+    [request]
+  );
+
+  const getRotationRuns = useCallback(
+    (id: string, limit = 50) =>
+      request<RotationRunLog[]>({
+        url: `/admin-api/rotations/${id}/runs`,
+        params: { limit },
+      }),
+    [request]
+  );
+
+  const getReadingHistory = useCallback(
+    (limit = 90) =>
+      request<BibleReadingHistoryEntry[]>({
+        url: '/admin-api/rotations/history',
+        params: { limit },
+      }),
     [request]
   );
 
@@ -190,10 +301,10 @@ export function useAdminApi() {
 
     // ── Media ────────────────────────────────────────────────────
     const getMedia = useCallback(
-      (page = 1) =>
-        request<{ page: unknown; links: unknown; rows: unknown[] }>({
+      (page = 1, perPage = 50) =>
+        request<{ page: unknown; links: unknown; rows: MediaFile[] }>({
           url: '/admin-api/station/files',
-          params: { per_page: 50, page },
+          params: { per_page: perPage, page },
         }),
       [request]
     );
@@ -387,6 +498,22 @@ export function useAdminApi() {
     createPlaylist,
     togglePlaylist,
     deletePlaylist,
+    getPlaylistDetail,
+    updatePlaylist,
+    getPlaylistOrder,
+    setPlaylistOrder,
+    clonePlaylist,
+    getMediaFile,
+    setFilePlaylists,
+    getMediaDirectories,
+    getRotations,
+    getRotation,
+    createRotation,
+    updateRotation,
+    deleteRotation,
+    runRotation,
+    getRotationRuns,
+    getReadingHistory,
     getPendingRequests,
     approveRequest,
     getPrayerRequests,

@@ -53,6 +53,37 @@ export function formatDuration(secs: number): string {
   return `${minutes}m`;
 }
 
+/** Capítulos en formato compacto: "Génesis 1-7" o "Génesis 1-2, Éxodo 3" */
+export function formatChapters(chapters: { book: string; chapter: number }[]): string {
+  if (chapters.length === 0) return '—';
+
+  const parts: string[] = [];
+  let current: { book: string; chapter: number } | null = null;
+  let rangeStart = 0;
+
+  const flush = () => {
+    if (!current) return;
+    if (rangeStart === current.chapter) {
+      parts.push(`${current.book} ${current.chapter}`);
+    } else {
+      parts.push(`${current.book} ${rangeStart}-${current.chapter}`);
+    }
+  };
+
+  for (const chapter of chapters) {
+    if (current && current.book === chapter.book && chapter.chapter === current.chapter + 1) {
+      current = chapter;
+    } else {
+      flush();
+      current = chapter;
+      rangeStart = chapter.chapter;
+    }
+  }
+  flush();
+
+  return parts.join(', ');
+}
+
 /** Tiempo en formato "mm:ss" o "hh:mm:ss" */
 export function formatClock(secs: number): string {
   const safe = Math.max(0, Math.floor(secs));

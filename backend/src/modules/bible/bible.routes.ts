@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../../infrastructure/database/prisma";
+import { getTodayReading } from "../rotation/rotation.service";
 
 const router = Router();
 
@@ -120,6 +121,20 @@ function parseQueryReference(query: string): VerseReference | null {
 
   return { bookName, chapter, verseStart, verseEnd };
 }
+
+// Lectura bíblica programada: devuelve los capítulos que se están
+// reproduciendo hoy según la rotación bíblica activa, si existe.
+router.get("/reading/today", async (_req, res) => {
+  try {
+    const reading = await getTodayReading();
+    if (!reading) {
+      return res.json({ reading: null });
+    }
+    res.json({ reading });
+  } catch {
+    res.status(500).json({ error: "Error fetching today's reading" });
+  }
+});
 
 router.get("/translations", async (_req, res) => {
   try {

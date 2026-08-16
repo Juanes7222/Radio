@@ -2,6 +2,8 @@ export { default as AdminLogin } from './AdminLogin';
 export { default as AdminLayout } from './AdminLayout';
 export { default as AdminDashboard } from './AdminDashboard';
 export { default as AdminPlaylists } from './AdminPlaylists';
+export { default as AdminRotations } from './AdminRotations';
+export { default as AdminReadingHistory } from './AdminReadingHistory';
 export { default as AdminRequests } from './AdminRequests';
 export { default as AdminPrayerRequests } from './AdminPrayerRequests';
 export { default as AdminStreaming } from './AdminStreaming';
