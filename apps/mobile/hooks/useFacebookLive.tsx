@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import EventSource from 'react-native-sse';
-import * as Notifications from 'expo-notifications';
 
 type LiveEventName = 'live_start' | 'live_end';
 
@@ -24,7 +23,6 @@ export function FacebookLiveProvider({ children }: { children: React.ReactNode }
 
   const eventSourceRef = useRef<EventSource<LiveEventName> | null>(null);
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastNotifiedLiveRef = useRef<string | null>(null);
 
   useEffect(() => {
     const baseUrl =
@@ -53,18 +51,6 @@ export function FacebookLiveProvider({ children }: { children: React.ReactNode }
             const data: LiveStartPayload = JSON.parse(event?.data ?? '{}');
             if (data.url) {
               console.log('Facebook Live started:', data.url);
-              if (lastNotifiedLiveRef.current !== data.url) {
-                lastNotifiedLiveRef.current = data.url;
-                Notifications.scheduleNotificationAsync({
-                  content: {
-                    title: 'En vivo ahora',
-                    body: 'La emisora está en transmisión en vivo',
-                    sound: true,
-                    data: { isLiveNotify: true, url: data.url },
-                  },
-                  trigger: null,
-                }).catch(() => {});
-              }
               setLiveUrl(data.url);
             }
           } catch (error) {

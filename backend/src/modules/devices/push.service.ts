@@ -16,6 +16,7 @@ export interface PushCampaignInput {
   title: string;
   body: string;
   audience: PushAudience;
+  data?: Record<string, string>;
   deviceIds?: string[];
   zoneId?: string;
   platform?: string;
@@ -99,6 +100,7 @@ export async function sendPushCampaign(
   const result = await sendPushToTokens(tokens, {
     title: input.title,
     body: input.body,
+    data: input.data,
   });
 
   if (result.invalidTokens.length > 0) {

@@ -1,5 +1,6 @@
 import type { Response } from "express";
 import { readFileSync, writeFileSync } from "fs";
+import { sendPushCampaign } from "../devices/push.service";
 import { logger } from "../../shared/logger/logger";
 
 const STATE_FILE = "/var/www/radio/live-state.json";
@@ -77,6 +78,27 @@ export function notifyLiveStart(permalinkUrl: string): void {
 
   const data = JSON.stringify({ status: "live", url: permalinkUrl });
   broadcast(`event: live_start\ndata: ${data}\n\n`);
+
+  void sendLivePushNotification(permalinkUrl);
+}
+
+async function sendLivePushNotification(permalinkUrl: string): Promise<void> {
+  try {
+    const result = await sendPushCampaign({
+      audience: "all",
+      title: "En vivo ahora",
+      body: "La emisora está en transmisión en vivo",
+      data: { isLiveNotify: "true", url: permalinkUrl },
+    });
+    logger.info("SseService", "Live push notification sent", {
+      sent: result.sent,
+      failed: result.failed,
+    });
+  } catch (error) {
+    logger.error("SseService", "Error sending live push notification", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 export function notifyLiveEnd(): void {
