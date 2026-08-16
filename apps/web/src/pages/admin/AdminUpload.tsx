@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import type { AdminPlaylist, MediaFile } from '@radio/types';
 import axios from 'axios';
@@ -108,6 +109,7 @@ export default function AdminUpload() {
   const [recentFiles, setRecentFiles] = useState<MediaFile[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDeleteFile, setPendingDeleteFile] = useState<MediaFile | null>(null);
   const [isRescanning, setIsRescanning] = useState(false);
 
   // SFTP info
@@ -247,13 +249,13 @@ export default function AdminUpload() {
 
   // ── Borrar archivo de AzuraCast ──────────────────────────────────────────────
 
-  const handleDelete = async (file: MediaFile) => {
-    if (!window.confirm(`¿Eliminar "${file.title || file.path}"?`)) return;
-    setDeletingId(file.unique_id);
+  const handleDelete = async (uniqueId: string) => {
+    setPendingDeleteFile(null);
+    setDeletingId(uniqueId);
     try {
-      await axios.delete(apiUrl(`/admin-api/upload/${encodeURIComponent(file.unique_id)}`), { headers: authHeaders });
+      await axios.delete(apiUrl(`/admin-api/upload/${encodeURIComponent(uniqueId)}`), { headers: authHeaders });
       toast.success('Archivo eliminado');
-      setRecentFiles((prev) => prev.filter((f) => f.unique_id !== file.unique_id));
+      setRecentFiles((prev) => prev.filter((f) => f.unique_id !== uniqueId));
     } catch {
       toast.error('No se pudo eliminar el archivo');
     } finally {
@@ -680,7 +682,7 @@ export default function AdminUpload() {
                   <Button
                     variant="ghost" size="icon"
                     className="flex-shrink-0 text-slate-400 hover:text-red-500"
-                    onClick={() => handleDelete(file)}
+                    onClick={() => setPendingDeleteFile(file)}
                     disabled={deletingId === file.unique_id}
                   >
                     {deletingId === file.unique_id
@@ -694,6 +696,16 @@ export default function AdminUpload() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={pendingDeleteFile !== null}
+        onOpenChange={(open) => !open && setPendingDeleteFile(null)}
+        title={pendingDeleteFile ? `¿Eliminar "${pendingDeleteFile.title || pendingDeleteFile.path.split('/').pop()}"?` : 'Eliminar archivo'}
+        description="El archivo se eliminará de la biblioteca de AzuraCast. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        loading={deletingId !== null}
+        onConfirm={() => pendingDeleteFile && void handleDelete(pendingDeleteFile.unique_id)}
+      />
 
       {/* Nota de seguridad */}
       <div className="flex items-start gap-2 p-3 rounded-lg text-xs bg-blue-500/10 text-blue-400">

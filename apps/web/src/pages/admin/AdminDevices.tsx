@@ -6,13 +6,13 @@ import {
   BellPlus,
   Search,
   X,
-  ChevronLeft,
-  ChevronRight,
   Send,
   Eye,
   MapPin,
   History,
   Check,
+  Copy,
+  CheckCircle2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,14 +20,32 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { AdminPagination } from '@/components/ui-custom/AdminPagination';
+import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import { toast } from 'sonner';
 import { useAdminApi } from '@/hooks/useAdminApi';
+import { formatDateTime, timeAgo } from '@/lib/format';
 import type {
   AdminDevice,
   AdminDeviceList,
@@ -51,27 +69,6 @@ const AUDIENCE_LABELS: Record<PushAudience, string> = {
   program: 'Por programa suscrito',
   active: 'Activos recientemente',
 };
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const days = Math.floor(diff / 86400000);
-  if (days > 0) return `hace ${days} día${days > 1 ? 's' : ''}`;
-  const hours = Math.floor(diff / 3600000);
-  if (hours > 0) return `hace ${hours} hora${hours > 1 ? 's' : ''}`;
-  const minutes = Math.floor(diff / 60000);
-  if (minutes > 0) return `hace ${minutes} min`;
-  return 'ahora';
-}
-
-function formatDateTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('es-CO', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 function PlatformBadge({ platform }: { platform: string | null }) {
   if (!platform) return <span className="text-sm text-slate-500">—</span>;
@@ -181,41 +178,188 @@ function ZoneEditor({
   );
 }
 
-function PushHistoryTable({ logs }: { logs: PushNotificationLog[] }) {
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4 px-3 py-2.5">
+      <span className="text-xs shrink-0 text-slate-400 pt-0.5">{label}</span>
+      <div className="text-xs text-right text-slate-200 min-w-0">{value}</div>
+    </div>
+  );
+}
+
+function CopyIdButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <button onClick={handleCopy} className="text-slate-500 hover:text-primary transition-colors" title="Copiar ID">
+      {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+    </button>
+  );
+}
+
+function DeviceDetailDialog({
+  device,
+  onClose,
+}: {
+  device: AdminDevice | null;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={device !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Detalle del dispositivo</DialogTitle>
+          <DialogDescription>Información completa del dispositivo registrado.</DialogDescription>
+        </DialogHeader>
+        {device && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-slate-700 bg-slate-900 divide-y divide-slate-700/60">
+              <DetailRow
+                label="ID de dispositivo"
+                value={
+                  <span className="flex items-center justify-end gap-1.5 break-all font-mono">
+                    {device.deviceId}
+                    <CopyIdButton value={device.deviceId} />
+                  </span>
+                }
+              />
+              <DetailRow label="Plataforma" value={<PlatformBadge platform={device.platform} />} />
+              <DetailRow label="Versión de la app" value={device.appVersion ?? '—'} />
+              <DetailRow label="Zona asignada" value={device.zoneId ?? 'Sin asignar'} />
+              <DetailRow
+                label="Token FCM"
+                value={
+                  <Badge
+                    variant="outline"
+                    className={`text-xs border ${
+                      device.hasFcmToken
+                        ? 'bg-green-500/10 text-green-500 border-green-500/20'
+                        : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                    }`}
+                  >
+                    {device.hasFcmToken ? 'Registrado' : 'No registrado'}
+                  </Badge>
+                }
+              />
+              <DetailRow label="Registrado" value={formatDateTime(device.createdAt)} />
+              <DetailRow label="Última actividad" value={formatDateTime(device.lastSeen)} />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-400 mb-1.5">Suscripciones a programas</p>
+              {device.subscriptions.length === 0 ? (
+                <p className="text-sm text-slate-500">Ninguna</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {device.subscriptions.map((title) => (
+                    <span key={title} className="px-2 py-0.5 text-xs rounded bg-indigo-500/10 text-indigo-300">
+                      {title}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PushLogDetailDialog({
+  log,
+  onClose,
+}: {
+  log: PushNotificationLog | null;
+  onClose: () => void;
+}) {
+  const filters = log?.filters;
+  return (
+    <Dialog open={log !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Detalle del envío</DialogTitle>
+          <DialogDescription>Información completa de la notificación enviada.</DialogDescription>
+        </DialogHeader>
+        {log && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-slate-700 bg-slate-900 divide-y divide-slate-700/60">
+              <DetailRow label="Fecha" value={formatDateTime(log.createdAt)} />
+              <DetailRow label="Audiencia" value={AUDIENCE_LABELS[log.audience] ?? log.audience} />
+              <DetailRow label="Destinatarios" value={String(log.targetedCount)} />
+              <DetailRow label="Enviadas" value={<span className="text-green-400">{log.sentCount}</span>} />
+              <DetailRow label="Fallidas" value={<span className="text-red-400">{log.failedCount}</span>} />
+              {log.invalidTokens > 0 && <DetailRow label="Tokens inválidos" value={<span className="text-red-400">{log.invalidTokens}</span>} />}
+              {filters && (
+                <>
+                  {filters.zoneId && <DetailRow label="Zona" value={filters.zoneId} />}
+                  {filters.platform && <DetailRow label="Plataforma" value={filters.platform} />}
+                  {filters.program && <DetailRow label="Programa" value={filters.program} />}
+                  {filters.activeDays && <DetailRow label="Activos (días)" value={String(filters.activeDays)} />}
+                  {filters.deviceIds && <DetailRow label="Dispositivos" value={`${filters.deviceIds.length} seleccionados`} />}
+                </>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-slate-200">{log.title}</p>
+              <p className="text-sm text-slate-400 whitespace-pre-wrap bg-slate-900 border border-slate-700 rounded-lg p-3">
+                {log.body}
+              </p>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PushHistoryTable({
+  logs,
+  onSelect,
+}: {
+  logs: PushNotificationLog[];
+  onSelect: (log: PushNotificationLog) => void;
+}) {
   if (logs.length === 0) {
     return <p className="py-8 text-center text-sm text-slate-400">Aún no se han enviado notificaciones personalizadas.</p>;
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-slate-700">
-        <thead>
-          <tr>
-            <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Fecha</th>
-            <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Título</th>
-            <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Audiencia</th>
-            <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Destinatarios</th>
-            <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Enviadas</th>
-            <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Fallidas</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-700">
-          {logs.map((log) => (
-            <tr key={log.id}>
-              <td className="px-4 py-3 text-sm text-slate-400 whitespace-nowrap">{formatDateTime(log.createdAt)}</td>
-              <td className="px-4 py-3">
-                <p className="text-sm text-slate-300 font-medium max-w-52 truncate" title={log.title}>{log.title}</p>
-                <p className="text-xs text-slate-500 max-w-52 truncate" title={log.body}>{log.body}</p>
-              </td>
-              <td className="px-4 py-3 text-sm text-slate-400">{AUDIENCE_LABELS[log.audience] ?? log.audience}</td>
-              <td className="px-4 py-3 text-sm text-slate-300">{log.targetedCount}</td>
-              <td className="px-4 py-3 text-sm text-green-400">{log.sentCount}</td>
-              <td className="px-4 py-3 text-sm text-red-400">{log.failedCount}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Fecha</TableHead>
+          <TableHead>Título</TableHead>
+          <TableHead>Audiencia</TableHead>
+          <TableHead>Destinatarios</TableHead>
+          <TableHead>Enviadas</TableHead>
+          <TableHead>Fallidas</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {logs.map((log) => (
+          <TableRow
+            key={log.id}
+            className="cursor-pointer"
+            onClick={() => onSelect(log)}
+          >
+            <TableCell className="text-slate-400">{formatDateTime(log.createdAt)}</TableCell>
+            <TableCell>
+              <p className="text-slate-300 font-medium max-w-52 truncate" title={log.title}>{log.title}</p>
+              <p className="text-xs text-slate-500 max-w-52 truncate" title={log.body}>{log.body}</p>
+            </TableCell>
+            <TableCell className="text-slate-400">{AUDIENCE_LABELS[log.audience] ?? log.audience}</TableCell>
+            <TableCell className="text-slate-300">{log.targetedCount}</TableCell>
+            <TableCell className="text-green-400">{log.sentCount}</TableCell>
+            <TableCell className="text-red-400">{log.failedCount}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -252,12 +396,17 @@ export default function AdminDevices() {
   const [campaignActiveDays, setCampaignActiveDays] = useState('7');
   const [preview, setPreview] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
+  const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
 
   // Historial
   const [logs, setLogs] = useState<PushNotificationLog[]>([]);
   const [logsPage, setLogsPage] = useState(1);
   const [logsTotalPages, setLogsTotalPages] = useState(1);
   const [logsLoading, setLogsLoading] = useState(true);
+
+  // Modales de detalle
+  const [selectedDevice, setSelectedDevice] = useState<AdminDevice | null>(null);
+  const [selectedLog, setSelectedLog] = useState<PushNotificationLog | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -414,11 +563,7 @@ export default function AdminDevices() {
   };
 
   const handleSend = async () => {
-    const confirmed = window.confirm(
-      `¿Enviar esta notificación a ${preview !== null ? preview : 'los'} dispositivos seleccionados?`
-    );
-    if (!confirmed) return;
-
+    setSendConfirmOpen(false);
     setSending(true);
     try {
       const result = await sendPushCampaign(buildCampaign());
@@ -629,7 +774,7 @@ export default function AdminDevices() {
             </Button>
             <Button
               size="sm"
-              onClick={() => void handleSend()}
+              onClick={() => setSendConfirmOpen(true)}
               className="gap-2 bg-indigo-600 hover:bg-indigo-500"
               disabled={sending || !campaignTitle.trim() || !campaignBody.trim()}
             >
@@ -708,89 +853,84 @@ export default function AdminDevices() {
                   <span className="text-xs text-slate-500">{data.total} dispositivos en total</span>
                 </div>
               )}
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-700">
-                  <thead>
-                    <tr>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {campaignAudience === 'devices' && (
+                      <TableHead className="w-8">
+                        <input
+                          type="checkbox"
+                          className="accent-indigo-500"
+                          checked={
+                            data.rows.length > 0 &&
+                            data.rows.every((device) => selectedDevices.has(device.deviceId))
+                          }
+                          onChange={toggleAllVisible}
+                        />
+                      </TableHead>
+                    )}
+                    <TableHead>Dispositivo</TableHead>
+                    <TableHead>Plataforma</TableHead>
+                    <TableHead>App</TableHead>
+                    <TableHead>Zona</TableHead>
+                    <TableHead>Suscripciones</TableHead>
+                    <TableHead>FCM</TableHead>
+                    <TableHead>Última actividad</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.rows.map((device: AdminDevice) => (
+                    <TableRow key={device.deviceId} className={selectedDevices.has(device.deviceId) ? 'bg-indigo-500/5' : ''}>
                       {campaignAudience === 'devices' && (
-                        <th className="px-4 py-2 w-8 text-left text-xs font-medium text-slate-400 uppercase">
+                        <TableCell>
                           <input
                             type="checkbox"
                             className="accent-indigo-500"
-                            checked={
-                              data.rows.length > 0 &&
-                              data.rows.every((device) => selectedDevices.has(device.deviceId))
-                            }
-                            onChange={toggleAllVisible}
+                            checked={selectedDevices.has(device.deviceId)}
+                            onChange={() => toggleDevice(device.deviceId)}
                           />
-                        </th>
+                        </TableCell>
                       )}
-                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Dispositivo</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Plataforma</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">App</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Zona</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Suscripciones</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">FCM</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Última actividad</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-700">
-                    {data.rows.map((device: AdminDevice) => (
-                      <tr key={device.deviceId} className={selectedDevices.has(device.deviceId) ? 'bg-indigo-500/5' : ''}>
-                        {campaignAudience === 'devices' && (
-                          <td className="px-4 py-3">
-                            <input
-                              type="checkbox"
-                              className="accent-indigo-500"
-                              checked={selectedDevices.has(device.deviceId)}
-                              onChange={() => toggleDevice(device.deviceId)}
-                            />
-                          </td>
-                        )}
-                        <td className="px-4 py-3 text-sm text-slate-300 max-w-48 truncate" title={device.deviceId}>
+                      <TableCell>
+                        <button
+                          onClick={() => setSelectedDevice(device)}
+                          className="text-left text-sm text-slate-300 hover:text-white max-w-48 truncate font-mono"
+                          title="Ver detalle"
+                        >
                           {device.deviceId}
-                        </td>
-                        <td className="px-4 py-3"><PlatformBadge platform={device.platform} /></td>
-                        <td className="px-4 py-3 text-sm text-slate-400">{device.appVersion ?? '—'}</td>
-                        <td className="px-4 py-3">
-                          <ZoneEditor
-                            deviceId={device.deviceId}
-                            zoneId={device.zoneId}
-                            zones={zones}
-                            onAssign={handleAssignZone}
-                          />
-                        </td>
-                        <td className="px-4 py-3"><SubscriptionChips subscriptions={device.subscriptions} /></td>
-                        <td className="px-4 py-3">
-                          <Badge variant="outline" className={`text-xs border ${device.hasFcmToken ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
-                            {device.hasFcmToken ? 'Sí' : 'No'}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-slate-400">{timeAgo(device.lastSeen)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </button>
+                      </TableCell>
+                      <TableCell><PlatformBadge platform={device.platform} /></TableCell>
+                      <TableCell className="text-slate-400">{device.appVersion ?? '—'}</TableCell>
+                      <TableCell>
+                        <ZoneEditor
+                          deviceId={device.deviceId}
+                          zoneId={device.zoneId}
+                          zones={zones}
+                          onAssign={handleAssignZone}
+                        />
+                      </TableCell>
+                      <TableCell><SubscriptionChips subscriptions={device.subscriptions} /></TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-xs border ${device.hasFcmToken ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
+                          {device.hasFcmToken ? 'Sí' : 'No'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-slate-400">{timeAgo(device.lastSeen)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </>
           )}
 
           {data && data.rows.length > 0 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-700">
-              <p className="text-xs text-slate-400">
-                {data.total} dispositivos · Página {data.page} de {Math.max(1, totalPages)}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setPage((p) => p - 1)} disabled={page <= 1} className="gap-1">
-                  <ChevronLeft className="w-4 h-4" />
-                  Anterior
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages} className="gap-1">
-                  Siguiente
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+            <AdminPagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              label={`${data.total} dispositivos · Página ${page} de ${Math.max(1, totalPages)}`}
+            />
           )}
         </CardContent>
       </Card>
@@ -812,26 +952,36 @@ export default function AdminDevices() {
             </div>
           ) : (
             <>
-              <PushHistoryTable logs={logs} />
+              <PushHistoryTable logs={logs} onSelect={setSelectedLog} />
               {logsTotalPages > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-700">
-                  <p className="text-xs text-slate-400">Página {logsPage} de {logsTotalPages}</p>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setLogsPage((p) => p - 1)} disabled={logsPage <= 1} className="gap-1">
-                      <ChevronLeft className="w-4 h-4" />
-                      Anterior
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setLogsPage((p) => p + 1)} disabled={logsPage >= logsTotalPages} className="gap-1">
-                      Siguiente
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
+                <AdminPagination
+                  page={logsPage}
+                  totalPages={logsTotalPages}
+                  onPageChange={setLogsPage}
+                  label={`Página ${logsPage} de ${logsTotalPages}`}
+                />
               )}
             </>
           )}
         </CardContent>
       </Card>
+
+      {/* Modales */}
+      <ConfirmDialog
+        open={sendConfirmOpen}
+        onOpenChange={setSendConfirmOpen}
+        title="¿Enviar esta notificación?"
+        description={
+          preview !== null
+            ? `Llegará a ${preview} dispositivo${preview !== 1 ? 's' : ''}. Esta acción no se puede deshacer.`
+            : 'La notificación se enviará a los dispositivos seleccionados. Esta acción no se puede deshacer.'
+        }
+        confirmLabel="Enviar"
+        loading={sending}
+        onConfirm={() => void handleSend()}
+      />
+      <DeviceDetailDialog device={selectedDevice} onClose={() => setSelectedDevice(null)} />
+      <PushLogDetailDialog log={selectedLog} onClose={() => setSelectedLog(null)} />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import type { Streamer } from '@radio/types';
@@ -54,6 +55,7 @@ export default function AdminStreaming() {
   const [loading, setLoading] = useState(true);
   const [streamersError, setStreamersError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<number | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Streamer | null>(null);
   const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({});
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -115,8 +117,8 @@ export default function AdminStreaming() {
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`¿Eliminar al DJ "${name}"?`)) return;
+  const handleDelete = async (id: number) => {
+    setPendingDelete(null);
     setActionId(id);
     try {
       await deleteStreamer(id);
@@ -336,7 +338,7 @@ export default function AdminStreaming() {
                       size="sm"
                       className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1 text-xs h-7"
                       disabled={actionId === s.id}
-                      onClick={() => handleDelete(s.id, s.display_name || s.streamer_username)}
+                      onClick={() => setPendingDelete(s)}
                     >
                       <Trash2 className="w-3 h-3" />
                       Eliminar
@@ -348,6 +350,16 @@ export default function AdminStreaming() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title={pendingDelete ? `¿Eliminar al DJ "${pendingDelete.display_name || pendingDelete.streamer_username}"?` : 'Eliminar DJ'}
+        description="El DJ perderá el acceso para transmitir. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        loading={actionId !== null}
+        onConfirm={() => pendingDelete && void handleDelete(pendingDelete.id)}
+      />
     </div>
   );
 }

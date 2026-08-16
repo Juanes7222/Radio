@@ -1,14 +1,105 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ListMusic, Power, Trash2, RefreshCw, Music2, ExternalLink, Plus, X } from 'lucide-react';
+import { ListMusic, Power, Trash2, RefreshCw, Music2, ExternalLink, Plus, X, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import { useAdminApi } from '@/hooks/useAdminApi';
+import { formatDuration } from '@/lib/format';
 import type { AdminPlaylist } from '@radio/types';
 
 const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
+
+const PLAYLIST_TYPES: Record<string, string> = {
+  default: 'Estándar',
+  scheduled: 'Programada',
+  once: 'Una vez',
+  on_request: 'Por solicitud',
+};
+
+const PLAYLIST_ORDERS: Record<string, string> = {
+  shuffle: 'Aleatoria',
+  sequential: 'Secuencial',
+  random: 'Random ponderado',
+};
+
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4 px-3 py-2.5">
+      <span className="text-xs shrink-0 text-slate-400 pt-0.5">{label}</span>
+      <div className="text-xs text-right text-slate-200 min-w-0">{value}</div>
+    </div>
+  );
+}
+
+function PlaylistDetailDialog({
+  playlist,
+  onClose,
+}: {
+  playlist: AdminPlaylist | null;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={playlist !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{playlist?.name ?? 'Playlist'}</DialogTitle>
+          <DialogDescription>Configuración completa de la playlist.</DialogDescription>
+        </DialogHeader>
+        {playlist && (
+          <div className="rounded-lg border border-slate-700 bg-slate-900 divide-y divide-slate-700/60">
+            <DetailRow
+              label="Estado"
+              value={
+                <Badge variant={playlist.is_enabled ? 'default' : 'secondary'} className="text-xs">
+                  {playlist.is_enabled ? 'Activa' : 'Inactiva'}
+                </Badge>
+              }
+            />
+            <DetailRow label="Tipo" value={PLAYLIST_TYPES[playlist.type] ?? playlist.type} />
+            <DetailRow label="Orden" value={PLAYLIST_ORDERS[playlist.order] ?? playlist.order} />
+            <DetailRow label="Fuente" value={playlist.source} />
+            <DetailRow label="Canciones" value={String(playlist.num_songs)} />
+            <DetailRow label="Duración total" value={formatDuration(playlist.total_length)} />
+            <DetailRow
+              label="Reproducir cada N canciones"
+              value={playlist.play_per_songs > 0 ? String(playlist.play_per_songs) : '—'}
+            />
+            <DetailRow
+              label="Reproducir cada N minutos"
+              value={playlist.play_per_minutes > 0 ? String(playlist.play_per_minutes) : '—'}
+            />
+            <DetailRow
+              label="Solicitudes de oyentes"
+              value={playlist.include_in_requests ? 'Permitidas' : 'No permitidas'}
+            />
+            <DetailRow
+              label="Bajo demanda"
+              value={playlist.include_in_on_demand ? 'Incluida' : 'No incluida'}
+            />
+            {playlist.remote_url && <DetailRow label="URL remota" value={playlist.remote_url} />}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function AdminPlaylists() {
   const { getPlaylists, createPlaylist, togglePlaylist, deletePlaylist } = useAdminApi();
@@ -26,6 +117,8 @@ export default function AdminPlaylists() {
   });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<AdminPlaylist | null>(null);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<AdminPlaylist | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -53,8 +146,8 @@ export default function AdminPlaylists() {
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`¿Eliminar la playlist "${name}"? Esta acción no se puede deshacer.`)) return;
+  const handleDelete = async (id: number) => {
+    setPendingDelete(null);
     setActionId(id);
     try {
       await deletePlaylist(id);
@@ -79,16 +172,6 @@ export default function AdminPlaylists() {
     } finally {
       setCreateLoading(false);
     }
-  };
-
-  const playlistTypeLabel = (type: string) => {
-    const types: Record<string, string> = {
-      default: 'Estándar',
-      scheduled: 'Programada',
-      once: 'Una vez',
-      'on_request': 'Por solicitud',
-    };
-    return types[type] ?? type;
   };
 
   return (
@@ -133,28 +216,35 @@ export default function AdminPlaylists() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium">Tipo</label>
-                    <select
+                    <Select
                       value={createForm.type}
-                      onChange={(e) => setCreateForm((f) => ({ ...f, type: e.target.value }))}
-                      className="w-full h-9 rounded-md border px-3 text-sm bg-slate-900 border-slate-600 text-white"
+                      onValueChange={(v) => setCreateForm((f) => ({ ...f, type: v }))}
                     >
-                      <option value="default">Estándar</option>
-                      <option value="scheduled">Programada</option>
-                      <option value="once">Una vez</option>
-                      <option value="on_request">Por solicitud</option>
-                    </select>
+                      <SelectTrigger className="w-full bg-slate-900 border-slate-600">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(PLAYLIST_TYPES).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium">Orden de reproducción</label>
-                    <select
+                    <Select
                       value={createForm.order}
-                      onChange={(e) => setCreateForm((f) => ({ ...f, order: e.target.value }))}
-                      className="w-full h-9 rounded-md border px-3 text-sm bg-slate-900 border-slate-600 text-white"
+                      onValueChange={(v) => setCreateForm((f) => ({ ...f, order: v }))}
                     >
-                      <option value="shuffle">Aleatoria</option>
-                      <option value="sequential">Secuencial</option>
-                      <option value="random">Random ponderado</option>
-                    </select>
+                      <SelectTrigger className="w-full bg-slate-900 border-slate-600">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(PLAYLIST_ORDERS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -246,7 +336,7 @@ export default function AdminPlaylists() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-                    <span>{playlistTypeLabel(pl.type)}</span>
+                    <span>{PLAYLIST_TYPES[pl.type] ?? pl.type}</span>
                     <span>·</span>
                     <span>{pl.num_songs} canciones</span>
                     <span>·</span>
@@ -266,9 +356,19 @@ export default function AdminPlaylists() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="text-slate-400 hover:text-white"
+                      disabled={actionId === pl.id}
+                      onClick={() => setSelectedPlaylist(pl)}
+                      title="Ver detalles"
+                    >
+                      <Info className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       disabled={actionId === pl.id}
-                      onClick={() => handleDelete(pl.id, pl.name)}
+                      onClick={() => setPendingDelete(pl)}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -279,13 +379,18 @@ export default function AdminPlaylists() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title={pendingDelete ? `¿Eliminar la playlist "${pendingDelete.name}"?` : 'Eliminar playlist'}
+        description="Esta acción no se puede deshacer. Las canciones de la playlist no se eliminarán, solo la configuración."
+        confirmLabel="Eliminar"
+        loading={actionId !== null}
+        onConfirm={() => pendingDelete && void handleDelete(pendingDelete.id)}
+      />
+
+      <PlaylistDetailDialog playlist={selectedPlaylist} onClose={() => setSelectedPlaylist(null)} />
     </div>
   );
-}
-
-function formatDuration(secs: number): string {
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
 }

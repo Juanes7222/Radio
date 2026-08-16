@@ -7,8 +7,6 @@ import {
   Clock,
   Send,
   MessageSquare,
-  ChevronLeft,
-  ChevronRight,
   MailOpen,
   Trash2,
 } from 'lucide-react';
@@ -23,7 +21,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { AdminPagination } from '@/components/ui-custom/AdminPagination';
+import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import { useAdminApi } from '@/hooks/useAdminApi';
+import { timeAgo } from '@/lib/format';
 import type { PrayerRequest, PrayerStatus } from '@radio/types';
 
 const STATUS_CONFIG: Record<PrayerStatus, { label: string; color: string }> = {
@@ -41,7 +50,7 @@ export default function AdminPrayerRequests() {
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [respondingRequest, setRespondingRequest] = useState<PrayerRequest | null>(null);
   const [responseText, setResponseText] = useState('');
   const [responseStatus, setResponseStatus] = useState<PrayerStatus>('RESPONDIDA');
   const [saving, setSaving] = useState(false);
@@ -51,6 +60,7 @@ export default function AdminPrayerRequests() {
   const [totalPages, setTotalPages] = useState(1);
   const [estadoFilter, setEstadoFilter] = useState('all');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PrayerRequest | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -109,7 +119,7 @@ export default function AdminPrayerRequests() {
         estado: responseStatus,
         respuesta: responseText.trim(),
       });
-      setRespondingId(null);
+      setRespondingRequest(null);
       setResponseText('');
       setResponseStatus('RESPONDIDA');
       await load();
@@ -132,11 +142,11 @@ export default function AdminPrayerRequests() {
     }
   };
 
-  const handleDelete = async (req: PrayerRequest) => {
-    if (!confirm(`¿Eliminar la petición de ${req.name}? Esta acción no se puede deshacer.`)) return;
-    setBusyId(req.id);
+  const handleDelete = async (reqId: string) => {
+    setPendingDelete(null);
+    setBusyId(reqId);
     try {
-      await deletePrayerRequest(req.id);
+      await deletePrayerRequest(reqId);
       if (requests.length === 1 && page > 1) setPage((p) => p - 1);
       else await load();
     } catch {
@@ -147,17 +157,6 @@ export default function AdminPrayerRequests() {
   };
 
   const unreadCount = requests.filter((req) => !req.readAt).length;
-
-  const getTimeAgo = (dateStr: string) => {
-    const diff = now - new Date(dateStr).getTime();
-    const days = Math.floor(diff / 86400000);
-    if (days > 0) return `Hace ${days} día${days > 1 ? 's' : ''}`;
-    const hours = Math.floor(diff / 3600000);
-    if (hours > 0) return `Hace ${hours} hora${hours > 1 ? 's' : ''}`;
-    const minutes = Math.floor(diff / 60000);
-    if (minutes > 0) return `Hace ${minutes} min`;
-    return 'Ahora';
-  };
 
   return (
     <div className="space-y-6">
@@ -262,9 +261,9 @@ export default function AdminPrayerRequests() {
                           )}
                           <div className="flex items-center gap-1 mt-2 text-xs text-slate-500">
                             <Clock className="w-3 h-3" />
-                            <span>{getTimeAgo(req.createdAt)}</span>
+                            <span>{timeAgo(req.createdAt, now)}</span>
                             {req.answeredAt && (
-                              <span className="ml-2">| Respondida {getTimeAgo(req.answeredAt)}</span>
+                              <span className="ml-2">| Respondida {timeAgo(req.answeredAt, now)}</span>
                             )}
                           </div>
                         </div>
@@ -286,7 +285,7 @@ export default function AdminPrayerRequests() {
                               variant="ghost"
                               size="sm"
                               onClick={() => {
-                                setRespondingId(respondingId === req.id ? null : req.id);
+                                setRespondingRequest(req);
                                 setResponseText('');
                                 setResponseStatus('RESPONDIDA');
                               }}
@@ -299,7 +298,7 @@ export default function AdminPrayerRequests() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(req)}
+                            onClick={() => setPendingDelete(req)}
                             disabled={busyId === req.id}
                             className="gap-1 text-red-400 hover:text-red-300"
                           >
@@ -309,55 +308,6 @@ export default function AdminPrayerRequests() {
                         </div>
                       </div>
 
-                      {respondingId === req.id && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="space-y-3 pt-2 border-t border-slate-700/50"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Select
-                              value={responseStatus}
-                              onValueChange={(v) => setResponseStatus(v as PrayerStatus)}
-                            >
-                              <SelectTrigger className="w-40 bg-slate-800 border-slate-600">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="RESPONDIDA">Respondida</SelectItem>
-                                <SelectItem value="EN_REVISION">En revisión</SelectItem>
-                                <SelectItem value="PENDIENTE">Pendiente</SelectItem>
-                                <SelectItem value="CERRADA">Cerrada</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <Textarea
-                            placeholder="Escribe tu respuesta..."
-                            value={responseText}
-                            onChange={(e) => setResponseText(e.target.value)}
-                            rows={3}
-                            className="bg-slate-800 border-slate-600"
-                          />
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setRespondingId(null)}
-                            >
-                              Cancelar
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleRespond(req.id)}
-                              disabled={saving || !responseText.trim()}
-                              className="gap-1"
-                            >
-                              <Send className="w-3 h-3" />
-                              {saving ? 'Guardando...' : 'Guardar respuesta'}
-                            </Button>
-                          </div>
-                        </motion.div>
-                      )}
                     </div>
                   </motion.div>
                 ))}
@@ -365,22 +315,103 @@ export default function AdminPrayerRequests() {
             </div>
           )}
 
-          {total > 0 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-700">
-              <p className="text-xs text-slate-400">
-                {total} peticiones · Página {page} de {Math.max(1, totalPages)}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setPage((p) => p - 1)} disabled={page <= 1} className="gap-1">
-                  <ChevronLeft className="w-4 h-4" />
-                  Anterior
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages} className="gap-1">
-                  Siguiente
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
+          <ConfirmDialog
+            open={pendingDelete !== null}
+            onOpenChange={(open) => !open && setPendingDelete(null)}
+            title={pendingDelete ? `¿Eliminar la petición de ${pendingDelete.name}?` : 'Eliminar petición'}
+            description="Esta acción no se puede deshacer."
+            confirmLabel="Eliminar"
+            loading={busyId !== null}
+            onConfirm={() => pendingDelete && void handleDelete(pendingDelete.id)}
+          />
+
+          {/* Responder en un panel lateral */}
+          <Sheet
+            open={respondingRequest !== null}
+            onOpenChange={(open) => !open && setRespondingRequest(null)}
+          >
+            <SheetContent side="right" className="sm:max-w-md">
+              <SheetHeader className="pr-10">
+                <SheetTitle>Responder a {respondingRequest?.name}</SheetTitle>
+                <SheetDescription>
+                  Petición recibida {respondingRequest ? timeAgo(respondingRequest.createdAt, now) : ''}
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="flex-1 overflow-y-auto px-4 space-y-4 min-h-0">
+                <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge
+                      variant="outline"
+                      className={`text-xs border ${
+                        STATUS_CONFIG[respondingRequest?.estado as PrayerStatus]?.color ?? ''
+                      }`}
+                    >
+                      {STATUS_CONFIG[respondingRequest?.estado as PrayerStatus]?.label ?? respondingRequest?.estado}
+                    </Badge>
+                    <span className="text-xs text-slate-500">
+                      {respondingRequest?.readAt ? 'Leída' : 'Sin leer'}
+                    </span>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap text-slate-300">
+                    {respondingRequest?.request}
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Estado</label>
+                    <Select
+                      value={responseStatus}
+                      onValueChange={(v) => setResponseStatus(v as PrayerStatus)}
+                    >
+                      <SelectTrigger className="w-full bg-slate-900 border-slate-600">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="RESPONDIDA">Respondida</SelectItem>
+                        <SelectItem value="EN_REVISION">En revisión</SelectItem>
+                        <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+                        <SelectItem value="CERRADA">Cerrada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Respuesta</label>
+                    <Textarea
+                      placeholder="Escribe tu respuesta..."
+                      value={responseText}
+                      onChange={(e) => setResponseText(e.target.value)}
+                      rows={6}
+                      className="bg-slate-900 border-slate-600"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+
+              <SheetFooter className="px-4 pb-4">
+                <Button variant="ghost" onClick={() => setRespondingRequest(null)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => respondingRequest && void handleRespond(respondingRequest.id)}
+                  disabled={saving || !responseText.trim()}
+                  className="gap-1"
+                >
+                  <Send className="w-3 h-3" />
+                  {saving ? 'Guardando...' : 'Guardar respuesta'}
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+
+          {total > 0 && (
+            <AdminPagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              label={`${total} peticiones · Página ${page} de ${Math.max(1, totalPages)}`}
+            />
           )}
         </CardContent>
       </Card>

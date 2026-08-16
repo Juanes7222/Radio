@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import type { ScheduleCategory } from '@radio/types';
 
@@ -224,17 +231,18 @@ export default function AdminScheduleCategories() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium">Icono</label>
-                    <select
-                      value={form.icon}
-                      onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))}
-                      className="w-full h-9 rounded-md border px-3 text-sm bg-slate-900 border-slate-600 text-white"
-                    >
-                      {ICON_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={form.icon} onValueChange={(v) => setForm((f) => ({ ...f, icon: v }))}>
+                      <SelectTrigger className="w-full bg-slate-900 border-slate-600">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ICON_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium">Color</label>

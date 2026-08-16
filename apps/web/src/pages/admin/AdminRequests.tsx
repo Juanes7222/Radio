@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, CheckCircle2, XCircle, RefreshCw, Clock, ExternalLink } from 'lucide-react';
+import { MessageSquare, CheckCircle2, XCircle, RefreshCw, Clock, ExternalLink, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -183,10 +183,11 @@ export default function AdminRequests() {
         </CardContent>
       </Card>
 
-      <Card className="border-slate-700 bg-slate-800/60">
-        <CardContent className="pt-5 pb-5">
-          <p className="text-xs text-slate-400">
-            💡 Las solicitudes aprobadas por AzuraCast se reproducen automáticamente según la configuración de la playlist. Para habilitar/deshabilitar solicitudes ve a{' '}
+      <Card className="border-blue-800/40 bg-blue-950/30">
+        <CardContent className="pt-4 pb-4 flex items-start gap-2.5">
+          <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-400" />
+          <p className="text-xs text-blue-200">
+            Las solicitudes aprobadas por AzuraCast se reproducen automáticamente según la configuración de la playlist. Para habilitar/deshabilitar solicitudes ve a{' '}
             <a
               href={`${AZURACAST_URL}/station/1/playlists`}
               target="_blank"
