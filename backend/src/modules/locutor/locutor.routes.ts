@@ -168,6 +168,26 @@ router.post(
   })
 );
 
+router.get(
+  "/audios/:id/stream",
+  asyncHandler(async (req, res) => {
+    const audio = await prisma.generatedAudio.findUnique({
+      where: { id: String(req.params.id) },
+    });
+
+    if (!audio) {
+      throw new AppError(404, "Audio not found");
+    }
+
+    const fs = await import("fs");
+    if (!fs.existsSync(audio.filepath)) {
+      throw new AppError(404, "Audio file not found");
+    }
+
+    res.sendFile(audio.filepath);
+  })
+);
+
 router.delete(
   "/audios/:id",
   asyncHandler(async (req, res) => {
