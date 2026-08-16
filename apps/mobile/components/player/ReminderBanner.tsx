@@ -4,10 +4,15 @@ import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 
 interface ReminderBannerProps {
   onDismiss: () => void;
+  onDismissForever: () => void;
   onConfigure: () => void;
 }
 
-export function ReminderBanner({ onDismiss, onConfigure }: ReminderBannerProps) {
+export function ReminderBanner({
+  onDismiss,
+  onDismissForever,
+  onConfigure,
+}: ReminderBannerProps) {
   return (
     <View style={styles.reminderBanner}>
       <View style={styles.reminderContent}>
@@ -22,6 +27,9 @@ export function ReminderBanner({ onDismiss, onConfigure }: ReminderBannerProps) 
       <View style={styles.reminderActions}>
         <TouchableOpacity onPress={onDismiss} style={styles.reminderButton}>
           <Text style={styles.reminderButtonTextFaint}>Luego</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onDismissForever} style={styles.reminderButton}>
+          <Text style={styles.reminderButtonTextFaint}>No volver a mostrar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.reminderButtonAccent} onPress={onConfigure}>
           <Text style={styles.reminderButtonText}>Configurar</Text>

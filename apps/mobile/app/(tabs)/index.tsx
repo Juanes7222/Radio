@@ -149,7 +149,8 @@ export default function PlayerScreen() {
   const { isEnabled: notifyEnabled, enable: enableNotify, disable: disableNotify } =
     useFavoriteNotify(currentSongForNotify, favoriteSongKeys);
 
-  const { showReminder, dismissReminder } = useNotificationReminder();
+  const { showReminder, dismissReminder, dismissReminderForever } =
+    useNotificationReminder();
   const [showTooltip, setShowTooltip] = useState(false);
 
   const handleDismissReminder = useCallback(() => {
@@ -280,6 +281,7 @@ export default function PlayerScreen() {
           {showReminder && (
             <ReminderBanner
               onDismiss={handleDismissReminder}
+              onDismissForever={dismissReminderForever}
               onConfigure={() => {
                 dismissReminder();
                 setShowNotifyMenu(true);
