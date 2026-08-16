@@ -132,6 +132,18 @@ export interface ListenerStats {
   current: number;
 }
 
+/** Punto del historial de oyentes para la gráfica del dashboard */
+export interface ListenerHistoryPoint {
+  recordedAt: string;
+  current: number;
+  unique: number;
+  total: number;
+}
+
+export interface ListenerHistoryResponse {
+  rows: ListenerHistoryPoint[];
+}
+
 export interface ListenerDetail {
   ip: string;
   user_agent: string;

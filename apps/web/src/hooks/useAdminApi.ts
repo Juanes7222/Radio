@@ -4,6 +4,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import type {
   AdminDeviceList,
   DeviceZoneList,
+  ListenerHistoryResponse,
   LocutorAudio,
   LocutorStatus,
   LocutorTemplate,
@@ -62,6 +63,16 @@ export function useAdminApi() {
 
   const getNowPlaying = useCallback(
     () => request({ url: '/admin-api/nowplaying' }),
+    [request]
+  );
+
+  // ── Historial de oyentes ─────────────────────────────────
+  const getListenerHistory = useCallback(
+    (hours = 24) =>
+      request<ListenerHistoryResponse>({
+        url: '/admin-api/listeners/history',
+        params: { hours },
+      }),
     [request]
   );
 
@@ -371,6 +382,7 @@ export function useAdminApi() {
     getStatus,
     getListeners,
     getNowPlaying,
+    getListenerHistory,
     getPlaylists,
     createPlaylist,
     togglePlaylist,

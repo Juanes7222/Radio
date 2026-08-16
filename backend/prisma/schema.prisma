@@ -272,6 +272,22 @@ model ProgramNotification {
   @@index([startTimestamp])
 }
 
+// Muestreo periódico de oyentes para la gráfica del dashboard admin.
+// El job de muestreo guarda un punto cada 5 minutos.
+model ListenerSnapshot {
+  id         String   @id @default(uuid())
+  // Oyentes conectados en el momento del muestreo
+  current    Int      @default(0)
+  // Oyentes únicos (ventana de 24h reportada por AzuraCast)
+  unique     Int      @default(0)
+  // Oyentes totales (ventana reportada por AzuraCast)
+  total      Int      @default(0)
+  recordedAt DateTime @default(now())
+
+  @@map("listener_snapshots")
+  @@index([recordedAt])
+}
+
 model PrayerRequest {
   id         String    @id @default(uuid())
   deviceId   String?
