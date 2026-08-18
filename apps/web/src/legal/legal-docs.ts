@@ -27,10 +27,10 @@ export interface LegalDocument {
  */
 export const LEGAL_CONTACT = {
   brand: 'La Voz de la Verdad',
-  entity: '[Nombre legal de la entidad responsable]',
-  nit: '[NIT de la entidad responsable]',
-  address: '[Dirección], Cartago, Valle del Cauca, Colombia',
-  email: '[correo de contacto de la emisora]',
+  entity: 'Iglesia Cristiana del Movimiento Misionero Mundial',
+  nit: '830052488-4',
+  address: 'Carrera 7 #13-35, Cartago, Valle del Cauca, Colombia',
+  email: 'lavozdelaverdad2008@gmail.com',
   social:
     'Facebook (facebook.com/lavozdelaverdad), Instagram (@iglesiacartagommm) y YouTube (@emisoralavozdelaverdad9188)',
 } as const;
@@ -107,7 +107,7 @@ export const PRIVACY_DOC: LegalDocument = {
     {
       heading: 'Distribución y actualización de la aplicación',
       paragraphs: [
-        'La aplicación se distribuye y actualiza a través de Google Play, App Store y Expo (EAS). Estos servicios gestionan la entrega de la aplicación y sus actualizaciones y no reciben de nosotros datos personales de los usuarios finales.',
+        'La aplicación se distribuye y actualiza a través de Google Play. Este servicio gestiona la entrega de la aplicación y sus actualizaciones y no reciben de nosotros datos personales de los usuarios finales.',
       ],
     },
     {
