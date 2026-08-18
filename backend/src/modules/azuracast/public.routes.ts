@@ -23,6 +23,32 @@ import { sendProxyError } from "./proxy.routes";
 
 const router = Router();
 
+// Short-lived in-memory TTL cache. Protects AzuraCast from polling storms
+// (e.g. many mobile clients losing their SSE at once) without going stale.
+const NOWPLAYING_CACHE_TTL_MS = 3_000;
+const SCHEDULE_CACHE_TTL_MS = 60_000;
+
+interface TimedCacheEntry {
+  data: unknown;
+  expiresAt: number;
+}
+
+const nowPlayingCache = new Map<string, TimedCacheEntry>();
+const scheduleCache = new Map<string, TimedCacheEntry>();
+const scheduleCategoriesCache = new Map<string, TimedCacheEntry>();
+const SCHEDULE_CATEGORIES_KEY = "__all__";
+
+function readCache(cache: Map<string, TimedCacheEntry>, key: string): unknown | undefined {
+  const entry = cache.get(key);
+  if (entry && entry.expiresAt > Date.now()) return entry.data;
+  cache.delete(key);
+  return undefined;
+}
+
+function writeCache(cache: Map<string, TimedCacheEntry>, key: string, data: unknown, ttlMs: number): void {
+  cache.set(key, { data, expiresAt: Date.now() + ttlMs });
+}
+
 function toProxyRequest(req: Request): ProxyRequest {
   return {
     method: req.method,
@@ -40,6 +66,12 @@ function buildPublicUrl(req: Request): string {
 
 router.get("/nowplaying", async (req, res) => {
   const publicUrl = buildPublicUrl(req);
+
+  const cached = readCache(nowPlayingCache, publicUrl);
+  if (cached !== undefined) {
+    return res.status(200).json(cached);
+  }
+
   try {
     const { status, data } = await fetchFromAzuraCast(
       toProxyRequest(req),
@@ -55,6 +87,9 @@ router.get("/nowplaying", async (req, res) => {
         playing_next: null,
         song_history: [],
       });
+    }
+    if (status === 200) {
+      writeCache(nowPlayingCache, publicUrl, data, NOWPLAYING_CACHE_TTL_MS);
     }
     res.status(status).json(data);
   } catch (err) {
@@ -99,6 +134,12 @@ router.get("/schedule", async (req, res) => {
     req.query.end = getBogotaDateString(6);
   }
 
+  const cacheKey = `${publicUrl}|${req.query.start}|${req.query.end}`;
+  const cached = readCache(scheduleCache, cacheKey);
+  if (cached !== undefined) {
+    return res.status(200).json(cached);
+  }
+
   try {
     const { status, data } = await fetchFromAzuraCast(
       toProxyRequest(req),
@@ -109,6 +150,9 @@ router.get("/schedule", async (req, res) => {
         return rewriteInternalUrls(categorized, publicUrl);
       }
     );
+    if (status === 200) {
+      writeCache(scheduleCache, cacheKey, data, SCHEDULE_CACHE_TTL_MS);
+    }
     res.status(status).json(data);
   } catch (err) {
     sendProxyError(res, err);
@@ -116,9 +160,16 @@ router.get("/schedule", async (req, res) => {
 });
 
 router.get("/schedule/categories", async (_req, res) => {
+  const cached = readCache(scheduleCategoriesCache, SCHEDULE_CATEGORIES_KEY);
+  if (cached !== undefined) {
+    return res.status(200).json(cached);
+  }
+
   try {
     const categories = await getVisibleCategories();
-    res.status(200).json(categories.map(categoryToSummary));
+    const data = categories.map(categoryToSummary);
+    writeCache(scheduleCategoriesCache, SCHEDULE_CATEGORIES_KEY, data, SCHEDULE_CACHE_TTL_MS);
+    res.status(200).json(data);
   } catch (err) {
     logger.error("ScheduleCategories", "Error fetching schedule categories", {
       error: err instanceof Error ? err.message : String(err),

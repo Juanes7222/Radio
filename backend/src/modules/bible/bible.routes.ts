@@ -1,8 +1,14 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { prisma } from "../../infrastructure/database/prisma";
 import { getTodayReading } from "../rotation/rotation.service";
 
 const router = Router();
+
+// Bible content is static between imports, so it can be cached aggressively
+// by CDNs and browsers (the client also mirrors it with a local TTL).
+function setStaticCache(res: Response): void {
+  res.setHeader("Cache-Control", "public, max-age=86400");
+}
 
 // Maps common abbreviations and alternate spellings to canonical book names.
 // Covers Spanish names, English names, and common abbreviations.
@@ -137,6 +143,7 @@ router.get("/reading/today", async (_req, res) => {
 });
 
 router.get("/translations", async (_req, res) => {
+  setStaticCache(res);
   try {
     const translations = await prisma.bibleTranslation.findMany({
       orderBy: { abbreviation: "asc" },
@@ -148,6 +155,7 @@ router.get("/translations", async (_req, res) => {
 });
 
 router.get("/books", async (req, res) => {
+  setStaticCache(res);
   const { translation = "RVR1960" } = req.query;
 
   try {
@@ -163,6 +171,7 @@ router.get("/books", async (req, res) => {
 });
 
 router.get("/chapters", async (req, res) => {
+  setStaticCache(res);
   const { translation = "RVR1960", book } = req.query;
 
   if (!book) {
@@ -186,6 +195,7 @@ router.get("/chapters", async (req, res) => {
 });
 
 router.get("/chapter", async (req, res) => {
+  setStaticCache(res);
   const { translation = "RVR1960", book, chapter } = req.query;
 
   if (!book || !chapter) {

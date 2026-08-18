@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import EventSource from 'react-native-sse';
 
 type LiveEventName = 'live_start' | 'live_end';
@@ -18,11 +19,11 @@ const FacebookLiveContext = createContext<FacebookLiveContextType>({
   dismiss: () => {},
 });
 
+// Exponential backoff so flaky networks do not hammer the server.
+const RETRY_DELAYS = [5000, 10000, 20000, 40000, 60000];
+
 export function FacebookLiveProvider({ children }: { children: React.ReactNode }) {
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
-
-  const eventSourceRef = useRef<EventSource<LiveEventName> | null>(null);
-  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const baseUrl =
@@ -30,27 +31,56 @@ export function FacebookLiveProvider({ children }: { children: React.ReactNode }
 
     const sseUrl = `${baseUrl}/live-status/stream`;
 
+    let disposed = false;
+    let eventSource: EventSource<LiveEventName> | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryAttempt = 0;
+    let isActive = AppState.currentState === 'active';
+
+    const clearRetry = () => {
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+    };
+
+    const scheduleReconnect = () => {
+      if (disposed || !isActive || retryTimer) return;
+      const delay = RETRY_DELAYS[Math.min(retryAttempt, RETRY_DELAYS.length - 1)];
+      retryAttempt += 1;
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        connect();
+      }, delay);
+    };
+
+    const closeSource = () => {
+      eventSource?.close();
+      eventSource = null;
+    };
+
     const connect = () => {
+      if (disposed || !isActive) return;
+      closeSource();
+
       try {
         const es = new EventSource<LiveEventName>(sseUrl);
-
-        eventSourceRef.current = es;
+        eventSource = es;
 
         es.addEventListener('open', () => {
-          console.log('SSE connection established');
+          retryAttempt = 0;
         });
 
         es.addEventListener('error', () => {
-          console.log('SSE connection error, retrying...');
           es.close();
-          retryRef.current = setTimeout(connect, 5000);
+          if (eventSource === es) eventSource = null;
+          scheduleReconnect();
         });
 
         es.addEventListener('live_start', (event) => {
           try {
             const data: LiveStartPayload = JSON.parse(event?.data ?? '{}');
             if (data.url) {
-              console.log('Facebook Live started:', data.url);
               setLiveUrl(data.url);
             }
           } catch (error) {
@@ -59,22 +89,37 @@ export function FacebookLiveProvider({ children }: { children: React.ReactNode }
         });
 
         es.addEventListener('live_end', () => {
-          console.log('Facebook Live ended');
           setLiveUrl(null);
         });
       } catch (error) {
         console.error('Error creating EventSource:', error);
-        retryRef.current = setTimeout(connect, 5000);
+        scheduleReconnect();
       }
     };
 
     connect();
 
-    return () => {
-      if (retryRef.current) {
-        clearTimeout(retryRef.current);
+    // Close the connection when the app goes to background and reopen it on
+    // foreground, so an idle open socket does not drain battery or data.
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      isActive = state === 'active';
+      if (isActive) {
+        clearRetry();
+        retryAttempt = 0;
+        if (!eventSource) {
+          connect();
+        }
+      } else {
+        clearRetry();
+        closeSource();
       }
-      eventSourceRef.current?.close();
+    });
+
+    return () => {
+      disposed = true;
+      appStateSubscription.remove();
+      clearRetry();
+      closeSource();
     };
   }, []);
 

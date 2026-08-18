@@ -38,13 +38,10 @@ export async function getDeviceId(): Promise<string> {
   return deviceId;
 }
 
+// The push token does not require display notification permission (the token
+// itself is granted by the OS), so this never prompts the user. Local alarms
+// request the display permission themselves, when the user arms one.
 export async function getFCMToken(): Promise<string | null> {
-  const { status } = await Notifications.getPermissionsAsync();
-  if (status !== 'granted') {
-    const { status: newStatus } = await Notifications.requestPermissionsAsync();
-    if (newStatus !== 'granted') return null;
-  }
-
   try {
     const tokenData = await Notifications.getDevicePushTokenAsync();
     return tokenData.data;

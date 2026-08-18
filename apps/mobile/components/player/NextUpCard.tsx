@@ -6,9 +6,11 @@ import { formatMediaTitle } from '@/lib/formatMedia';
 
 interface NextUpCardProps {
   song: { title: string; artist: string };
+  /** When false the marquee animation stops (screen not focused). */
+  active?: boolean;
 }
 
-export function NextUpCard({ song }: NextUpCardProps) {
+export function NextUpCard({ song, active = true }: NextUpCardProps) {
   const { artist, title } = formatMediaTitle(song.title, song.artist);
 
   return (
@@ -17,17 +19,23 @@ export function NextUpCard({ song }: NextUpCardProps) {
       <Text style={styles.nextLabel}>A continuación: </Text>
 
       <View style={styles.nextTickerContainer}>
-        <TextTicker
-          duration={8000}
-          loop
-          bounce={false}
-          repeatSpacer={50}
-          marqueeDelay={2000}
-        >
-          <Text style={styles.nextArtist}>{artist}</Text>
-          <Text style={styles.nextSeparator}> · </Text>
-          <Text style={styles.nextTitle}>{title}</Text>
-        </TextTicker>
+        {active ? (
+          <TextTicker
+            duration={8000}
+            loop
+            bounce={false}
+            repeatSpacer={50}
+            marqueeDelay={2000}
+          >
+            <Text style={styles.nextArtist}>{artist}</Text>
+            <Text style={styles.nextSeparator}> · </Text>
+            <Text style={styles.nextTitle}>{title}</Text>
+          </TextTicker>
+        ) : (
+          <Text numberOfLines={1} style={styles.nextArtist}>
+            {artist ? `${artist} · ${title}` : title}
+          </Text>
+        )}
       </View>
     </View>
   );

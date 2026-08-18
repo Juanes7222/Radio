@@ -60,6 +60,16 @@ async function ensureAlarmChannel() {
   });
 }
 
+// Ask for the display permission only when the user explicitly arms an alarm,
+// never at app startup, so the prompt happens in context.
+async function ensureNotificationPermission(): Promise<void> {
+  const current = await Notifications.getPermissionsAsync();
+  if (current.status === 'granted') return;
+  if (current.canAskAgain) {
+    await Notifications.requestPermissionsAsync();
+  }
+}
+
 function buildContent(alarm: RadioAlarm): Notifications.NotificationContentInput {
   const label = alarm.label?.trim();
   return {
@@ -224,6 +234,7 @@ export function useAlarmClock(): UseAlarmClockReturn {
 
   const saveAlarm = useCallback(
     async (input: AlarmInput) => {
+      await ensureNotificationPermission();
       const alarm: RadioAlarm = {
         ...input,
         id: String(Date.now()),
@@ -253,6 +264,7 @@ export function useAlarmClock(): UseAlarmClockReturn {
             : undefined,
       };
       if (next.enabled) {
+        await ensureNotificationPermission();
         await scheduleAlarm(next);
       }
       await persist(alarms.map((a) => (a.id === id ? next : a)));
@@ -270,6 +282,7 @@ export function useAlarmClock(): UseAlarmClockReturn {
         next = { ...next, date: nextOneTimeDate(next.hour, next.minute).getTime() };
       }
       if (enabled) {
+        await ensureNotificationPermission();
         await scheduleAlarm(next);
       }
       await persist(alarms.map((a) => (a.id === id ? next : a)));

@@ -31,7 +31,9 @@ import { NowPlayingInfo } from '@/components/player/NowPlayingInfo';
 import { SleepTimerRow } from '@/components/player/SleepTimerRow';
 import { NextUpCard } from '@/components/player/NextUpCard';
 import { useAzuraCast } from '@radio/api';
-import { useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { State, usePlaybackState } from 'react-native-track-player';
+import { AppState } from 'react-native';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
@@ -59,9 +61,34 @@ const BOTTOM_CONTROLS_PADDING = TAB_BAR_HEIGHT + Spacing.md - 60;
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
 
+  const [appActive, setAppActive] = useState(true);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      setAppActive(state === 'active');
+    });
+    return () => subscription.remove();
+  }, []);
+
+  const [isFocused, setIsFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      return () => setIsFocused(false);
+    }, [])
+  );
+
+  const playbackState = usePlaybackState();
+  const isPlayingNow = playbackState.state === State.Playing;
+
+  // The realtime now-playing connection is only useful while the screen is
+  // visible or while audio keeps playing (to refresh the notification
+  // metadata). It is suspended when the app is backgrounded and paused.
+  const realtimeEnabled = appActive || isPlayingNow;
+
   const { data, isLoading, error, getStreamUrl } = useAzuraCast({
     apiBaseUrl: BACKEND_URL,
     pollInterval: 3000,
+    enabled: realtimeEnabled,
   });
 
   const song = data?.now_playing?.song;
@@ -316,7 +343,7 @@ export default function PlayerScreen() {
               <View style={styles.vinylGlow} />
               <VinylDisc
                 artworkUri={artworkUri}
-                isPlaying={isPlaying || isBuffering}
+                isPlaying={(isPlaying || isBuffering) && isFocused}
                 size={VINYL_SIZE}
               />
             </View>
@@ -328,7 +355,7 @@ export default function PlayerScreen() {
             <SleepTimerRow display={sleepTimer.display} onCancel={sleepTimer.cancel} />
           )}
 
-          {data?.playing_next && <NextUpCard song={data.playing_next.song} />}
+          {data?.playing_next && <NextUpCard song={data.playing_next.song} active={isFocused} />}
         </View>
       </ScrollView>
 

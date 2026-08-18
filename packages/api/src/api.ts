@@ -29,15 +29,17 @@ function effectiveBaseUrl(apiBaseUrl: string): string {
 /**
  * Rewrites localhost/127.0.0.1 URLs coming from AzuraCast to the configured
  * origin, avoiding Mixed Content / CSP issues on production deployments.
+ * Production payloads never contain localhost, so the JSON round-trip is
+ * skipped unless the data actually needs it.
  */
 export function rewriteLocalhostUrls<T>(data: T, apiBaseUrl: string): T {
   const baseUrl = effectiveBaseUrl(apiBaseUrl);
   if (!baseUrl) return data;
+  if (data === null || data === undefined) return data;
+  const serialized = JSON.stringify(data);
+  if (!/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(serialized)) return data;
   return JSON.parse(
-    JSON.stringify(data).replace(
-      /https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g,
-      baseUrl
-    )
+    serialized.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl)
   ) as T;
 }
 

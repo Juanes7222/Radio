@@ -13,11 +13,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fetchSchedule } from '@radio/api';
+import { fetchSchedule, fetchScheduleCategories } from '@radio/api';
+import type { ScheduleItem } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { useProgramSubscriptions } from '@/hooks/useProgramSubscriptions';
 import { formatMediaTitle, normalizeTitle } from '@/lib/formatMedia';
+import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
 
 interface NotificationsModalProps {
   visible: boolean;
@@ -50,21 +52,61 @@ export function NotificationsModal({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (visible) {
-      setLoading(true);
-      fetchSchedule(BACKEND_URL).then((schedule) => {
-        if (schedule) {
-          const uniquePrograms = Array.from(
-            new Set(schedule.map((item) => item.title))
-          ).filter(title => {
-            const normalized = title.toLowerCase();
-            return !['contenido variado', 'musica', 'jingles', 'jingle'].some(ex => normalized.includes(ex));
-          });
-          setPrograms(uniquePrograms);
-        }
-        setLoading(false);
+    if (!visible) return;
+
+    let cancelled = false;
+    setLoading(true);
+
+    const extractPrograms = (schedule: ScheduleItem[]) => {
+      const uniquePrograms = Array.from(
+        new Set(schedule.map((item) => item.title))
+      ).filter(title => {
+        const normalized = title.toLowerCase();
+        return !['contenido variado', 'musica', 'jingles', 'jingle'].some(ex => normalized.includes(ex));
       });
-    }
+      if (!cancelled) setPrograms(uniquePrograms);
+    };
+
+    (async () => {
+      // Reuse the schedule cache used by the schedule screen: open the modal
+      // instantly when fresh, and only hit the network when stale.
+      const cached = await readScheduleCache();
+      if (cancelled) return;
+
+      if (cached) {
+        extractPrograms(cached.schedule);
+        if (Date.now() - cached.timestamp < SCHEDULE_CACHE_TTL_MS) {
+          setLoading(false);
+          return;
+        }
+      }
+
+      try {
+        const [schedule, categories] = await Promise.all([
+          fetchSchedule(BACKEND_URL),
+          fetchScheduleCategories(BACKEND_URL),
+        ]);
+        if (cancelled) return;
+        if (schedule) {
+          extractPrograms(schedule);
+          if (categories) {
+            await writeScheduleCache({
+              schedule,
+              categories,
+              timestamp: Date.now(),
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching schedule for notifications:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [visible]);
 
   return (

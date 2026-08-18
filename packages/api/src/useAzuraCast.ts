@@ -21,6 +21,12 @@ export type { SongRequestResult } from './api';
 export interface UseAzuraCastProps {
   apiBaseUrl?: string;
   pollInterval?: number;
+  /**
+   * When false, the realtime connection and polling are suspended (used on
+   * mobile to close the socket while the app is backgrounded and paused).
+   * Defaults to true.
+   */
+  enabled?: boolean;
 }
 
 export interface UseAzuraCastReturn {
@@ -47,6 +53,7 @@ export interface UseAzuraCastReturn {
 export function useAzuraCast({
   apiBaseUrl = '',
   pollInterval = 3000,
+  enabled = true,
 }: UseAzuraCastProps): UseAzuraCastReturn {
   const [data, setData] = useState<NowPlayingData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,6 +90,8 @@ export function useAzuraCast({
   }, [apiBaseUrl]);
 
   useEffect(() => {
+    if (!enabled) return;
+
     let eventSource: EventSource | null = null;
     let ws: WebSocket | null = null;
     let fallbackInterval: ReturnType<typeof setInterval> | null = null;
@@ -110,11 +119,14 @@ export function useAzuraCast({
         eventSource.onmessage = (event) => {
           if (!event.data) return;
           try {
-            // Rewrite localhost URLs to avoid Mixed Content / CSP errors
-            const rewrittenData = event.data
-              .replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl);
-              
-            const parsed = JSON.parse(rewrittenData);
+            // Rewrite localhost URLs to avoid Mixed Content / CSP errors, only
+            // when the payload actually contains them (production data does not).
+            const raw = event.data;
+            const rewritten = raw.includes("localhost") || raw.includes("127.0.0.1")
+              ? raw.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl)
+              : raw;
+
+            const parsed = JSON.parse(rewritten);
             if (parsed?.pub?.data?.np) {
               setData(parsed.pub.data.np);
               setIsLoading(false);
@@ -157,11 +169,14 @@ export function useAzuraCast({
         ws.onmessage = (event) => {
           if (!event.data) return;
           try {
-            // Rewrite localhost URLs to avoid Mixed Content / CSP errors
-            const rewrittenData = event.data
-              .replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl);
+            // Rewrite localhost URLs to avoid Mixed Content / CSP errors, only
+            // when the payload actually contains them (production data does not).
+            const raw = event.data;
+            const rewritten = raw.includes("localhost") || raw.includes("127.0.0.1")
+              ? raw.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl)
+              : raw;
 
-            const parsed = JSON.parse(rewrittenData);
+            const parsed = JSON.parse(rewritten);
             if (parsed?.pub?.data?.np) {
               setData(parsed.pub.data.np);
               setIsLoading(false);
@@ -211,7 +226,7 @@ export function useAzuraCast({
       if (fallbackInterval) clearInterval(fallbackInterval);
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
     };
-  }, [apiBaseUrl, fetchNowPlaying, pollInterval]);
+  }, [apiBaseUrl, enabled, fetchNowPlaying, pollInterval]);
 
   const requestSong = useCallback(
     (requestId: string) => requestSongApi(apiBaseUrl, requestId),

@@ -3,44 +3,15 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchSchedule, fetchScheduleCategories, mergeConsecutiveScheduleItems } from '@radio/api';
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors } from '@/constants/theme';
 import { formatScheduleTime, getBogotaDayOfWeek } from '@/lib/time';
+import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
-const CACHE_KEY = 'schedule_cache_v1';
-const CACHE_TTL_MS = 1000 * 60 * 30;
-
-interface ScheduleCache {
-  schedule: ScheduleItem[];
-  categories: ScheduleCategorySummary[];
-  timestamp: number;
-}
-
-async function readScheduleCache(): Promise<ScheduleCache | null> {
-  try {
-    const raw = await AsyncStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ScheduleCache;
-    if (!Array.isArray(parsed.schedule) || !Array.isArray(parsed.categories)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-async function writeScheduleCache(cache: ScheduleCache): Promise<void> {
-  try {
-    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-  } catch {
-    // Ignore storage failures
-  }
-}
 
 const CARD_BG = '#16162c';
 const TEXT_MUTED = '#8b92a5';
@@ -437,7 +408,7 @@ export default function ScheduleScreen() {
         setCategories(cached.categories);
       }
 
-      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      if (cached && Date.now() - cached.timestamp < SCHEDULE_CACHE_TTL_MS) {
         if (mounted) setLoading(false);
         return;
       }

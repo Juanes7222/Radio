@@ -54,7 +54,9 @@ export function useSleepTimer(onExpire: () => void): UseSleepTimerReturn {
     AsyncStorage.setItem(END_TIME_KEY, String(newEndTime)).catch(() => {});
   }, []);
 
-  // Tick por segundo mientras hay un timer activo.
+  // Tick cada 5s mientras hay un timer activo. La precisión viene del reloj
+  // (Date.now()), no del tick, así que un intervalo largo basta para refrescar
+  // el display y reduce re-renders y wakeups del hilo JS.
   useEffect(() => {
     if (endTime === null) return;
 
@@ -68,7 +70,7 @@ export function useSleepTimer(onExpire: () => void): UseSleepTimerReturn {
     };
 
     tick();
-    const interval = setInterval(tick, 1000);
+    const interval = setInterval(tick, 5000);
     return () => clearInterval(interval);
   }, [endTime, expire]);
 

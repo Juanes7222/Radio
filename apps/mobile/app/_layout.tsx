@@ -24,10 +24,6 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepareApp() {
       try {
-        const { status, canAskAgain } = await Notifications.getPermissionsAsync();
-        if (status !== 'granted' && canAskAgain) {
-          await Notifications.requestPermissionsAsync();
-        }
         await initTrackPlayer();
         await registerDevice();
       } catch (e) {
