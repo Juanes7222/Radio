@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lavozverdad-v6';
+const CACHE_NAME = 'lavozverdad-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -68,7 +68,8 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: estrategia stale-while-revalidate para assets, network-first para API
+// Fetch strategy: navigations are network-first so a fresh deploy is never
+// hidden behind a stale cached index.html; hashed assets use stale-while-revalidate.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -106,11 +107,34 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Assets estáticos: stale-while-revalidate; navegaciones: fallback al HTML cacheado
+  const isNavigation = request.mode === 'navigate';
+
+  // Navigations: network-first. Always serve the freshest HTML from the server
+  // so a deploy picks up the new hashed chunks immediately; the cache is only
+  // a fallback for when the user is offline.
+  if (isNavigation) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse.ok && request.method === 'GET') {
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, networkResponse.clone());
+              cache.put('/index.html', networkResponse.clone());
+            });
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          return cached ?? caches.match('/index.html') ?? Response.error();
+        })
+    );
+    return;
+  }
+
+  // Hashed assets: stale-while-revalidate for instant loads
   event.respondWith(
     caches.match(request).then((cached) => {
-      const isNavigation = request.mode === 'navigate';
-
       const fetchPromise = fetch(request)
         .then((networkResponse) => {
           // cache.put() solo acepta GET — ignorar otros métodos
@@ -118,20 +142,11 @@ self.addEventListener('fetch', (event) => {
             const urlClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, urlClone);
-              // Las rutas SPA devuelven el mismo index.html: guardarlo bajo una clave canónica
-              if (isNavigation) {
-                cache.put('/index.html', networkResponse.clone());
-              }
             });
           }
           return networkResponse;
         })
-        .catch(() =>
-          cached ??
-          (isNavigation
-            ? caches.match('/index.html')
-            : Promise.resolve(Response.error()))
-        );
+        .catch(() => cached ?? Response.error());
 
       return cached || fetchPromise;
     })
