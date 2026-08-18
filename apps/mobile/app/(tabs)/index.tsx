@@ -191,11 +191,14 @@ export default function PlayerScreen() {
   const listenersCount = data?.listeners?.current ?? 0;
 
   const handleShare = useCallback(async () => {
+    // The stream URL is not useful for sharing: the Play Store link promotes
+    // the app itself and points Android users to a real install.
+    const appLink = 'https://play.google.com/store/apps/details?id=com.lavozverdad.radio';
     const message = title
-      ? `Escuchando ${title} de ${artist} en La Voz de la Verdad\n${streamUrl}`
-      : `Escuchando La Voz de la Verdad en vivo\n${streamUrl}`;
+      ? `Estoy escuchando "${title}" de ${artist} en vivo en La Voz de la Verdad.\n\nDescarga la app gratis y escúchala donde quieras:\n${appLink}`
+      : `Estoy escuchando La Voz de la Verdad en vivo.\n\nDescarga la app gratis y escúchala donde quieras:\n${appLink}`;
     await Share.share({ message });
-  }, [title, artist, streamUrl]);
+  }, [title, artist]);
 
   const [showQualityMenu, setShowQualityMenu] = useState(false);
 
