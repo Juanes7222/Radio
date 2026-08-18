@@ -51,16 +51,20 @@ export default defineConfig(({ command, mode }) => {
         output: {
           manualChunks(id) {
             if (!id.includes('node_modules')) return
-            if (id.includes('framer-motion') || id.includes('/motion/') || id.includes('motion-dom') || id.includes('motion-utils')) return 'vendor-motion'
-            if (id.includes('firebase')) return 'vendor-firebase'
-            if (id.includes('recharts') || id.includes('/d3-')) return 'vendor-charts'
-            if (id.includes('@radix-ui')) return 'vendor-radix'
-            if (id.includes('@floating-ui')) return 'vendor-floating'
-            if (id.includes('lucide-react') || id.includes('@icons-pack')) return 'vendor-icons'
-            if (id.includes('react-router')) return 'vendor-router'
-            if (id.includes('/react/') || id.includes('react-dom') || id.includes('scheduler')) return 'vendor-react'
-            if (id.includes('axios')) return 'vendor-http'
-            if (id.includes('date-fns')) return 'vendor-date'
+            // Resolve the top-level package name (handles @scope/pkg too).
+            // Only leaf packages are split out: they import React at most, so
+            // they can never create a circular chunk. Everything else shares a
+            // single vendor chunk, which keeps the chunk graph acyclic.
+            const segments = id.split('/node_modules/').pop()!.split('/')
+            const pkg = segments[0].startsWith('@') ? `${segments[0]}/${segments[1]}` : segments[0]
+            if (pkg === 'framer-motion' || pkg === 'motion' || pkg === 'motion-dom' || pkg === 'motion-utils') return 'vendor-motion'
+            if (pkg === 'lucide-react' || pkg === '@icons-pack/react-simple-icons') return 'vendor-icons'
+            if (pkg === '@radix-ui/primitives' || pkg.startsWith('@radix-ui/')) return 'vendor-radix'
+            if (pkg.startsWith('@floating-ui/')) return 'vendor-floating'
+            if (pkg === 'react-router' || pkg === 'react-router-dom') return 'vendor-router'
+            if (pkg === 'react' || pkg === 'react-dom' || pkg === 'scheduler') return 'vendor-react'
+            if (pkg === 'axios') return 'vendor-http'
+            if (pkg === 'date-fns') return 'vendor-date'
             return 'vendor'
           },
         },
