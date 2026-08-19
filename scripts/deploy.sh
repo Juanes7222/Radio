@@ -41,9 +41,16 @@ INFISICAL_PACKAGE="@radio/infisical-config"
 # >=2.0.3 is not published on npm yet, and the package is a transitive dependency
 # of metro (mobile build-time tooling only, never used at runtime in production).
 # Remove these entries once image-size 2.0.3+ is available.
+# deepmerge-ts (GHSA-ggr8-5vv4-36mx, CVE-2026-40345): stack exhaustion when
+# merging recursive object graphs, patched in v8.0.0. Both prisma@6.19.3 and the
+# latest prisma@7.9.1 pin @prisma/config which depends on deepmerge-ts@7.1.5
+# exactly, so no dependency upgrade can clear this advisory today. It is used by
+# the Prisma CLI only (schema/config merging at build time), never at runtime by
+# the backend, so it is not reachable by user input. Remove this entry once
+# @prisma/config publishes a version using deepmerge-ts >=8.0.0.
 # The variable must be exported so the node audit filter below can read it
 # from process.env; without export the allowlist is silently ignored.
-export DEPLOY_AUDIT_ALLOWLIST="${DEPLOY_AUDIT_ALLOWLIST:-GHSA-w3rx-r6r6-pgpr,GHSA-5p2g-fcmc-qvqq}"
+export DEPLOY_AUDIT_ALLOWLIST="${DEPLOY_AUDIT_ALLOWLIST:-GHSA-w3rx-r6r6-pgpr,GHSA-5p2g-fcmc-qvqq,GHSA-ggr8-5vv4-36mx}"
 
 SKIP_AUDIT=false
 FORCE_DEPLOY=false
