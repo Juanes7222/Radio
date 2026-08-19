@@ -38,7 +38,7 @@ export const LEGAL_CONTACT = {
 export const PRIVACY_DOC: LegalDocument = {
   slug: 'privacy',
   title: 'Política de Privacidad',
-  updatedAt: '16 de agosto de 2026',
+  updatedAt: '18 de agosto de 2026',
   intro:
     'Esta política explica qué información recopilamos, para qué la usamos y los derechos que tienes sobre ella cuando utilizas la página web, la aplicación móvil o el reproductor de La Voz de la Verdad.',
   sections: [
@@ -72,13 +72,14 @@ export const PRIVACY_DOC: LegalDocument = {
         'Token de notificaciones (FCM): para enviarte notificaciones push cuando lo autorizas, como respuestas a tus peticiones o avisos de los programas que eliges seguir.',
         'Suscripciones a programas: los títulos de los programas de los que quieres recibir avisos. Por defecto tienes algunas seleccionadas, y puedes cambiarlas en cualquier momento desde "Mis notificaciones".',
         'Sistema operativo y versión de la app: para diagnóstico técnico y ofrecer versiones correctas.',
+        'Zona aproximada (ciudad o región): derivada automáticamente de la dirección IP del dispositivo para enviarte notificaciones relevantes de tu zona, como avisos de programación. Solo almacenamos la zona (ciudad o región), no la dirección IP ni la ubicación precisa.',
         'Identificador de instalación: usado también para recordatorios y seguimiento de peticiones.',
       ],
     },
     {
       heading: 'Qué NO recopilamos',
       paragraphs: [
-        'La aplicación no solicita ni recopila directamente la ubicación del dispositivo: no usamos GPS ni pedimos permisos de ubicación. No accedemos a tus contactos, fotos ni micrófono, y no usamos publicidad ni rastreadores. No vendemos información a nadie.',
+        'La aplicación no usa GPS ni pide permisos de ubicación. Para asignar la zona aproximada (ciudad o región) de las notificaciones, el servidor deduce esa zona a partir de la dirección IP del dispositivo en el momento del registro. La dirección IP se envía a un proveedor de geolocalización únicamente para esa consulta, no se almacena y tampoco se guarda la ubicación precisa. No accedemos a tus contactos, fotos ni micrófono, y no usamos publicidad ni rastreadores. No vendemos información a nadie.',
       ],
     },
     {
@@ -101,6 +102,7 @@ export const PRIVACY_DOC: LegalDocument = {
       lists: [
         'Firebase (Google): notificaciones push (FCM) y verificación de acceso al panel administrativo.',
         'AzuraCast: servidor de streaming y estadísticas agregadas de audiencia (configuración sin almacenamiento de IP).',
+        'ip-api.com: geolocalización por IP para deducir la zona aproximada (ciudad o región) de un dispositivo. La dirección IP se envía únicamente para esa consulta y no la almacenamos.',
         'Proveedor de correo (SMTP o Brevo): el equipo interno recibe por correo las nuevas peticiones de oración para poder gestionarlas.',
       ],
     },
@@ -121,6 +123,7 @@ export const PRIVACY_DOC: LegalDocument = {
       paragraphs: [
         'Conservamos tu petición de oración mientras sea necesaria para su gestión y hasta que solicites su eliminación.',
         'Los registros técnicos del servidor (que incluyen la dirección IP) se conservan por un máximo de 30 días y luego se eliminan. Los tokens de notificaciones se conservan mientras el dispositivo esté registrado; si desactivas las notificaciones o desinstalas la aplicación, el servidor elimina el token cuando detecta que dejó de ser válido. Al reinstalar la aplicación se genera un nuevo identificador de instalación.',
+        'La zona aproximada (ciudad o región) del dispositivo se conserva mientras el dispositivo esté registrado; la dirección IP usada para derivarla nunca se almacena. Si el personal autorizado de la emisora asigna una zona manualmente desde el panel administrativo, esta reemplaza la zona automática.',
         'Las estadísticas agregadas de audiencia no identifican a personas y se conservan por períodos más largos (por ejemplo, para comparar la audiencia por franjas horarias).',
       ],
     },
@@ -161,7 +164,7 @@ export const PRIVACY_DOC: LegalDocument = {
 export const DATA_TREATMENT_DOC: LegalDocument = {
   slug: 'data-treatment',
   title: 'Política de Tratamiento de Datos Personales',
-  updatedAt: '16 de agosto de 2026',
+  updatedAt: '18 de agosto de 2026',
   intro:
     'De conformidad con la Ley 1581 de 2012 y sus decretos reglamentarios, La Voz de la Verdad presenta esta política de tratamiento de datos personales, aplicable a los datos recolectados a través de su página web, su aplicación móvil y sus demás canales.',
   sections: [
@@ -197,6 +200,7 @@ export const DATA_TREATMENT_DOC: LegalDocument = {
         'Suscripciones a programas: enviar avisos de los programas elegidos por el titular.',
         'Sistema operativo y versión de la aplicación: diagnóstico técnico y mejora del servicio.',
         'Dirección IP y datos técnicos de conexión: los registros del servidor pueden incluir la dirección IP con fines de seguridad y prevención de abuso, con retención máxima de 30 días. La analítica de audiencia de AzuraCast está configurada sin almacenamiento de IP (solo agregados).',
+        'Zona aproximada (ciudad o región derivada de la dirección IP): segmentar notificaciones por zona para los avisos de la emisora. La dirección IP se envía a un proveedor de geolocalización únicamente para derivar la zona y no se almacena; solo se guarda la zona resultante vinculada al dispositivo.',
       ],
       after: [
         'El contenido de una petición de oración es aportado libremente por el titular. Recomendamos no incluir datos sensibles (salud, situación familiar, económica o religiosa) ni datos de terceros que no sean necesarios para la petición. Cualquier información sensible que el titular incluya voluntariamente se tratará estrictamente para gestionar la petición y no para ninguna otra finalidad.',
@@ -238,6 +242,7 @@ export const DATA_TREATMENT_DOC: LegalDocument = {
       lists: [
         'Firebase (Google): notificaciones push (FCM) y autenticación del panel administrativo.',
         'AzuraCast: streaming de audio y estadísticas agregadas de audiencia (configuración sin almacenamiento de IP).',
+        'ip-api.com: geolocalización por IP para derivar la zona aproximada del dispositivo. Recibe la dirección IP solo para la consulta puntual; nosotros no la almacenamos.',
         'Proveedor de correo (SMTP o Brevo): notificación interna de nuevas peticiones de oración al equipo de la emisora.',
       ],
     },
@@ -259,12 +264,13 @@ export const DATA_TREATMENT_DOC: LegalDocument = {
       paragraphs: [
         'Tratamos los datos mientras sean necesarios para las finalidades autorizadas y para cumplir obligaciones legales. Las peticiones de oración se conservan mientras estén en gestión o se solicite su supresión.',
         'Los registros técnicos del servidor (que pueden incluir la dirección IP) se conservan por un máximo de 30 días y luego se eliminan. Los tokens de notificaciones se conservan mientras el dispositivo esté registrado y se eliminan cuando el servidor detecta que dejaron de ser válidos. Las estadísticas de audiencia son agregadas y no identifican a personas.',
+        'La zona aproximada (ciudad o región) del dispositivo se conserva mientras el dispositivo esté registrado. La dirección IP usada para derivarla no se almacena.',
       ],
     },
     {
       heading: '10. Vigencia y modificaciones',
       paragraphs: [
-        'Esta política rige a partir del 16 de agosto de 2026. Cualquier modificación será publicada en esta página con su fecha de actualización y comunicada por los canales de la emisora cuando sea relevante.',
+        'Esta política rige a partir del 18 de agosto de 2026. Cualquier modificación será publicada en esta página con su fecha de actualización y comunicada por los canales de la emisora cuando sea relevante.',
       ],
     },
   ],
