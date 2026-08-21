@@ -5,6 +5,7 @@
 expo-env.d.ts
 # @end expo-cli
 android/
+!modules/*/android/
 .expo/
 .idea/
 
