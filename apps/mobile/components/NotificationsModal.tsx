@@ -8,8 +8,7 @@ import {
   ScrollView,
   Switch,
   ActivityIndicator,
-  Platform,
-  Linking
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +17,7 @@ import type { ScheduleItem } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { useProgramSubscriptions } from '@/hooks/useProgramSubscriptions';
+import { openExactAlarmSettings } from '@/modules/exact-alarms';
 import { formatMediaTitle, normalizeTitle } from '@/lib/formatMedia';
 import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
 
@@ -138,7 +138,9 @@ export function NotificationsModal({
                   </Text>
                 </View>
                 <TouchableOpacity
-                  onPress={() => Linking.openSettings()}
+                  onPress={() => {
+                    openExactAlarmSettings();
+                  }}
                   style={styles.exactAlarmButton}
                 >
                   <Text style={styles.exactAlarmButtonText}>Activar</Text>
