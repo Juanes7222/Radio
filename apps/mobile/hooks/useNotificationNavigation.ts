@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useRouter, useRootNavigationState, type Href } from 'expo-router';
 
@@ -40,8 +40,14 @@ function resolveTargetRoute(data: NotificationData): Href {
 export function useNotificationNavigation(): void {
   const router = useRouter();
   const rootNavigationState = useRootNavigationState();
-  const isRouterReady = rootNavigationState?.key != null;
+  // Wait until the initial route (tabs) is actually mounted. If we navigate
+  // while the stack is still empty, the notification screen becomes the root
+  // and pressing back exits the app instead of returning home.
+  const isRouterReady =
+    rootNavigationState?.key != null &&
+    (rootNavigationState.routes?.length ?? 0) > 0;
   const lastNotificationResponse = Notifications.useLastNotificationResponse();
+  const handledIdentifierRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isRouterReady) {
@@ -51,7 +57,15 @@ export function useNotificationNavigation(): void {
       return;
     }
 
+    // Handle each tap exactly once: the response object stays set and the
+    // effect can re-run, which would otherwise re-trigger navigation.
+    const identifier = lastNotificationResponse.notification.request.identifier;
+    if (handledIdentifierRef.current === identifier) {
+      return;
+    }
+    handledIdentifierRef.current = identifier;
+
     const data = lastNotificationResponse.notification.request.content.data as NotificationData;
-    router.replace(resolveTargetRoute(data));
+    router.push(resolveTargetRoute(data));
   }, [isRouterReady, lastNotificationResponse, router]);
 }

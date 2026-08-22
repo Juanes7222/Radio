@@ -148,3 +148,5 @@ TODO.md
 *.db
 
 generated/
+
+build/

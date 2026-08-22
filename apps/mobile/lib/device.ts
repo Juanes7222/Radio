@@ -85,20 +85,39 @@ export async function registerDevice(): Promise<void> {
   }
 }
 
-export async function updateFCMToken(newToken: string): Promise<void> {
-  try {
-    const deviceId = await getDeviceId();
-    const response = await fetch(`${BACKEND_URL}/api/devices/${deviceId}/token`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fcmToken: newToken }),
-    });
+// Android can emit several push-token events for the same token (app start,
+// each getDevicePushTokenAsync call, listener replay). Collapse them so the
+// backend only sees one request per real token change.
+let tokenUpdateInFlight: Promise<void> | null = null;
 
-    if (response.ok) {
-      await AsyncStorage.setItem(FCM_TOKEN_KEY, newToken);
-      console.log('[Device] FCM token updated');
-    }
-  } catch (err) {
-    console.warn('[Device] Token update failed:', err);
-  }
+export function updateFCMToken(newToken: string): Promise<void> {
+  return (async () => {
+    const existingToken = await AsyncStorage.getItem(FCM_TOKEN_KEY);
+    if (existingToken === newToken) return;
+    if (tokenUpdateInFlight) return tokenUpdateInFlight;
+
+    tokenUpdateInFlight = (async () => {
+      try {
+        const deviceId = await getDeviceId();
+        const response = await fetch(`${BACKEND_URL}/api/devices/${deviceId}/token`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fcmToken: newToken }),
+        });
+
+        if (response.ok) {
+          await AsyncStorage.setItem(FCM_TOKEN_KEY, newToken);
+          console.log('[Device] FCM token updated');
+        } else {
+          console.warn('[Device] Token update failed:', response.status);
+        }
+      } catch (err) {
+        console.warn('[Device] Token update failed:', err);
+      } finally {
+        tokenUpdateInFlight = null;
+      }
+    })();
+
+    return tokenUpdateInFlight;
+  })();
 }

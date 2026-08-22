@@ -8,13 +8,11 @@ import android.os.Build
 import android.provider.Settings
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
-import expo.modules.kotlin.modules.definition.ModuleDefinition
+import expo.modules.kotlin.modules.ModuleDefinition
 
 class ExactAlarmsModule : Module() {
   private val alarmManager: AlarmManager by lazy {
-    val context = appContext.reactContext
-      ?: throw CodedException("ERR_MISSING_CONTEXT", "React context is not available.")
-    context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    requireReactContext().getSystemService(Context.ALARM_SERVICE) as AlarmManager
   }
 
   override fun definition() = ModuleDefinition {
@@ -27,8 +25,7 @@ class ExactAlarmsModule : Module() {
     }
 
     AsyncFunction("openExactAlarmSettings") {
-      val context = appContext.reactContext
-        ?: throw CodedException("ERR_MISSING_CONTEXT", "React context is not available.")
+      val context = requireReactContext()
       val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
         data = Uri.parse("package:${context.packageName}")
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -36,4 +33,12 @@ class ExactAlarmsModule : Module() {
       context.startActivity(intent)
     }
   }
+
+  private fun requireReactContext(): Context =
+    appContext.reactContext
+      ?: throw CodedException(
+        code = "ERR_MISSING_CONTEXT",
+        message = "React context is not available.",
+        cause = null
+      )
 }
