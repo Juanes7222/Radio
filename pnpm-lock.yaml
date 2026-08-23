@@ -423,6 +423,9 @@ importers:
       '@radio/infisical-config':
         specifier: workspace:*
         version: link:../packages/infisical-config
+      '@radio/types':
+        specifier: workspace:*
+        version: link:../packages/types
       axios:
         specifier: ^1.19.0
         version: 1.19.0
