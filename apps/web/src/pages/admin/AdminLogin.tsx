@@ -22,9 +22,9 @@ function isPopupClosedByUser(err: unknown): boolean {
 
 function getFirebaseErrorMessage(err: unknown): string {
   if (typeof err === 'object' && err !== null && 'message' in err) {
-    return String((err as FirebaseAuthError).message ?? 'Error al iniciar sesion con Google.');
+    return String((err as FirebaseAuthError).message ?? 'Error al iniciar sesión con Google.');
   }
-  return 'Error al iniciar sesion con Google.';
+  return 'Error al iniciar sesión con Google.';
 }
 
 export default function AdminLogin() {
@@ -38,7 +38,7 @@ export default function AdminLogin() {
 
   const handleGoogleSignIn = async () => {
     if (!auth) {
-      setFirebaseError('Firebase no esta configurado. Revisa VITE_FIREBASE_CONFIG.');
+      setFirebaseError('Firebase no está configurado. Revisa VITE_FIREBASE_CONFIG.');
       return;
     }
 
@@ -60,32 +60,39 @@ export default function AdminLogin() {
   const displayError = error ?? firebaseError;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 transition-colors duration-300 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
+    <div className="admin-theme relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4 text-foreground">
+      {/* Ambient signal glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-72"
+        style={{
+          background:
+            'radial-gradient(60% 70% at 50% 0%, hsl(var(--primary) / 0.07), transparent)',
+        }}
+      />
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-sm"
+        className="relative w-full max-w-sm"
       >
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="p-3 rounded-full bg-primary/10">
-            <Radio className="w-8 h-8 text-primary" />
+        <div className="mb-8 flex items-center justify-center gap-3">
+          <div className="rounded-full bg-primary/10 p-3">
+            <Radio className="h-8 w-8 text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-bold">Panel Admin</h1>
-            <p className="text-sm text-slate-400">
-              Gestion de la estacion
-            </p>
+            <p className="text-sm text-muted-foreground">Gestión de la estación</p>
           </div>
         </div>
 
-        <Card className="border-slate-700 bg-slate-800/60 backdrop-blur">
+        <Card>
           <CardHeader className="pb-4 text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <ShieldCheck className="w-5 h-5 text-primary" />
+            <div className="mb-1 flex items-center justify-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Acceso seguro</h2>
             </div>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground">
               Solo cuentas Google autorizadas pueden acceder
             </p>
           </CardHeader>
@@ -94,8 +101,8 @@ export default function AdminLogin() {
             <button
               onClick={handleGoogleSignIn}
               disabled={isLoading}
-              className={`flex items-center justify-center gap-3 w-full px-6 py-3 rounded-lg border text-sm font-medium transition-colors ${
-                isLoading ? 'opacity-50 pointer-events-none' : ''
+              className={`flex items-center justify-center gap-3 w-full rounded-lg border px-6 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                isLoading ? 'pointer-events-none opacity-50' : ''
               } bg-white text-slate-900 hover:bg-gray-100 border-gray-300`}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -116,24 +123,24 @@ export default function AdminLogin() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              {isLoading ? 'Verificando acceso...' : 'Iniciar sesion con Google'}
+              {isLoading ? 'Verificando acceso...' : 'Iniciar sesión con Google'}
             </button>
 
             {isLoading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 Verificando acceso...
               </div>
             )}
 
             {displayError && (
-              <div className="w-full flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="flex w-full items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{displayError}</span>
               </div>
             )}
 
-            <p className="text-xs text-center text-slate-500">
+            <p className="text-center text-xs text-faint">
               Si tienes problemas para acceder, contacta al administrador del sistema.
             </p>
           </CardContent>

@@ -22,37 +22,40 @@ import {
 } from '@/components/ui/chart';
 import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import { useAdminApi } from '@/hooks/useAdminApi';
+import { useStationStatus } from '@/hooks/useStationStatus';
 import { formatClock, formatDateTimeFull, formatDuration } from '@/lib/format';
-import type { NowPlayingData, ListenerDetail, ListenerHistoryPoint } from '@radio/types';
+import type { ListenerDetail, ListenerHistoryPoint } from '@radio/types';
 
 interface StatCardProps {
   title: string;
   value: string | number;
   icon: React.ElementType;
   description?: string;
-  accent?: boolean;
+  tone?: StatTone;
 }
 
-function StatCard({ title, value, icon: Icon, description, accent }: StatCardProps) {
+type StatTone = 'default' | 'primary' | 'live';
+
+const STAT_TONE_CLASSES: Record<StatTone, { value: string; chip: string; icon: string }> = {
+  default: { value: '', chip: 'bg-sunken', icon: 'text-muted-foreground' },
+  primary: { value: 'text-primary', chip: 'bg-primary/10', icon: 'text-primary' },
+  live: { value: 'text-tally', chip: 'bg-tally/10', icon: 'text-tally' },
+};
+
+function StatCard({ title, value, icon: Icon, description, tone = 'default' }: StatCardProps) {
+  const classes = STAT_TONE_CLASSES[tone];
+
   return (
-    <Card className="border-slate-700 bg-slate-800/60">
+    <Card>
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-400">
-              {title}
-            </p>
-            <p className={`text-3xl font-bold mt-1 ${accent ? 'text-primary' : ''}`}>
-              {value}
-            </p>
-            {description && (
-              <p className="text-xs mt-1 text-slate-500">
-                {description}
-              </p>
-            )}
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <p className={`mt-1 text-3xl font-bold ${classes.value}`}>{value}</p>
+            {description && <p className="mt-1 text-xs text-faint">{description}</p>}
           </div>
-          <div className={`p-3 rounded-full ${accent ? 'bg-primary/10' : 'bg-slate-700'}`}>
-            <Icon className={`w-5 h-5 ${accent ? 'text-primary' : 'text-slate-300'}`} />
+          <div className={`rounded-md p-2.5 ${classes.chip}`}>
+            <Icon className={`h-5 w-5 ${classes.icon}`} />
           </div>
         </div>
       </CardContent>
@@ -76,7 +79,7 @@ function ListenerDetailDialog({
         </DialogHeader>
         {listener && (
           <div className="space-y-3 text-sm">
-            <div className="rounded-lg bg-slate-900 border border-slate-700 divide-y divide-slate-700/60">
+            <div className="divide-y divide-border rounded-lg border border-border bg-sunken">
               <DetailRow label="Dirección IP" value={listener.ip} monospace />
               <DetailRow
                 label="Ubicación"
@@ -98,8 +101,8 @@ function ListenerDetailDialog({
               />
             </div>
             <div>
-              <p className="text-xs font-medium text-slate-400 mb-1">User agent</p>
-              <p className="text-xs text-slate-300 break-words bg-slate-900 border border-slate-700 rounded-lg p-3">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">User agent</p>
+              <p className="break-words rounded-lg border border-border bg-sunken p-3 text-xs text-foreground/90">
                 {listener.user_agent || '—'}
               </p>
             </div>
@@ -113,8 +116,8 @@ function ListenerDetailDialog({
 function DetailRow({ label, value, monospace = false }: { label: string; value: string; monospace?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4 px-3 py-2.5">
-      <span className="text-xs shrink-0 text-slate-400">{label}</span>
-      <span className={`text-xs text-right break-all ${monospace ? 'font-mono' : ''}`}>{value}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span className={`break-all text-right text-xs ${monospace ? 'font-mono' : ''}`}>{value}</span>
     </div>
   );
 }
@@ -123,13 +126,17 @@ const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 
 const LISTENER_CHART_CONFIG = {
   current: { label: 'Oyentes ahora', color: 'hsl(var(--primary))' },
-  unique: { label: 'Únicos (24h)', color: 'hsl(199 89% 48%)' },
+  unique: { label: 'Únicos (24h)', color: 'hsl(var(--info))' },
 } satisfies ChartConfig;
 
 export default function AdminDashboard() {
-  const { getStatus, getListeners, getNowPlaying, getListenerHistory, skipCurrentTrack, restartStation } = useAdminApi();
+  const { getStatus, getListeners, getListenerHistory, skipCurrentTrack, restartStation } = useAdminApi();
+  const {
+    nowPlaying,
+    loading: nowPlayingLoading,
+    refresh: refreshNowPlaying,
+  } = useStationStatus();
 
-  const [nowPlaying, setNowPlaying] = useState<NowPlayingData | null>(null);
   const [listeners, setListeners] = useState<ListenerDetail[]>([]);
   const [history, setHistory] = useState<ListenerHistoryPoint[]>([]);
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
@@ -142,14 +149,12 @@ export default function AdminDashboard() {
 
   const loadData = useCallback(async () => {
     try {
-      const [npData, listData, status, historyRes] = await Promise.allSettled([
-        getNowPlaying(),
+      const [listData, status, historyRes] = await Promise.allSettled([
         getListeners(),
         getStatus(),
         getListenerHistory(24),
       ]);
 
-      if (npData.status === 'fulfilled') setNowPlaying(npData.value as NowPlayingData);
       if (listData.status === 'fulfilled') setListeners(listData.value as ListenerDetail[]);
       if (status.status === 'fulfilled') {
         const s = status.value as { is_online?: boolean };
@@ -160,12 +165,13 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [getNowPlaying, getListeners, getStatus, getListenerHistory]);
+  }, [getListeners, getStatus, getListenerHistory]);
 
   const handleRefresh = useCallback(() => {
     setLoading(true);
+    void refreshNowPlaying();
     void loadData();
-  }, [loadData]);
+  }, [loadData, refreshNowPlaying]);
 
   useEffect(() => {
     void loadData();
@@ -195,8 +201,9 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-sm mt-0.5 text-slate-400">
-            Última actualización: {lastRefresh.toLocaleTimeString()}
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Última actualización:{' '}
+            <span className="font-mono tabular-nums">{lastRefresh.toLocaleTimeString()}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -208,7 +215,7 @@ export default function AdminDashboard() {
             className="gap-1.5"
             title="Saltar canción actual"
           >
-            <SkipForward className={`w-4 h-4 ${skipLoading ? 'animate-pulse' : ''}`} />
+            <SkipForward className={`h-4 w-4 ${skipLoading ? 'animate-pulse' : ''}`} />
             <span className="hidden sm:inline">Saltar</span>
           </Button>
           <Button
@@ -216,27 +223,27 @@ export default function AdminDashboard() {
             size="sm"
             onClick={() => setConfirmAction('restart')}
             disabled={loading || restartLoading}
-            className="gap-1.5 text-orange-500 border-orange-500/40 hover:bg-orange-500/10"
+            className="gap-1.5 text-warning border-warning/40 hover:bg-warning/10"
             title="Reiniciar la estación (desconecta oyentes momentáneamente)"
           >
-            <RotateCcw className={`w-4 h-4 ${restartLoading ? 'animate-spin' : ''}`} />
+            <RotateCcw className={`h-4 w-4 ${restartLoading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Reiniciar</span>
           </Button>
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading} className="gap-1.5">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Actualizar</span>
           </Button>
         </div>
       </div>
 
       {/* Tarjetas de estadísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.0 }}>
           <StatCard
             title="Estado"
             value={isOnline === null ? '...' : isOnline ? 'En línea' : 'Offline'}
             icon={Wifi}
-            accent={isOnline === true}
+            tone={isOnline === true ? 'primary' : 'default'}
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
@@ -244,7 +251,7 @@ export default function AdminDashboard() {
             title="Oyentes únicos"
             value={nowPlaying?.listeners?.unique ?? '—'}
             icon={Users}
-            accent
+            tone="primary"
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -257,36 +264,39 @@ export default function AdminDashboard() {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           <StatCard
             title="En vivo"
-            value={nowPlaying?.live?.is_live ? 'Sí' : 'No'}
+            value={nowPlaying?.live?.is_live ? 'Al aire' : 'No'}
             icon={Radio}
             description={nowPlaying?.live?.streamer_name ?? undefined}
+            tone={nowPlaying?.live?.is_live ? 'live' : 'default'}
           />
         </motion.div>
       </div>
 
       {/* Now Playing */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <Card className="border-slate-700 bg-slate-800/60">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Music className="w-4 h-4 text-primary" />
+              <Music className="h-4 w-4 text-primary" />
               Sonando ahora
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {song ? (
+            {!nowPlaying && nowPlayingLoading ? (
+              <div className="h-16 animate-pulse rounded-md bg-sunken" />
+            ) : song ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-4">
                   {song.art && (
                     <img
                       src={song.art}
                       alt={song.title}
-                      className="w-16 h-16 rounded-lg object-cover shrink-0"
+                      className="h-16 w-16 shrink-0 rounded-lg object-cover"
                     />
                   )}
                   <div className="min-w-0">
-                    <p className="font-semibold text-lg truncate">{song.title || 'Sin título'}</p>
-                    <p className="text-sm truncate text-slate-400">
+                    <p className="truncate text-lg font-semibold">{song.title || 'Sin título'}</p>
+                    <p className="truncate text-sm text-muted-foreground">
                       {song.artist || 'Artista desconocido'}
                     </p>
                     {nowPlaying?.now_playing?.is_request && (
@@ -296,20 +306,20 @@ export default function AdminDashboard() {
                 </div>
                 {/* Barra de progreso */}
                 <div className="space-y-1">
-                  <div className="w-full h-1.5 rounded-full bg-slate-700">
+                  <div className="h-1.5 w-full rounded-full bg-border">
                     <div
                       className="h-full rounded-full bg-primary transition-all duration-1000"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <div className="flex justify-between text-xs text-slate-500">
+                  <div className="flex justify-between font-mono text-xs tabular-nums text-faint">
                     <span>{formatClock(elapsed)}</span>
                     <span>{formatClock(duration)}</span>
                   </div>
                 </div>
               </div>
             ) : (
-              <p className="text-slate-400">Sin información disponible</p>
+              <p className="text-muted-foreground">Sin información disponible</p>
             )}
           </CardContent>
         </Card>
@@ -317,19 +327,19 @@ export default function AdminDashboard() {
 
       {/* Gráfica de oyentes */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-        <Card className="border-slate-700 bg-slate-800/60">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingUp className="w-4 h-4 text-primary" />
+              <TrendingUp className="h-4 w-4 text-primary" />
               Oyentes en las últimas 24 horas
               {history.length > 0 && <Badge variant="secondary">{history.length} muestras</Badge>}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {history.length === 0 ? (
-              <div className="py-10 text-center space-y-1">
-                <p className="text-sm text-slate-400">Aún no hay datos de historial.</p>
-                <p className="text-xs text-slate-500">
+              <div className="space-y-1 py-10 text-center">
+                <p className="text-sm text-muted-foreground">Aún no hay datos de historial.</p>
+                <p className="text-xs text-faint">
                   Se toma una muestra cada 5 minutos; la gráfica se poblará automáticamente.
                 </p>
               </div>
@@ -389,11 +399,11 @@ export default function AdminDashboard() {
 
       {/* Lista de oyentes conectados */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-        <Card className="border-slate-700 bg-slate-800/60">
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="w-4 h-4 text-primary" />
+                <Users className="h-4 w-4 text-primary" />
                 Oyentes conectados
                 <Badge variant="secondary">{listeners.length}</Badge>
               </CardTitle>
@@ -401,35 +411,37 @@ export default function AdminDashboard() {
                 href={`${AZURACAST_URL}/station/1/reports/listeners`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline flex items-center gap-1"
+                className="flex items-center gap-1 text-xs text-primary hover:underline"
               >
-                Ver más <ExternalLink className="w-3 h-3" />
+                Ver más <ExternalLink className="h-3 w-3" />
               </a>
             </div>
           </CardHeader>
           <CardContent>
             {listeners.length === 0 ? (
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-muted-foreground">
                 No hay oyentes conectados en este momento.
               </p>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="max-h-64 space-y-2 overflow-y-auto">
                 {listeners.map((l: ListenerDetail, i: number) => (
                   <button
                     key={i}
                     onClick={() => setSelectedListener(l)}
-                    className="w-full flex items-center justify-between p-2 rounded-lg text-sm bg-slate-900 hover:bg-slate-800 transition-colors text-left group"
+                    className="group w-full rounded-lg bg-sunken p-2 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <div className="min-w-0">
-                      <p className="font-mono text-xs truncate">{l.ip}</p>
-                      <p className="text-xs truncate text-slate-400">
-                        {l.location?.city ? `${l.location.city}, ${l.location.country}` : l.mount_name}
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <p className="truncate font-mono text-xs">{l.ip}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {l.location?.city ? `${l.location.city}, ${l.location.country}` : l.mount_name}
+                        </p>
+                      </div>
+                      <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
+                        {formatDuration(l.connected_time)}
+                        <Eye className="h-3.5 w-3.5 text-faint transition-colors group-hover:text-primary" />
+                      </span>
                     </div>
-                    <span className="flex items-center gap-2 shrink-0 text-slate-400">
-                      {formatDuration(l.connected_time)}
-                      <Eye className="w-3.5 h-3.5 text-slate-600 group-hover:text-primary transition-colors" />
-                    </span>
                   </button>
                 ))}
               </div>
