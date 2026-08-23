@@ -35,6 +35,7 @@ PNPM_BIN="${PNPM_BIN:-pnpm}"
 BACKEND_PACKAGE="radio-admin-backend"
 WEB_PACKAGE="@radio/web"
 INFISICAL_PACKAGE="@radio/infisical-config"
+TYPES_PACKAGE="@radio/types"
 
 # Advisories allowed to pass the audit (comma-separated GHSA ids, override via env).
 # image-size (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq): the patched version
@@ -289,6 +290,12 @@ step "5/8 — Building applications"
 if [[ "$DEPLOY_BACKEND" == "true" ]]; then
   ensure_backend_dependency_declared
 fi
+
+# @radio/types ships compiled output (exports.default -> dist/index.js).
+# The web build resolves that entry with Vite, and the backend imports the
+# runtime constant PRAYER_STATUS from it, so it must be built for both targets.
+info "Building shared package @radio/types..."
+"$PNPM_BIN" --filter "$TYPES_PACKAGE" run build
 
 if [[ "$DEPLOY_BACKEND" == "true" ]] && [[ -d "$BACKEND_DIR/dist" ]]; then
   BACKUP_BACKEND="$(mktemp -d)"
