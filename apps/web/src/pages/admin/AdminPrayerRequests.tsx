@@ -118,27 +118,33 @@ export default function AdminPrayerRequests() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  const load = useCallback(async () => {
-    try {
-      const data = await getPrayerRequests({
+  // Kept as a .then chain on purpose: matches the data-loading idiom used
+  // across the admin panel.
+  const load = useCallback(
+    () =>
+      getPrayerRequests({
         page,
         limit: PAGE_SIZE,
         estado: estadoFilter === 'all' ? undefined : estadoFilter,
         search: search || undefined,
-      });
-      setRequests(data.rows);
-      setTotal(data.total);
-      setTotalPages(data.totalPages);
-      setCounts(data.counts);
-      setUnreadCount(data.unreadCount);
-      setError(null);
-      setNow(Date.now());
-    } catch {
-      setError('Error al obtener peticiones de oración.');
-    } finally {
-      setLoading(false);
-    }
-  }, [getPrayerRequests, page, estadoFilter, search]);
+      })
+        .then((data) => {
+          setRequests(data.rows);
+          setTotal(data.total);
+          setTotalPages(data.totalPages);
+          setCounts(data.counts);
+          setUnreadCount(data.unreadCount);
+          setError(null);
+          setNow(Date.now());
+        })
+        .catch(() => {
+          setError('Error al obtener peticiones de oración.');
+        })
+        .finally(() => {
+          setLoading(false);
+        }),
+    [getPrayerRequests, page, estadoFilter, search]
+  );
 
   useEffect(() => {
     void load();
