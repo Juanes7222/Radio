@@ -1,18 +1,57 @@
 import { Router, type Request, type Response } from "express";
+import { Prisma } from "@prisma/client";
+import { PRAYER_STATUS, type PrayerStatus } from "@radio/types";
 import { prisma } from "../../infrastructure/database/prisma";
 import { config } from "../../config";
 import { sendEmail } from "../../infrastructure/email/email.service";
 import { requireAuth } from "../auth/auth.middleware";
 import { sendPrayerResponseNotification } from "./notification.service";
+import {
+  broadcastPrayerCreated,
+  consumeStreamTicket,
+  issueStreamTicket,
+  openPrayerStream,
+} from "./prayer-stream.service";
 import { escapeHtml } from "../../shared/utils/escape-html";
 import { logger } from "../../shared/logger/logger";
 
 const router = Router();
 
+const PRAYER_STATUSES = Object.values(PRAYER_STATUS);
+
+function isPrayerStatus(value: unknown): value is PrayerStatus {
+  return typeof value === "string" && (PRAYER_STATUSES as readonly string[]).includes(value);
+}
+
+function emptyStatusCounts(): Record<PrayerStatus, number> {
+  return Object.fromEntries(
+    PRAYER_STATUSES.map((status) => [status, 0])
+  ) as Record<PrayerStatus, number>;
+}
+
 function validatePagination(query: Record<string, unknown>) {
   const page = Math.max(1, Number(query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(query.limit) || 20));
   return { page, limit, skip: (page - 1) * limit };
+}
+
+const DEVICE_ID_PATTERN = /^[A-Za-z0-9._:-]{6,128}$/;
+
+function isValidDeviceId(value: unknown): value is string {
+  return typeof value === "string" && DEVICE_ID_PATTERN.test(value);
+}
+
+const BULK_MAX_IDS = 100;
+
+function parseBulkIds(body: unknown): string[] | null {
+  const ids = (body as { ids?: unknown })?.ids;
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > BULK_MAX_IDS) return null;
+  const normalized: string[] = [];
+  for (const id of ids) {
+    if (typeof id !== "string" || id.trim().length === 0) return null;
+    if (!normalized.includes(id)) normalized.push(id);
+  }
+  return normalized;
 }
 
 router.post("/", async (req: Request, res: Response) => {
@@ -74,6 +113,8 @@ router.post("/", async (req: Request, res: Response) => {
       }
     }
 
+    broadcastPrayerCreated({ id: entry.id, name: entry.name });
+
     res.status(201).json({
       id: entry.id,
       deviceId: entry.deviceId,
@@ -98,13 +139,23 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const { limit, skip } = validatePagination(req.query as Record<string, unknown>);
     const estado =
-      typeof req.query.estado === "string" && req.query.estado.trim().length > 0
+      typeof req.query.estado === "string" && isPrayerStatus(req.query.estado.trim())
         ? req.query.estado.trim()
         : null;
+    const search =
+      typeof req.query.search === "string" && req.query.search.trim().length > 0
+        ? req.query.search.trim()
+        : null;
 
-    const where = estado ? { estado } : {};
+    const where: Prisma.PrayerRequestWhereInput = {};
+    if (estado) {
+      where.estado = estado;
+    }
+    if (search) {
+      where.OR = [{ name: { contains: search } }, { request: { contains: search } }];
+    }
 
-    const [rows, total] = await Promise.all([
+    const [rows, total, grouped, unreadCount] = await Promise.all([
       prisma.prayerRequest.findMany({
         where,
         orderBy: { createdAt: "desc" },
@@ -112,13 +163,24 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
         skip,
       }),
       prisma.prayerRequest.count({ where }),
+      prisma.prayerRequest.groupBy({ by: ["estado"], _count: { _all: true } }),
+      prisma.prayerRequest.count({ where: { readAt: null } }),
     ]);
+
+    const counts = emptyStatusCounts();
+    for (const group of grouped) {
+      if (isPrayerStatus(group.estado)) {
+        counts[group.estado] = group._count._all;
+      }
+    }
 
     res.json({
       rows,
       total,
       page: Math.floor(skip / limit) + 1,
       totalPages: Math.ceil(total / limit),
+      counts,
+      unreadCount,
     });
   } catch (err) {
     logger.error("PrayerRoutes", "Error fetching prayer requests", {
@@ -128,11 +190,136 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+// Bulk operations must be registered before "/:id" style routes so that
+// "bulk" is never captured as an :id or :deviceId parameter.
+router.post("/bulk/read", requireAuth, async (req: Request, res: Response) => {
+  const ids = parseBulkIds(req.body);
+  if (!ids) {
+    res.status(400).json({ error: "Lista de ids invalida" });
+    return;
+  }
+
+  try {
+    const result = await prisma.prayerRequest.updateMany({
+      where: { id: { in: ids }, readAt: null },
+      data: { readAt: new Date() },
+    });
+    res.json({ count: result.count });
+  } catch (err) {
+    logger.error("PrayerRoutes", "Error bulk marking prayers as read", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ error: "Error al marcar como leidas" });
+  }
+});
+
+router.post("/bulk/status", requireAuth, async (req: Request, res: Response) => {
+  const ids = parseBulkIds(req.body);
+  if (!ids) {
+    res.status(400).json({ error: "Lista de ids invalida" });
+    return;
+  }
+
+  const { estado } = req.body as { estado?: unknown };
+  if (!isPrayerStatus(estado)) {
+    res.status(400).json({ error: "Estado invalido" });
+    return;
+  }
+
+  try {
+    const rows = await prisma.prayerRequest.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, estado: true, answeredAt: true },
+    });
+
+    // Mirror the single-update rules: first transition to RESPONDIDA stamps
+    // answeredAt; leaving RESPONDIDA clears it.
+    const stampIds: string[] = [];
+    const clearIds: string[] = [];
+    for (const row of rows) {
+      if (estado === "RESPONDIDA") {
+        if (!row.answeredAt) stampIds.push(row.id);
+      } else if (row.estado === "RESPONDIDA" && row.answeredAt) {
+        clearIds.push(row.id);
+      }
+    }
+
+    let count = 0;
+    if (stampIds.length > 0) {
+      const result = await prisma.prayerRequest.updateMany({
+        where: { id: { in: stampIds } },
+        data: { estado, answeredAt: new Date() },
+      });
+      count += result.count;
+    }
+    if (clearIds.length > 0) {
+      const result = await prisma.prayerRequest.updateMany({
+        where: { id: { in: clearIds } },
+        data: { estado, answeredAt: null },
+      });
+      count += result.count;
+    }
+
+    const adjusted = new Set([...stampIds, ...clearIds]);
+    const plainIds = ids.filter((id) => !adjusted.has(id));
+    if (plainIds.length > 0) {
+      const result = await prisma.prayerRequest.updateMany({
+        where: { id: { in: plainIds } },
+        data: { estado },
+      });
+      count += result.count;
+    }
+
+    res.json({ count });
+  } catch (err) {
+    logger.error("PrayerRoutes", "Error bulk updating prayer status", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ error: "Error al actualizar los estados" });
+  }
+});
+
+router.post("/bulk/delete", requireAuth, async (req: Request, res: Response) => {
+  const ids = parseBulkIds(req.body);
+  if (!ids) {
+    res.status(400).json({ error: "Lista de ids invalida" });
+    return;
+  }
+
+  try {
+    const result = await prisma.prayerRequest.deleteMany({
+      where: { id: { in: ids } },
+    });
+    res.json({ count: result.count });
+  } catch (err) {
+    logger.error("PrayerRoutes", "Error bulk deleting prayers", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ error: "Error al eliminar las peticiones" });
+  }
+});
+
+// Live feed for the admin panel: a short-lived ticket (issued to an
+// authenticated session) authorizes the EventSource connection, since
+// EventSource cannot send an Authorization header.
+router.post("/events/ticket", requireAuth, (_req: Request, res: Response) => {
+  res.json(issueStreamTicket());
+});
+
+router.get("/stream", (req: Request, res: Response) => {
+  const ticket = typeof req.query.ticket === "string" ? req.query.ticket : null;
+  if (!consumeStreamTicket(ticket)) {
+    res.status(401).json({ error: "Ticket invalido o expirado" });
+    return;
+  }
+  openPrayerStream(req, res);
+});
+
 router.get("/my/:deviceId", async (req: Request, res: Response) => {
   const { deviceId } = req.params;
 
-  if (!deviceId || typeof deviceId !== "string") {
-    res.status(400).json({ error: "deviceId es obligatorio" });
+  if (!isValidDeviceId(deviceId)) {
+    res.status(400).json({ error: "deviceId invalido" });
     return;
   }
 
@@ -151,7 +338,7 @@ router.get("/my/:deviceId", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", requireAuth, async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
@@ -175,43 +362,87 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 router.put("/:id", requireAuth, async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { estado, respuesta } = req.body;
+  const { estado, respuesta, name, request } = req.body;
 
   if (!id || typeof id !== "string") {
     res.status(400).json({ error: "ID es obligatorio" });
     return;
   }
 
-  const updateData: Record<string, unknown> = {};
-  if (estado && typeof estado === "string") {
-    updateData.estado = estado;
+  if (estado !== undefined && !isPrayerStatus(estado)) {
+    res.status(400).json({ error: "Estado invalido" });
+    return;
   }
-  if (respuesta !== undefined && typeof respuesta === "string") {
-    updateData.respuesta = respuesta;
+  if (respuesta !== undefined && typeof respuesta !== "string") {
+    res.status(400).json({ error: "La respuesta debe ser texto" });
+    return;
   }
-
-  if (estado === "RESPONDIDA" && respuesta) {
-    updateData.answeredAt = new Date();
+  if (name !== undefined && (typeof name !== "string" || name.trim().length === 0)) {
+    res.status(400).json({ error: "El nombre no puede quedar vacio" });
+    return;
   }
-
-  if (Object.keys(updateData).length === 0) {
-    res.status(400).json({ error: "No hay campos para actualizar" });
+  if (request !== undefined && (typeof request !== "string" || request.trim().length === 0)) {
+    res.status(400).json({ error: "La peticion no puede quedar vacia" });
     return;
   }
 
   try {
+    const current = await prisma.prayerRequest.findUnique({
+      where: { id },
+    });
+
+    if (!current) {
+      res.status(404).json({ error: "Peticion no encontrada" });
+      return;
+    }
+
+    const updateData: Record<string, unknown> = {};
+    let nextRespuesta: string | null | undefined;
+    if (estado !== undefined) {
+      updateData.estado = estado;
+      if (estado === "RESPONDIDA" && !current.answeredAt) {
+        updateData.answeredAt = new Date();
+      }
+      if (estado !== "RESPONDIDA" && current.answeredAt) {
+        updateData.answeredAt = null;
+      }
+    }
+    if (respuesta !== undefined) {
+      const trimmedRespuesta = respuesta.trim();
+      nextRespuesta = trimmedRespuesta.length > 0 ? trimmedRespuesta : null;
+      updateData.respuesta = nextRespuesta;
+    }
+    if (name !== undefined) {
+      updateData.name = name.trim();
+    }
+    if (request !== undefined) {
+      updateData.request = request.trim();
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      res.status(400).json({ error: "No hay campos para actualizar" });
+      return;
+    }
+
     const entry = await prisma.prayerRequest.update({
-      where: { id: String(id) },
+      where: { id },
       data: updateData,
     });
 
-    if (entry.respuesta && entry.deviceId) {
+    // Notify the device only when the response text itself changed, so plain
+    // edits to name/request/estado never trigger a duplicate push.
+    if (
+      nextRespuesta !== undefined &&
+      nextRespuesta !== null &&
+      nextRespuesta !== current.respuesta &&
+      entry.deviceId
+    ) {
       const device = await prisma.device.findUnique({
         where: { deviceId: entry.deviceId },
       });
 
       if (device?.fcmToken) {
-        sendPrayerResponseNotification(device.fcmToken, entry.id, entry.respuesta).catch(
+        sendPrayerResponseNotification(device.fcmToken, entry.id, nextRespuesta).catch(
           (err) => {
             logger.error("PrayerRoutes", "Failed to send push notification", {
               error: err instanceof Error ? err.message : String(err),
@@ -234,11 +465,6 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
       updatedAt: entry.updatedAt,
     });
   } catch (err) {
-    const error = err as { code?: string };
-    if (error.code === "P2025") {
-      res.status(404).json({ error: "Peticion no encontrada" });
-      return;
-    }
     logger.error("PrayerRoutes", "Error updating prayer request", {
       error: err instanceof Error ? err.message : String(err),
     });
@@ -267,7 +493,7 @@ router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/:id/read", async (req: Request, res: Response) => {
+router.post("/:id/read", requireAuth, async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {

@@ -29,6 +29,28 @@ export interface PrayerRequestPayload {
 export interface PrayerRequestUpdatePayload {
   estado?: PrayerStatus;
   respuesta?: string;
+  name?: string;
+  request?: string;
+}
+
+export type PrayerStatusCounts = Record<PrayerStatus, number>;
+
+export interface PrayerListResponse {
+  rows: PrayerRequest[];
+  total: number;
+  page: number;
+  totalPages: number;
+  counts: PrayerStatusCounts;
+  unreadCount: number;
+}
+
+export interface PrayerCreatedEvent {
+  id: string;
+  name: string;
+}
+
+export interface PrayerBulkResult {
+  count: number;
 }
 
 export interface DeviceInfo {
