@@ -12,6 +12,9 @@ import type {
   MediaFile,
   BibleReadingHistoryEntry,
   NotificationStats,
+  PrayerListResponse,
+  PrayerRequestUpdatePayload,
+  PrayerBulkResult,
   PlaylistDetail,
   PlaylistOrderEntry,
   PlaylistRotation,
@@ -263,8 +266,8 @@ export function useAdminApi() {
 
     // ── Peticiones de oración ──────────────────────────────────
     const getPrayerRequests = useCallback(
-      (params: { page?: number; limit?: number; estado?: string } = {}) =>
-        request<{ rows: unknown[]; total: number; page: number; totalPages: number }>({
+      (params: { page?: number; limit?: number; estado?: string; search?: string } = {}) =>
+        request<PrayerListResponse>({
           url: '/api/prayer',
           params,
         }),
@@ -272,7 +275,7 @@ export function useAdminApi() {
     );
 
     const updatePrayerRequest = useCallback(
-      (id: string, data: { estado?: string; respuesta?: string }) =>
+      (id: string, data: PrayerRequestUpdatePayload) =>
         request({
           method: 'PUT',
           url: `/api/prayer/${id}`,
@@ -295,6 +298,45 @@ export function useAdminApi() {
         request({
           method: 'DELETE',
           url: `/api/prayer/${id}`,
+        }),
+      [request]
+    );
+
+    const bulkMarkPrayerRequestsRead = useCallback(
+      (ids: string[]) =>
+        request<PrayerBulkResult>({
+          method: 'POST',
+          url: '/api/prayer/bulk/read',
+          data: { ids },
+        }),
+      [request]
+    );
+
+    const bulkUpdatePrayerRequestStatus = useCallback(
+      (ids: string[], estado: string) =>
+        request<PrayerBulkResult>({
+          method: 'POST',
+          url: '/api/prayer/bulk/status',
+          data: { ids, estado },
+        }),
+      [request]
+    );
+
+    const bulkDeletePrayerRequests = useCallback(
+      (ids: string[]) =>
+        request<PrayerBulkResult>({
+          method: 'POST',
+          url: '/api/prayer/bulk/delete',
+          data: { ids },
+        }),
+      [request]
+    );
+
+    const createPrayerStreamTicket = useCallback(
+      () =>
+        request<{ ticket: string; expiresInMs: number }>({
+          method: 'POST',
+          url: '/api/prayer/events/ticket',
         }),
       [request]
     );
@@ -520,6 +562,10 @@ export function useAdminApi() {
     updatePrayerRequest,
     markPrayerRequestRead,
     deletePrayerRequest,
+    bulkMarkPrayerRequestsRead,
+    bulkUpdatePrayerRequestStatus,
+    bulkDeletePrayerRequests,
+    createPrayerStreamTicket,
     getStreamers,
     createStreamer,
     deleteStreamer,
