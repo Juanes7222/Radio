@@ -98,6 +98,49 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* ─── Admin console theme ───────────────────────────────────────────
+     Scoped identity for /admin routes: "studio at night" surfaces,
+     signal-amber accent, and a tally red reserved exclusively for the
+     live/on-air state. The public site keeps its own :root tokens. */
+  .admin-theme {
+    /* Surfaces */
+    --background: 224 30% 4.5%;
+    --foreground: 210 20% 96%;
+    --card: 222 22% 9%;
+    --card-foreground: 210 20% 96%;
+    --popover: 224 26% 6%;
+    --popover-foreground: 210 20% 96%;
+
+    /* Signal amber */
+    --primary: 38 95% 62%;
+    --primary-foreground: 224 30% 7%;
+    --secondary: 222 22% 12%;
+    --secondary-foreground: 38 95% 70%;
+    --muted: 222 22% 12%;
+    --muted-foreground: 218 14% 70%;
+    --accent: 222 22% 13%;
+    --accent-foreground: 210 20% 96%;
+
+    /* Destructive, tuned for dark-surface text contrast */
+    --destructive: 358 70% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders and outlines */
+    --border: 220 13% 17%;
+    --input: 220 13% 19%;
+    --ring: 38 95% 62%;
+
+    --radius: 0.5rem;
+
+    /* Extended semantic scale (mapped in tailwind.config.js) */
+    --surface-sunken: 225 26% 6.5%;
+    --faint: 218 12% 57%;
+    --success: 152 48% 52%;
+    --warning: 36 92% 56%;
+    --info: 199 85% 62%;
+    --tally: 353 75% 55%;
+  }
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────── */
@@ -195,6 +238,14 @@ button,
   min-width: 44px;
 }
 
+/* The admin console is pointer/keyboard-first: let component size
+   utilities govern button dimensions instead of the mobile floor. */
+.admin-theme button,
+.admin-theme [role='button'] {
+  min-height: 0;
+  min-width: 0;
+}
+
 /* ─── Reduced motion ────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
@@ -222,6 +273,24 @@ button,
 
 .animate-pulse-ring {
   animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ─── On-air tally light (admin console) ────────────────────────────── */
+
+@keyframes tally-blink {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 hsl(var(--tally) / 0.5);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 10px 2px hsl(var(--tally) / 0.3);
+  }
+}
+
+.animate-tally {
+  animation: tally-blink 2s ease-in-out infinite;
 }
 
 /* ─── Glass effect ──────────────────────────────────────────────────── */
