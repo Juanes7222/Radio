@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Smartphone,
   RefreshCw,
@@ -13,52 +14,29 @@ import {
   Check,
   Copy,
   CheckCircle2,
+  Radio,
+  Signal,
+  Users,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AdminPagination } from '@/components/ui-custom/AdminPagination';
 import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import { toast } from 'sonner';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { formatDateTime, timeAgo } from '@/lib/format';
-import type {
-  AdminDevice,
-  AdminDeviceList,
-  NotificationStats,
-  PushAudience,
-  PushCampaignInput,
-  PushNotificationLog,
-} from '@radio/types';
+import type { AdminDevice, AdminDeviceList, NotificationStats, PushAudience, PushCampaignInput, PushNotificationLog } from '@radio/types';
 
-const PLATFORM_CONFIG: Record<string, { label: string; color: string }> = {
-  android: { label: 'Android', color: 'bg-green-500/10 text-green-500 border-green-500/20' },
-  ios: { label: 'iOS', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
-  web: { label: 'Web', color: 'bg-slate-500/10 text-slate-400 border-slate-500/20' },
+const PLATFORM_CONFIG: Record<string, { label: string; chip: string }> = {
+  android: { label: 'Android', chip: 'bg-success/10 text-success border-success/20' },
+  ios: { label: 'iOS', chip: 'bg-info/10 text-info border-info/20' },
+  web: { label: 'Web', chip: 'bg-muted text-muted-foreground border-border' },
 };
 
 const AUDIENCE_LABELS: Record<PushAudience, string> = {
@@ -71,34 +49,27 @@ const AUDIENCE_LABELS: Record<PushAudience, string> = {
 };
 
 function PlatformBadge({ platform }: { platform: string | null }) {
-  if (!platform) return <span className="text-sm text-slate-500">—</span>;
-  const config = PLATFORM_CONFIG[platform.toLowerCase()] ?? {
-    label: platform,
-    color: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
-  };
+  if (!platform) return <span className="font-mono text-xs text-faint">—</span>;
+  const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { label: platform, chip: 'bg-muted text-muted-foreground border-border' };
   return (
-    <Badge variant="outline" className={`text-xs border ${config.color}`}>
-      {config.label}
+    <Badge variant="outline" className={`rounded-full border px-2 py-0 text-xs font-medium ${cfg.chip}`}>
+      {cfg.label}
     </Badge>
   );
 }
 
 function SubscriptionChips({ subscriptions }: { subscriptions: string[] }) {
-  if (subscriptions.length === 0) return <span className="text-sm text-slate-500">Ninguna</span>;
+  if (subscriptions.length === 0) return <span className="font-mono text-xs text-faint">Ninguna</span>;
   const visible = subscriptions.slice(0, 3);
   const extra = subscriptions.length - visible.length;
   return (
     <div className="flex flex-wrap gap-1">
       {visible.map((title) => (
-        <span
-          key={title}
-          className="px-2 py-0.5 text-xs rounded bg-indigo-500/10 text-indigo-300 max-w-40 truncate"
-          title={title}
-        >
+        <span key={title} title={title} className="max-w-40 truncate rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary ring-1 ring-primary/15">
           {title}
         </span>
       ))}
-      {extra > 0 && <span className="px-2 py-0.5 text-xs rounded bg-slate-700 text-slate-300">+{extra}</span>}
+      {extra > 0 && <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground ring-1 ring-border">+{extra}</span>}
     </div>
   );
 }
@@ -117,7 +88,6 @@ function ZoneEditor({
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(zoneId ?? '');
   const [saving, setSaving] = useState(false);
-
   const save = async () => {
     const next = value.trim();
     setSaving(true);
@@ -130,7 +100,6 @@ function ZoneEditor({
       setSaving(false);
     }
   };
-
   if (!editing) {
     return (
       <button
@@ -138,15 +107,14 @@ function ZoneEditor({
           setValue(zoneId ?? '');
           setEditing(true);
         }}
-        className="flex items-center gap-1 text-sm text-slate-300 hover:text-white"
+        className="inline-flex items-center gap-1.5 rounded-full border border-transparent px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground active:scale-[0.97]"
         title={zoneId ?? 'Asignar zona'}
       >
-        <MapPin className="w-3.5 h-3.5 text-slate-500" />
-        {zoneId || <span className="text-slate-500">Asignar</span>}
+        <MapPin className="h-3 w-3 text-faint" />
+        {zoneId || <span className="text-faint">Asignar</span>}
       </button>
     );
   }
-
   return (
     <div className="flex items-center gap-1">
       <Input
@@ -158,20 +126,15 @@ function ZoneEditor({
         }}
         list="device-zones"
         placeholder="Zona"
-        className="h-7 w-28 bg-slate-900 border-slate-600 text-xs"
+        className="h-7 w-28 border-border bg-sunken text-xs focus-visible:ring-primary/20"
         autoFocus
       />
-      <button
-        onClick={() => void save()}
-        disabled={saving}
-        className="p-1 text-green-400 hover:text-green-300 disabled:opacity-50"
-        title="Guardar"
-      >
-        <Check className="w-3.5 h-3.5" />
+      <button onClick={() => void save()} disabled={saving} className="grid h-7 w-7 place-items-center rounded-full bg-success/10 text-success hover:bg-success/15 disabled:opacity-50 transition-colors" title="Guardar">
+        <Check className="h-3.5 w-3.5" />
       </button>
       <datalist id="device-zones">
-        {zones.map((zone) => (
-          <option key={zone} value={zone} />
+        {zones.map((z) => (
+          <option key={z} value={z} />
         ))}
       </datalist>
     </div>
@@ -181,8 +144,8 @@ function ZoneEditor({
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 px-3 py-2.5">
-      <span className="text-xs shrink-0 text-slate-400 pt-0.5">{label}</span>
-      <div className="text-xs text-right text-slate-200 min-w-0">{value}</div>
+      <span className="shrink-0 pt-0.5 font-mono text-xs text-faint">{label}</span>
+      <div className="min-w-0 text-right text-xs text-foreground/90">{value}</div>
     </div>
   );
 }
@@ -196,72 +159,34 @@ function CopyIdButton({ value }: { value: string }) {
     });
   };
   return (
-    <button onClick={handleCopy} className="text-slate-500 hover:text-primary transition-colors" title="Copiar ID">
-      {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+    <button onClick={handleCopy} className="text-faint hover:text-primary transition-colors" title="Copiar ID">
+      {copied ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
     </button>
   );
 }
 
-function DeviceDetailDialog({
-  device,
-  onClose,
-}: {
-  device: AdminDevice | null;
-  onClose: () => void;
-}) {
+function DeviceDetailDialog({ device, onClose }: { device: AdminDevice | null; onClose: () => void }) {
   return (
     <Dialog open={device !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="border-border bg-card">
         <DialogHeader>
           <DialogTitle>Detalle del dispositivo</DialogTitle>
           <DialogDescription>Información completa del dispositivo registrado.</DialogDescription>
         </DialogHeader>
         {device && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-slate-700 bg-slate-900 divide-y divide-slate-700/60">
-              <DetailRow
-                label="ID de dispositivo"
-                value={
-                  <span className="flex items-center justify-end gap-1.5 break-all font-mono">
-                    {device.deviceId}
-                    <CopyIdButton value={device.deviceId} />
-                  </span>
-                }
-              />
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-sunken">
+              <DetailRow label="ID de dispositivo" value={<span className="flex items-center justify-end gap-1.5 break-all font-mono">{device.deviceId}<CopyIdButton value={device.deviceId} /></span>} />
               <DetailRow label="Plataforma" value={<PlatformBadge platform={device.platform} />} />
               <DetailRow label="Versión de la app" value={device.appVersion ?? '—'} />
               <DetailRow label="Zona asignada" value={device.zoneId ?? 'Sin asignar'} />
-              <DetailRow
-                label="Token FCM"
-                value={
-                  <Badge
-                    variant="outline"
-                    className={`text-xs border ${
-                      device.hasFcmToken
-                        ? 'bg-green-500/10 text-green-500 border-green-500/20'
-                        : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
-                    }`}
-                  >
-                    {device.hasFcmToken ? 'Registrado' : 'No registrado'}
-                  </Badge>
-                }
-              />
+              <DetailRow label="Token FCM" value={<Badge variant="outline" className={`rounded-full border text-xs ${device.hasFcmToken ? 'bg-success/10 text-success border-success/20' : 'bg-muted text-muted-foreground border-border'}`}>{device.hasFcmToken ? 'Registrado' : 'No registrado'}</Badge>} />
               <DetailRow label="Registrado" value={formatDateTime(device.createdAt)} />
               <DetailRow label="Última actividad" value={formatDateTime(device.lastSeen)} />
             </div>
             <div>
-              <p className="text-xs font-medium text-slate-400 mb-1.5">Suscripciones a programas</p>
-              {device.subscriptions.length === 0 ? (
-                <p className="text-sm text-slate-500">Ninguna</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {device.subscriptions.map((title) => (
-                    <span key={title} className="px-2 py-0.5 text-xs rounded bg-indigo-500/10 text-indigo-300">
-                      {title}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <p className="mb-1.5 font-mono text-xs font-medium text-faint">Suscripciones a programas</p>
+              {device.subscriptions.length === 0 ? <p className="text-sm text-faint">Ninguna</p> : <div className="flex flex-wrap gap-1.5">{device.subscriptions.map((t) => <span key={t} className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary ring-1 ring-primary/15">{t}</span>)}</div>}
             </div>
           </div>
         )}
@@ -270,30 +195,24 @@ function DeviceDetailDialog({
   );
 }
 
-function PushLogDetailDialog({
-  log,
-  onClose,
-}: {
-  log: PushNotificationLog | null;
-  onClose: () => void;
-}) {
+function PushLogDetailDialog({ log, onClose }: { log: PushNotificationLog | null; onClose: () => void }) {
   const filters = log?.filters;
   return (
     <Dialog open={log !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="border-border bg-card">
         <DialogHeader>
           <DialogTitle>Detalle del envío</DialogTitle>
           <DialogDescription>Información completa de la notificación enviada.</DialogDescription>
         </DialogHeader>
         {log && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-slate-700 bg-slate-900 divide-y divide-slate-700/60">
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-sunken">
               <DetailRow label="Fecha" value={formatDateTime(log.createdAt)} />
               <DetailRow label="Audiencia" value={AUDIENCE_LABELS[log.audience] ?? log.audience} />
               <DetailRow label="Destinatarios" value={String(log.targetedCount)} />
-              <DetailRow label="Enviadas" value={<span className="text-green-400">{log.sentCount}</span>} />
-              <DetailRow label="Fallidas" value={<span className="text-red-400">{log.failedCount}</span>} />
-              {log.invalidTokens > 0 && <DetailRow label="Tokens inválidos" value={<span className="text-red-400">{log.invalidTokens}</span>} />}
+              <DetailRow label="Enviadas" value={<span className="text-success font-medium">{log.sentCount}</span>} />
+              <DetailRow label="Fallidas" value={<span className="text-destructive font-medium">{log.failedCount}</span>} />
+              {log.invalidTokens > 0 && <DetailRow label="Tokens inválidos" value={<span className="text-destructive">{log.invalidTokens}</span>} />}
               {filters && (
                 <>
                   {filters.zoneId && <DetailRow label="Zona" value={filters.zoneId} />}
@@ -305,10 +224,8 @@ function PushLogDetailDialog({
               )}
             </div>
             <div className="space-y-1.5">
-              <p className="text-sm font-medium text-slate-200">{log.title}</p>
-              <p className="text-sm text-slate-400 whitespace-pre-wrap bg-slate-900 border border-slate-700 rounded-lg p-3">
-                {log.body}
-              </p>
+              <p className="text-sm font-medium">{log.title}</p>
+              <p className="whitespace-pre-wrap rounded-xl border border-border bg-sunken p-3 text-sm leading-relaxed text-muted-foreground">{log.body}</p>
             </div>
           </div>
         )}
@@ -317,62 +234,53 @@ function PushLogDetailDialog({
   );
 }
 
-function PushHistoryTable({
-  logs,
-  onSelect,
-}: {
-  logs: PushNotificationLog[];
-  onSelect: (log: PushNotificationLog) => void;
-}) {
-  if (logs.length === 0) {
-    return <p className="py-8 text-center text-sm text-slate-400">Aún no se han enviado notificaciones personalizadas.</p>;
-  }
-
+function PushHistoryTable({ logs, onSelect }: { logs: PushNotificationLog[]; onSelect: (log: PushNotificationLog) => void }) {
+  const shouldReduceMotion = useReducedMotion();
+  if (logs.length === 0) return <p className="py-10 text-center text-sm text-faint">Aún no se han enviado notificaciones personalizadas.</p>;
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Fecha</TableHead>
-          <TableHead>Título</TableHead>
-          <TableHead>Audiencia</TableHead>
-          <TableHead>Destinatarios</TableHead>
-          <TableHead>Enviadas</TableHead>
-          <TableHead>Fallidas</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {logs.map((log) => (
-          <TableRow
-            key={log.id}
-            className="cursor-pointer"
-            onClick={() => onSelect(log)}
-          >
-            <TableCell className="text-slate-400">{formatDateTime(log.createdAt)}</TableCell>
-            <TableCell>
-              <p className="text-slate-300 font-medium max-w-52 truncate" title={log.title}>{log.title}</p>
-              <p className="text-xs text-slate-500 max-w-52 truncate" title={log.body}>{log.body}</p>
-            </TableCell>
-            <TableCell className="text-slate-400">{AUDIENCE_LABELS[log.audience] ?? log.audience}</TableCell>
-            <TableCell className="text-slate-300">{log.targetedCount}</TableCell>
-            <TableCell className="text-green-400">{log.sentCount}</TableCell>
-            <TableCell className="text-red-400">{log.failedCount}</TableCell>
+    <div className="overflow-hidden rounded-xl border border-border">
+      <Table>
+        <TableHeader className="bg-sunken">
+          <TableRow className="border-border hover:bg-sunken">
+            <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">Fecha</TableHead>
+            <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">Título</TableHead>
+            <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">Audiencia</TableHead>
+            <TableHead className="text-right font-mono text-[11px] uppercase tracking-widest text-faint">Env.</TableHead>
+            <TableHead className="text-right font-mono text-[11px] uppercase tracking-widest text-faint">Fallos</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          <AnimatePresence initial={false}>
+            {logs.map((log, idx) => (
+              <motion.tr
+                key={log.id}
+                layout={!shouldReduceMotion}
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={shouldReduceMotion ? { duration: 0.12 } : { delay: Math.min(idx * 0.025, 0.12), duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+                onClick={() => onSelect(log)}
+                className="cursor-pointer border-border transition-colors hover:bg-accent/50 active:bg-accent"
+              >
+                <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums text-faint">{formatDateTime(log.createdAt)}</TableCell>
+                <TableCell className="max-w-[280px]">
+                  <p className="truncate text-sm font-medium leading-tight" title={log.title}>{log.title}</p>
+                  <p className="truncate text-xs text-muted-foreground" title={log.body}>{log.body}</p>
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">{AUDIENCE_LABELS[log.audience] ?? log.audience}</TableCell>
+                <TableCell className="text-right font-mono text-sm tabular-nums text-success">{log.sentCount}<span className="text-faint">/{log.targetedCount}</span></TableCell>
+                <TableCell className="text-right font-mono text-sm tabular-nums text-destructive">{log.failedCount}</TableCell>
+              </motion.tr>
+            ))}
+          </AnimatePresence>
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
 export default function AdminDevices() {
-  const {
-    getDevices,
-    getNotificationStats,
-    getDeviceZones,
-    assignDeviceZone,
-    previewPushCampaign,
-    sendPushCampaign,
-    getPushNotificationLogs,
-  } = useAdminApi();
+  const { getDevices, getNotificationStats, getDeviceZones, assignDeviceZone, previewPushCampaign, sendPushCampaign, getPushNotificationLogs } = useAdminApi();
+  const shouldReduceMotion = useReducedMotion();
 
   const [data, setData] = useState<AdminDeviceList | null>(null);
   const [stats, setStats] = useState<NotificationStats | null>(null);
@@ -381,11 +289,7 @@ export default function AdminDevices() {
   const [page, setPage] = useState(1);
   const [program, setProgram] = useState('');
   const [query, setQuery] = useState('');
-
-  // Zonas conocidas (para asignación y filtro de envío)
   const [zones, setZones] = useState<string[]>([]);
-
-  // Formulario de envío
   const [campaignTitle, setCampaignTitle] = useState('');
   const [campaignBody, setCampaignBody] = useState('');
   const [campaignAudience, setCampaignAudience] = useState<PushAudience>('all');
@@ -397,154 +301,56 @@ export default function AdminDevices() {
   const [preview, setPreview] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
   const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
-
-  // Historial
   const [logs, setLogs] = useState<PushNotificationLog[]>([]);
   const [logsPage, setLogsPage] = useState(1);
   const [logsTotalPages, setLogsTotalPages] = useState(1);
   const [logsLoading, setLogsLoading] = useState(true);
-
-  // Modales de detalle
   const [selectedDevice, setSelectedDevice] = useState<AdminDevice | null>(null);
   const [selectedLog, setSelectedLog] = useState<PushNotificationLog | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const result = await getDevices({ page, limit: 20, program: program || undefined }).then(
-        (res) => ({ ok: true as const, res }),
-        (): { ok: false; res: null } => ({ ok: false, res: null })
-      );
-      if (result.ok) {
-        setData(result.res);
-        setError(null);
-      } else {
-        setError('Error al obtener los dispositivos.');
-      }
-    } finally {
-      setLoading(false);
-    }
+      const result = await getDevices({ page, limit: 20, program: program || undefined }).then((res) => ({ ok: true as const, res }), (): { ok: false; res: null } => ({ ok: false, res: null }));
+      if (result.ok) { setData(result.res); setError(null); } else setError('Error al obtener los dispositivos.');
+    } finally { setLoading(false); }
   }, [getDevices, page, program]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getNotificationStats()
-      .then((res) => {
-        if (!cancelled) setStats(res);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [getNotificationStats]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getDeviceZones()
-      .then((res) => {
-        if (!cancelled) setZones(res.zones);
-      })
-      .catch(() => {
-        // Las zonas se cargan de forma silenciosa; el formulario sigue usable.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [getDeviceZones]);
-
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { let c = false; getNotificationStats().then((r) => { if (!c) setStats(r); }).catch(() => {}); return () => { c = true; }; }, [getNotificationStats]);
+  useEffect(() => { let c = false; getDeviceZones().then((r) => { if (!c) setZones(r.zones); }).catch(() => {}); return () => { c = true; }; }, [getDeviceZones]);
   const loadLogs = useCallback(async () => {
     try {
-      const res = await getPushNotificationLogs({ page: logsPage, limit: 10 }).then(
-        (data) => ({ ok: true as const, data }),
-        (): { ok: false; data: null } => ({ ok: false, data: null })
-      );
-      if (res.ok) {
-        setLogs(res.data.rows);
-        setLogsTotalPages(Math.max(1, res.data.totalPages));
-      }
-    } finally {
-      setLogsLoading(false);
-    }
+      const res = await getPushNotificationLogs({ page: logsPage, limit: 10 }).then((d) => ({ ok: true as const, data: d }), (): { ok: false; data: null } => ({ ok: false, data: null }));
+      if (res.ok) { setLogs(res.data.rows); setLogsTotalPages(Math.max(1, res.data.totalPages)); }
+    } finally { setLogsLoading(false); }
   }, [getPushNotificationLogs, logsPage]);
+  useEffect(() => { void loadLogs(); }, [loadLogs]);
 
-  useEffect(() => {
-    void loadLogs();
-  }, [loadLogs]);
-
-  const handleRefresh = () => {
-    setLoading(true);
-    void load();
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setProgram(query.trim());
-    setPage(1);
-  };
-
-  const clearSearch = () => {
-    setQuery('');
-    setProgram('');
-    setPage(1);
-  };
-
+  const handleRefresh = () => { setLoading(true); void load(); };
+  const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setProgram(query.trim()); setPage(1); };
+  const clearSearch = () => { setQuery(''); setProgram(''); setPage(1); };
   const totalPages = data?.totalPages ?? 0;
 
-  const handleAssignZone = useCallback(
-    async (deviceId: string, zoneId: string | null) => {
-      await assignDeviceZone(deviceId, zoneId);
-      // Refresca la fila localmente sin recargar toda la página.
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              rows: prev.rows.map((device) =>
-                device.deviceId === deviceId ? { ...device, zoneId } : device
-              ),
-            }
-          : prev
-      );
-      setZones((prev) => (zoneId && !prev.includes(zoneId) ? [...prev, zoneId] : prev));
-    },
-    [assignDeviceZone]
-  );
+  const handleAssignZone = useCallback(async (deviceId: string, zoneId: string | null) => {
+    await assignDeviceZone(deviceId, zoneId);
+    setData((prev) => prev ? { ...prev, rows: prev.rows.map((d) => d.deviceId === deviceId ? { ...d, zoneId } : d) } : prev);
+    setZones((prev) => (zoneId && !prev.includes(zoneId) ? [...prev, zoneId] : prev));
+  }, [assignDeviceZone]);
 
-  const toggleDevice = (deviceId: string) => {
-    setSelectedDevices((prev) => {
-      const next = new Set(prev);
-      if (next.has(deviceId)) {
-        next.delete(deviceId);
-      } else {
-        next.add(deviceId);
-      }
-      return next;
-    });
-  };
-
+  const toggleDevice = (id: string) => setSelectedDevices((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const toggleAllVisible = () => {
     if (!data) return;
-    const visibleIds = data.rows.map((device) => device.deviceId);
+    const ids = data.rows.map((d) => d.deviceId);
     setSelectedDevices((prev) => {
-      const allSelected = visibleIds.every((id) => prev.has(id));
-      const next = new Set(prev);
-      for (const id of visibleIds) {
-        if (allSelected) {
-          next.delete(id);
-        } else {
-          next.add(id);
-        }
-      }
-      return next;
+      const all = ids.every((id) => prev.has(id));
+      const n = new Set(prev);
+      for (const id of ids) if (all) n.delete(id); else n.add(id);
+      return n;
     });
   };
 
   const buildCampaign = (): PushCampaignInput => ({
-    title: campaignTitle.trim(),
-    body: campaignBody.trim(),
-    audience: campaignAudience,
+    title: campaignTitle.trim(), body: campaignBody.trim(), audience: campaignAudience,
     deviceIds: campaignAudience === 'devices' ? [...selectedDevices] : undefined,
     zoneId: campaignAudience === 'zone' ? campaignZone.trim() : undefined,
     platform: campaignAudience === 'platform' ? campaignPlatform : undefined,
@@ -553,433 +359,249 @@ export default function AdminDevices() {
   });
 
   const handlePreview = async () => {
-    try {
-      const res = await previewPushCampaign(buildCampaign());
-      setPreview(res.targeted);
-      toast.success(`${res.targeted} dispositivo${res.targeted !== 1 ? 's' : ''} recibiría la notificación`);
-    } catch {
-      toast.error('No se pudo previsualizar la notificación. Revisa el formulario.');
-    }
+    try { const res = await previewPushCampaign(buildCampaign()); setPreview(res.targeted); toast.success(`${res.targeted} dispositivo${res.targeted !== 1 ? 's' : ''} recibiría la notificación`); }
+    catch { toast.error('No se pudo previsualizar. Revisa el formulario.'); }
   };
-
   const handleSend = async () => {
-    setSendConfirmOpen(false);
-    setSending(true);
+    setSendConfirmOpen(false); setSending(true);
     try {
-      const result = await sendPushCampaign(buildCampaign());
-      toast.success(
-        `Enviada a ${result.sent} dispositivo${result.sent !== 1 ? 's' : ''} de ${result.targeted} objetivo${result.targeted !== 1 ? 's' : ''}`
-      );
-      if (result.failed > 0) {
-        toast.warning(`${result.failed} no se pudieron entregar (${result.invalidTokens} tokens inválidos)`);
-      }
-      setPreview(null);
-      setLogsPage(1);
-      void loadLogs();
-    } catch {
-      toast.error('Error al enviar la notificación.');
-    } finally {
-      setSending(false);
-    }
+      const r = await sendPushCampaign(buildCampaign());
+      toast.success(`Enviada a ${r.sent} de ${r.targeted} objetivo${r.targeted !== 1 ? 's' : ''}`);
+      if (r.failed > 0) toast.warning(`${r.failed} no entregadas (${r.invalidTokens} tokens inválidos)`);
+      setPreview(null); setLogsPage(1); void loadLogs();
+    } catch { toast.error('Error al enviar la notificación.'); } finally { setSending(false); }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Dispositivos y notificaciones</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Dispositivos registrados por la app, sus suscripciones y envío de notificaciones personalizadas.
-          </p>
+      {/* Header — torre de transmisión */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card">
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-[50px]" />
+        <div aria-hidden className="pointer-events-none absolute -left-20 -bottom-16 h-48 w-48 rounded-full bg-info/10 blur-[40px]" />
+        {/* ondas decorativas */}
+        <div aria-hidden className="pointer-events-none absolute right-10 top-1/2 hidden -translate-y-1/2 lg:block">
+          <div className="relative h-24 w-24">
+            <span className="absolute inset-0 rounded-full border border-primary/10" />
+            <span className="absolute inset-3 rounded-full border border-primary/15" />
+            <span className="absolute inset-6 rounded-full border border-primary/20" />
+            <span className="absolute left-1/2 top-1/2 grid h-7 w-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-primary text-primary-foreground"><Radio className="h-3.5 w-3.5" /></span>
+          </div>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading} className="gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
+        <div className="relative flex flex-col gap-4 p-5 sm:p-6">
+          <div>
+            <p className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-faint">Transmisión · Audiencia conectada</p>
+            <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">Dispositivos y notificaciones</h1>
+            <p className="mt-1.5 max-w-[62ch] text-sm leading-relaxed text-muted-foreground">Cada teléfono es una antena. Elige la audiencia exacta, previsualiza el alcance y deja rastro de cada envío.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-sunken px-3 py-1 font-mono text-xs tabular-nums"><Users className="h-3 w-3 text-faint" />{data ? `${data.total} registrados` : '—'}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-info/20 bg-info/10 px-3 py-1 text-xs font-medium text-info"><Signal className="h-3 w-3" />{stats ? `${stats.total7d} notificaciones / 7d` : '—'}</span>
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading} className="ml-auto gap-1.5 rounded-full border-border bg-card active:scale-[0.97] transition-transform duration-150"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />Actualizar</Button>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="border-slate-700 bg-slate-800/60">
-          <CardContent className="p-5 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-500/10">
-              <BellRing className="w-5 h-5 text-blue-400" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Notificaciones de programas (7 días)</p>
-              <p className="text-xl font-semibold">{stats ? stats.total7d : '…'}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-slate-700 bg-slate-800/60">
-          <CardContent className="p-5 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-500/10">
-              <Smartphone className="w-5 h-5 text-indigo-400" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Dispositivos registrados</p>
-              <p className="text-xl font-semibold">{data ? data.total : '…'}</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Métricas */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <motion.div initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}>
+          <Card className="overflow-hidden">
+            <CardContent className="flex items-center gap-4 p-5">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-info/10 ring-1 ring-info/15"><BellRing className="h-5 w-5 text-info" /></span>
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-widest text-faint">Notificaciones de programas · 7 días</p>
+                <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight">{stats ? stats.total7d : '…'}</p>
+              </div>
+              <span className="ml-auto hidden h-8 items-center gap-0.5 sm:flex" aria-hidden>
+                {Array.from({ length: 10 }).map((_, i) => <span key={i} className="w-1 rounded-full bg-info/20" style={{ height: `${8 + ((i * 7) % 14)}px` }} />)}
+              </span>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06, duration: 0.28, ease: [0.23, 1, 0.32, 1] }}>
+          <Card className="overflow-hidden">
+            <CardContent className="flex items-center gap-4 p-5">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 ring-1 ring-primary/15"><Smartphone className="h-5 w-5 text-primary" /></span>
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-widest text-faint">Dispositivos registrados</p>
+                <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight">{data ? data.total : '…'}</p>
+              </div>
+              <Badge variant="outline" className="ml-auto hidden rounded-full border-success/20 bg-success/10 font-mono text-xs text-success sm:inline-flex"><span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden /> En vivo</Badge>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
 
-      {/* ── Enviar notificación personalizada ─────────────────────── */}
-      <Card className="border-slate-700 bg-slate-800/60">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <BellPlus className="w-5 h-5 text-indigo-400" />
-            <CardTitle className="text-base">Enviar notificación personalizada</CardTitle>
+      {/* Enviar notificación */}
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b border-border bg-sunken/50 pb-4">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground"><BellPlus className="h-4 w-4" /></span>
+            <div>
+              <CardTitle className="text-[15px] font-semibold tracking-tight">Enviar notificación personalizada</CardTitle>
+              <p className="text-xs leading-relaxed text-muted-foreground">El mensaje llegará como push. Elige bien la audiencia — no hay deshacer.</p>
+            </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-slate-400">Título</label>
-              <Input
-                value={campaignTitle}
-                onChange={(e) => setCampaignTitle(e.target.value)}
-                placeholder="Ej: Mensaje especial de la emisora"
-                maxLength={100}
-                className="bg-slate-900 border-slate-600"
-              />
+        <CardContent className="space-y-5 p-5 sm:p-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="font-mono text-xs font-medium tracking-wide text-faint">Título · máx 100</label>
+              <Input value={campaignTitle} onChange={(e) => setCampaignTitle(e.target.value)} placeholder="Ej: Invitación especial de esta noche" maxLength={100} className="border-border bg-sunken focus-visible:ring-primary/20" />
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-slate-400">Audiencia</label>
+            <div className="space-y-1.5">
+              <label className="font-mono text-xs font-medium tracking-wide text-faint">Audiencia</label>
               <Select value={campaignAudience} onValueChange={(v) => setCampaignAudience(v as PushAudience)}>
-                <SelectTrigger className="w-full bg-slate-900 border-slate-600">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(AUDIENCE_LABELS) as PushAudience[]).map((audience) => (
-                    <SelectItem key={audience} value={audience}>
-                      {AUDIENCE_LABELS[audience]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectTrigger className="w-full border-border bg-sunken"><SelectValue /></SelectTrigger>
+                <SelectContent>{(Object.keys(AUDIENCE_LABELS) as PushAudience[]).map((a) => <SelectItem key={a} value={a}>{AUDIENCE_LABELS[a]}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-400">Mensaje</label>
-            <Textarea
-              value={campaignBody}
-              onChange={(e) => setCampaignBody(e.target.value)}
-              placeholder="Escribe el mensaje que verán los usuarios..."
-              maxLength={500}
-              rows={3}
-              className="bg-slate-900 border-slate-600"
-            />
+          <div className="space-y-1.5">
+            <label className="font-mono text-xs font-medium tracking-wide text-faint">Mensaje · máx 500</label>
+            <Textarea value={campaignBody} onChange={(e) => setCampaignBody(e.target.value)} placeholder="Escribe el mensaje que verán en la notificación…" maxLength={500} rows={3} className="border-border bg-sunken focus-visible:ring-primary/20" />
+            <p className="text-right font-mono text-xs text-faint">{campaignBody.length}/500</p>
           </div>
 
-          {/* Filtros según audiencia */}
           {campaignAudience === 'devices' && (
-            <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-3 text-sm text-slate-300">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <p>
-                  <span className="font-medium text-slate-200">{selectedDevices.size}</span> dispositivo
-                  {selectedDevices.size !== 1 ? 's' : ''} seleccionado
-                  {selectedDevices.size !== 1 ? 's' : ''}. Marca los dispositivos en la tabla de abajo.
-                </p>
-                {selectedDevices.size > 0 && (
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedDevices(new Set())} className="text-slate-400">
-                    <X className="w-3.5 h-3.5" />
-                    Limpiar
-                  </Button>
-                )}
-              </div>
+            <div className="rounded-xl border border-warning/15 bg-warning/5 px-4 py-3">
+              <p className="flex flex-wrap items-center gap-2 text-sm leading-relaxed">
+                <span className="inline-flex items-center gap-1.5 font-medium"><Users className="h-3.5 w-3.5 text-warning" />{selectedDevices.size} dispositivo{selectedDevices.size !== 1 ? 's' : ''} seleccionado{selectedDevices.size !== 1 ? 's' : ''}</span>
+                <span className="text-muted-foreground">· Marca filas en la tabla de abajo. Usa “Seleccionar página” para marcar los 20 visibles.</span>
+                {selectedDevices.size > 0 && <Button variant="ghost" size="sm" onClick={() => setSelectedDevices(new Set())} className="ml-auto h-7 rounded-full gap-1 text-xs"><X className="h-3 w-3" />Limpiar</Button>}
+              </p>
             </div>
           )}
-
           {campaignAudience === 'zone' && (
             <div className="space-y-2">
-              <label className="text-xs font-medium text-slate-400">Zona</label>
-              <Input
-                value={campaignZone}
-                onChange={(e) => setCampaignZone(e.target.value)}
-                placeholder="Ej: Cartago, Pereira, Zona Norte..."
-                list="campaign-zones"
-                className="bg-slate-900 border-slate-600"
-              />
-              <datalist id="campaign-zones">
-                {zones.map((zone) => (
-                  <option key={zone} value={zone} />
-                ))}
-              </datalist>
-              {zones.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {zones.map((zone) => (
-                    <button
-                      key={zone}
-                      onClick={() => setCampaignZone(zone)}
-                      className="px-2 py-0.5 text-xs rounded bg-slate-700 text-slate-300 hover:bg-slate-600"
-                    >
-                      {zone}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <label className="font-mono text-xs font-medium tracking-wide text-faint">Zona</label>
+              <Input value={campaignZone} onChange={(e) => setCampaignZone(e.target.value)} placeholder="Ej: Cartago, Pereira…" list="campaign-zones" className="border-border bg-sunken focus-visible:ring-primary/20" />
+              <datalist id="campaign-zones">{zones.map((z) => <option key={z} value={z} />)}</datalist>
+              {zones.length > 0 && <div className="flex flex-wrap gap-1.5">{zones.map((z) => <button key={z} onClick={() => setCampaignZone(z)} className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors active:scale-[0.97] ${campaignZone === z ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground hover:bg-accent'}`}>{z}</button>)}</div>}
             </div>
           )}
-
           {campaignAudience === 'platform' && (
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-slate-400">Plataforma</label>
+            <div className="space-y-1.5">
+              <label className="font-mono text-xs font-medium tracking-wide text-faint">Plataforma</label>
               <Select value={campaignPlatform} onValueChange={setCampaignPlatform}>
-                <SelectTrigger className="w-full bg-slate-900 border-slate-600">
-                  <SelectValue placeholder="Selecciona una plataforma" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.keys(PLATFORM_CONFIG).map((platform) => (
-                    <SelectItem key={platform} value={platform}>
-                      {PLATFORM_CONFIG[platform].label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectTrigger className="w-full border-border bg-sunken"><SelectValue placeholder="Selecciona una plataforma" /></SelectTrigger>
+                <SelectContent>{Object.keys(PLATFORM_CONFIG).map((p) => <SelectItem key={p} value={p}>{PLATFORM_CONFIG[p].label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           )}
-
           {campaignAudience === 'program' && (
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-slate-400">Programa suscrito</label>
-              <Input
-                value={campaignProgram}
-                onChange={(e) => setCampaignProgram(e.target.value)}
-                placeholder="Ej: Programa de la mañana"
-                className="bg-slate-900 border-slate-600"
-              />
-              <p className="text-xs text-slate-500">Se notificará a los dispositivos suscritos a ese programa.</p>
+            <div className="space-y-1.5">
+              <label className="font-mono text-xs font-medium tracking-wide text-faint">Programa suscrito</label>
+              <Input value={campaignProgram} onChange={(e) => setCampaignProgram(e.target.value)} placeholder="Ej: Amanecer con fe" className="border-border bg-sunken focus-visible:ring-primary/20" />
+              <p className="text-xs leading-relaxed text-faint">Solo los dispositivos suscritos a ese programa recibirán el push.</p>
             </div>
           )}
-
           {campaignAudience === 'active' && (
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-slate-400">Activos en los últimos días</label>
-              <Input
-                type="number"
-                min={1}
-                max={365}
-                value={campaignActiveDays}
-                onChange={(e) => setCampaignActiveDays(e.target.value)}
-                className="w-40 bg-slate-900 border-slate-600"
-              />
+            <div className="space-y-1.5">
+              <label className="font-mono text-xs font-medium tracking-wide text-faint">Activos en los últimos días</label>
+              <Input type="number" min={1} max={365} value={campaignActiveDays} onChange={(e) => setCampaignActiveDays(e.target.value)} className="w-40 border-border bg-sunken focus-visible:ring-primary/20" />
             </div>
           )}
 
-          <div className="flex items-center gap-3 pt-2">
-            <Button variant="outline" size="sm" onClick={() => void handlePreview()} className="gap-2" disabled={sending}>
-              <Eye className="w-4 h-4" />
-              Previsualizar
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => setSendConfirmOpen(true)}
-              className="gap-2 bg-indigo-600 hover:bg-indigo-500"
-              disabled={sending || !campaignTitle.trim() || !campaignBody.trim()}
-            >
-              <Send className="w-4 h-4" />
-              {sending ? 'Enviando...' : 'Enviar notificación'}
-            </Button>
-            {preview !== null && (
-              <span className="text-sm text-slate-400">
-                Llegará a <span className="font-semibold text-slate-200">{preview}</span> dispositivo
-                {preview !== 1 ? 's' : ''}
-              </span>
-            )}
+          <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+            <Button variant="outline" size="sm" onClick={() => void handlePreview()} disabled={sending} className="gap-1.5 rounded-full border-border bg-card active:scale-[0.97]"><Eye className="h-4 w-4" />Previsualizar alcance</Button>
+            <Button size="sm" onClick={() => setSendConfirmOpen(true)} disabled={sending || !campaignTitle.trim() || !campaignBody.trim()} className="gap-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.97] transition-transform duration-150"><Send className="h-4 w-4" />{sending ? 'Enviando…' : 'Enviar notificación'}</Button>
+            {preview !== null && <span className="rounded-full bg-info/10 px-3 py-1 font-mono text-xs tabular-nums text-info ring-1 ring-info/15">Alcance: {preview} dispositivo{preview !== 1 ? 's' : ''}</span>}
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Dispositivos registrados ──────────────────────────────── */}
-      <Card className="border-slate-700 bg-slate-800/60">
-        <CardHeader>
+      {/* Dispositivos registrados */}
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b border-border bg-sunken/30">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle className="text-base">Registrados</CardTitle>
+            <div className="flex items-center gap-2.5">
+              <Smartphone className="h-4 w-4 text-faint" />
+              <CardTitle className="text-sm font-semibold tracking-tight">Registrados</CardTitle>
+              {data && <Badge variant="outline" className="rounded-full border-border bg-card font-mono text-xs tabular-nums">{data.total} total</Badge>}
+            </div>
             <form onSubmit={handleSearch} className="flex items-center gap-2">
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Filtrar por programa suscrito..."
-                  className="w-64 pl-9 pr-8 bg-slate-900 border-slate-600"
-                />
-                {query && (
-                  <button
-                    type="button"
-                    onClick={clearSearch}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtrar por programa…" className="h-9 w-64 border-border bg-sunken pl-9 pr-8 focus-visible:ring-primary/20" />
+                {query && <button type="button" onClick={clearSearch} className="absolute right-2 top-1/2 -translate-y-1/2 text-faint hover:text-foreground"><X className="h-4 w-4" /></button>}
               </div>
-              <Button type="submit" size="sm" className="gap-1">
-                Buscar
-              </Button>
+              <Button type="submit" size="sm" className="rounded-full gap-1 active:scale-[0.97]">Buscar</Button>
             </form>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {error ? (
-            <div className="py-8 text-center space-y-2">
-              <p className="text-sm text-slate-400">{error}</p>
-              <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
-                <RefreshCw className="w-3 h-3" />
-                Reintentar
-              </Button>
-            </div>
+            <div className="py-12 text-center"><p className="text-sm text-muted-foreground">{error}</p><Button variant="outline" size="sm" onClick={handleRefresh} className="mt-3 gap-2 rounded-full active:scale-[0.97]"><RefreshCw className="h-3 w-3" />Reintentar</Button></div>
           ) : loading && !data ? (
-            <div className="space-y-3">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-12 rounded-lg animate-pulse bg-slate-700" />
-              ))}
-            </div>
+            <div className="space-y-2 p-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-sunken" style={{ opacity: 1 - i * 0.15 }} />)}</div>
           ) : !data || data.rows.length === 0 ? (
-            <p className="py-10 text-center text-sm text-slate-400">
-              {program ? 'No hay dispositivos suscritos a ese programa.' : 'No hay dispositivos registrados todavía.'}
-            </p>
+            <p className="py-12 text-center text-sm text-faint">{program ? 'No hay dispositivos suscritos a ese programa.' : 'No hay dispositivos registrados todavía.'}</p>
           ) : (
             <>
               {campaignAudience === 'devices' && (
-                <div className="mb-3 flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={toggleAllVisible} className="gap-1 text-xs">
-                    <Check className="w-3.5 h-3.5" />
-                    {data.rows.every((device) => selectedDevices.has(device.deviceId))
-                      ? 'Quitar selección de la página'
-                      : 'Seleccionar página'}
-                  </Button>
-                  <span className="text-xs text-slate-500">{data.total} dispositivos en total</span>
+                <div className="flex items-center gap-2 border-b border-border bg-warning/5 px-4 py-2.5">
+                  <Button variant="outline" size="sm" onClick={toggleAllVisible} className="h-7 gap-1 rounded-full border-border bg-card text-xs active:scale-[0.97]"><Check className="h-3.5 w-3.5" />{data.rows.every((d) => selectedDevices.has(d.deviceId)) ? 'Quitar selección' : 'Seleccionar página'}</Button>
+                  <span className="font-mono text-xs text-faint">{selectedDevices.size} seleccionados en esta vista</span>
                 </div>
               )}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {campaignAudience === 'devices' && (
-                      <TableHead className="w-8">
-                        <input
-                          type="checkbox"
-                          className="accent-indigo-500"
-                          checked={
-                            data.rows.length > 0 &&
-                            data.rows.every((device) => selectedDevices.has(device.deviceId))
-                          }
-                          onChange={toggleAllVisible}
-                        />
-                      </TableHead>
-                    )}
-                    <TableHead>Dispositivo</TableHead>
-                    <TableHead>Plataforma</TableHead>
-                    <TableHead>App</TableHead>
-                    <TableHead>Zona</TableHead>
-                    <TableHead>Suscripciones</TableHead>
-                    <TableHead>FCM</TableHead>
-                    <TableHead>Última actividad</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.rows.map((device: AdminDevice) => (
-                    <TableRow key={device.deviceId} className={selectedDevices.has(device.deviceId) ? 'bg-indigo-500/5' : ''}>
-                      {campaignAudience === 'devices' && (
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            className="accent-indigo-500"
-                            checked={selectedDevices.has(device.deviceId)}
-                            onChange={() => toggleDevice(device.deviceId)}
-                          />
-                        </TableCell>
-                      )}
-                      <TableCell>
-                        <button
-                          onClick={() => setSelectedDevice(device)}
-                          className="text-left text-sm text-slate-300 hover:text-white max-w-48 truncate font-mono"
-                          title="Ver detalle"
-                        >
-                          {device.deviceId}
-                        </button>
-                      </TableCell>
-                      <TableCell><PlatformBadge platform={device.platform} /></TableCell>
-                      <TableCell className="text-slate-400">{device.appVersion ?? '—'}</TableCell>
-                      <TableCell>
-                        <ZoneEditor
-                          deviceId={device.deviceId}
-                          zoneId={device.zoneId}
-                          zones={zones}
-                          onAssign={handleAssignZone}
-                        />
-                      </TableCell>
-                      <TableCell><SubscriptionChips subscriptions={device.subscriptions} /></TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={`text-xs border ${device.hasFcmToken ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
-                          {device.hasFcmToken ? 'Sí' : 'No'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-slate-400">{timeAgo(device.lastSeen)}</TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-sunken/50">
+                    <TableRow className="border-border hover:bg-sunken/50">
+                      {campaignAudience === 'devices' && <TableHead className="w-8"><input type="checkbox" className="accent-primary" checked={data.rows.length > 0 && data.rows.every((d) => selectedDevices.has(d.deviceId))} onChange={toggleAllVisible} /></TableHead>}
+                      <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">Dispositivo</TableHead>
+                      <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">Plataforma</TableHead>
+                      <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">App</TableHead>
+                      <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">Zona</TableHead>
+                      <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">Suscripciones</TableHead>
+                      <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">FCM</TableHead>
+                      <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">Visto</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    <AnimatePresence initial={false}>
+                      {data.rows.map((device, idx) => (
+                        <motion.tr
+                          key={device.deviceId}
+                          layout={!shouldReduceMotion}
+                          initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={shouldReduceMotion ? { duration: 0.12 } : { delay: Math.min(idx * 0.02, 0.1), duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+                          className={`border-border transition-colors hover:bg-accent/50 ${selectedDevices.has(device.deviceId) ? 'bg-primary/5 hover:bg-primary/10' : ''}`}
+                        >
+                          {campaignAudience === 'devices' && <TableCell><input type="checkbox" className="accent-primary" checked={selectedDevices.has(device.deviceId)} onChange={() => toggleDevice(device.deviceId)} /></TableCell>}
+                          <TableCell><button onClick={() => setSelectedDevice(device)} className="max-w-48 truncate text-left font-mono text-xs text-foreground/90 hover:text-primary hover:underline decoration-primary/30 underline-offset-4" title="Ver detalle">{device.deviceId}</button></TableCell>
+                          <TableCell><PlatformBadge platform={device.platform} /></TableCell>
+                          <TableCell className="font-mono text-xs tabular-nums text-faint">{device.appVersion ?? '—'}</TableCell>
+                          <TableCell><ZoneEditor deviceId={device.deviceId} zoneId={device.zoneId} zones={zones} onAssign={handleAssignZone} /></TableCell>
+                          <TableCell><SubscriptionChips subscriptions={device.subscriptions} /></TableCell>
+                          <TableCell><Badge variant="outline" className={`rounded-full border px-2 py-0 text-xs ${device.hasFcmToken ? 'bg-success/10 text-success border-success/20' : 'bg-muted text-muted-foreground border-border'}`}>{device.hasFcmToken ? 'Sí' : 'No'}</Badge></TableCell>
+                          <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums text-faint" title={formatDateTime(device.lastSeen)}>{timeAgo(device.lastSeen)}</TableCell>
+                        </motion.tr>
+                      ))}
+                    </AnimatePresence>
+                  </TableBody>
+                </Table>
+              </div>
             </>
           )}
-
-          {data && data.rows.length > 0 && (
-            <AdminPagination
-              page={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
-              label={`${data.total} dispositivos · Página ${page} de ${Math.max(1, totalPages)}`}
-            />
-          )}
+          {data && data.rows.length > 0 && <div className="border-t border-border p-3"><AdminPagination page={page} totalPages={totalPages} onPageChange={setPage} label={`${data.total} dispositivos · Página ${page} de ${Math.max(1, totalPages)}`} /></div>}
         </CardContent>
       </Card>
 
-      {/* ── Historial de envíos ───────────────────────────────────── */}
-      <Card className="border-slate-700 bg-slate-800/60">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <History className="w-5 h-5 text-slate-400" />
-            <CardTitle className="text-base">Historial de notificaciones enviadas</CardTitle>
-          </div>
+      {/* Historial */}
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b border-border bg-sunken/30">
+          <div className="flex items-center gap-2.5"><History className="h-4 w-4 text-faint" /><CardTitle className="text-sm font-semibold tracking-tight">Historial de envíos</CardTitle><span className="ml-auto hidden font-mono text-xs text-faint sm:block">Toca una fila para ver detalle</span></div>
         </CardHeader>
-        <CardContent>
-          {logsLoading ? (
-            <div className="space-y-3">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-10 rounded-lg animate-pulse bg-slate-700" />
-              ))}
-            </div>
-          ) : (
-            <>
-              <PushHistoryTable logs={logs} onSelect={setSelectedLog} />
-              {logsTotalPages > 1 && (
-                <AdminPagination
-                  page={logsPage}
-                  totalPages={logsTotalPages}
-                  onPageChange={setLogsPage}
-                  label={`Página ${logsPage} de ${logsTotalPages}`}
-                />
-              )}
-            </>
-          )}
+        <CardContent className="p-0">
+          {logsLoading ? <div className="space-y-2 p-4">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-sunken" />)}</div>
+            : <div className="p-3 sm:p-4"><PushHistoryTable logs={logs} onSelect={setSelectedLog} />{logsTotalPages > 1 && <div className="pt-3"><AdminPagination page={logsPage} totalPages={logsTotalPages} onPageChange={setLogsPage} label={`Página ${logsPage} de ${logsTotalPages}`} /></div>}</div>}
         </CardContent>
       </Card>
 
-      {/* Modales */}
-      <ConfirmDialog
-        open={sendConfirmOpen}
-        onOpenChange={setSendConfirmOpen}
-        title="¿Enviar esta notificación?"
-        description={
-          preview !== null
-            ? `Llegará a ${preview} dispositivo${preview !== 1 ? 's' : ''}. Esta acción no se puede deshacer.`
-            : 'La notificación se enviará a los dispositivos seleccionados. Esta acción no se puede deshacer.'
-        }
-        confirmLabel="Enviar"
-        loading={sending}
-        onConfirm={() => void handleSend()}
-      />
+      <ConfirmDialog open={sendConfirmOpen} onOpenChange={setSendConfirmOpen} title="¿Enviar esta notificación?" description={preview !== null ? `Llegará a ${preview} dispositivo${preview !== 1 ? 's' : ''}. No se puede deshacer.` : 'Se enviará a la audiencia elegida. No se puede deshacer.'} confirmLabel="Enviar" loading={sending} onConfirm={() => void handleSend()} />
       <DeviceDetailDialog device={selectedDevice} onClose={() => setSelectedDevice(null)} />
       <PushLogDetailDialog log={selectedLog} onClose={() => setSelectedLog(null)} />
     </div>
