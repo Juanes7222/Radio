@@ -2,10 +2,13 @@ import axios from "axios";
 import { Router, type Request, type Response } from "express";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { getBogotaDateString } from "../../shared/utils/date";
 import { requireAuth } from "../auth/auth.middleware";
+import { categorizeSchedule, filterVisibleSchedule } from "../schedule/categorizer.service";
 import {
   fetchFromAzuraCast,
   isConnectionError,
+  rewriteInternalUrls,
   type ProxyRequest,
   type ProxyResult,
 } from "./proxy.service";
@@ -59,6 +62,32 @@ function sendProxyError(res: Response, err: unknown): void {
 
 export { sendProxyError };
 export type { ProxyResult };
+
+/**
+ * Admin schedule needs the same enrichment as the public schedule:
+ * default week range, visible-category filtering and category assignment,
+ * plus URL rewriting. Without this, `GET /admin-api/station/schedule?now=…`
+ * hits AzuraCast with an unsupported `now` param and returns empty.
+ */
+router.all("/station/schedule", requireAuth, (req, res) => {
+  // Allow the frontend to omit start/end — default to the Bogotá week.
+  if (!req.query.start || !req.query.end) {
+    req.query.start = getBogotaDateString(0);
+    req.query.end = getBogotaDateString(6);
+  }
+  // Drop legacy `now` param that AzuraCast ignores and that would poison the cache key.
+  if (req.query.now) delete req.query.now;
+
+  void proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/schedule`, async (d) => {
+    const filtered = await filterVisibleSchedule(Array.isArray(d) ? d : []);
+    const categorized = await categorizeSchedule(filtered as unknown[]);
+    // Rebuild public URL for rewrite (mirrors public.routes buildPublicUrl)
+    const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "";
+    const protocol = req.headers["x-forwarded-proto"] ?? "https";
+    const publicUrl = `${protocol}://${host}`;
+    return rewriteInternalUrls(categorized, publicUrl);
+  });
+});
 
 router.all("/station/*", requireAuth, (req, res) => {
   const path = (req.params as Record<string, string>)[0] ?? "";
