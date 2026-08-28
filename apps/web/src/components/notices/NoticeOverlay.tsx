@@ -1,0 +1,162 @@
+import { useEffect, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, ExternalLink } from 'lucide-react';
+import { API_BASE_URL } from '@/config';
+import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from '@/lib/noticeStorage';
+
+interface Notice {
+  id: string;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  ctaLabel: string | null;
+  ctaUrl: string | null;
+  variant: string;
+  maxDisplaysPerUser: number;
+  dismissible: boolean;
+  endsAt: string;
+}
+
+const VARIANT_ACCENT: Record<string, string> = {
+  info: 'bg-info',
+  event: 'bg-primary',
+  warning: 'bg-warning',
+  prayer: 'bg-success',
+};
+
+function getDeviceId(): string | null {
+  try { return localStorage.getItem('radio:deviceId'); } catch { return null; }
+}
+
+export function NoticeOverlay() {
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [current, setCurrent] = useState<Notice | null>(null);
+  const [progress, setProgress] = useState(0);
+
+  const fetchNotices = useCallback(async () => {
+    try {
+      const deviceId = getDeviceId();
+      const params = new URLSearchParams();
+      if (deviceId) params.set('deviceId', deviceId);
+      const url = `${API_BASE_URL}/api/notices/active${params.toString() ? `?${params.toString()}` : ''}`;
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = (await res.json()) as { notices: Notice[] };
+      const eligible = data.notices.filter((n) => shouldShowNotice(n.id, n.maxDisplaysPerUser, n.dismissible));
+      setNotices(eligible);
+      if (eligible.length > 0 && !current) {
+        const next = eligible[0];
+        setCurrent(next);
+        bumpNoticeView(next.id);
+      }
+    } catch {}
+  }, [current]);
+
+  useEffect(() => { void fetchNotices(); }, [fetchNotices]);
+
+  // progress hasta expiración (cinta que avanza)
+  useEffect(() => {
+    if (!current) return;
+    const end = new Date(current.endsAt).getTime();
+    const start = Date.now() - 1000 * 60 * 60 * 24; // fallback ventana visual
+    const tick = () => {
+      const now = Date.now();
+      const total = Math.max(1, end - start);
+      const elapsed = Math.min(total, now - start);
+      setProgress((elapsed / total) * 100);
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [current]);
+
+  const handleDismiss = () => {
+    if (!current) return;
+    if (current.dismissible) dismissNotice(current.id);
+    else bumpNoticeView(current.id);
+    const remaining = notices.filter((n) => n.id !== current.id && shouldShowNotice(n.id, n.maxDisplaysPerUser, n.dismissible));
+    setNotices(remaining);
+    if (remaining.length > 0) {
+      const next = remaining[0];
+      setCurrent(next);
+      bumpNoticeView(next.id);
+    } else setCurrent(null);
+  };
+
+  const handleCta = () => {
+    if (current?.ctaUrl) window.open(current.ctaUrl, '_blank', 'noopener');
+  };
+
+  if (!current) return null;
+
+  const accent = VARIANT_ACCENT[current.variant] ?? VARIANT_ACCENT.info;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key={current.id}
+        initial={{ y: 80, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 40, opacity: 0 }}
+        transition={{ type: 'spring', damping: 22, stiffness: 260 }}
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:justify-end sm:px-4 sm:pb-6"
+        aria-live="polite"
+      >
+        <div className="pointer-events-auto w-full max-w-[420px] overflow-hidden rounded-2xl border border-[#E8DDD0] bg-[#F5EFE6] text-[#1A1C1E] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+          {/* cinta perforada + progress */}
+          <div className="relative border-b border-[#E8DDD0] bg-[#EDE6DA]">
+            <div className="flex items-center gap-1.5 px-3 py-2">
+              <span className="flex gap-1" aria-hidden>{Array.from({ length: 6 }).map((_, i) => <span key={i} className="h-1.5 w-1.5 rounded-full bg-[#1A1C1E]/15" />)}</span>
+              <span className="ml-auto font-mono text-[10px] tracking-[0.14em] text-[#1A1C1E]/50">AVISO</span>
+            </div>
+            <div className="absolute bottom-0 left-0 h-0.5 bg-amber-500 transition-all" style={{ width: `${Math.min(100, Math.max(4, progress))}%` }} aria-hidden />
+            <div className={`absolute bottom-0 left-0 h-0.5 ${accent} opacity-60`} style={{ width: '100%' }} aria-hidden />
+          </div>
+
+          {current.imageUrl && (
+            <img src={current.imageUrl} alt="" className="aspect-[16/7] w-full object-cover" loading="lazy" />
+          )}
+
+          <div className="p-4 pr-10 relative">
+            <button
+              onClick={handleDismiss}
+              aria-label={current.dismissible ? 'Cerrar aviso' : 'Ocultar aviso'}
+              className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-[#1A1C1E]/5 text-[#1A1C1E]/60 hover:bg-[#1A1C1E]/10 hover:text-[#1A1C1E] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <h3 className="pr-2 text-[17px] font-bold leading-tight tracking-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              {current.title}
+            </h3>
+            <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-[#1A1C1E]/70">{current.body}</p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {current.ctaLabel && current.ctaUrl && (
+                <button
+                  onClick={handleCta}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1C1E] px-4 py-2 text-sm font-medium text-white hover:bg-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                >
+                  {current.ctaLabel}
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <button
+                onClick={handleDismiss}
+                className="rounded-full px-3 py-2 text-xs font-medium text-[#1A1C1E]/60 hover:text-[#1A1C1E] hover:bg-[#1A1C1E]/5 transition-colors"
+              >
+                {current.dismissible ? 'No volver a mostrar' : 'Ocultar por ahora'}
+              </button>
+            </div>
+
+            {current.maxDisplaysPerUser > 0 && (
+              <p className="mt-2 font-mono text-[11px] text-[#1A1C1E]/40">
+                {getNoticeState(current.id).count}/{current.maxDisplaysPerUser} vistas
+              </p>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}

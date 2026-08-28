@@ -26,6 +26,9 @@ import type {
   ScheduleCategory,
   WorkerJob,
   WorkerNodeInfo,
+  AppNoticeList,
+  AppNotice,
+  AppNoticeInput,
 } from '@radio/types';
 import { API_BASE_URL } from '@/config';
 
@@ -255,14 +258,11 @@ export function useAdminApi() {
   );
 
   // ── Programación ─────────────────────────────────────────────
-  const getSchedule = useCallback(
-    () =>
-      request<unknown[]>({
-        url: '/admin-api/station/schedule',
-        params: { now: Math.floor(Date.now() / 1000) },
-      }),
-    [request]
-  );
+  // El backend ahora enriquece /admin-api/station/schedule con el mismo
+  // filtrado/categorización que /api/schedule y un rango por defecto de
+  // una semana en Bogotá, por lo que no hace falta enviar `now` ni fechas
+  // desde el frontend.
+  const getSchedule = useCallback(() => request<unknown[]>({ url: '/admin-api/station/schedule' }), [request]);
 
     // ── Peticiones de oración ──────────────────────────────────
     const getPrayerRequests = useCallback(
@@ -509,6 +509,29 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Avisos in-app ───────────────────────────────────────────────
+  const getNotices = useCallback(
+    (params: { page?: number; limit?: number } = {}) =>
+      request<AppNoticeList>({ url: '/admin-api/notices', params }),
+    [request]
+  );
+  const createNotice = useCallback(
+    (data: AppNoticeInput) => request<AppNotice>({ method: 'POST', url: '/admin-api/notices', data }),
+    [request]
+  );
+  const updateNotice = useCallback(
+    (id: string, data: AppNoticeInput) => request<AppNotice>({ method: 'PUT', url: `/admin-api/notices/${id}`, data }),
+    [request]
+  );
+  const deleteNotice = useCallback(
+    (id: string) => request({ method: 'DELETE', url: `/admin-api/notices/${id}` }),
+    [request]
+  );
+  const previewNoticeAudience = useCallback(
+    (data: Partial<AppNoticeInput>) => request<{ targeted: number }>({ method: 'POST', url: '/admin-api/notices/preview', data }),
+    [request]
+  );
+
   // ── Workers y YouTube ─────────────────────────────────────────
   const getWorkers = useCallback(
     () => request<WorkerNodeInfo[]>({ url: '/admin-api/workers/workers' }),
@@ -589,6 +612,11 @@ export function useAdminApi() {
     sendPushCampaign,
     getPushNotificationLogs,
     getNotificationStats,
+    getNotices,
+    createNotice,
+    updateNotice,
+    deleteNotice,
+    previewNoticeAudience,
     getWorkers,
     getWorkerJobs,
     skipCurrentTrack,

@@ -11,6 +11,7 @@ import { initTrackPlayer, PlaybackService } from '../service';
 import { FacebookLiveProvider } from '@/hooks/useFacebookLive';
 import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
 import { registerDevice, updateFCMToken } from '@/lib/device';
+import { NoticeOverlay } from '@/components/NoticeOverlay';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -58,6 +59,7 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
           </Stack>
+          <NoticeOverlay />
         </FacebookLiveProvider>
         <StatusBar style="light" translucent backgroundColor="transparent" />
       </SafeAreaProvider>

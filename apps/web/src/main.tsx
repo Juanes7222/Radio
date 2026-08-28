@@ -36,6 +36,7 @@ const AdminScheduleCategories = lazy(() => import('./pages/admin/AdminScheduleCa
 const AdminUpload = lazy(() => import('./pages/admin/AdminUpload.tsx'))
 const AdminLocutor = lazy(() => import('./pages/admin/locutor/index.tsx'))
 const AdminDevices = lazy(() => import('./pages/admin/AdminDevices.tsx'))
+const AdminNotices = lazy(() => import('./pages/admin/AdminNotices.tsx'))
 const AdminYouTube = lazy(() => import('./pages/admin/AdminYouTube.tsx'))
 
 createRoot(document.getElementById('root')!).render(
@@ -75,6 +76,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="upload" element={<AdminUpload />} />
                   <Route path="locutor" element={<AdminLocutor />} />
                   <Route path="devices" element={<AdminDevices />} />
+                  <Route path="notices" element={<AdminNotices />} />
                   <Route path="youtube" element={<AdminYouTube />} />
                 </Route>
 

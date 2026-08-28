@@ -24,6 +24,8 @@ import scheduleCategoriesRouter from "./modules/schedule/category.routes";
 import devicesAdminRouter from "./modules/devices/admin.routes";
 import listenerHistoryRouter from "./modules/azuracast/listenerHistory.routes";
 import rotationRouter from "./modules/rotation/rotation.routes";
+import noticesPublicRouter from "./modules/notices/public.routes";
+import noticesAdminRouter from "./modules/notices/admin.routes";
 import swaggerFile from "./swagger-output.json";
 
 const ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:4173"];
@@ -67,6 +69,8 @@ export function createApp(): Express {
   app.use("/admin-api/devices", devicesAdminRouter);
   app.use("/admin-api/listeners", listenerHistoryRouter);
   app.use("/admin-api/rotations", rotationRouter);
+  app.use("/api/notices", noticesPublicRouter);
+  app.use("/admin-api/notices", noticesAdminRouter);
   app.use("/api/prayer", prayerRouter);
 
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerFile));

@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Heart,
   Mic2,
+  Megaphone,
   CalendarDays,
   Tags,
   LogOut,
@@ -69,6 +70,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/admin/requests', label: 'Solicitudes', icon: MessageSquare },
       { to: '/admin/prayer', label: 'Oración', icon: Heart },
       { to: '/admin/devices', label: 'Dispositivos', icon: Smartphone },
+      { to: '/admin/notices', label: 'Avisos', icon: Megaphone },
     ],
   },
 ];

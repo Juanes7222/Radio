@@ -14,6 +14,7 @@ import {
   AppFooter,
 } from '@/components/ui-custom';
 import { PrayerRequestDialog, PrayerRequestButton } from '@/components/prayer';
+import { NoticeOverlay } from '@/components/notices/NoticeOverlay';
 import { useGlobalAudio } from '@/hooks/useGlobalAudio';
 import { getSocialLinksWithLiveStatus } from '@/utils/socialLinks';
 import MaintenancePage from '@/pages/MaintenancePage';
@@ -112,6 +113,7 @@ function App() {
         isOpen={showPrayer}
         onClose={closePrayer}
       />
+      <NoticeOverlay />
     </div>
   );
 }

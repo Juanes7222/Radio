@@ -411,6 +411,57 @@ export interface NotificationStats {
   byProgram: { programId: string; count: number }[];
 }
 
+export type NoticeVariant = 'info' | 'event' | 'warning' | 'prayer';
+export type NoticeAudience = 'all' | 'zone' | 'platform' | 'program' | 'devices';
+
+export interface AppNotice {
+  id: string;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  ctaLabel: string | null;
+  ctaUrl: string | null;
+  variant: NoticeVariant;
+  audience: NoticeAudience;
+  audienceZoneId: string | null;
+  audiencePlatform: string | null;
+  audienceProgram: string | null;
+  audienceDeviceIds: string | null;
+  startsAt: string;
+  endsAt: string;
+  maxDisplaysPerUser: number;
+  dismissible: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AppNoticeList {
+  rows: AppNotice[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface AppNoticeInput {
+  title: string;
+  body: string;
+  imageUrl?: string | null;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+  variant: NoticeVariant;
+  audience: NoticeAudience;
+  audienceZoneId?: string | null;
+  audiencePlatform?: string | null;
+  audienceProgram?: string | null;
+  audienceDeviceIds?: string[] | null;
+  startsAt: string;
+  endsAt: string;
+  maxDisplaysPerUser: number;
+  dismissible: boolean;
+  isActive: boolean;
+}
+
 /** Connected worker node reported by the worker pool */
 export interface WorkerNodeInfo {
   workerId: string;
