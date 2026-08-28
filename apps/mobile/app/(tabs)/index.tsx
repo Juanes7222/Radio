@@ -26,7 +26,8 @@ import { PlayerTopBar } from '@/components/player/PlayerTopBar';
 import { QualityModal } from '@/components/QualityModal';
 import { useStreamQuality } from '@/hooks/useStreamQuality';
 import type { StreamQuality } from '@radio/types';
-import { ReminderBanner } from '@/components/player/ReminderBanner';
+// Recordatorios deshabilitados temporalmente - codigo conservado en components/player/ReminderBanner.tsx
+// import { ReminderBanner } from '@/components/player/ReminderBanner';
 import { NowPlayingInfo } from '@/components/player/NowPlayingInfo';
 import { SleepTimerRow } from '@/components/player/SleepTimerRow';
 import { NextUpCard } from '@/components/player/NextUpCard';
@@ -38,7 +39,7 @@ import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
 import { useProgramNotify } from '@/hooks/useProgramNotify';
-import { useNotificationReminder } from '@/hooks/useNotificationReminder';
+// import { useNotificationReminder } from '@/hooks/useNotificationReminder'; // deshabilitado
 import { useAlarmClock } from '@/hooks/useAlarmClock';
 import { AlarmModal } from '@/components/AlarmModal';
 import {
@@ -176,17 +177,11 @@ export default function PlayerScreen() {
   const { isEnabled: notifyEnabled, enable: enableNotify, disable: disableNotify } =
     useFavoriteNotify(currentSongForNotify, favoriteSongKeys);
 
-  const { showReminder, dismissReminder, dismissReminderForever } =
-    useNotificationReminder();
+  // Recordatorios deshabilitados - hook conservado en hooks/useNotificationReminder.ts
+  // const { showReminder, dismissReminder, dismissReminderForever } = useNotificationReminder();
   const [showTooltip, setShowTooltip] = useState(false);
 
-  const handleDismissReminder = useCallback(() => {
-    dismissReminder();
-    setShowTooltip(true);
-    setTimeout(() => {
-      setShowTooltip(false);
-    }, 4000);
-  }, [dismissReminder]);
+  // const handleDismissReminder = useCallback(() => { dismissReminder(); setShowTooltip(true); setTimeout(() => setShowTooltip(false), 4000); }, [dismissReminder]);
 
   const listenersCount = data?.listeners?.current ?? 0;
 
@@ -308,6 +303,7 @@ export default function PlayerScreen() {
             onOpenAlarm={() => setShowAlarmMenu(true)}
           />
 
+          {/* Recordatorios deshabilitados temporalmente - componente conservado en components/player/ReminderBanner.tsx
           {showReminder && (
             <ReminderBanner
               onDismiss={handleDismissReminder}
@@ -317,7 +313,7 @@ export default function PlayerScreen() {
                 setShowNotifyMenu(true);
               }}
             />
-          )}
+          )} */}
 
           <Image
             source={LOGO}
