@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink } from 'lucide-react';
 import { API_BASE_URL } from '@/config';
 import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from '@/lib/noticeStorage';
+import { NoticeIntrusiveModal } from './NoticeIntrusiveModal';
 
 interface Notice {
   id: string;
@@ -12,6 +13,7 @@ interface Notice {
   ctaLabel: string | null;
   ctaUrl: string | null;
   variant: string;
+  displayMode?: string;
   maxDisplaysPerUser: number;
   dismissible: boolean;
   endsAt: string;
@@ -28,10 +30,20 @@ function getDeviceId(): string | null {
   try { return localStorage.getItem('radio:deviceId'); } catch { return null; }
 }
 
+function hasSeenModalThisSession(id: string): boolean {
+  try { return sessionStorage.getItem(`radio:notice:modal:session:${id}`) === '1'; } catch { return false; }
+}
+
+function markModalSession(id: string): void {
+  try { sessionStorage.setItem(`radio:notice:modal:session:${id}`, '1'); } catch {}
+}
+
 export function NoticeOverlay() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [current, setCurrent] = useState<Notice | null>(null);
   const [progress, setProgress] = useState(0);
+  const [modalNotice, setModalNotice] = useState<Notice | null>(null);
+  const [modalViewCount, setModalViewCount] = useState(0);
 
   const fetchNotices = useCallback(async () => {
     try {
@@ -43,22 +55,39 @@ export function NoticeOverlay() {
       if (!res.ok) return;
       const data = (await res.json()) as { notices: Notice[] };
       const eligible = data.notices.filter((n) => shouldShowNotice(n.id, n.maxDisplaysPerUser, n.dismissible));
-      setNotices(eligible);
-      if (eligible.length > 0 && !current) {
-        const next = eligible[0];
+
+      // Intrusivo (modal) tiene prioridad y se muestra al entrar — solo uno por sesión
+      const modals = eligible.filter((n) => (n.displayMode ?? 'toast') === 'modal');
+      const toasts = eligible.filter((n) => (n.displayMode ?? 'toast') !== 'modal');
+
+      // elige primer modal no visto en esta sesión
+      const sessionModal = modals.find((m) => !hasSeenModalThisSession(m.id)) ?? null;
+      if (sessionModal && !modalNotice) {
+        setModalNotice(sessionModal);
+        const s = bumpNoticeView(sessionModal.id);
+        setModalViewCount(s.count);
+        markModalSession(sessionModal.id);
+      }
+
+      // toast queue: excluye modales; si hay modal activo, el toast espera (no se muestra a la vez)
+      setNotices(toasts);
+      if (toasts.length > 0 && !current && !sessionModal) {
+        const next = toasts[0];
         setCurrent(next);
         bumpNoticeView(next.id);
+      } else if (toasts.length > 0 && !current && sessionModal) {
+        // hay toast pero modal está activo — no montar toast todavía, se montará al cerrar modal
       }
     } catch {}
-  }, [current]);
+  }, [current, modalNotice]);
 
   useEffect(() => { void fetchNotices(); }, [fetchNotices]);
 
-  // progress hasta expiración (cinta que avanza)
+  // progress hasta expiración (cinta que avanza) — solo para toast
   useEffect(() => {
     if (!current) return;
     const end = new Date(current.endsAt).getTime();
-    const start = Date.now() - 1000 * 60 * 60 * 24; // fallback ventana visual
+    const start = Date.now() - 1000 * 60 * 60 * 24;
     const tick = () => {
       const now = Date.now();
       const total = Math.max(1, end - start);
@@ -70,7 +99,7 @@ export function NoticeOverlay() {
     return () => window.clearInterval(id);
   }, [current]);
 
-  const handleDismiss = () => {
+  const handleDismissToast = () => {
     if (!current) return;
     if (current.dismissible) dismissNotice(current.id);
     else bumpNoticeView(current.id);
@@ -83,80 +112,106 @@ export function NoticeOverlay() {
     } else setCurrent(null);
   };
 
-  const handleCta = () => {
+  const handleDismissModal = () => {
+    if (!modalNotice) return;
+    if (modalNotice.dismissible) dismissNotice(modalNotice.id);
+    // si no es descartable ya se hizo bump al mostrar
+    setModalNotice(null);
+    // tras cerrar modal, si hay toasts pendientes, muestra el primero
+    const remainingToasts = notices.filter((n) => shouldShowNotice(n.id, n.maxDisplaysPerUser, n.dismissible));
+    if (remainingToasts.length > 0 && !current) {
+      const next = remainingToasts[0];
+      setCurrent(next);
+      bumpNoticeView(next.id);
+    }
+  };
+
+  const handleCtaToast = () => {
     if (current?.ctaUrl) window.open(current.ctaUrl, '_blank', 'noopener');
   };
 
-  if (!current) return null;
+  const handleCtaModal = () => {
+    if (modalNotice?.ctaUrl) window.open(modalNotice.ctaUrl, '_blank', 'noopener');
+  };
 
-  const accent = VARIANT_ACCENT[current.variant] ?? VARIANT_ACCENT.info;
+  const accent = current ? (VARIANT_ACCENT[current.variant] ?? VARIANT_ACCENT.info) : VARIANT_ACCENT.info;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        key={current.id}
-        initial={{ y: 80, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 40, opacity: 0 }}
-        transition={{ type: 'spring', damping: 22, stiffness: 260 }}
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:justify-end sm:px-4 sm:pb-6"
-        aria-live="polite"
-      >
-        <div className="pointer-events-auto w-full max-w-[420px] overflow-hidden rounded-2xl border border-[#E8DDD0] bg-[#F5EFE6] text-[#1A1C1E] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-          {/* cinta perforada + progress */}
-          <div className="relative border-b border-[#E8DDD0] bg-[#EDE6DA]">
-            <div className="flex items-center gap-1.5 px-3 py-2">
-              <span className="flex gap-1" aria-hidden>{Array.from({ length: 6 }).map((_, i) => <span key={i} className="h-1.5 w-1.5 rounded-full bg-[#1A1C1E]/15" />)}</span>
-              <span className="ml-auto font-mono text-[10px] tracking-[0.14em] text-[#1A1C1E]/50">AVISO</span>
-            </div>
-            <div className="absolute bottom-0 left-0 h-0.5 bg-amber-500 transition-all" style={{ width: `${Math.min(100, Math.max(4, progress))}%` }} aria-hidden />
-            <div className={`absolute bottom-0 left-0 h-0.5 ${accent} opacity-60`} style={{ width: '100%' }} aria-hidden />
-          </div>
+    <>
+      <NoticeIntrusiveModal
+        notice={modalNotice}
+        viewCount={modalViewCount}
+        onDismiss={handleDismissModal}
+        onCta={handleCtaModal}
+      />
 
-          {current.imageUrl && (
-            <img src={current.imageUrl} alt="" className="aspect-[16/7] w-full object-cover" loading="lazy" />
-          )}
+      {current && !modalNotice && (
+        <AnimatePresence>
+          <motion.div
+            key={current.id}
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 40, opacity: 0 }}
+            transition={{ type: 'spring', damping: 22, stiffness: 260 }}
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:justify-end sm:px-4 sm:pb-6"
+            aria-live="polite"
+          >
+            <div className="pointer-events-auto w-full max-w-[420px] overflow-hidden rounded-2xl border border-[#E8DDD0] bg-[#F5EFE6] text-[#1A1C1E] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+              <div className="relative border-b border-[#E8DDD0] bg-[#EDE6DA]">
+                <div className="flex items-center gap-1.5 px-3 py-2">
+                  <span className="flex gap-1" aria-hidden>{Array.from({ length: 6 }).map((_, i) => <span key={i} className="h-1.5 w-1.5 rounded-full bg-[#1A1C1E]/15" />)}</span>
+                  <span className="ml-auto font-mono text-[10px] tracking-[0.14em] text-[#1A1C1E]/50">AVISO</span>
+                </div>
+                <div className="absolute bottom-0 left-0 h-0.5 bg-amber-500 transition-all" style={{ width: `${Math.min(100, Math.max(4, progress))}%` }} aria-hidden />
+                <div className={`absolute bottom-0 left-0 h-0.5 ${accent} opacity-60`} style={{ width: '100%' }} aria-hidden />
+              </div>
 
-          <div className="p-4 pr-10 relative">
-            <button
-              onClick={handleDismiss}
-              aria-label={current.dismissible ? 'Cerrar aviso' : 'Ocultar aviso'}
-              className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-[#1A1C1E]/5 text-[#1A1C1E]/60 hover:bg-[#1A1C1E]/10 hover:text-[#1A1C1E] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            <h3 className="pr-2 text-[17px] font-bold leading-tight tracking-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
-              {current.title}
-            </h3>
-            <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-[#1A1C1E]/70">{current.body}</p>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {current.ctaLabel && current.ctaUrl && (
-                <button
-                  onClick={handleCta}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1C1E] px-4 py-2 text-sm font-medium text-white hover:bg-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                >
-                  {current.ctaLabel}
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </button>
+              {current.imageUrl && (
+                <img src={current.imageUrl} alt="" className="aspect-[16/7] w-full object-cover" loading="lazy" />
               )}
-              <button
-                onClick={handleDismiss}
-                className="rounded-full px-3 py-2 text-xs font-medium text-[#1A1C1E]/60 hover:text-[#1A1C1E] hover:bg-[#1A1C1E]/5 transition-colors"
-              >
-                {current.dismissible ? 'No volver a mostrar' : 'Ocultar por ahora'}
-              </button>
-            </div>
 
-            {current.maxDisplaysPerUser > 0 && (
-              <p className="mt-2 font-mono text-[11px] text-[#1A1C1E]/40">
-                {getNoticeState(current.id).count}/{current.maxDisplaysPerUser} vistas
-              </p>
-            )}
-          </div>
-        </div>
-      </motion.div>
-    </AnimatePresence>
+              <div className="relative p-4 pr-10">
+                <button
+                  onClick={handleDismissToast}
+                  aria-label={current.dismissible ? 'Cerrar aviso' : 'Ocultar aviso'}
+                  className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-[#1A1C1E]/5 text-[#1A1C1E]/60 transition-colors hover:bg-[#1A1C1E]/10 hover:text-[#1A1C1E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+
+                <h3 className="pr-2 text-[17px] font-bold leading-tight tracking-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                  {current.title}
+                </h3>
+                <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-[#1A1C1E]/70">{current.body}</p>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {current.ctaLabel && current.ctaUrl && (
+                    <button
+                      onClick={handleCtaToast}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1C1E] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                    >
+                      {current.ctaLabel}
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={handleDismissToast}
+                    className="rounded-full px-3 py-2 text-xs font-medium text-[#1A1C1E]/60 transition-colors hover:bg-[#1A1C1E]/5 hover:text-[#1A1C1E]"
+                  >
+                    {current.dismissible ? 'No volver a mostrar' : 'Ocultar por ahora'}
+                  </button>
+                </div>
+
+                {current.maxDisplaysPerUser > 0 && (
+                  <p className="mt-2 font-mono text-[11px] text-[#1A1C1E]/40">
+                    {getNoticeState(current.id).count}/{current.maxDisplaysPerUser} vistas
+                  </p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      )}
+    </>
   );
 }

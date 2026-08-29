@@ -19,20 +19,21 @@ router.get("/active", async (req: Request, res: Response) => {
     const notices = await getActiveNotices({ deviceId, zoneId, platform });
 
     res.json({
-      notices: notices.map((n: { id: string; title: string; body: string; imageUrl: string | null; ctaLabel: string | null; ctaUrl: string | null; variant: string; audience: string; startsAt: Date; endsAt: Date; maxDisplaysPerUser: number; dismissible: boolean; createdAt: Date }) => ({
-        id: n.id,
-        title: n.title,
-        body: n.body,
-        imageUrl: n.imageUrl,
-        ctaLabel: n.ctaLabel,
-        ctaUrl: n.ctaUrl,
-        variant: n.variant,
-        audience: n.audience,
-        startsAt: n.startsAt.toISOString(),
-        endsAt: n.endsAt.toISOString(),
-        maxDisplaysPerUser: n.maxDisplaysPerUser,
-        dismissible: n.dismissible,
-        createdAt: n.createdAt.toISOString(),
+      notices: notices.map((n) => ({
+        id: (n as unknown as { id: string }).id,
+        title: (n as unknown as { title: string }).title,
+        body: (n as unknown as { body: string }).body,
+        imageUrl: (n as unknown as { imageUrl: string | null }).imageUrl,
+        ctaLabel: (n as unknown as { ctaLabel: string | null }).ctaLabel,
+        ctaUrl: (n as unknown as { ctaUrl: string | null }).ctaUrl,
+        variant: (n as unknown as { variant: string }).variant,
+        audience: (n as unknown as { audience: string }).audience,
+        displayMode: (n as unknown as { displayMode?: string }).displayMode ?? "toast",
+        startsAt: (n as unknown as { startsAt: Date }).startsAt.toISOString(),
+        endsAt: (n as unknown as { endsAt: Date }).endsAt.toISOString(),
+        maxDisplaysPerUser: (n as unknown as { maxDisplaysPerUser: number }).maxDisplaysPerUser,
+        dismissible: (n as unknown as { dismissible: boolean }).dismissible,
+        createdAt: (n as unknown as { createdAt: Date }).createdAt.toISOString(),
       })),
     });
   } catch (err) {

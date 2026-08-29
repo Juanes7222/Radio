@@ -380,6 +380,7 @@ model AppNotice {
   audiencePlatform    String?  @map("audience_platform")
   audienceProgram     String?  @map("audience_program")
   audienceDeviceIds   String?  @map("audience_device_ids") // JSON array when audience=devices
+  displayMode         String   @default("toast") @map("display_mode") // toast | modal — modal es intrusivo centrado al entrar
   startsAt            DateTime @map("starts_at")
   endsAt              DateTime @map("ends_at")
   maxDisplaysPerUser  Int      @default(3) @map("max_displays_per_user") // 0 = ilimitado

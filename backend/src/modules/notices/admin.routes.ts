@@ -70,6 +70,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
   if (!v.ok) { res.status(400).json({ error: v.error }); return; }
   try {
     const audience = String(body.audience ?? "all");
+    const displayMode = body.displayMode === "modal" ? "modal" : "toast";
     const notice = await prisma.appNotice.create({
       data: {
         title: v.data.title,
@@ -83,6 +84,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
         audiencePlatform: audience === "platform" && typeof body.audiencePlatform === "string" ? body.audiencePlatform.trim() : null,
         audienceProgram: audience === "program" && typeof body.audienceProgram === "string" ? body.audienceProgram.trim() : null,
         audienceDeviceIds: audience === "devices" && Array.isArray(body.audienceDeviceIds) ? JSON.stringify(body.audienceDeviceIds) : null,
+        displayMode,
         startsAt: v.data.startsAt,
         endsAt: v.data.endsAt,
         maxDisplaysPerUser: Math.max(0, Math.min(100, Number(body.maxDisplaysPerUser) || 3)),
@@ -105,6 +107,7 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
   if (!v.ok) { res.status(400).json({ error: v.error }); return; }
   try {
     const audience = String(body.audience ?? "all");
+    const displayMode = body.displayMode === "modal" ? "modal" : "toast";
     const notice = await prisma.appNotice.update({
       where: { id },
       data: {
@@ -119,6 +122,7 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
         audiencePlatform: audience === "platform" && typeof body.audiencePlatform === "string" ? body.audiencePlatform.trim() : null,
         audienceProgram: audience === "program" && typeof body.audienceProgram === "string" ? body.audienceProgram.trim() : null,
         audienceDeviceIds: audience === "devices" && Array.isArray(body.audienceDeviceIds) ? JSON.stringify(body.audienceDeviceIds) : null,
+        displayMode,
         startsAt: v.data.startsAt,
         endsAt: v.data.endsAt,
         maxDisplaysPerUser: Math.max(0, Math.min(100, Number(body.maxDisplaysPerUser) || 3)),

@@ -4,6 +4,7 @@ import { parseSubscriptions } from "../../shared/utils/subscriptions";
 
 export type NoticeAudience = "all" | "zone" | "platform" | "program" | "devices";
 export type NoticeVariant = "info" | "event" | "warning" | "prayer";
+export type NoticeDisplayMode = "toast" | "modal";
 
 export interface NoticeFilters {
   deviceId?: string;

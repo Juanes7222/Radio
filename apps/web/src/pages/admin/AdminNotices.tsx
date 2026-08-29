@@ -15,7 +15,9 @@ import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import { toast } from 'sonner';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { formatDateTime } from '@/lib/format';
-import type { AppNotice, AppNoticeInput, NoticeAudience, NoticeVariant } from '@radio/types';
+import type { AppNotice, AppNoticeInput, NoticeAudience, NoticeVariant, NoticeDisplayMode } from '@radio/types';
+
+
 
 // Variant styling — papel manila + sello según tono
 const VARIANT_CFG: Record<NoticeVariant, { label: string; dot: string; border: string; badge: string }> = {
@@ -48,11 +50,65 @@ function toLocalInput(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function PreviewCard({ title, body, imageUrl, ctaLabel, variant }: { title: string; body: string; imageUrl?: string | null; ctaLabel?: string | null; variant: NoticeVariant }) {
+function PreviewCard({
+  title,
+  body,
+  imageUrl,
+  ctaLabel,
+  variant,
+  displayMode,
+}: {
+  title: string;
+  body: string;
+  imageUrl?: string | null;
+  ctaLabel?: string | null;
+  variant: NoticeVariant;
+  displayMode: NoticeDisplayMode;
+}) {
   const cfg = VARIANT_CFG[variant];
+  if (displayMode === 'modal') {
+    return (
+      <div className="overflow-hidden rounded-[20px] border border-[#E8DDD0] bg-[#F5EFE6] text-[#1A1C1E] shadow-[0_16px_40px_rgba(0,0,0,0.18)]">
+        <div className="relative flex items-center justify-between gap-2 border-b border-[#E8DDD0] bg-[#0F1113] px-3 py-2.5 text-white">
+          <span className="flex items-center gap-2">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-[#DC2626] shadow-[0_0_8px_rgba(220,38,38,0.8)]" aria-hidden />
+            <span className="font-mono text-[10px] font-semibold tracking-[0.14em]">EN EL AIRE</span>
+          </span>
+          <span className="hidden items-center gap-1 font-mono text-[9px] tracking-[0.08em] text-white/45 sm:flex" aria-hidden>
+            <span>88</span><span className="h-2 w-px bg-white/20" /><span>96</span><span className="h-3 w-px bg-amber-400" /><span>104</span><span>108 FM</span>
+          </span>
+          <span className="grid h-6 w-6 place-items-center rounded-full bg-white/10 text-white/70"><span className="text-[11px]">×</span></span>
+        </div>
+        <div className="flex items-center gap-1.5 border-b border-[#E8DDD0] bg-[#EDE6DA] px-3 py-1.5">
+          <span className="flex gap-1" aria-hidden>
+            {Array.from({ length: 6 }).map((_, i) => <span key={i} className="h-1 w-1 rounded-full bg-[#1A1C1E]/15" />)}
+          </span>
+          <span className="ml-auto font-mono text-[10px] tracking-[0.14em] text-[#1A1C1E]/50">AVISO · MODAL</span>
+        </div>
+        {imageUrl && <img src={imageUrl} alt="" className="aspect-[16/8] w-full object-cover" />}
+        <div className="p-4">
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#1A1C1E]/50">{cfg.label} · centrado al entrar</p>
+          <h4 className="mt-1 font-[800] leading-tight tracking-tight" style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '20px' }}>
+            {title || 'Título del aviso'}
+          </h4>
+          <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-[#1A1C1E]/75">
+            {body || 'El cuerpo del aviso aparecerá aquí. Usa un mensaje breve y cálido.'}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {ctaLabel ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#1A1C1E] px-4 py-2 text-xs font-semibold text-white">
+                {ctaLabel} <ExternalLink className="h-3 w-3" />
+              </span>
+            ) : (
+              <span className="inline-flex rounded-full border border-[#1A1C1E]/10 bg-white px-4 py-2 text-xs font-medium">Continuar escuchando</span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={`overflow-hidden rounded-xl border bg-[#F5EFE6] text-[#1A1C1E] shadow-sm border-[#E8DDD0] border-l-4 ${cfg.border}`}>
-      {/* perforaciones cassette como riesgo estético */}
       <div className="flex items-center gap-1.5 border-b border-[#E8DDD0] bg-[#EDE6DA] px-3 py-2">
         <span className="flex gap-1" aria-hidden>
           {Array.from({ length: 8 }).map((_, i) => <span key={i} className="h-1.5 w-1.5 rounded-full bg-[#1A1C1E]/15" />)}
@@ -61,8 +117,10 @@ function PreviewCard({ title, body, imageUrl, ctaLabel, variant }: { title: stri
       </div>
       {imageUrl && <img src={imageUrl} alt="" className="aspect-[16/7] w-full object-cover" />}
       <div className="p-4">
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#1A1C1E]/50">{cfg.label}</p>
-        <h4 className="mt-1 font-[700] leading-tight" style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '18px' }}>{title || 'Título del aviso'}</h4>
+        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#1A1C1E]/50">{cfg.label} · discreto</p>
+        <h4 className="mt-1 font-[700] leading-tight" style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '18px' }}>
+          {title || 'Título del aviso'}
+        </h4>
         <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-[#1A1C1E]/75">{body || 'El cuerpo del aviso aparecerá aquí. Usa un mensaje breve y cálido.'}</p>
         {ctaLabel && <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-[#1A1C1E] px-3 py-1.5 text-xs font-medium text-white">{ctaLabel} <ExternalLink className="h-3 w-3" /></span>}
       </div>
@@ -91,6 +149,7 @@ export default function AdminNotices() {
   const [ctaLabel, setCtaLabel] = useState('');
   const [ctaUrl, setCtaUrl] = useState('');
   const [variant, setVariant] = useState<NoticeVariant>('info');
+  const [displayMode, setDisplayMode] = useState<NoticeDisplayMode>('toast');
   const [audience, setAudience] = useState<NoticeAudience>('all');
   const [audienceZoneId, setAudienceZoneId] = useState('');
   const [audiencePlatform, setAudiencePlatform] = useState('');
@@ -118,7 +177,7 @@ export default function AdminNotices() {
 
   const resetForm = () => {
     setEditing(null); setTitle(''); setBody(''); setImageUrl(''); setCtaLabel(''); setCtaUrl('');
-    setVariant('info'); setAudience('all'); setAudienceZoneId(''); setAudiencePlatform(''); setAudienceProgram(''); setAudienceDeviceIds('');
+    setVariant('info'); setDisplayMode('toast'); setAudience('all'); setAudienceZoneId(''); setAudiencePlatform(''); setAudienceProgram(''); setAudienceDeviceIds('');
     setStartsAt(toLocalInput(new Date())); setEndsAt(toLocalInput(new Date(Date.now() + 7 * 86400000)));
     setMaxDisplays('3'); setDismissible(true); setIsActive(true); setPreviewCount(null);
   };
@@ -126,7 +185,7 @@ export default function AdminNotices() {
   const openEdit = (n: AppNotice) => {
     setEditing(n);
     setTitle(n.title); setBody(n.body); setImageUrl(n.imageUrl ?? ''); setCtaLabel(n.ctaLabel ?? ''); setCtaUrl(n.ctaUrl ?? '');
-    setVariant(n.variant); setAudience(n.audience);
+    setVariant(n.variant); setDisplayMode((n as unknown as { displayMode?: NoticeDisplayMode }).displayMode ?? 'toast'); setAudience(n.audience);
     setAudienceZoneId(n.audienceZoneId ?? ''); setAudiencePlatform(n.audiencePlatform ?? ''); setAudienceProgram(n.audienceProgram ?? '');
     setAudienceDeviceIds(n.audienceDeviceIds ? JSON.parse(n.audienceDeviceIds).join(', ') : '');
     setStartsAt(toLocalInput(new Date(n.startsAt))); setEndsAt(toLocalInput(new Date(n.endsAt)));
@@ -155,6 +214,7 @@ export default function AdminNotices() {
       audiencePlatform: audience === 'platform' ? audiencePlatform || null : null,
       audienceProgram: audience === 'program' ? audienceProgram.trim() || null : null,
       audienceDeviceIds: audience === 'devices' ? audienceDeviceIds.split(',').map((s) => s.trim()).filter(Boolean) : null,
+      displayMode,
       startsAt: new Date(startsAt).toISOString(),
       endsAt: new Date(endsAt).toISOString(),
       maxDisplaysPerUser: Math.max(0, Number(maxDisplays) || 0),
@@ -227,11 +287,15 @@ export default function AdminNotices() {
                   {rows.map((n, idx) => {
                     const st = statusFor(n);
                     const cfg = VARIANT_CFG[n.variant];
+                    const displayMode = (n as unknown as { displayMode?: string }).displayMode ?? 'toast';
                     return (
                       <motion.div key={n.id} layout={!shouldReduceMotion} initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: Math.min(idx * 0.03, 0.12) }} className={`group relative flex flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm border-l-4 ${cfg.border}`}>
                         <div className="flex items-center gap-2 border-b border-border bg-sunken/40 px-3 py-2">
                           <span className={`h-2 w-2 rounded-full ${cfg.dot}`} aria-hidden />
                           <span className="font-mono text-[10px] uppercase tracking-widest text-faint">{cfg.label}</span>
+                          <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${displayMode === 'modal' ? 'border-amber-500/30 bg-amber-500/10 text-amber-700' : 'border-border bg-card text-faint'}`}>
+                            {displayMode === 'modal' ? '● Central' : '▬ Discreto'}
+                          </span>
                           <Badge variant="outline" className={`ml-auto rounded-full border text-xs ${st.tone}`}>{st.label}</Badge>
                         </div>
                         {n.imageUrl && <img src={n.imageUrl} alt="" className="aspect-[16/8] w-full object-cover" />}
@@ -264,7 +328,7 @@ export default function AdminNotices() {
         <DialogContent className="max-h-[90vh] overflow-y-auto border-border bg-card sm:max-w-[720px]">
           <DialogHeader>
             <DialogTitle style={{ fontFamily: "'Fraunces', Georgia, serif" }}>{editing ? 'Editar aviso' : 'Nuevo aviso'}</DialogTitle>
-            <DialogDescription>Se mostrará como tarjeta discreta, no como modal invasivo. Define ventana y frecuencia.</DialogDescription>
+            <DialogDescription>Elige si es tarjeta discreta o anuncio central que aparece al entrar. Define ventana y frecuencia.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 md:grid-cols-[1.15fr_0.85fr]">
             <div className="space-y-4">
@@ -304,6 +368,31 @@ export default function AdminNotices() {
                   <Label className="font-mono text-xs text-faint">CTA URL</Label>
                   <Input value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} placeholder="https://..." className="border-border bg-sunken" />
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-sunken p-3 space-y-2">
+                <p className="font-mono text-xs font-medium text-faint">Modo de aparición</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode('toast')}
+                    className={`rounded-xl border px-3 py-3 text-left transition-colors ${displayMode === 'toast' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card hover:bg-sunken'}`}
+                  >
+                    <span className="block text-xs font-semibold">Discreto</span>
+                    <span className={`block text-[11px] leading-tight ${displayMode === 'toast' ? 'text-primary-foreground/80' : 'text-faint'}`}>Tarjeta abajo, no interrumpe</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode('modal')}
+                    className={`rounded-xl border px-3 py-3 text-left transition-colors ${displayMode === 'modal' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card hover:bg-sunken'}`}
+                  >
+                    <span className="block text-xs font-semibold">Anuncio central</span>
+                    <span className={`block text-[11px] leading-tight ${displayMode === 'modal' ? 'text-primary-foreground/80' : 'text-faint'}`}>Ocupa el centro al entrar, se cierra fácil</span>
+                  </button>
+                </div>
+                {displayMode === 'modal' && (
+                  <p className="rounded-lg bg-amber-500/10 px-2.5 py-2 font-mono text-[11px] leading-relaxed text-amber-700 ring-1 ring-amber-500/20">Modo intrusivo: aparece una sola vez al entrar (respeta máx. por usuario) y se puede cerrar con ×, clic fuera o Esc. Úsalo solo para avisos que no pueden perderse.</p>
+                )}
               </div>
 
               <div className="rounded-xl border border-border bg-sunken p-3 space-y-3">
@@ -378,9 +467,13 @@ export default function AdminNotices() {
 
             <div className="space-y-3">
               <p className="font-mono text-xs font-medium tracking-wide text-faint">Vista previa — como lo verá el oyente</p>
-              <PreviewCard title={title} body={body} imageUrl={imageUrl} ctaLabel={ctaLabel} variant={variant} />
+              <PreviewCard title={title} body={body} imageUrl={imageUrl} ctaLabel={ctaLabel} variant={variant} displayMode={displayMode} />
               <div className="rounded-xl border border-dashed border-border bg-sunken/60 p-3">
-                <p className="font-mono text-[11px] leading-relaxed text-faint">El aviso aparece como tarjeta anclada abajo, no bloquea la reproducción. Si el oyente lo cierra, no vuelve hasta agotar el límite. Tip: 3 veces en 7 días suele bastar.</p>
+                <p className="font-mono text-[11px] leading-relaxed text-faint">
+                  {displayMode === 'modal'
+                    ? 'Modo central: ocupa el centro con fondo oscuro al entrar. Se cierra con ×, clic fuera o Esc. Respeta el límite por usuario.'
+                    : 'Modo discreto: tarjeta anclada abajo, no bloquea la reproducción. Si el oyente lo cierra, no vuelve hasta agotar el límite.'}
+                </p>
               </div>
             </div>
           </div>

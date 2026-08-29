@@ -413,6 +413,7 @@ export interface NotificationStats {
 
 export type NoticeVariant = 'info' | 'event' | 'warning' | 'prayer';
 export type NoticeAudience = 'all' | 'zone' | 'platform' | 'program' | 'devices';
+export type NoticeDisplayMode = 'toast' | 'modal';
 
 export interface AppNotice {
   id: string;
@@ -427,6 +428,7 @@ export interface AppNotice {
   audiencePlatform: string | null;
   audienceProgram: string | null;
   audienceDeviceIds: string | null;
+  displayMode: NoticeDisplayMode;
   startsAt: string;
   endsAt: string;
   maxDisplaysPerUser: number;
@@ -455,6 +457,7 @@ export interface AppNoticeInput {
   audiencePlatform?: string | null;
   audienceProgram?: string | null;
   audienceDeviceIds?: string[] | null;
+  displayMode: NoticeDisplayMode;
   startsAt: string;
   endsAt: string;
   maxDisplaysPerUser: number;
