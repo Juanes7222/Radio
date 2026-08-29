@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart } from 'lucide-react';
+import { apiUrl } from '@/config';
 
 interface Notice {
   id: string;
@@ -132,7 +133,7 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onCta }: Pr
           <div className="min-h-0 flex-1 overflow-y-auto">
             {notice.imageUrl && (
               <div className="relative">
-                <img src={notice.imageUrl} alt="" className="aspect-[16/9] w-full object-cover" loading="eager" />
+                <img src={notice.imageUrl.startsWith('/media/') ? apiUrl(notice.imageUrl) : notice.imageUrl} alt="" className="aspect-[16/9] w-full object-cover" loading="eager" />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/30 to-transparent" aria-hidden />
               </div>
             )}

@@ -5,6 +5,12 @@ import { BACKEND_URL } from '@/constants/api';
 import { getDeviceId } from '@/lib/device';
 import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from '@/lib/noticeStorage';
 
+function resolveImageUri(url: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith('/media/')) return `${BACKEND_URL}${url}`;
+  return url;
+}
+
 interface Notice {
   id: string;
   title: string;
@@ -158,8 +164,8 @@ export function NoticeOverlay() {
               </View>
 
               <ScrollView style={{ maxHeight: 520 }} contentContainerStyle={{ paddingBottom: 4 }} bounces={false} showsVerticalScrollIndicator={false}>
-                {modalNotice.imageUrl ? (
-                  <Image source={{ uri: modalNotice.imageUrl }} style={mStyles.image} resizeMode="cover" />
+                {resolveImageUri(modalNotice.imageUrl) ? (
+                  <Image source={{ uri: resolveImageUri(modalNotice.imageUrl)! }} style={mStyles.image} resizeMode="cover" />
                 ) : null}
 
                 <View style={mStyles.body}>
@@ -208,8 +214,8 @@ export function NoticeOverlay() {
           <Text style={styles.eyebrow}>AVISO</Text>
         </View>
 
-        {current.imageUrl ? (
-          <Image source={{ uri: current.imageUrl }} style={styles.image} resizeMode="cover" />
+        {resolveImageUri(current.imageUrl) ? (
+          <Image source={{ uri: resolveImageUri(current.imageUrl)! }} style={styles.image} resizeMode="cover" />
         ) : null}
 
         <View style={styles.body}>

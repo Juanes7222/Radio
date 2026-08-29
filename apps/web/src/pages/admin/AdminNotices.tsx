@@ -15,7 +15,8 @@ import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import { toast } from 'sonner';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { formatDateTime } from '@/lib/format';
-import type { AppNotice, AppNoticeInput, NoticeAudience, NoticeVariant, NoticeDisplayMode } from '@radio/types';
+import { API_BASE_URL } from '@/config';
+import type { AppNotice, AppNoticeInput, NoticeAudience, NoticeVariant, NoticeDisplayMode, NoticeImage } from '@radio/types';
 
 
 
@@ -50,6 +51,12 @@ function toLocalInput(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function resolveNoticeImageSrc(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('/media/')) return `${API_BASE_URL}${url}`;
+  return url;
+}
+
 function PreviewCard({
   title,
   body,
@@ -67,7 +74,7 @@ function PreviewCard({
 }) {
   const cfg = VARIANT_CFG[variant];
   const dotClass = cfg.dot;
-  // paleta unificada: dark card, accent por variante, no crema
+  const resolved = resolveNoticeImageSrc(imageUrl ?? null);
   if (displayMode === 'modal') {
     return (
       <div className={`overflow-hidden rounded-[20px] border border-border bg-card shadow-[0_16px_40px_rgba(0,0,0,0.35)] border-t-4 ${cfg.border.replace('border-l-', 'border-t-')}`}>
@@ -85,7 +92,7 @@ function PreviewCard({
           </span>
           <span className="grid h-6 w-6 place-items-center rounded-full bg-muted text-muted-foreground"><span className="text-[11px]">×</span></span>
         </div>
-        {imageUrl && <img src={imageUrl} alt="" className="aspect-[16/8] w-full object-cover" />}
+        {resolved && <img src={resolved} alt="" className="aspect-[16/8] w-full object-cover" />}
         <div className="p-4">
           <span className={`inline-flex rounded-full border px-2 py-0.5 font-mono text-[11px] ${cfg.badge}`}>{cfg.label} · centrado al entrar</span>
           <h4 className="mt-2 font-[800] leading-tight tracking-tight text-card-foreground" style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '20px' }}>
@@ -115,7 +122,7 @@ function PreviewCard({
         <span className="font-mono text-[10px] tracking-wide text-muted-foreground">{cfg.label} · discreto</span>
         <span className="ml-auto font-mono text-[10px] tracking-[0.14em] text-faint">AVISO</span>
       </div>
-      {imageUrl && <img src={imageUrl} alt="" className="aspect-[16/7] w-full object-cover" />}
+      {resolved && <img src={resolved} alt="" className="aspect-[16/7] w-full object-cover" />}
       <div className="p-4">
         <span className={`inline-flex rounded-full border px-2 py-0.5 font-mono text-[11px] ${cfg.badge}`}>{cfg.label}</span>
         <h4 className="mt-2 font-[700] leading-tight text-card-foreground" style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '18px' }}>
@@ -129,7 +136,7 @@ function PreviewCard({
 }
 
 export default function AdminNotices() {
-  const { getNotices, createNotice, updateNotice, deleteNotice, previewNoticeAudience, getDeviceZones } = useAdminApi();
+  const { getNotices, createNotice, updateNotice, deleteNotice, previewNoticeAudience, getDeviceZones, getNoticeImages, uploadNoticeImage, deleteNoticeImage } = useAdminApi();
   const shouldReduceMotion = useReducedMotion();
 
   const [rows, setRows] = useState<AppNotice[]>([]);
@@ -141,6 +148,11 @@ export default function AdminNotices() {
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AppNotice | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [library, setLibrary] = useState<NoticeImage[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
 
   // form state
   const [title, setTitle] = useState('');
@@ -179,7 +191,39 @@ export default function AdminNotices() {
     setEditing(null); setTitle(''); setBody(''); setImageUrl(''); setCtaLabel(''); setCtaUrl('');
     setVariant('info'); setDisplayMode('toast'); setAudience('all'); setAudienceZoneId(''); setAudiencePlatform(''); setAudienceProgram(''); setAudienceDeviceIds('');
     setStartsAt(toLocalInput(new Date())); setEndsAt(toLocalInput(new Date(Date.now() + 7 * 86400000)));
-    setMaxDisplays('3'); setDismissible(true); setIsActive(true); setPreviewCount(null);
+    setMaxDisplays('3'); setDismissible(true); setIsActive(true); setPreviewCount(null); setLocalPreview(null);
+  };
+
+  const loadLibrary = useCallback(async () => {
+    setLibraryLoading(true);
+    try {
+      const res = await getNoticeImages({ limit: 24 });
+      setLibrary(res.rows);
+    } catch { toast.error('No se pudo cargar la biblioteca'); }
+    finally { setLibraryLoading(false); }
+  }, [getNoticeImages]);
+
+  useEffect(() => { if (libraryOpen) void loadLibrary(); }, [libraryOpen, loadLibrary]);
+
+  const handleImageFile = async (file: File | null | undefined) => {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { toast.error('Máx 8 MB'); return; }
+    if (!file.type.startsWith('image/')) { toast.error('Solo imágenes'); return; }
+    const previewUrl = URL.createObjectURL(file);
+    setLocalPreview(previewUrl);
+    setImageUploading(true);
+    try {
+      const img = await uploadNoticeImage(file);
+      setImageUrl(img.url);
+      toast.success(`Imagen optimizada ${Math.round(img.size / 1024)} KB · ${img.width ?? '?'}×${img.height ?? '?'}`);
+      await loadLibrary();
+    } catch { toast.error('No se pudo subir la imagen'); }
+    finally { setImageUploading(false); }
+  };
+
+  const handleDeleteImage = async (id: string) => {
+    try { await deleteNoticeImage(id); toast.success('Imagen eliminada'); void loadLibrary(); if (library.find((x) => x.id === id)?.url === imageUrl) setImageUrl(''); }
+    catch { toast.error('No se pudo eliminar'); }
   };
 
   const openEdit = (n: AppNotice) => {
@@ -298,7 +342,7 @@ export default function AdminNotices() {
                           </span>
                           <Badge variant="outline" className={`ml-auto rounded-full border text-xs ${st.tone}`}>{st.label}</Badge>
                         </div>
-                        {n.imageUrl && <img src={n.imageUrl} alt="" className="aspect-[16/8] w-full object-cover" />}
+                        {n.imageUrl && <img src={resolveNoticeImageSrc(n.imageUrl) ?? ''} alt="" className="aspect-[16/8] w-full object-cover" />}
                         <div className="flex flex-1 flex-col gap-2 p-3">
                           <h3 className="line-clamp-2 text-[15px] font-semibold leading-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>{n.title}</h3>
                           <p className="line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{n.body}</p>
@@ -343,10 +387,6 @@ export default function AdminNotices() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="font-mono text-xs text-faint">Imagen (URL opcional)</Label>
-                  <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." className="border-border bg-sunken" />
-                </div>
-                <div className="space-y-1.5">
                   <Label className="font-mono text-xs text-faint">Variante</Label>
                   <Select value={variant} onValueChange={(v) => setVariant(v as NoticeVariant)}>
                     <SelectTrigger className="border-border bg-sunken"><SelectValue /></SelectTrigger>
@@ -357,6 +397,63 @@ export default function AdminNotices() {
                       <SelectItem value="prayer">Oración</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-mono text-xs text-faint">CTA etiqueta</Label>
+                  <Input value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder="Ej: Ver detalles" className="border-border bg-sunken" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs text-faint">Imagen para popup — sube, elige de biblioteca o pega URL</Label>
+                <div className="rounded-xl border border-border bg-sunken p-3 space-y-3">
+                  {/* preview actual */}
+                  {(imageUrl || localPreview) && (
+                    <div className="relative overflow-hidden rounded-lg border border-border bg-card">
+                      <img src={resolveNoticeImageSrc(imageUrl) ?? localPreview ?? ''} alt="Preview" className="aspect-[16/7] w-full object-cover" />
+                      {imageUrl && <span className="absolute bottom-1 left-1 rounded-full bg-black/60 px-2 py-0.5 font-mono text-[10px] text-white">Optimizada · {imageUrl.startsWith('/media') ? 'servidor' : 'externa'}</span>}
+                      <button onClick={() => { setImageUrl(''); setLocalPreview(null); }} className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80"><Trash2 className="h-3.5 w-3.5" /></button>
+                    </div>
+                  )}
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <label className={`flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2.5 text-sm font-medium transition-colors ${imageUploading ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
+                      <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" className="hidden" onChange={(e) => void handleImageFile(e.target.files?.[0])} disabled={imageUploading} />
+                      <RefreshCw className={`h-4 w-4 ${imageUploading ? 'animate-spin' : ''}`} />
+                      {imageUploading ? 'Optimizando…' : 'Subir imagen (max 8 MB)'}
+                    </label>
+                    <Button type="button" variant="outline" className="rounded-lg" onClick={() => setLibraryOpen((v) => !v)}><Layers className="h-4 w-4" />{libraryOpen ? 'Cerrar' : 'Biblioteca'}</Button>
+                  </div>
+                  <Input value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setLocalPreview(null); }} placeholder="https://... o /media/notices/xxx.webp (se autocompleta al subir)" className="border-border bg-card font-mono text-xs" />
+                  <p className="font-mono text-[11px] leading-relaxed text-faint">Al subir se redimensiona a máx 1280×900, se convierte a WebP quality 82 y queda en el servidor para reusar. También puedes pegar un enlace externo.</p>
+                  {libraryOpen && (
+                    <div className="rounded-lg border border-border bg-card p-2">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="font-mono text-xs text-faint">Biblioteca · {library.length} imágenes</span>
+                        <Button variant="ghost" size="sm" className="h-7 rounded-full text-xs" onClick={() => void loadLibrary()} disabled={libraryLoading}><RefreshCw className={`h-3 w-3 ${libraryLoading ? 'animate-spin' : ''}`} /> Recargar</Button>
+                      </div>
+                      {libraryLoading ? <div className="grid grid-cols-3 gap-2">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="aspect-[4/3] animate-pulse rounded-lg bg-sunken" />)}</div>
+                      : library.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Aún no hay imágenes subidas.</p>
+                      : <div className="grid max-h-[220px] grid-cols-3 gap-2 overflow-y-auto pr-1">
+                        {library.map((img) => (
+                          <div key={img.id} className={`group relative overflow-hidden rounded-lg border ${imageUrl === img.url ? 'border-primary ring-1 ring-primary' : 'border-border'} bg-sunken`}>
+                            <button type="button" onClick={() => { setImageUrl(img.url); setLocalPreview(null); }} className="block w-full">
+                              <img src={`${API_BASE_URL}${img.url}`} alt={img.originalName} className="aspect-[4/3] w-full object-cover" loading="lazy" />
+                            </button>
+                            <div className="flex items-center justify-between gap-1 bg-card px-1.5 py-1">
+                              <span className="truncate font-mono text-[10px] text-faint" title={img.originalName}>{Math.round(img.size / 1024)} KB</span>
+                              <button type="button" onClick={() => void handleDeleteImage(img.id)} className="rounded-full p-1 text-faint hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
+                            </div>
+                            {imageUrl === img.url && <span className="pointer-events-none absolute left-1 top-1 rounded-full bg-primary px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary-foreground">Usando</span>}
+                          </div>
+                        ))}
+                      </div>}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="font-mono text-xs text-faint">CTA URL</Label>
+                  <Input value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} placeholder="https://..." className="border-border bg-sunken" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

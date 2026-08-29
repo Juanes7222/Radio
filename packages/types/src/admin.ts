@@ -465,6 +465,25 @@ export interface AppNoticeInput {
   isActive: boolean;
 }
 
+export interface NoticeImage {
+  id: string;
+  filename: string;
+  originalName: string;
+  url: string;
+  mimeType: string;
+  size: number;
+  width: number | null;
+  height: number | null;
+  createdAt: string;
+}
+
+export interface NoticeImageList {
+  rows: NoticeImage[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
 /** Connected worker node reported by the worker pool */
 export interface WorkerNodeInfo {
   workerId: string;

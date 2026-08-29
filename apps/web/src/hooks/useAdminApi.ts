@@ -29,6 +29,8 @@ import type {
   AppNoticeList,
   AppNotice,
   AppNoticeInput,
+  NoticeImage,
+  NoticeImageList,
 } from '@radio/types';
 import { API_BASE_URL } from '@/config';
 
@@ -532,6 +534,24 @@ export function useAdminApi() {
     [request]
   );
 
+  const getNoticeImages = useCallback(
+    (params: { page?: number; limit?: number } = {}) =>
+      request<NoticeImageList>({ url: '/admin-api/notices/images', params }),
+    [request]
+  );
+  const uploadNoticeImage = useCallback(
+    (file: File) => {
+      const fd = new FormData();
+      fd.append('image', file);
+      return request<NoticeImage>({ method: 'POST', url: '/admin-api/notices/images', data: fd, timeout: 30000 });
+    },
+    [request]
+  );
+  const deleteNoticeImage = useCallback(
+    (id: string) => request({ method: 'DELETE', url: `/admin-api/notices/images/${id}` }),
+    [request]
+  );
+
   // ── Workers y YouTube ─────────────────────────────────────────
   const getWorkers = useCallback(
     () => request<WorkerNodeInfo[]>({ url: '/admin-api/workers/workers' }),
@@ -617,6 +637,9 @@ export function useAdminApi() {
     updateNotice,
     deleteNotice,
     previewNoticeAudience,
+    getNoticeImages,
+    uploadNoticeImage,
+    deleteNoticeImage,
     getWorkers,
     getWorkerJobs,
     skipCurrentTrack,

@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
+import path from "path";
 import { errorHandler } from "./shared/errors/error-handler";
 import { config } from "./config";
 import { logger } from "./shared/logger/logger";
@@ -26,6 +27,7 @@ import listenerHistoryRouter from "./modules/azuracast/listenerHistory.routes";
 import rotationRouter from "./modules/rotation/rotation.routes";
 import noticesPublicRouter from "./modules/notices/public.routes";
 import noticesAdminRouter from "./modules/notices/admin.routes";
+import noticeImagesRouter from "./modules/notices/noticeImages.routes";
 import swaggerFile from "./swagger-output.json";
 
 const ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:4173"];
@@ -34,7 +36,7 @@ export function createApp(): Express {
   const app = express();
 
   app.use(morgan("dev"));
-  app.use(helmet());
+  app.use(helmet({ crossOriginResourcePolicy: false }));
   app.use(
     cors({
       origin: ALLOWED_ORIGINS,
@@ -71,6 +73,18 @@ export function createApp(): Express {
   app.use("/admin-api/rotations", rotationRouter);
   app.use("/api/notices", noticesPublicRouter);
   app.use("/admin-api/notices", noticesAdminRouter);
+  app.use("/admin-api/notices", noticeImagesRouter);
+  // imágenes optimizadas reusables — servir estático con cache
+  app.use(
+    "/media/notices",
+    express.static(path.resolve(process.cwd(), "backend", "storage", "notice-images"), {
+      maxAge: "30d",
+      immutable: true,
+      setHeaders(res) {
+        res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
+      },
+    }),
+  );
   app.use("/api/prayer", prayerRouter);
 
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerFile));

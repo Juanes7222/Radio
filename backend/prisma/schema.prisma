@@ -395,3 +395,19 @@ model AppNotice {
   @@index([endsAt])
   @@index([audience])
 }
+
+// Biblioteca de imágenes para avisos — reusables, optimizadas con sharp
+model NoticeImage {
+  id           String   @id @default(uuid())
+  filename     String   @unique // uuid.webp en disco
+  originalName String   @map("original_name")
+  url          String   // /media/notices/<filename>
+  mimeType     String   @map("mime_type")
+  size         Int      // bytes optimizados
+  width        Int?
+  height       Int?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("notice_images")
+  @@index([createdAt])
+}

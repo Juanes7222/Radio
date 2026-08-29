@@ -172,7 +172,7 @@ importers:
         version: 16.5.0
       sharp:
         specifier: ^0.35.3
-        version: 0.35.3
+        version: 0.35.3(@types/node@22.19.20)
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
@@ -480,6 +480,9 @@ importers:
       nodemailer:
         specifier: ^9.0.4
         version: 9.0.4
+      sharp:
+        specifier: ^0.35.3
+        version: 0.35.3(@types/node@22.19.20)
       swagger-autogen:
         specifier: ^2.23.7
         version: 2.23.7
@@ -9186,7 +9189,7 @@ snapshots:
       jimp-compact: 0.16.1
       parse-png: 2.1.0
       resolve-from: 5.0.0
-      semver: 7.8.2
+      semver: 7.8.5
       temp-dir: 2.0.0
       unique-string: 2.0.0
 
@@ -9257,7 +9260,7 @@ snapshots:
       '@react-native/normalize-colors': 0.79.6
       debug: 4.4.3
       resolve-from: 5.0.0
-      semver: 7.8.2
+      semver: 7.8.5
       xml2js: 0.6.0
     transitivePeerDependencies:
       - supports-color
@@ -10977,7 +10980,7 @@ snapshots:
       metro: 0.82.5
       metro-config: 0.82.5
       metro-core: 0.82.5
-      semver: 7.8.2
+      semver: 7.8.5
     optionalDependencies:
       '@react-native-community/cli': 20.1.3(typescript@5.8.3)
     transitivePeerDependencies:
@@ -14541,7 +14544,7 @@ snapshots:
 
   node-abi@3.92.0:
     dependencies:
-      semver: 7.8.2
+      semver: 7.8.5
 
   node-cron@4.2.1: {}
 
@@ -14577,7 +14580,7 @@ snapshots:
     dependencies:
       hosted-git-info: 7.0.2
       proc-log: 4.2.0
-      semver: 7.8.2
+      semver: 7.8.5
       validate-npm-package-name: 5.0.1
 
   npm-run-path@4.0.1:
@@ -15441,7 +15444,7 @@ snapshots:
 
   shallowequal@1.1.0: {}
 
-  sharp@0.35.3:
+  sharp@0.35.3(@types/node@22.19.20):
     dependencies:
       '@img/colour': 1.1.0
       detect-libc: 2.1.2
@@ -15472,6 +15475,7 @@ snapshots:
       '@img/sharp-win32-arm64': 0.35.3
       '@img/sharp-win32-ia32': 0.35.3
       '@img/sharp-win32-x64': 0.35.3
+      '@types/node': 22.19.20
 
   shebang-command@2.0.0:
     dependencies:
