@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart } from 'lucide-react';
 import { API_BASE_URL } from '@/config';
 import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from '@/lib/noticeStorage';
 import { NoticeIntrusiveModal } from './NoticeIntrusiveModal';
@@ -19,11 +19,11 @@ interface Notice {
   endsAt: string;
 }
 
-const VARIANT_ACCENT: Record<string, string> = {
-  info: 'bg-info',
-  event: 'bg-primary',
-  warning: 'bg-warning',
-  prayer: 'bg-success',
+const VARIANT_META: Record<string, { accent: string; badge: string; label: string; icon: typeof Info }> = {
+  info: { accent: 'bg-info', badge: 'bg-info/12 text-info border-info/25', label: 'Informativo', icon: Info },
+  event: { accent: 'bg-primary', badge: 'bg-primary/12 text-primary border-primary/25', label: 'Evento', icon: CalendarRange },
+  warning: { accent: 'bg-warning', badge: 'bg-warning/12 text-warning border-warning/25', label: 'Urgente', icon: AlertTriangle },
+  prayer: { accent: 'bg-success', badge: 'bg-success/12 text-success border-success/25', label: 'Oración', icon: Heart },
 };
 
 function getDeviceId(): string | null {
@@ -134,8 +134,6 @@ export function NoticeOverlay() {
     if (modalNotice?.ctaUrl) window.open(modalNotice.ctaUrl, '_blank', 'noopener');
   };
 
-  const accent = current ? (VARIANT_ACCENT[current.variant] ?? VARIANT_ACCENT.info) : VARIANT_ACCENT.info;
-
   return (
     <>
       <NoticeIntrusiveModal
@@ -145,7 +143,10 @@ export function NoticeOverlay() {
         onCta={handleCtaModal}
       />
 
-      {current && !modalNotice && (
+      {current && !modalNotice && (() => {
+        const meta = VARIANT_META[current.variant] ?? VARIANT_META.info;
+        const Icon = meta.icon;
+        return (
         <AnimatePresence>
           <motion.div
             key={current.id}
@@ -156,39 +157,53 @@ export function NoticeOverlay() {
             className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:justify-end sm:px-4 sm:pb-6"
             aria-live="polite"
           >
-            <div className="pointer-events-auto w-full max-w-[420px] overflow-hidden rounded-2xl border border-[#E8DDD0] bg-[#F5EFE6] text-[#1A1C1E] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-              <div className="relative border-b border-[#E8DDD0] bg-[#EDE6DA]">
-                <div className="flex items-center gap-1.5 px-3 py-2">
-                  <span className="flex gap-1" aria-hidden>{Array.from({ length: 6 }).map((_, i) => <span key={i} className="h-1.5 w-1.5 rounded-full bg-[#1A1C1E]/15" />)}</span>
-                  <span className="ml-auto font-mono text-[10px] tracking-[0.14em] text-[#1A1C1E]/50">AVISO</span>
-                </div>
-                <div className="absolute bottom-0 left-0 h-0.5 bg-amber-500 transition-all" style={{ width: `${Math.min(100, Math.max(4, progress))}%` }} aria-hidden />
-                <div className={`absolute bottom-0 left-0 h-0.5 ${accent} opacity-60`} style={{ width: '100%' }} aria-hidden />
+            <div className="pointer-events-auto w-full max-w-[420px] overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-[0_16px_40px_rgba(0,0,0,0.45)]">
+              {/* accent top */}
+              <div className={`h-[3px] w-full ${meta.accent}`} aria-hidden />
+              <div className="flex items-center gap-1.5 border-b border-border bg-muted/40 px-3 py-2">
+                <span className="flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-none tracking-wide" style={{ background: 'hsl(var(--card))' }}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${meta.accent}`} aria-hidden />
+                  <span className="font-mono text-[10px] tracking-wide text-muted-foreground">{meta.label}</span>
+                </span>
+                <span className="flex gap-1" aria-hidden>{Array.from({ length: 4 }).map((_, i) => <span key={i} className="h-1 w-1 rounded-full bg-border" />)}</span>
+                <span className="ml-auto font-mono text-[10px] tracking-[0.14em] text-muted-foreground/60">AVISO</span>
+              </div>
+              {/* progress */}
+              <div className="relative h-[2px] bg-border/50" aria-hidden>
+                <div className="absolute inset-y-0 left-0 bg-primary transition-all" style={{ width: `${Math.min(100, Math.max(4, progress))}%` }} />
+                <div className={`absolute inset-y-0 left-0 w-full ${meta.accent} opacity-40`} />
               </div>
 
               {current.imageUrl && (
-                <img src={current.imageUrl} alt="" className="aspect-[16/7] w-full object-cover" loading="lazy" />
+                <div className="relative">
+                  <img src={current.imageUrl} alt="" className="aspect-[16/7] w-full object-cover" loading="lazy" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/40 to-transparent" aria-hidden />
+                </div>
               )}
 
               <div className="relative p-4 pr-10">
                 <button
                   onClick={handleDismissToast}
                   aria-label={current.dismissible ? 'Cerrar aviso' : 'Ocultar aviso'}
-                  className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-[#1A1C1E]/5 text-[#1A1C1E]/60 transition-colors hover:bg-[#1A1C1E]/10 hover:text-[#1A1C1E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                  className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <X className="h-4 w-4" />
                 </button>
 
-                <h3 className="pr-2 text-[17px] font-bold leading-tight tracking-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                <div className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${meta.badge}`}>
+                  <Icon className="h-3 w-3" />
+                  {meta.label}
+                </div>
+                <h3 className="mt-2 pr-2 text-[17px] font-bold leading-tight tracking-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                   {current.title}
                 </h3>
-                <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-[#1A1C1E]/70">{current.body}</p>
+                <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{current.body}</p>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {current.ctaLabel && current.ctaUrl && (
                     <button
                       onClick={handleCtaToast}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1C1E] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[0_4px_12px_hsl(var(--primary)/0.25)] transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {current.ctaLabel}
                       <ExternalLink className="h-3.5 w-3.5" />
@@ -196,14 +211,14 @@ export function NoticeOverlay() {
                   )}
                   <button
                     onClick={handleDismissToast}
-                    className="rounded-full px-3 py-2 text-xs font-medium text-[#1A1C1E]/60 transition-colors hover:bg-[#1A1C1E]/5 hover:text-[#1A1C1E]"
+                    className="rounded-full px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     {current.dismissible ? 'No volver a mostrar' : 'Ocultar por ahora'}
                   </button>
                 </div>
 
                 {current.maxDisplaysPerUser > 0 && (
-                  <p className="mt-2 font-mono text-[11px] text-[#1A1C1E]/40">
+                  <p className="mt-2 font-mono text-[11px] text-faint">
                     {getNoticeState(current.id).count}/{current.maxDisplaysPerUser} vistas
                   </p>
                 )}
@@ -211,7 +226,8 @@ export function NoticeOverlay() {
             </div>
           </motion.div>
         </AnimatePresence>
-      )}
+        );
+      })()}
     </>
   );
 }

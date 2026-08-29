@@ -66,41 +66,41 @@ function PreviewCard({
   displayMode: NoticeDisplayMode;
 }) {
   const cfg = VARIANT_CFG[variant];
+  const dotClass = cfg.dot;
+  // paleta unificada: dark card, accent por variante, no crema
   if (displayMode === 'modal') {
     return (
-      <div className="overflow-hidden rounded-[20px] border border-[#E8DDD0] bg-[#F5EFE6] text-[#1A1C1E] shadow-[0_16px_40px_rgba(0,0,0,0.18)]">
-        <div className="relative flex items-center justify-between gap-2 border-b border-[#E8DDD0] bg-[#0F1113] px-3 py-2.5 text-white">
+      <div className={`overflow-hidden rounded-[20px] border border-border bg-card shadow-[0_16px_40px_rgba(0,0,0,0.35)] border-t-4 ${cfg.border.replace('border-l-', 'border-t-')}`}>
+        <div className="relative flex items-center justify-between gap-2 border-b border-border bg-card px-3 py-2.5">
           <span className="flex items-center gap-2">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-[#DC2626] shadow-[0_0_8px_rgba(220,38,38,0.8)]" aria-hidden />
-            <span className="font-mono text-[10px] font-semibold tracking-[0.14em]">EN EL AIRE</span>
+            <span className="relative grid h-2 w-2 place-items-center" aria-hidden>
+              <span className="absolute inset-0 animate-ping rounded-full bg-tally/40" />
+              <span className="relative h-2 w-2 rounded-full bg-tally shadow-[0_0_8px_hsl(var(--tally)/0.5)]" />
+            </span>
+            <span className="font-mono text-[10px] font-semibold tracking-[0.14em] text-card-foreground">EN EL AIRE</span>
+            <span className={`hidden h-1.5 w-1.5 rounded-full sm:inline ${dotClass}`} aria-hidden />
           </span>
-          <span className="hidden items-center gap-1 font-mono text-[9px] tracking-[0.08em] text-white/45 sm:flex" aria-hidden>
-            <span>88</span><span className="h-2 w-px bg-white/20" /><span>96</span><span className="h-3 w-px bg-amber-400" /><span>104</span><span>108 FM</span>
+          <span className="hidden items-center gap-1 font-mono text-[9px] tracking-[0.08em] text-faint sm:flex" aria-hidden>
+            <span>88</span><span className="h-2 w-px bg-border" /><span>96</span><span className="h-3 w-px bg-primary" /><span>104</span><span>108 FM</span>
           </span>
-          <span className="grid h-6 w-6 place-items-center rounded-full bg-white/10 text-white/70"><span className="text-[11px]">×</span></span>
-        </div>
-        <div className="flex items-center gap-1.5 border-b border-[#E8DDD0] bg-[#EDE6DA] px-3 py-1.5">
-          <span className="flex gap-1" aria-hidden>
-            {Array.from({ length: 6 }).map((_, i) => <span key={i} className="h-1 w-1 rounded-full bg-[#1A1C1E]/15" />)}
-          </span>
-          <span className="ml-auto font-mono text-[10px] tracking-[0.14em] text-[#1A1C1E]/50">AVISO · MODAL</span>
+          <span className="grid h-6 w-6 place-items-center rounded-full bg-muted text-muted-foreground"><span className="text-[11px]">×</span></span>
         </div>
         {imageUrl && <img src={imageUrl} alt="" className="aspect-[16/8] w-full object-cover" />}
         <div className="p-4">
-          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#1A1C1E]/50">{cfg.label} · centrado al entrar</p>
-          <h4 className="mt-1 font-[800] leading-tight tracking-tight" style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '20px' }}>
+          <span className={`inline-flex rounded-full border px-2 py-0.5 font-mono text-[11px] ${cfg.badge}`}>{cfg.label} · centrado al entrar</span>
+          <h4 className="mt-2 font-[800] leading-tight tracking-tight text-card-foreground" style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '20px' }}>
             {title || 'Título del aviso'}
           </h4>
-          <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-[#1A1C1E]/75">
+          <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
             {body || 'El cuerpo del aviso aparecerá aquí. Usa un mensaje breve y cálido.'}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {ctaLabel ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#1A1C1E] px-4 py-2 text-xs font-semibold text-white">
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">
                 {ctaLabel} <ExternalLink className="h-3 w-3" />
               </span>
             ) : (
-              <span className="inline-flex rounded-full border border-[#1A1C1E]/10 bg-white px-4 py-2 text-xs font-medium">Continuar escuchando</span>
+              <span className="inline-flex rounded-full border border-border bg-secondary px-4 py-2 text-xs font-medium text-secondary-foreground">Continuar escuchando</span>
             )}
           </div>
         </div>
@@ -108,21 +108,21 @@ function PreviewCard({
     );
   }
   return (
-    <div className={`overflow-hidden rounded-xl border bg-[#F5EFE6] text-[#1A1C1E] shadow-sm border-[#E8DDD0] border-l-4 ${cfg.border}`}>
-      <div className="flex items-center gap-1.5 border-b border-[#E8DDD0] bg-[#EDE6DA] px-3 py-2">
-        <span className="flex gap-1" aria-hidden>
-          {Array.from({ length: 8 }).map((_, i) => <span key={i} className="h-1.5 w-1.5 rounded-full bg-[#1A1C1E]/15" />)}
-        </span>
-        <span className="ml-auto font-mono text-[10px] tracking-[0.14em] text-[#1A1C1E]/50">CINTA · AVISO</span>
+    <div className={`overflow-hidden rounded-xl border bg-card shadow-sm border-l-4 ${cfg.border}`}>
+      <div className={`h-[3px] w-full ${dotClass}`} aria-hidden />
+      <div className="flex items-center gap-1.5 border-b border-border bg-muted/40 px-3 py-2">
+        <span className={`h-2 w-2 rounded-full ${dotClass}`} aria-hidden />
+        <span className="font-mono text-[10px] tracking-wide text-muted-foreground">{cfg.label} · discreto</span>
+        <span className="ml-auto font-mono text-[10px] tracking-[0.14em] text-faint">AVISO</span>
       </div>
       {imageUrl && <img src={imageUrl} alt="" className="aspect-[16/7] w-full object-cover" />}
       <div className="p-4">
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#1A1C1E]/50">{cfg.label} · discreto</p>
-        <h4 className="mt-1 font-[700] leading-tight" style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '18px' }}>
+        <span className={`inline-flex rounded-full border px-2 py-0.5 font-mono text-[11px] ${cfg.badge}`}>{cfg.label}</span>
+        <h4 className="mt-2 font-[700] leading-tight text-card-foreground" style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '18px' }}>
           {title || 'Título del aviso'}
         </h4>
-        <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-[#1A1C1E]/75">{body || 'El cuerpo del aviso aparecerá aquí. Usa un mensaje breve y cálido.'}</p>
-        {ctaLabel && <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-[#1A1C1E] px-3 py-1.5 text-xs font-medium text-white">{ctaLabel} <ExternalLink className="h-3 w-3" /></span>}
+        <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{body || 'El cuerpo del aviso aparecerá aquí. Usa un mensaje breve y cálido.'}</p>
+        {ctaLabel && <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">{ctaLabel} <ExternalLink className="h-3 w-3" /></span>}
       </div>
     </div>
   );

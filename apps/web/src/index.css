@@ -62,6 +62,14 @@
     /* Neutral accent for schedule sections without a category */
     --accent-neutral: 224 13% 60%;
 
+    /* Tally red — used for on-air dot in player and notice modals (fallback for .admin-theme) */
+    --tally: 353 75% 58%;
+    --success: 152 48% 52%;
+    --warning: 36 92% 56%;
+    --info: 199 85% 62%;
+    --faint: 218 12% 57%;
+    --surface-sunken: 222 22% 12%;
+
     /* Social brand colors */
     --facebook: #1877f2;
     --whatsapp: #25d366;
