@@ -15,5 +15,7 @@ export const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, '');
 /** Joins a backend path with the configured base URL. */
 export function apiUrl(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${API_BASE_URL}${cleanPath}`;
+  // /media/* necesita pasar por /api para que nginx lo proxee al backend (ver backend/src/app.ts /api/media)
+  const proxiedPath = cleanPath.startsWith('/media/') ? `/api${cleanPath}` : cleanPath;
+  return `${API_BASE_URL}${proxiedPath}`;
 }

@@ -15,7 +15,20 @@ function getPrisma() {
   return prisma as any;
 }
 
-const NOTICE_IMAGES_DIR = path.resolve(process.cwd(), "backend", "storage", "notice-images");
+function resolveNoticeImagesDir(): string {
+  const candidates = [
+    path.resolve(process.cwd(), "backend", "storage", "notice-images"),
+    path.resolve(process.cwd(), "storage", "notice-images"),
+    path.resolve(__dirname, "../../storage/notice-images"),
+    path.resolve(__dirname, "../../../storage/notice-images"),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return candidates[0];
+}
+
+const NOTICE_IMAGES_DIR = resolveNoticeImagesDir();
 
 // asegura directorio
 function ensureDir(): void {

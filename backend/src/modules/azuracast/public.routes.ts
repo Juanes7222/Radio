@@ -178,27 +178,61 @@ router.get("/schedule/categories", async (_req, res) => {
   }
 });
 
+function cleanArtId(artId: string): string {
+  return artId.replace(/-\d+\.\w+$/, "").replace(/\.\w+$/, "").split("-")[0] ?? artId;
+}
+
+async function fetchArt(stationId: string, artId: string) {
+  const url = `${config.azuracast.url}/api/station/${stationId}/art/${artId}`;
+  return axios({
+    method: "GET",
+    url,
+    headers: { Authorization: `Bearer ${config.azuracast.apiKey}` },
+    responseType: "stream",
+    timeout: 15_000,
+    validateStatus: (s) => s < 500,
+  });
+}
+
 router.get("/station/:stationId/art/:artId", async (req, res) => {
   const { stationId, artId } = req.params;
-  try {
-    const azuraCastResponse = await axios({
-      method: "GET",
-      url: `${config.azuracast.url}/api/station/${stationId}/art/${artId}`,
-      headers: { Authorization: `Bearer ${config.azuracast.apiKey}` },
-      responseType: "stream",
-      timeout: 15_000,
-    });
-    const contentType = azuraCastResponse.headers["content-type"];
-    res.setHeader("Content-Type", typeof contentType === "string" ? contentType : "image/jpeg");
-    res.setHeader("Cache-Control", "public, max-age=86400");
-    azuraCastResponse.data.pipe(res);
-  } catch (err) {
-    if (axios.isAxiosError(err) && err.response) {
-      res.status(err.response.status).send();
-    } else {
-      res.status(502).send();
+  const candidates = Array.from(new Set([artId, cleanArtId(artId), artId.split(".")[0] ?? artId]));
+  let lastResponse: any = null;
+  let lastUrl = "";
+  for (const candidate of candidates) {
+    const targetUrl = `${config.azuracast.url}/api/station/${stationId}/art/${candidate}`;
+    lastUrl = targetUrl;
+    try {
+      const azuraCastResponse = await fetchArt(stationId, candidate);
+      if (azuraCastResponse.status < 400) {
+        const contentType = azuraCastResponse.headers["content-type"];
+        res.setHeader("Content-Type", typeof contentType === "string" ? contentType : "image/jpeg");
+        res.setHeader("Cache-Control", "public, max-age=86400");
+        azuraCastResponse.data.pipe(res);
+        return;
+      }
+      lastResponse = azuraCastResponse;
+      if (azuraCastResponse.status !== 404) {
+        logger.warn("AzuraArt", "AzuraCast art error", { stationId, artId, candidate, status: azuraCastResponse.status, targetUrl });
+        res.status(azuraCastResponse.status).send();
+        return;
+      }
+    } catch (err) {
+      logger.error("AzuraArt", "Error proxying art", {
+        stationId, artId, candidate, targetUrl,
+        error: err instanceof Error ? err.message : String(err),
+        code: (err as any)?.code,
+      });
+      if (axios.isAxiosError(err) && err.response && err.response.status !== 404) {
+        res.status(err.response.status).send();
+        return;
+      }
+      lastResponse = (err as any)?.response ?? null;
     }
   }
+  logger.warn("AzuraArt", "All art candidates failed", { stationId, artId, candidates, lastUrl, status: lastResponse?.status });
+  if (lastResponse?.status) res.status(lastResponse.status).send();
+  else res.status(404).send();
 });
 
 router.post("/requests/:songId", (req, res) => {

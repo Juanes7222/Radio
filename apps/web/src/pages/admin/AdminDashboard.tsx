@@ -400,7 +400,9 @@ export default function AdminDashboard() {
                     <img
                       src={song.art}
                       alt={song.title}
-                      className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                      className="h-16 w-16 shrink-0 rounded-lg object-cover bg-sunken"
+                      loading="lazy"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                     />
                   )}
                   <div className="min-w-0">

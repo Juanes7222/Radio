@@ -77,9 +77,32 @@ export function createApp(): Express {
   app.use("/admin-api/notices", noticesAdminRouter);
   app.use("/admin-api/notices", noticeImagesRouter);
   // imágenes optimizadas reusables — servir estático con cache
+  const noticeImagesDir = (() => {
+    const candidates = [
+      path.resolve(process.cwd(), "backend", "storage", "notice-images"),
+      path.resolve(process.cwd(), "storage", "notice-images"),
+      path.resolve(__dirname, "../storage/notice-images"),
+      path.resolve(__dirname, "../../storage/notice-images"),
+    ];
+    for (const p of candidates) {
+      try { if (p.includes("notice-images")) return p; } catch {}
+    }
+    return candidates[0];
+  })();
   app.use(
     "/media/notices",
-    express.static(path.resolve(process.cwd(), "backend", "storage", "notice-images"), {
+    express.static(noticeImagesDir, {
+      maxAge: "30d",
+      immutable: true,
+      setHeaders(res) {
+        res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
+      },
+    }),
+  );
+  // Alias para que funcione sin cambio nginx: /api/media/notices -> mismo dir (nginx ya proxea /api/)
+  app.use(
+    "/api/media/notices",
+    express.static(noticeImagesDir, {
       maxAge: "30d",
       immutable: true,
       setHeaders(res) {

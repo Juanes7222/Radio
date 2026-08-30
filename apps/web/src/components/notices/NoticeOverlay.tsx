@@ -176,7 +176,7 @@ export function NoticeOverlay() {
 
               {current.imageUrl && (
                 <div className="relative">
-                  <img src={current.imageUrl.startsWith('/media/') ? `${API_BASE_URL}${current.imageUrl}` : current.imageUrl} alt="" className="aspect-[16/7] w-full object-cover" loading="lazy" />
+                  <img src={current.imageUrl.startsWith('/media/') ? `${API_BASE_URL}/api${current.imageUrl}` : current.imageUrl} alt="" className="aspect-[16/7] w-full object-cover" loading="lazy" />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/40 to-transparent" aria-hidden />
                 </div>
               )}

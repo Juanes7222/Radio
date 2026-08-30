@@ -53,7 +53,7 @@ function toLocalInput(d: Date): string {
 
 function resolveNoticeImageSrc(url: string | null | undefined): string | null {
   if (!url) return null;
-  if (url.startsWith('/media/')) return `${API_BASE_URL}${url}`;
+  if (url.startsWith('/media/')) return `${API_BASE_URL}/api${url}`;
   return url;
 }
 
@@ -281,8 +281,6 @@ export default function AdminNotices() {
 
   return (
     <div className="space-y-6">
-      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&display=swap');`}</style>
 
       {/* Header tablón */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card">
