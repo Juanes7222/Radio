@@ -231,6 +231,14 @@ model Device {
   // Administrative zone assigned to this device (e.g. a city or region).
   // Used to segment push notifications without requesting device location.
   zoneId        String?
+  // Provenance of the zone: MANUAL when set by admin/user, otherwise the
+  // GeoIP provider that auto-assigned it (MAXMIND, IPWHOIS, IPAPI_CO, etc.).
+  // Null means unknown/legacy records created before this field existed.
+  zoneSource    String?   @map("zone_source")
+  zoneAssignedAt DateTime? @map("zone_assigned_at")
+  // Optional diagnostic fields populated on auto-assign (city -> zoneId).
+  zoneRegion    String?   @map("zone_region")
+  zoneCountry   String?   @map("zone_country")
   lastSeen      DateTime  @default(now())
   createdAt     DateTime  @default(now())
 
@@ -240,6 +248,7 @@ model Device {
   @@index([deviceId])
   @@index([fcmToken])
   @@index([zoneId])
+  @@index([zoneSource])
 }
 
 // History of custom push notifications sent from the admin panel.

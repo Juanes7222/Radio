@@ -14,6 +14,7 @@ import uploadRouter from "./modules/azuracast/upload.routes";
 import webhookRouter from "./modules/webhook/webhook.routes";
 import panelRouter from "./modules/azuracast/panel.routes";
 import liveStatusRouter from "./modules/live/live.routes";
+import liveAdminRouter from "./modules/live/live.admin.routes";
 import bibleRouter from "./modules/bible/bible.routes";
 import locutorRouter from "./modules/locutor/locutor.routes";
 import youtubeRouter from "./modules/youtube/youtube.routes";
@@ -61,6 +62,7 @@ export function createApp(): Express {
   app.use("/webhook", webhookRouter);
   app.use("/panel-api", panelRouter);
   app.use("/live-status", liveStatusRouter);
+  app.use("/admin-api/live", liveAdminRouter);
   app.use("/admin-api/locutor", locutorRouter);
   app.use("/admin-api/youtube", youtubeRouter);
   app.use("/api/bible", bibleRouter);

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Radio, Music, Wifi, RefreshCw, ExternalLink, SkipForward, RotateCcw, Eye, TrendingUp } from 'lucide-react';
+import { Users, Radio, Music, Wifi, RefreshCw, ExternalLink, SkipForward, RotateCcw, Eye, TrendingUp, VideoOff, Video } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -128,6 +128,110 @@ const LISTENER_CHART_CONFIG = {
   current: { label: 'Oyentes ahora', color: 'hsl(var(--primary))' },
   unique: { label: 'Únicos (24h)', color: 'hsl(var(--info))' },
 } satisfies ChartConfig;
+
+/**
+ * Control de Facebook Live: permite desactivar el aviso y quitar el video embebido.
+ */
+function FacebookLiveControl() {
+  const { getLiveStatus, clearLiveStatus } = useAdminApi();
+  const [liveActive, setLiveActive] = useState<boolean>(false);
+  const [liveUrl, setLiveUrl] = useState<string | null>(null);
+  const [liveLoading, setLiveLoading] = useState(true);
+  const [clearing, setClearing] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const loadLiveStatus = useCallback(async () => {
+    try {
+      const res = await getLiveStatus();
+      setLiveActive(res.active);
+      setLiveUrl(res.url);
+    } catch {
+      // Silencio si falla el polling
+    } finally {
+      setLiveLoading(false);
+    }
+  }, [getLiveStatus]);
+
+  useEffect(() => {
+    void loadLiveStatus();
+    const id = setInterval(loadLiveStatus, 30000);
+    return () => clearInterval(id);
+  }, [loadLiveStatus]);
+
+  const handleClear = useCallback(async () => {
+    setClearing(true);
+    setFeedback(null);
+    try {
+      const res = await clearLiveStatus();
+      if (res.cleared) {
+        setLiveActive(false);
+        setLiveUrl(null);
+        setFeedback('Aviso de live desactivado. El video embebido ya no se muestra.');
+      } else {
+        setFeedback(res.message ?? 'No hay transmisión activa.');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al desactivar el aviso.';
+      setFeedback(msg);
+    } finally {
+      setClearing(false);
+    }
+  }, [clearLiveStatus]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          {liveActive ? <Video className="h-4 w-4 text-tally" /> : <VideoOff className="h-4 w-4 text-muted-foreground" />}
+          Facebook Live
+          {liveActive ? (
+            <Badge variant="destructive" className="bg-tally text-white">EN VIVO</Badge>
+          ) : (
+            <Badge variant="secondary">Inactivo</Badge>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {liveLoading ? (
+          <div className="h-10 animate-pulse rounded-md bg-sunken" />
+        ) : liveActive ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Hay una transmisión activa. El video embebido se está mostrando en la web y app.
+            </p>
+            {liveUrl && (
+              <p className="truncate rounded-md bg-sunken px-3 py-2 font-mono text-xs text-muted-foreground">
+                {liveUrl}
+              </p>
+            )}
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => void handleClear()}
+              disabled={clearing}
+              className="gap-2"
+            >
+              <VideoOff className="h-4 w-4" />
+              {clearing ? 'Desactivando...' : 'Desactivar aviso de live'}
+            </Button>
+            <p className="text-xs text-faint">Quita el video embebido y notifica a todos los clientes conectados.</p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">No hay transmisión en vivo. El video embebido está oculto.</p>
+            <Button variant="outline" size="sm" onClick={() => void loadLiveStatus()} disabled={liveLoading} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${liveLoading ? 'animate-spin' : ''}`} />
+              Verificar estado
+            </Button>
+          </>
+        )}
+        {feedback && (
+          <p className="rounded-md bg-sunken px-3 py-2 text-xs text-muted-foreground">{feedback}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function AdminDashboard() {
   const { getStatus, getListeners, getListenerHistory, skipCurrentTrack, restartStation } = useAdminApi();
@@ -271,6 +375,11 @@ export default function AdminDashboard() {
           />
         </motion.div>
       </div>
+
+      {/* Control Facebook Live */}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
+        <FacebookLiveControl />
+      </motion.div>
 
       {/* Now Playing */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>

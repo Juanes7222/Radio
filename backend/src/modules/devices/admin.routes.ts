@@ -33,6 +33,10 @@ interface DeviceRow {
   appVersion: string | null;
   subscriptions: string | null;
   zoneId: string | null;
+  zoneSource?: string | null;
+  zoneAssignedAt?: Date | null;
+  zoneRegion?: string | null;
+  zoneCountry?: string | null;
   lastSeen: Date;
   createdAt: Date;
 }
@@ -46,6 +50,10 @@ function toDeviceSummary(device: DeviceRow) {
     appVersion: device.appVersion,
     subscriptions: parseSubscriptions(device.subscriptions),
     zoneId: device.zoneId,
+    zoneSource: device.zoneSource ?? null,
+    zoneAssignedAt: device.zoneAssignedAt?.toISOString() ?? null,
+    zoneRegion: device.zoneRegion ?? null,
+    zoneCountry: device.zoneCountry ?? null,
     lastSeen: device.lastSeen.toISOString(),
     createdAt: device.createdAt.toISOString(),
   };
@@ -209,14 +217,26 @@ router.put("/:deviceId/zone", requireAuth, async (req: Request, res: Response) =
   }
   const rawZone = (req.body as Record<string, unknown>)?.zoneId;
   const zoneId =
-    typeof rawZone === "string" && rawZone.trim().length > 0 ? rawZone.trim() : null;
+    typeof rawZone === "string" && rawZone.trim().length > 0 ? rawZone.trim().slice(0, 80) : null;
 
   try {
     const device = await prisma.device.update({
       where: { deviceId },
-      data: { zoneId },
+      data: {
+        zoneId,
+        zoneSource: zoneId ? "MANUAL" : null,
+        zoneAssignedAt: zoneId ? new Date() : null,
+        zoneRegion: null,
+        zoneCountry: null,
+      },
     });
-    res.json({ deviceId: device.deviceId, zoneId: device.zoneId });
+    logger.info("DevicesAdmin", "Zone manually assigned", { deviceId, zoneId });
+    res.json({
+      deviceId: device.deviceId,
+      zoneId: device.zoneId,
+      zoneSource: (device as unknown as { zoneSource: string | null }).zoneSource ?? null,
+      zoneAssignedAt: (device as unknown as { zoneAssignedAt: Date | null }).zoneAssignedAt?.toISOString() ?? null,
+    });
   } catch (err) {
     const error = err as { code?: string };
     if (error.code === "P2025") {

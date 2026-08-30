@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../../infrastructure/database/prisma";
 import { logger } from "../../shared/logger/logger";
-import { getClientIp, resolveZoneFromIp } from "./geoip.service";
+import { getClientIp, getTrustedProxyCity, resolveZoneDetails } from "./geoip.service";
 
 const router = Router();
 
@@ -9,12 +9,15 @@ const MAX_SUBSCRIPTIONS = 100;
 const MAX_SUBSCRIPTION_LENGTH = 200;
 
 /**
- * Best-effort zone auto-detection for devices that do not have a manual zone
- * yet. Manual assignments are never overwritten. Runs in the background so the
- * request latency or a geolocation failure never affects registration.
+ * Best-effort zone auto-detection for devices that do not have a zone yet.
+ * - Never overwrites an existing zoneId (MANUAL or previous AUTO).
+ * - Distinguishes source so the admin can audit how the zone was assigned.
+ * - Runs in background so request latency or a geolocation failure never
+ *   affects registration. The IP is not persisted, only the derived zone.
  */
-async function assignZoneIfMissing(deviceId: string, ip: string | null): Promise<void> {
-  if (!ip) return;
+async function assignZoneIfMissing(deviceId: string, ip: string | null, proxyCity: string | null): Promise<void> {
+  // Allow proxy city even when IP is missing, otherwise require a public IP.
+  if (!ip && !proxyCity) return;
   try {
     const device = await prisma.device.findUnique({
       where: { deviceId },
@@ -22,11 +25,38 @@ async function assignZoneIfMissing(deviceId: string, ip: string | null): Promise
     });
     if (!device || device.zoneId) return;
 
-    const zone = await resolveZoneFromIp(ip);
-    if (!zone) return;
+    // Trusted proxy header has priority over IP lookup (only when
+    // GEOIP_TRUST_PROXY_HEADERS=true, otherwise proxyCity is null).
+    if (proxyCity) {
+      await prisma.device.update({
+        where: { deviceId },
+        data: {
+          zoneId: proxyCity,
+          zoneSource: "CF",
+          zoneAssignedAt: new Date(),
+          zoneRegion: null,
+          zoneCountry: null,
+        },
+      });
+      logger.info("Devices", "Zone auto-assigned via trusted proxy", { deviceId, zone: proxyCity, source: "CF" });
+      return;
+    }
 
-    await prisma.device.update({ where: { deviceId }, data: { zoneId: zone } });
-    logger.info("Devices", "Zone auto-assigned", { deviceId, zone });
+    if (!ip) return;
+    const result = await resolveZoneDetails(ip);
+    if (!result) return;
+
+    await prisma.device.update({
+      where: { deviceId },
+      data: {
+        zoneId: result.city,
+        zoneSource: result.source,
+        zoneAssignedAt: new Date(),
+        zoneRegion: result.region,
+        zoneCountry: result.country,
+      },
+    });
+    logger.info("Devices", "Zone auto-assigned", { deviceId, zone: result.city, source: result.source });
   } catch (err) {
     logger.warn("Devices", "Zone auto-assign failed", {
       error: err instanceof Error ? err.message : String(err),
@@ -82,7 +112,7 @@ router.post("/", async (req, res) => {
     });
 
     logger.info("Devices", "Registered device", { deviceId: trimmedDeviceId });
-    void assignZoneIfMissing(trimmedDeviceId, getClientIp(req));
+    void assignZoneIfMissing(trimmedDeviceId, getClientIp(req), getTrustedProxyCity(req));
     res.status(201).json({
       id: device.id,
       deviceId: device.deviceId,
@@ -123,7 +153,7 @@ router.put("/:deviceId/token", async (req, res) => {
     });
 
     logger.info("Devices", "Token updated", { deviceId });
-    void assignZoneIfMissing(deviceId, getClientIp(req));
+    void assignZoneIfMissing(deviceId, getClientIp(req), getTrustedProxyCity(req));
     res.json({
       deviceId: device.deviceId,
       fcmToken: device.fcmToken,
@@ -175,7 +205,7 @@ router.put("/:deviceId/subscriptions", async (req, res) => {
       deviceId: trimmedDeviceId,
       count: subscriptions.length,
     });
-    void assignZoneIfMissing(trimmedDeviceId, getClientIp(req));
+    void assignZoneIfMissing(trimmedDeviceId, getClientIp(req), getTrustedProxyCity(req));
     res.json({
       deviceId: device.deviceId,
       subscriptions,

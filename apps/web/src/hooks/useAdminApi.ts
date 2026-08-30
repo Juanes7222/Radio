@@ -574,6 +574,17 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Facebook Live ────────────────────────────────────────────
+  const getLiveStatus = useCallback(
+    () => request<{ active: boolean; url: string | null }>({ url: '/admin-api/live/status' }),
+    [request]
+  );
+
+  const clearLiveStatus = useCallback(
+    () => request<{ ok: boolean; cleared: boolean; message?: string }>({ method: 'POST', url: '/admin-api/live/clear' }),
+    [request]
+  );
+
   return {
     getStatus,
     getListeners,
@@ -644,6 +655,8 @@ export function useAdminApi() {
     getWorkerJobs,
     skipCurrentTrack,
     restartStation,
+    getLiveStatus,
+    clearLiveStatus,
     stationId,
   };
 }

@@ -29,6 +29,12 @@ export function listEnvOr(key: string, separator = ","): string[] {
     .filter(Boolean);
 }
 
+export function boolEnvOr(key: string, fallback: boolean): boolean {
+  const value = process.env[key];
+  if (value === undefined || value === "") return fallback;
+  return value.toLowerCase() === "true" || value === "1";
+}
+
 /** Strips a trailing slash and enforces an http(s) scheme. */
 export function normalizeHttpUrl(value: string): string {
   const url = value.replace(/\/$/, "");
