@@ -12,7 +12,15 @@ node_modules
 .ultra.cache
 coverage
 
-# Native - regenerados
+# Native - regenerados por prebuildCommand (expo prebuild --clean)
+# IMPORTANTE: ignorar directorios completos para que EAS use app.json y no detecte android/ existente
+# Cuando el build se ejecuta desde la raiz del monorepo, estos patrones aseguran que no se suba android/ios
+apps/mobile/android
+apps/mobile/ios
+android
+ios
+**/android
+**/ios
 **/android/build
 **/android/.gradle
 **/android/app/build
