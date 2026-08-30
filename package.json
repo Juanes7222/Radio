@@ -11,8 +11,8 @@
     "dev:backend": "turbo dev --filter=radio-admin-backend"
   },
   "devDependencies": {
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "turbo": "^2.5.4",
     "typescript": "^5.7.2"
   },

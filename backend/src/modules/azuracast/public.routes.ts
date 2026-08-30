@@ -122,7 +122,7 @@ router.get("/search", async (req, res) => {
     logger.error("AzuraProxy", "Search error", {
       error: err instanceof Error ? err.message : String(err),
     });
-    return res.status(502).json({ error: "Error de conexión con AzuraCast" });
+    return res.status(502).json({ error: "AzuraCast connection error" });
   }
 });
 
@@ -174,7 +174,7 @@ router.get("/schedule/categories", async (_req, res) => {
     logger.error("ScheduleCategories", "Error fetching schedule categories", {
       error: err instanceof Error ? err.message : String(err),
     });
-    res.status(500).json({ error: "Error al obtener las categorías de programación" });
+    res.status(500).json({ error: "Failed to fetch schedule categories" });
   }
 });
 

@@ -86,8 +86,8 @@ async function sendLivePushNotification(permalinkUrl: string): Promise<void> {
   try {
     const result = await sendPushCampaign({
       audience: "all",
-      title: "En vivo ahora",
-      body: "La emisora está en transmisión en vivo",
+      title: "Live now",
+      body: "The station is now live on air",
       data: { isLiveNotify: "true", url: permalinkUrl },
     });
     logger.info("SseService", "Live push notification sent", {

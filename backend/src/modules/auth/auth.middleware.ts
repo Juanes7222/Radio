@@ -14,7 +14,7 @@ declare global {
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "No autorizado" });
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
 
@@ -24,6 +24,6 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     req.session = payload;
     next();
   } catch {
-    res.status(401).json({ error: "Token inválido o expirado" });
+    res.status(401).json({ error: "Invalid or expired token" });
   }
 }

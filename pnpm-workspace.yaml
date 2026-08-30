@@ -7,6 +7,8 @@ packageExtensions:
     dependencies:
       nanoid: ^3.3.18
 overrides:
+  "react": "19.2.7"
+  "react-dom": "19.2.7"
   "expo": "~53.0.0"
   "expo-router": "~5.1.11"
   "react-native": "0.79.6"

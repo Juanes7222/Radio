@@ -17,13 +17,13 @@ router.post(
   asyncHandler(async (req, res) => {
     const { credential } = req.body as { credential?: string };
     if (!credential) {
-      throw new AppError(400, "Falta el token de Firebase");
+      throw new AppError(400, "Firebase token is required");
     }
 
     const profile = await verifyFirebaseCredential(credential);
 
     if (!config.whitelist.includes(profile.email.toLowerCase())) {
-      throw new AppError(403, "Tu cuenta no tiene acceso al panel de administracion.");
+      throw new AppError(403, "Your account does not have access to the admin panel.");
     }
 
     const stationName = await fetchStationName();

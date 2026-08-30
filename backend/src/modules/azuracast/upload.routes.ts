@@ -22,7 +22,7 @@ const upload = multer({
     if (ALLOWED_AUDIO_MIME_TYPES.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}`));
+      cb(new Error(`File type not allowed: ${file.mimetype}`));
     }
   },
 });
@@ -40,7 +40,7 @@ router.post(
   upload.single("file"),
   asyncHandler(async (req, res) => {
     if (!req.file) {
-      throw new AppError(400, "No se recibió ningún archivo");
+      throw new AppError(400, "No file received");
     }
 
     const sanitizedOriginal = sanitizeFilename(req.file.originalname);
@@ -86,13 +86,13 @@ router.post(
           return;
         }
         const message = typeof err.response.data === "string" ? err.response.data : err.response.data?.message;
-        res.status(err.response.status).json({ error: message ?? "Error al re-escanear" });
+        res.status(err.response.status).json({ error: message ?? "Failed to rescan" });
         return;
       }
-      res.status(502).json({ error: "No se pudo contactar con AzuraCast para el re-escaneo" });
+      res.status(502).json({ error: "Could not reach AzuraCast for rescan" });
       return;
     }
-    res.json({ ok: true, message: "Re-escaneo iniciado correctamente" });
+    res.json({ ok: true, message: "Rescan started successfully" });
   })
 );
 
@@ -112,7 +112,7 @@ router.delete(
         res.status(err.response.status).json(err.response.data);
         return;
       }
-      res.status(502).json({ error: "Error al eliminar el archivo" });
+      res.status(502).json({ error: "Failed to delete file" });
     }
   })
 );

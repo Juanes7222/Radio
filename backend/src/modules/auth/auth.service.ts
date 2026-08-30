@@ -28,7 +28,7 @@ const DEFAULT_STATION_NAME = "Radio";
 export async function verifyFirebaseCredential(credential: string): Promise<FirebaseProfile> {
   const admin = getFirebaseAdmin();
   if (!admin) {
-    throw new AppError(500, "Firebase Auth no esta configurado en el servidor.");
+    throw new AppError(500, "Firebase Auth is not configured on the server.");
   }
 
   try {
@@ -36,7 +36,7 @@ export async function verifyFirebaseCredential(credential: string): Promise<Fire
     const email = decoded.email ?? "";
 
     if (!email) {
-      throw new AppError(401, "Token de Firebase invalido");
+      throw new AppError(401, "Invalid Firebase token");
     }
 
     return {
@@ -49,7 +49,7 @@ export async function verifyFirebaseCredential(credential: string): Promise<Fire
     logger.error("AuthService", "Error verifying Firebase token", {
       error: err instanceof Error ? err.message : String(err),
     });
-    throw new AppError(401, "Error al verificar el token de Firebase");
+    throw new AppError(401, "Failed to verify Firebase token");
   }
 }
 
