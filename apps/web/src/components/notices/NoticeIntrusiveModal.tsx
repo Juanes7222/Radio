@@ -40,8 +40,9 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanent
   const shouldReduce = useReducedMotion();
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const [lightbox, setLightbox] = useState<{ src: string; type: "image" | "video"; poster: string | null } | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; type: "image" | "video"; poster: string | null; initialTime: number; autoPlay: boolean } | null>(null);
   const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
+  const singleVideoRef = useRef<HTMLVideoElement>(null);
 
   const handleOverlayClick = useCallback(
     (e: React.MouseEvent) => {
@@ -206,6 +207,7 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanent
                     {videoSrc ? (
                       <div className="relative flex w-full items-center justify-center">
                         <video
+                          ref={singleVideoRef}
                           src={videoSrc}
                           poster={posterSrc ?? undefined}
                           controls
@@ -215,7 +217,13 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanent
                         />
                         <button
                           type="button"
-                          onClick={() => setLightbox({ src: videoSrc, type: "video", poster: posterSrc })}
+                          onClick={() => {
+                            const v = singleVideoRef.current;
+                            const t = v ? v.currentTime : 0;
+                            const wasPlaying = v ? !v.paused && !v.ended : false;
+                            if (v) try { v.pause(); } catch {}
+                            setLightbox({ src: videoSrc, type: "video", poster: posterSrc, initialTime: t, autoPlay: wasPlaying });
+                          }}
                           className="absolute bottom-3 right-3 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                           aria-label="Ampliar video"
                         >
@@ -225,7 +233,7 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanent
                     ) : imageSrc ? (
                       <button
                         type="button"
-                        onClick={() => setLightbox({ src: imageSrc, type: "image", poster: null })}
+                        onClick={() => setLightbox({ src: imageSrc, type: "image", poster: null, initialTime: 0, autoPlay: false })}
                         className="group relative flex w-full cursor-zoom-in items-center justify-center focus-visible:outline-none"
                         aria-label="Ampliar imagen"
                       >
@@ -291,7 +299,18 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanent
         src={lightbox?.src ?? null}
         type={lightbox?.type ?? "image"}
         poster={lightbox?.poster ?? null}
+        initialTime={lightbox?.initialTime}
+        autoPlay={lightbox?.autoPlay}
         onClose={() => setLightbox(null)}
+        onCloseWithTime={(t, wasPlaying) => {
+          const v = singleVideoRef.current;
+          if (v && lightbox?.type === "video") {
+            try {
+              v.currentTime = t;
+              if (wasPlaying) void v.play().catch(() => {});
+            } catch {}
+          }
+        }}
       />
     </>
   );

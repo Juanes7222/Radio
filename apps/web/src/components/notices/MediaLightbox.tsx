@@ -8,12 +8,16 @@ interface Props {
   type: "image" | "video";
   poster?: string | null;
   alt?: string;
+  initialTime?: number;
+  autoPlay?: boolean;
   onClose: () => void;
+  onCloseWithTime?: (currentTime: number, wasPlaying: boolean) => void;
 }
 
-export function MediaLightbox({ open, src, type, poster, alt, onClose }: Props) {
+export function MediaLightbox({ open, src, type, poster, alt, initialTime, autoPlay, onClose, onCloseWithTime }: Props) {
   const reduce = useReducedMotion();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -21,7 +25,7 @@ export function MediaLightbox({ open, src, type, poster, alt, onClose }: Props) 
     document.body.style.overflow = "hidden";
     const t = window.setTimeout(() => closeRef.current?.focus(), 80);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -30,6 +34,30 @@ export function MediaLightbox({ open, src, type, poster, alt, onClose }: Props) 
       window.clearTimeout(t);
     };
   }, [open, onClose]);
+
+  // seek to initialTime when video metadata ready
+  useEffect(() => {
+    if (!open || type !== "video" || initialTime == null || !videoRef.current) return;
+    const v = videoRef.current;
+    const seek = () => {
+      try {
+        v.currentTime = initialTime;
+        if (autoPlay) void v.play().catch(() => {});
+      } catch {}
+    };
+    if (v.readyState >= 1) seek();
+    else v.addEventListener("loadedmetadata", seek, { once: true });
+  }, [open, type, initialTime, autoPlay]);
+
+  const handleClose = () => {
+    if (type === "video" && videoRef.current && onCloseWithTime) {
+      const t = videoRef.current.currentTime;
+      const wasPlaying = !videoRef.current.paused;
+      try { videoRef.current.pause(); } catch {}
+      onCloseWithTime(t, wasPlaying);
+    }
+    onClose();
+  };
 
   if (!src) return null;
 
@@ -45,7 +73,7 @@ export function MediaLightbox({ open, src, type, poster, alt, onClose }: Props) 
           role="dialog"
           aria-modal="true"
           aria-label="Vista ampliada"
-          onClick={onClose}
+          onClick={handleClose}
         >
           {/* top bar */}
           <div className="flex shrink-0 items-center justify-between px-4 py-3 sm:px-6">
@@ -56,7 +84,7 @@ export function MediaLightbox({ open, src, type, poster, alt, onClose }: Props) 
             </span>
             <button
               ref={closeRef}
-              onClick={onClose}
+              onClick={handleClose}
               aria-label="Cerrar vista completa"
               className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             >
@@ -75,14 +103,15 @@ export function MediaLightbox({ open, src, type, poster, alt, onClose }: Props) 
               exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
               transition={reduce ? { duration: 0.18 } : { type: "spring", damping: 28, stiffness: 320 }}
               className="relative flex max-h-full max-w-full items-center justify-center"
-              onClick={onClose}
+              onClick={handleClose}
             >
               {type === "video" ? (
                 <video
+                  ref={videoRef}
                   src={src}
                   poster={poster ?? undefined}
                   controls
-                  autoPlay
+                  autoPlay={autoPlay ?? true}
                   playsInline
                   preload="metadata"
                   className="max-h-[78vh] max-w-[92vw] rounded-xl bg-black object-contain shadow-[0_24px_80px_rgba(0,0,0,0.6)] sm:max-h-[82vh] sm:max-w-[88vw]"

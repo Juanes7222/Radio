@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart, Expand } from "lucide-react";
 import { API_BASE_URL } from "@/config";
@@ -49,7 +49,8 @@ export function NoticeOverlay() {
   const [progress, setProgress] = useState(0);
   const [modalNotice, setModalNotice] = useState<Notice | null>(null);
   const [modalViewCount, setModalViewCount] = useState(0);
-  const [lightbox, setLightbox] = useState<{ src: string; type: "image" | "video"; poster: string | null } | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; type: "image" | "video"; poster: string | null; initialTime: number; autoPlay: boolean } | null>(null);
+  const toastVideoRef = useRef<HTMLVideoElement>(null);
 
   const fetchNotices = useCallback(async () => {
     try {
@@ -166,7 +167,24 @@ export function NoticeOverlay() {
         onCta={handleCtaModal}
       />
 
-      <MediaLightbox open={!!lightbox} src={lightbox?.src ?? null} type={lightbox?.type ?? "image"} poster={lightbox?.poster ?? null} onClose={() => setLightbox(null)} />
+      <MediaLightbox
+        open={!!lightbox}
+        src={lightbox?.src ?? null}
+        type={lightbox?.type ?? "image"}
+        poster={lightbox?.poster ?? null}
+        initialTime={lightbox?.initialTime}
+        autoPlay={lightbox?.autoPlay}
+        onClose={() => setLightbox(null)}
+        onCloseWithTime={(t, wasPlaying) => {
+          const v = toastVideoRef.current;
+          if (v && lightbox?.type === "video") {
+            try {
+              v.currentTime = t;
+              if (wasPlaying) void v.play().catch(() => {});
+            } catch {}
+          }
+        }}
+      />
 
       {current && !modalNotice && (() => {
         const meta = VARIANT_META[current.variant] ?? VARIANT_META.info;
@@ -204,10 +222,16 @@ export function NoticeOverlay() {
 
               {videoSrc ? (
                 <div className="group relative flex max-h-[32vh] items-center justify-center bg-black">
-                  <video src={videoSrc} poster={posterSrc ?? undefined} controls playsInline preload="metadata" className="h-auto max-h-[32vh] w-full object-contain" />
+                  <video ref={toastVideoRef} src={videoSrc} poster={posterSrc ?? undefined} controls playsInline preload="metadata" className="h-auto max-h-[32vh] w-full object-contain" />
                   <button
                     type="button"
-                    onClick={() => setLightbox({ src: videoSrc, type: "video", poster: posterSrc })}
+                    onClick={() => {
+                      const v = toastVideoRef.current;
+                      const t = v ? v.currentTime : 0;
+                      const wasPlaying = v ? !v.paused && !v.ended : false;
+                      if (v) try { v.pause(); } catch {}
+                      setLightbox({ src: videoSrc, type: "video", poster: posterSrc, initialTime: t, autoPlay: wasPlaying });
+                    }}
                     className="absolute bottom-2 right-2 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                     aria-label="Ampliar video"
                   >
@@ -217,7 +241,7 @@ export function NoticeOverlay() {
               ) : imageSrc ? (
                 <button
                   type="button"
-                  onClick={() => setLightbox({ src: imageSrc, type: "image", poster: null })}
+                  onClick={() => setLightbox({ src: imageSrc, type: "image", poster: null, initialTime: 0, autoPlay: false })}
                   className="group relative flex max-h-[32vh] w-full cursor-zoom-in items-center justify-center overflow-hidden bg-black focus-visible:outline-none"
                   aria-label="Ampliar imagen"
                 >
