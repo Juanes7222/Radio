@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart } from "lucide-react";
+import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart, Expand } from "lucide-react";
 import { API_BASE_URL } from "@/config";
 import { resolveNoticeMediaSrc as resolveMediaSrc, resolveVideoPosterSrc } from "@/lib/noticeMedia";
 import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from "@/lib/noticeStorage";
 import { NoticeIntrusiveModal } from "./NoticeIntrusiveModal";
+import { AutolinkedText } from "./AutolinkedText";
+import { MediaLightbox } from "./MediaLightbox";
 
 interface Notice {
   id: string;
@@ -47,6 +49,7 @@ export function NoticeOverlay() {
   const [progress, setProgress] = useState(0);
   const [modalNotice, setModalNotice] = useState<Notice | null>(null);
   const [modalViewCount, setModalViewCount] = useState(0);
+  const [lightbox, setLightbox] = useState<{ src: string; type: "image" | "video"; poster: string | null } | null>(null);
 
   const fetchNotices = useCallback(async () => {
     try {
@@ -163,6 +166,8 @@ export function NoticeOverlay() {
         onCta={handleCtaModal}
       />
 
+      <MediaLightbox open={!!lightbox} src={lightbox?.src ?? null} type={lightbox?.type ?? "image"} poster={lightbox?.poster ?? null} onClose={() => setLightbox(null)} />
+
       {current && !modalNotice && (() => {
         const meta = VARIANT_META[current.variant] ?? VARIANT_META.info;
         const Icon = meta.icon;
@@ -198,14 +203,29 @@ export function NoticeOverlay() {
               </div>
 
               {videoSrc ? (
-                <div className="relative">
-                  <video src={videoSrc} poster={posterSrc ?? undefined} controls playsInline preload="metadata" className="aspect-[16/9] w-full object-contain bg-black" />
+                <div className="group relative flex max-h-[32vh] items-center justify-center bg-black">
+                  <video src={videoSrc} poster={posterSrc ?? undefined} controls playsInline preload="metadata" className="h-auto max-h-[32vh] w-full object-contain" />
+                  <button
+                    type="button"
+                    onClick={() => setLightbox({ src: videoSrc, type: "video", poster: posterSrc })}
+                    className="absolute bottom-2 right-2 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                    aria-label="Ampliar video"
+                  >
+                    <Expand className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               ) : imageSrc ? (
-                <div className="relative">
-                  <img src={imageSrc} alt="" className="aspect-[16/7] w-full object-cover" loading="lazy" />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/40 to-transparent" aria-hidden />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setLightbox({ src: imageSrc, type: "image", poster: null })}
+                  className="group relative flex max-h-[32vh] w-full cursor-zoom-in items-center justify-center overflow-hidden bg-black focus-visible:outline-none"
+                  aria-label="Ampliar imagen"
+                >
+                  <img src={imageSrc} alt="" className="h-auto max-h-[32vh] w-full object-contain" loading="lazy" draggable={false} />
+                  <span className="pointer-events-none absolute bottom-2 right-2 grid h-7 w-7 place-items-center rounded-full bg-black/55 text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                    <Expand className="h-3.5 w-3.5" />
+                  </span>
+                </button>
               ) : null}
 
               <div className="relative p-4 pr-10">
@@ -224,7 +244,9 @@ export function NoticeOverlay() {
                 <h3 className="mt-2 pr-2 text-[17px] font-bold leading-tight tracking-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
                   {current.title}
                 </h3>
-                <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{current.body}</p>
+                <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">
+                  <AutolinkedText text={current.body} />
+                </p>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {current.ctaLabel && current.ctaUrl && (

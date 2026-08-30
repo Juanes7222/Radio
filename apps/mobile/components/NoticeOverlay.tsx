@@ -38,12 +38,55 @@ const VARIANT_LABEL: Record<string, string> = {
   prayer: "Oración",
 };
 
+function AutolinkedBody({ text }: { text: string }) {
+  const URL_RE = /(https?:\/\/[^\s]+|www\.[^\s]+\.[^\s]+)/gi;
+  const trailRe = /[.,;:!?)\]}]+$/;
+  const parts: Array<{ text: string; href?: string; trail?: string }> = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  URL_RE.lastIndex = 0;
+  while ((m = URL_RE.exec(text)) !== null) {
+    const raw = m[0];
+    const idx = m.index;
+    if (idx > last) parts.push({ text: text.slice(last, idx) });
+    const trailM = raw.match(trailRe);
+    const trail = trailM ? trailM[0] : "";
+    const clean = trail ? raw.slice(0, -trail.length) : raw;
+    const href = /^https?:\/\//i.test(clean) ? clean : `https://${clean}`;
+    parts.push({ text: clean, href, trail });
+    last = idx + raw.length;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last) });
+  return (
+    <Text style={mStyles.message}>
+      {parts.map((p, i) =>
+        p.href ? (
+          <Text key={i}>
+            <Text
+              style={{ color: "#818CF8", textDecorationLine: "underline", fontWeight: "600" }}
+              onPress={() => void Linking.openURL(p.href!)}
+            >
+              {p.text.replace(/^https?:\/\//i, "").slice(0, 44)}
+              {p.text.length > 44 ? "…" : ""} ↗
+            </Text>
+            {p.trail ? <Text>{p.trail}</Text> : null}
+          </Text>
+        ) : (
+          <Text key={i}>{p.text}</Text>
+        ),
+      )}
+    </Text>
+  );
+}
+
 export function NoticeOverlay() {
   const [current, setCurrent] = useState<Notice | null>(null);
   const [queue, setQueue] = useState<Notice[]>([]);
   const [viewCount, setViewCount] = useState(0);
   const [modalNotice, setModalNotice] = useState<Notice | null>(null);
   const [modalViewCount, setModalViewCount] = useState(0);
+  const [lightboxUri, setLightboxUri] = useState<string | null>(null);
+  const [lightboxType, setLightboxType] = useState<"image" | "video">("image");
 
   const fetchNotices = useCallback(async () => {
     try {
@@ -163,7 +206,26 @@ export function NoticeOverlay() {
       <Modal visible transparent animationType="fade" statusBarTranslucent>
         <View style={mStyles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={handleDismissModal} />
-          <View style={mStyles.cardWrap} pointerEvents="box-none">
+          {/* lightbox */}
+        {lightboxUri && (
+          <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => setLightboxUri(null)}>
+            <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center", alignItems: "center", padding: 16 }} onPress={() => setLightboxUri(null)}>
+              <Pressable style={{ position: "absolute", top: 50, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }} onPress={() => setLightboxUri(null)}>
+                <Ionicons name="close" size={20} color="#fff" />
+              </Pressable>
+              {lightboxType === "video" ? (
+                <View style={{ width: "100%", aspectRatio: 16/9 }}>
+                  <InlineVideo uri={lightboxUri} aspectRatio={16/9} />
+                </View>
+              ) : (
+                <Image source={{ uri: lightboxUri }} style={{ width: "100%", height: "75%", maxWidth: 520 }} resizeMode="contain" />
+              )}
+              <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 18, letterSpacing: 1 }}>Toca para cerrar</Text>
+            </Pressable>
+          </Modal>
+        )}
+
+        <View style={mStyles.cardWrap} pointerEvents="box-none">
             <View style={mStyles.card}>
               {/* Console header */}
               <View style={mStyles.consoleHeader}>
@@ -193,19 +255,32 @@ export function NoticeOverlay() {
                 <Text style={mStyles.eyebrowDark}>CINTA · {variantLabel.toUpperCase()}</Text>
               </View>
 
-              <ScrollView style={{ maxHeight: 520 }} contentContainerStyle={{ paddingBottom: 4 }} bounces={false} showsVerticalScrollIndicator={false}>
+                <ScrollView style={{ maxHeight: 520 }} contentContainerStyle={{ paddingBottom: 4 }} bounces={false} showsVerticalScrollIndicator={false}>
                 {modalNotice.gallery && modalNotice.gallery.length > 0 ? (
                   <MobileNoticeCarousel items={modalNotice.gallery} />
                 ) : videoUri ? (
-                  <InlineVideo uri={videoUri} aspectRatio={16 / 9} />
+                  <Pressable onPress={() => { setLightboxUri(videoUri); setLightboxType("video"); }} style={{ backgroundColor: "#0F172A" }}>
+                    <View pointerEvents="none">
+                      <InlineVideo uri={videoUri} aspectRatio={16 / 9} />
+                    </View>
+                    <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Ionicons name="expand-outline" size={12} color="#fff" />
+                      <Text style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}>Ampliar</Text>
+                    </View>
+                  </Pressable>
                 ) : imageUri ? (
-                  <Image source={{ uri: imageUri }} style={mStyles.image} resizeMode="cover" />
+                  <Pressable onPress={() => { setLightboxUri(imageUri); setLightboxType("image"); }}>
+                    <Image source={{ uri: imageUri }} style={[mStyles.image, { resizeMode: "contain" } as any]} resizeMode="contain" />
+                    <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999, width: 30, height: 30, alignItems: "center", justifyContent: "center" }}>
+                      <Ionicons name="expand-outline" size={14} color="#fff" />
+                    </View>
+                  </Pressable>
                 ) : null}
 
                 <View style={mStyles.body}>
                   <Text style={mStyles.variantLabel}>{variantLabel.toUpperCase()}</Text>
                   <Text style={mStyles.title}>{modalNotice.title}</Text>
-                  <Text style={mStyles.message}>{modalNotice.body}</Text>
+                  <AutolinkedBody text={modalNotice.body} />
 
                   <View style={mStyles.actions}>
                     {modalNotice.ctaLabel && modalNotice.ctaUrl ? (
@@ -276,7 +351,44 @@ export function NoticeOverlay() {
           </Pressable>
 
           <Text style={styles.title}>{current.title}</Text>
-          <Text style={styles.message}>{current.body}</Text>
+          <Text style={[styles.message]}>
+            {(() => {
+              const URL_RE = /(https?:\/\/[^\s]+|www\.[^\s]+\.[^\s]+)/gi;
+              const trailRe = /[.,;:!?)\]}]+$/;
+              const parts: Array<{ text: string; href?: string; trail?: string }> = [];
+              let last = 0;
+              let m: RegExpExecArray | null;
+              URL_RE.lastIndex = 0;
+              while ((m = URL_RE.exec(current.body)) !== null) {
+                const raw = m[0];
+                const idx = m.index;
+                if (idx > last) parts.push({ text: current.body.slice(last, idx) });
+                const tm = raw.match(trailRe);
+                const trail = tm ? tm[0] : "";
+                const clean = trail ? raw.slice(0, -trail.length) : raw;
+                const href = /^https?:\/\//i.test(clean) ? clean : `https://${clean}`;
+                parts.push({ text: clean, href, trail });
+                last = idx + raw.length;
+              }
+              if (last < current.body.length) parts.push({ text: current.body.slice(last) });
+              return (
+                <Text style={styles.message}>
+                  {parts.map((p, i) =>
+                    p.href ? (
+                      <Text key={i}>
+                        <Text style={{ color: "#818CF8", textDecorationLine: "underline", fontWeight: "600" }} onPress={() => void Linking.openURL(p.href!)}>
+                          {p.text.replace(/^https?:\/\//i, "").slice(0, 36)} ↗
+                        </Text>
+                        {p.trail ? p.trail : ""}
+                      </Text>
+                    ) : (
+                      <Text key={i}>{p.text}</Text>
+                    ),
+                  )}
+                </Text>
+              );
+            })()}
+          </Text>
 
           <View style={styles.actions}>
             {current.ctaLabel && current.ctaUrl ? (
@@ -396,7 +508,8 @@ const mStyles = StyleSheet.create({
   },
   image: {
     width: "100%",
-    aspectRatio: 16 / 8,
+    maxHeight: 420,
+    aspectRatio: 16 / 9,
     backgroundColor: "#0F172A",
   },
   body: {
