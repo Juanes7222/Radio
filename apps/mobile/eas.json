@@ -20,12 +20,7 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
-      "prebuildCommand": "node scripts/write-google-services.js && npx expo prebuild --clean",
-      "android": {
-        "buildProperties": {
-          "android.suppressUnsupportedCompileSdk": "36"
-        }
-      }
+      "prebuildCommand": "node scripts/write-google-services.js && npx expo prebuild --clean"
     }
   },
   "submit": {
