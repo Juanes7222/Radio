@@ -67,12 +67,14 @@ export async function getActiveNotices(ctx: NoticeFilters = {}) {
       endsAt: { gte: now },
     },
     orderBy: [{ createdAt: "desc" }],
+    include: { galleryItems: { orderBy: { sortOrder: "asc" } } },
   } as never) as Array<{
     id: string;
     title: string;
     body: string;
     imageUrl: string | null;
     videoUrl: string | null;
+    galleryItems?: Array<{ id: string; type: string; url: string; posterUrl: string | null; sortOrder: number }>;
     ctaLabel: string | null;
     ctaUrl: string | null;
     variant: string;

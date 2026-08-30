@@ -458,12 +458,21 @@ export type NoticeVariant = 'info' | 'event' | 'warning' | 'prayer';
 export type NoticeAudience = 'all' | 'zone' | 'platform' | 'program' | 'devices';
 export type NoticeDisplayMode = 'toast' | 'modal';
 
+export interface NoticeGalleryItem {
+  id: string;
+  type: "image" | "video";
+  url: string;
+  posterUrl: string | null;
+  sortOrder: number;
+}
+
 export interface AppNotice {
   id: string;
   title: string;
   body: string;
   imageUrl: string | null;
   videoUrl: string | null;
+  gallery: NoticeGalleryItem[];
   ctaLabel: string | null;
   ctaUrl: string | null;
   variant: NoticeVariant;
@@ -489,11 +498,14 @@ export interface AppNoticeList {
   totalPages: number;
 }
 
+export type NoticeGalleryItemInput = Omit<NoticeGalleryItem, "id">;
+
 export interface AppNoticeInput {
   title: string;
   body: string;
   imageUrl?: string | null;
   videoUrl?: string | null;
+  gallery?: NoticeGalleryItemInput[];
   ctaLabel?: string | null;
   ctaUrl?: string | null;
   variant: NoticeVariant;

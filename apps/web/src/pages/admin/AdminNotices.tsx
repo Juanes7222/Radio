@@ -18,7 +18,8 @@ import { formatDateTime } from "@/lib/format";
 import { resolveNoticeMediaSrc } from "@/lib/noticeMedia";
 import { NoticePreviewCard } from "@/components/admin/notices/NoticePreviewCard";
 import { NoticeMediaField } from "@/components/admin/notices/NoticeMediaField";
-import type { AppNotice, AppNoticeInput, NoticeAudience, NoticeVariant, NoticeDisplayMode, NoticeImage, NoticeVideo } from "@radio/types";
+import { NoticeGalleryEditor } from "@/components/admin/notices/NoticeGalleryEditor";
+import type { AppNotice, AppNoticeInput, NoticeAudience, NoticeVariant, NoticeDisplayMode, NoticeImage, NoticeVideo, NoticeGalleryItemInput } from "@radio/types";
 
 // Variant styling for notice cards
 const VARIANT_CFG: Record<NoticeVariant, { label: string; dot: string; border: string; badge: string }> = {
@@ -92,6 +93,9 @@ export default function AdminNotices() {
   const [videoUploading, setVideoUploading] = useState(false);
   const [localVideoPreview, setLocalVideoPreview] = useState<string | null>(null);
 
+  // Gallery state for carousel (full-screen mode)
+  const [gallery, setGallery] = useState<NoticeGalleryItemInput[]>([]);
+
   // Form state
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -147,6 +151,7 @@ export default function AdminNotices() {
     setBody("");
     setImageUrl("");
     setVideoUrl("");
+    setGallery([]);
     setCtaLabel("");
     setCtaUrl("");
     setVariant("info");
@@ -270,12 +275,52 @@ export default function AdminNotices() {
     }
   };
 
+  // Gallery helpers for carousel (full-screen mode) — bypass single-field previews
+  const handleGalleryImageUpload = async (file: File): Promise<string | null> => {
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("Máx 20 MB");
+      return null;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("Solo imágenes");
+      return null;
+    }
+    try {
+      const record = await uploadNoticeImage(file);
+      await loadImageLibrary();
+      return record.url;
+    } catch {
+      toast.error("No se pudo subir la imagen");
+      return null;
+    }
+  };
+
+  const handleGalleryVideoUpload = async (file: File): Promise<{ url: string; posterUrl: string | null } | null> => {
+    if (file.size > 120 * 1024 * 1024) {
+      toast.error("Máx 120 MB");
+      return null;
+    }
+    if (!file.type.startsWith("video/")) {
+      toast.error("Solo videos");
+      return null;
+    }
+    try {
+      const record = await uploadNoticeVideo(file);
+      await loadVideoLibrary();
+      return { url: record.url, posterUrl: record.posterUrl ?? null };
+    } catch {
+      toast.error("No se pudo subir el video");
+      return null;
+    }
+  };
+
   const openEdit = (notice: AppNotice) => {
     setEditing(notice);
     setTitle(notice.title);
     setBody(notice.body);
     setImageUrl(notice.imageUrl ?? "");
     setVideoUrl((notice as unknown as { videoUrl?: string | null }).videoUrl ?? "");
+    setGallery(notice.gallery ?? []);
     setCtaLabel(notice.ctaLabel ?? "");
     setCtaUrl(notice.ctaUrl ?? "");
     setVariant(notice.variant);
@@ -315,6 +360,7 @@ export default function AdminNotices() {
       body: body.trim(),
       imageUrl: imageUrl.trim() || null,
       videoUrl: videoUrl.trim() || null,
+      gallery: gallery.length > 0 ? gallery : undefined,
       ctaLabel: ctaLabel.trim() || null,
       ctaUrl: ctaUrl.trim() || null,
       variant,
@@ -461,6 +507,8 @@ export default function AdminNotices() {
                     const status = getNoticeStatus(notice);
                     const cfg = VARIANT_CFG[notice.variant];
                     const mode = (notice as unknown as { displayMode?: string }).displayMode ?? "toast";
+                    const gallery: Array<{ type: string; url: string; posterUrl: string | null }> = (notice as unknown as { gallery?: Array<{ type: string; url: string; posterUrl: string | null }> }).gallery ?? [];
+                    const hasGallery = gallery.length > 0;
                     const video = (notice as unknown as { videoUrl?: string | null }).videoUrl ?? null;
                     return (
                       <motion.div
@@ -480,23 +528,56 @@ export default function AdminNotices() {
                           >
                             {mode === "modal" ? "● Central" : "▬ Discreto"}
                           </span>
-                          {video && (
+                          {hasGallery ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-primary">
+                              <Film className="h-3 w-3" />
+                              Carrusel · {gallery.length}
+                            </span>
+                          ) : video ? (
                             <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-primary">
                               <Film className="h-3 w-3" />
                               Video
                             </span>
-                          )}
-                          {!video && notice.imageUrl && (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-faint">
-                              <Layers className="h-3 w-3" />
-                              Imagen
-                            </span>
+                          ) : (
+                            notice.imageUrl && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-faint">
+                                <Layers className="h-3 w-3" />
+                                Imagen
+                              </span>
+                            )
                           )}
                           <Badge variant="outline" className={`ml-auto rounded-full border text-xs ${status.tone}`}>
                             {status.label}
                           </Badge>
                         </div>
-                        {video ? (
+                        {hasGallery ? (
+                          <div className="relative">
+                            {gallery[0].type === "video" ? (
+                              <video
+                                src={resolveNoticeMediaSrc(gallery[0].url) ?? ""}
+                                poster={gallery[0].posterUrl ? (resolveNoticeMediaSrc(gallery[0].posterUrl) ?? undefined) : undefined}
+                                className="aspect-[16/8] w-full object-cover bg-black"
+                                muted
+                                playsInline
+                                preload="metadata"
+                              />
+                            ) : (
+                              <img src={resolveNoticeMediaSrc(gallery[0].url) ?? ""} alt="" className="aspect-[16/8] w-full object-cover" />
+                            )}
+                            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 font-mono text-[10px] text-white">
+                              <Film className="h-3 w-3" />
+                              {gallery.length} elementos
+                            </span>
+                            {gallery.length > 1 && (
+                              <span className="absolute bottom-2 right-2 flex gap-1">
+                                {gallery.slice(0, 4).map((_, i) => (
+                                  <span key={i} className={`h-1.5 w-1.5 rounded-full ${i === 0 ? "bg-white" : "bg-white/40"}`} aria-hidden />
+                                ))}
+                                {gallery.length > 4 && <span className="font-mono text-[10px] text-white">+{gallery.length - 4}</span>}
+                              </span>
+                            )}
+                          </div>
+                        ) : video ? (
                           <div className="relative">
                             <video src={resolveNoticeMediaSrc(video) ?? ""} className="aspect-[16/8] w-full object-cover bg-black" muted playsInline />
                             <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 font-mono text-[10px] text-white">
@@ -633,6 +714,18 @@ export default function AdminNotices() {
                 onLoadLibrary={loadVideoLibrary}
                 onDeleteFromLibrary={handleDeleteVideo}
               />
+
+              {/* Carousel gallery — only for full-screen (modal) notices */}
+              {displayMode === "modal" && (
+                <NoticeGalleryEditor
+                  value={gallery}
+                  onChange={setGallery}
+                  onUploadImage={handleGalleryImageUpload}
+                  onUploadVideo={handleGalleryVideoUpload}
+                  imageLibrary={imageLibrary}
+                  videoLibrary={videoLibrary}
+                />
+              )}
 
               <div className="space-y-1.5">
                 <Label className="font-mono text-xs text-faint">CTA URL</Label>
@@ -791,7 +884,7 @@ export default function AdminNotices() {
 
             <div className="space-y-3">
               <p className="font-mono text-xs font-medium tracking-wide text-faint">Vista previa — como lo verá el oyente</p>
-              <NoticePreviewCard title={title} body={body} imageUrl={imageUrl} videoUrl={videoUrl} ctaLabel={ctaLabel} variant={variant} displayMode={displayMode} />
+              <NoticePreviewCard title={title} body={body} imageUrl={imageUrl} videoUrl={videoUrl} gallery={gallery} ctaLabel={ctaLabel} variant={variant} displayMode={displayMode} />
               <div className="rounded-xl border border-dashed border-border bg-sunken/60 p-3">
                 <p className="font-mono text-[11px] leading-relaxed text-faint">
                   {displayMode === "modal"

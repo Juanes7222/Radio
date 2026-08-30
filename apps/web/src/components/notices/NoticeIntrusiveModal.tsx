@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart } from "lucide-react";
 import { resolveNoticeMediaSrc, resolveVideoPosterSrc } from "@/lib/noticeMedia";
+import { NoticeCarousel } from "./NoticeCarousel";
 
 interface Notice {
   id: string;
@@ -9,6 +10,7 @@ interface Notice {
   body: string;
   imageUrl: string | null;
   videoUrl: string | null;
+  gallery?: Array<{ id: string; type: "image" | "video"; url: string; posterUrl: string | null }> | null;
   ctaLabel: string | null;
   ctaUrl: string | null;
   variant: string;
@@ -134,9 +136,11 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanent
             </button>
           </div>
 
-          {/* scrollable body */}
+          {/* scrollable body — carousel for gallery, fallback to single media for legacy */}
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {videoSrc ? (
+            {notice.gallery && notice.gallery.length > 0 ? (
+              <NoticeCarousel items={notice.gallery} />
+            ) : videoSrc ? (
               <div className="relative">
                 <video src={videoSrc} poster={posterSrc ?? undefined} controls playsInline preload="metadata" className="aspect-[16/9] w-full object-contain bg-black" />
               </div>

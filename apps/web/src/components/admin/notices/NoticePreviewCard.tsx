@@ -19,24 +19,59 @@ interface Props {
   body: string;
   imageUrl?: string | null;
   videoUrl?: string | null;
+  gallery?: Array<{ type: "image" | "video"; url: string; posterUrl: string | null }>;
   ctaLabel?: string | null;
   variant: NoticeVariant;
   displayMode: NoticeDisplayMode;
 }
 
-export function NoticePreviewCard({ title, body, imageUrl, videoUrl, ctaLabel, variant, displayMode }: Props) {
+export function NoticePreviewCard({ title, body, imageUrl, videoUrl, gallery, ctaLabel, variant, displayMode }: Props) {
   const cfg = VARIANT_CFG[variant];
   const resolvedImage = resolveNoticeMediaSrc(imageUrl ?? null);
   const resolvedVideo = resolveNoticeMediaSrc(videoUrl ?? null);
   const resolvedPoster = resolveVideoPosterSrc(videoUrl ?? null);
+  const hasGallery = !!(gallery && gallery.length > 0);
+  const firstGallery = hasGallery ? gallery![0] : null;
+  const galleryPoster = firstGallery?.type === "video" && firstGallery.posterUrl ? resolveNoticeMediaSrc(firstGallery.posterUrl) : null;
+  const galleryMedia = firstGallery ? resolveNoticeMediaSrc(firstGallery.url) : null;
 
-  const mediaNode = resolvedVideo ? (
+  const mediaNode = hasGallery ? (
+    firstGallery?.type === "video" ? (
+      <div className="relative">
+        <video src={galleryMedia ?? ""} poster={galleryPoster ?? undefined} controls muted playsInline preload="metadata" className="aspect-[16/8] w-full object-cover bg-black" />
+        {gallery!.length > 1 && (
+          <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1">
+            {gallery!.map((_, i) => (
+              <span key={i} className={`h-1.5 w-1.5 rounded-full ${i === 0 ? "bg-white" : "bg-white/40"}`} aria-hidden />
+            ))}
+          </span>
+        )}
+      </div>
+    ) : (
+      <div className="relative">
+        <img src={galleryMedia ?? ""} alt="" className="aspect-[16/8] w-full object-cover" />
+        {gallery!.length > 1 && (
+          <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1">
+            {gallery!.map((_, i) => (
+              <span key={i} className={`h-1.5 w-1.5 rounded-full ${i === 0 ? "bg-white" : "bg-white/40"}`} aria-hidden />
+            ))}
+          </span>
+        )}
+      </div>
+    )
+  ) : resolvedVideo ? (
     <video src={resolvedVideo} poster={resolvedPoster ?? undefined} controls muted playsInline preload="metadata" className="aspect-[16/8] w-full object-cover bg-black" />
   ) : resolvedImage ? (
     <img src={resolvedImage} alt="" className="aspect-[16/8] w-full object-cover" />
   ) : null;
 
-  const toastMediaNode = resolvedVideo ? (
+  const toastMediaNode = hasGallery ? (
+    firstGallery?.type === "video" ? (
+      <video src={galleryMedia ?? ""} poster={galleryPoster ?? undefined} controls muted playsInline preload="metadata" className="aspect-[16/7] w-full object-cover bg-black" />
+    ) : (
+      <img src={galleryMedia ?? ""} alt="" className="aspect-[16/7] w-full object-cover" />
+    )
+  ) : resolvedVideo ? (
     <video src={resolvedVideo} poster={resolvedPoster ?? undefined} controls muted playsInline preload="metadata" className="aspect-[16/7] w-full object-cover bg-black" />
   ) : resolvedImage ? (
     <img src={resolvedImage} alt="" className="aspect-[16/7] w-full object-cover" />

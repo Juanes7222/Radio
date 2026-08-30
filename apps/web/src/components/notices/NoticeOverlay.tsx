@@ -12,6 +12,7 @@ interface Notice {
   body: string;
   imageUrl: string | null;
   videoUrl: string | null;
+  gallery?: Array<{ id: string; type: "image" | "video"; url: string; posterUrl: string | null }> | null;
   ctaLabel: string | null;
   ctaUrl: string | null;
   variant: string;

@@ -5,6 +5,7 @@ import { BACKEND_URL } from "@/constants/api";
 import { getDeviceId } from "@/lib/device";
 import { resolveNoticeMediaUri } from "@/lib/noticeMedia";
 import { InlineVideo } from "./notices/InlineVideo";
+import { MobileNoticeCarousel } from "./notices/MobileNoticeCarousel";
 import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from "@/lib/noticeStorage";
 
 interface Notice {
@@ -13,6 +14,7 @@ interface Notice {
   body: string;
   imageUrl: string | null;
   videoUrl: string | null;
+  gallery?: Array<{ id: string; type: "image" | "video"; url: string; posterUrl: string | null }> | null;
   ctaLabel: string | null;
   ctaUrl: string | null;
   variant: string;
@@ -192,7 +194,9 @@ export function NoticeOverlay() {
               </View>
 
               <ScrollView style={{ maxHeight: 520 }} contentContainerStyle={{ paddingBottom: 4 }} bounces={false} showsVerticalScrollIndicator={false}>
-                {videoUri ? (
+                {modalNotice.gallery && modalNotice.gallery.length > 0 ? (
+                  <MobileNoticeCarousel items={modalNotice.gallery} />
+                ) : videoUri ? (
                   <InlineVideo uri={videoUri} aspectRatio={16 / 9} />
                 ) : imageUri ? (
                   <Image source={{ uri: imageUri }} style={mStyles.image} resizeMode="cover" />
@@ -237,6 +241,7 @@ export function NoticeOverlay() {
   if (!current) return null;
 
   const accent = ACCENT[current.variant] ?? ACCENT.info;
+  const gallery = current.gallery ?? [];
   const videoUri = resolveNoticeMediaUri(current.videoUrl);
   const imageUri = resolveNoticeMediaUri(current.imageUrl);
 
@@ -253,7 +258,17 @@ export function NoticeOverlay() {
           <Text style={styles.eyebrow}>AVISO</Text>
         </View>
 
-        {videoUri ? <InlineVideo uri={videoUri} aspectRatio={16 / 7} /> : imageUri ? <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" /> : null}
+        {gallery.length > 0 ? (
+          gallery[0].type === "video" ? (
+            <InlineVideo uri={resolveNoticeMediaUri(gallery[0].url) ?? ""} posterUri={gallery[0].posterUrl ? resolveNoticeMediaUri(gallery[0].posterUrl) : null} aspectRatio={16 / 7} />
+          ) : (
+            <Image source={{ uri: resolveNoticeMediaUri(gallery[0].url) ?? undefined }} style={styles.image} resizeMode="cover" />
+          )
+        ) : videoUri ? (
+          <InlineVideo uri={videoUri} aspectRatio={16 / 7} />
+        ) : imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
+        ) : null}
 
         <View style={styles.body}>
           <Pressable onPress={handleDismiss} style={styles.closeBtn} hitSlop={12}>
