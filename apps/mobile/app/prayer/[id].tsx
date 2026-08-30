@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors } from '@/constants/theme';
+import { getDeviceId } from '@/lib/device';
 import { getPrayerStatusConfig, type PrayerItem } from '@/lib/prayer';
 
 const RESPONSE_TEXT = '#e0e7ff';
@@ -30,7 +31,13 @@ export default function PrayerDetailScreen() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/prayer/${id}`);
+        const deviceId = await getDeviceId().catch(() => null);
+        const url = deviceId
+          ? `${BACKEND_URL}/api/prayer/${id}?deviceId=${encodeURIComponent(deviceId)}`
+          : `${BACKEND_URL}/api/prayer/${id}`;
+        const res = await fetch(url, {
+          headers: deviceId ? { 'x-device-id': deviceId } : undefined,
+        });
         if (res.ok) {
           const data = await res.json();
           setDetail(data);
@@ -38,8 +45,12 @@ export default function PrayerDetailScreen() {
           if (!data.readAt && data.respuesta) {
             fetch(`${BACKEND_URL}/api/prayer/${id}/read`, {
               method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...(deviceId ? { 'x-device-id': deviceId } : {}) },
+              body: JSON.stringify(deviceId ? { deviceId } : {}),
             }).catch(() => {});
           }
+        } else if (res.status === 403) {
+          setError('No autorizado para esta petición');
         } else {
           setError('Petición no encontrada');
         }

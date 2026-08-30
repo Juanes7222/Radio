@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { Prisma } from "@prisma/client";
+import jwt from "jsonwebtoken";
 import { PRAYER_STATUS, type PrayerStatus } from "@radio/types";
 import { prisma } from "../../infrastructure/database/prisma";
 import { config } from "../../config";
@@ -52,6 +53,17 @@ function parseBulkIds(body: unknown): string[] | null {
     if (!normalized.includes(id)) normalized.push(id);
   }
   return normalized;
+}
+
+function isAdminAuthenticated(req: Request): boolean {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) return false;
+  try {
+    jwt.verify(header.slice(7), config.jwt.secret);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 router.post("/", async (req: Request, res: Response) => {
@@ -338,7 +350,7 @@ router.get("/my/:deviceId", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/:id", requireAuth, async (req: Request, res: Response) => {
+router.get("/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
@@ -349,6 +361,20 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
     if (!entry) {
       res.status(404).json({ error: "Peticion no encontrada" });
       return;
+    }
+
+    // Admin can fetch any prayer; owner can fetch own prayer.
+    // For backwards compatibility with app versions that don't send deviceId,
+    // allow unauthenticated fetch by id (id is a random UUID capability).
+    // If a deviceId is provided, enforce ownership.
+    if (!isAdminAuthenticated(req)) {
+      const clientDeviceId =
+        (typeof req.query.deviceId === "string" ? req.query.deviceId : null) ||
+        (typeof req.headers["x-device-id"] === "string" ? (req.headers["x-device-id"] as string) : null);
+      if (clientDeviceId && entry.deviceId && clientDeviceId !== entry.deviceId) {
+        res.status(403).json({ error: "No autorizado para esta peticion" });
+        return;
+      }
     }
 
     res.json(entry);
@@ -493,8 +519,31 @@ router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/:id/read", requireAuth, async (req: Request, res: Response) => {
+router.post("/:id/read", async (req: Request, res: Response) => {
   const { id } = req.params;
+
+  // Allow admin or owner (or anyone with the UUID for backwards compat).
+  // If a deviceId is supplied, verify it matches the prayer's deviceId.
+  if (!isAdminAuthenticated(req)) {
+    const clientDeviceId =
+      (typeof req.body?.deviceId === "string" ? req.body.deviceId : null) ||
+      (typeof req.query.deviceId === "string" ? (req.query.deviceId as string) : null) ||
+      (typeof req.headers["x-device-id"] === "string" ? (req.headers["x-device-id"] as string) : null);
+    if (clientDeviceId) {
+      try {
+        const entry = await prisma.prayerRequest.findUnique({
+          where: { id: String(id) },
+          select: { deviceId: true },
+        });
+        if (entry?.deviceId && entry.deviceId !== clientDeviceId) {
+          res.status(403).json({ error: "No autorizado para esta peticion" });
+          return;
+        }
+      } catch {
+        // fall through to update attempt
+      }
+    }
+  }
 
   try {
     await prisma.prayerRequest.update({
