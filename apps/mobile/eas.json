@@ -20,7 +20,10 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
-      "prebuildCommand": "node scripts/write-google-services.js && npx expo prebuild --clean"
+      "prebuildCommand": "node scripts/write-google-services.js && npx expo prebuild --clean",
+      "node": "22.22.3",
+      "pnpm": "10.11.0",
+      "corepack": true
     }
   },
   "submit": {
