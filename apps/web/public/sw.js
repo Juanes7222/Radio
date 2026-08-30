@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lavozverdad-v8';
+const CACHE_NAME = 'lavozverdad-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -32,7 +32,7 @@ const STATIC_ASSETS = [
   '/ms-icon-144x144.png',
 
   // PWA general
-  '/android-chrome-512x512.png',
+  '/icon-512x512.png',
 ];
 // Instalación: cachear assets estáticos de forma individual
 // para que un solo asset que falte no rompa toda la instalación.
@@ -160,7 +160,7 @@ self.addEventListener('push', (event) => {
   const data = event.data.json();
   const options = {
     body: data.body,
-    icon: '/android-icon-192x192.png',
+    icon: '/icon-192x192.png',
     badge: '/badge-72x72.png',
     tag: data.tag || 'default',
     requireInteraction: true,

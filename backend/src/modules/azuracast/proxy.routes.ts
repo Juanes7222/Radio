@@ -24,12 +24,6 @@ function toProxyRequest(req: Request): ProxyRequest {
   };
 }
 
-function buildPublicUrl(req: Request): string {
-  const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "";
-  const protocol = (req.headers["x-forwarded-proto"] as string) ?? (req.secure ? "https" : "https");
-  return `${protocol}://${host}`;
-}
-
 async function proxyToAzuraCast(
   req: Request,
   res: Response,
@@ -63,7 +57,7 @@ function sendProxyError(res: Response, err: unknown): void {
   logger.error("AzuraProxy", "Proxy error", {
     error: err instanceof Error ? err.message : String(err),
   });
-  res.status(502).json({ error: "AzuraCast connection error" });
+  res.status(502).json({ error: "Error de conexión con AzuraCast" });
 }
 
 export { sendProxyError };
@@ -97,17 +91,11 @@ router.all("/station/schedule", requireAuth, (req, res) => {
 
 router.all("/station/*", requireAuth, (req, res) => {
   const path = (req.params as Record<string, string>)[0] ?? "";
-  const publicUrl = buildPublicUrl(req);
-  void proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/${path}`, (data) =>
-    rewriteInternalUrls(data, publicUrl)
-  );
+  void proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/${path}`);
 });
 
 router.get("/nowplaying", requireAuth, (req, res) => {
-  const publicUrl = buildPublicUrl(req);
-  void proxyToAzuraCast(req, res, `/api/nowplaying/${config.azuracast.stationId}`, (data) =>
-    rewriteInternalUrls(data, publicUrl)
-  );
+  void proxyToAzuraCast(req, res, `/api/nowplaying/${config.azuracast.stationId}`);
 });
 
 export default router;

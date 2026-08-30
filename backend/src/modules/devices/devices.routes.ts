@@ -58,7 +58,7 @@ router.post("/", async (req, res) => {
   const { deviceId, fcmToken, platform, appVersion } = req.body;
 
   if (!deviceId || typeof deviceId !== "string" || deviceId.trim().length === 0) {
-    res.status(400).json({ error: "deviceId is required" });
+    res.status(400).json({ error: "deviceId es obligatorio" });
     return;
   }
 
@@ -95,7 +95,7 @@ router.post("/", async (req, res) => {
     logger.error("Devices", "Error registering device", {
       error: err instanceof Error ? err.message : String(err),
     });
-    res.status(500).json({ error: "Failed to register device" });
+    res.status(500).json({ error: "Error al registrar el dispositivo" });
   }
 });
 
@@ -104,12 +104,12 @@ router.put("/:deviceId/token", async (req, res) => {
   const { fcmToken } = req.body;
 
   if (!fcmToken || typeof fcmToken !== "string" || fcmToken.trim().length === 0) {
-    res.status(400).json({ error: "fcmToken is required" });
+    res.status(400).json({ error: "fcmToken es obligatorio" });
     return;
   }
 
   if (!deviceId || typeof deviceId !== "string") {
-    res.status(400).json({ error: "deviceId is required" });
+    res.status(400).json({ error: "deviceId es obligatorio" });
     return;
   }
 
@@ -132,13 +132,13 @@ router.put("/:deviceId/token", async (req, res) => {
   } catch (err) {
     const error = err as { code?: string };
     if (error.code === "P2025") {
-      res.status(404).json({ error: "Device not found" });
+      res.status(404).json({ error: "Dispositivo no encontrado" });
       return;
     }
     logger.error("Devices", "Error updating token", {
       error: err instanceof Error ? err.message : String(err),
     });
-    res.status(500).json({ error: "Failed to update token" });
+    res.status(500).json({ error: "Error al actualizar el token" });
   }
 });
 
@@ -146,13 +146,13 @@ router.put("/:deviceId/subscriptions", async (req, res) => {
   const { deviceId } = req.params;
 
   if (!deviceId || typeof deviceId !== "string" || deviceId.trim().length === 0) {
-    res.status(400).json({ error: "deviceId is required" });
+    res.status(400).json({ error: "deviceId es obligatorio" });
     return;
   }
 
   const subscriptions = validateSubscriptions(req.body?.subscriptions);
   if (subscriptions === null) {
-    res.status(400).json({ error: "subscriptions must be a valid array of titles" });
+    res.status(400).json({ error: "subscriptions debe ser un arreglo de títulos válido" });
     return;
   }
 
@@ -184,7 +184,7 @@ router.put("/:deviceId/subscriptions", async (req, res) => {
     logger.error("Devices", "Error updating subscriptions", {
       error: err instanceof Error ? err.message : String(err),
     });
-    res.status(500).json({ error: "Failed to update subscriptions" });
+    res.status(500).json({ error: "Error al actualizar las suscripciones" });
   }
 });
 

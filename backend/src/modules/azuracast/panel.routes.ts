@@ -21,7 +21,7 @@ router.get("/status", async (_req, res) => {
     const status = await getPanelStatus();
     res.json(status);
   } catch (err) {
-    sendPanelError(res, err, "AzuraCast unavailable");
+    sendPanelError(res, err, "AzuraCast no disponible");
   }
 });
 
@@ -30,7 +30,7 @@ router.post("/autodj/stop", async (_req, res) => {
     await stopAutoDj();
     res.json({ ok: true });
   } catch (err) {
-    sendPanelError(res, err, "Failed to stop AutoDJ");
+    sendPanelError(res, err, "Error al detener AutoDJ");
   }
 });
 
@@ -39,7 +39,7 @@ router.post("/autodj/start", async (_req, res) => {
     await startAutoDj();
     res.json({ ok: true });
   } catch (err) {
-    sendPanelError(res, err, "Failed to start AutoDJ");
+    sendPanelError(res, err, "Error al iniciar AutoDJ");
   }
 });
 
@@ -56,7 +56,7 @@ function sendPanelError(res: Response, err: unknown, unavailableMessage: string)
     return;
   }
 
-  res.status(502).json({ error: "Could not connect to AzuraCast" });
+  res.status(502).json({ error: "No se pudo conectar con AzuraCast" });
 }
 
 export default router;

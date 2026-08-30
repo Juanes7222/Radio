@@ -97,7 +97,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
     logger.error("DevicesAdmin", "Error listing devices", {
       error: err instanceof Error ? err.message : String(err),
     });
-    res.status(500).json({ error: "Failed to fetch devices" });
+    res.status(500).json({ error: "Error al obtener los dispositivos" });
   }
 });
 
@@ -106,34 +106,34 @@ function validatePushCampaignInput(body: unknown): { ok: true; input: PushCampai
 
   const title = typeof record.title === "string" ? record.title.trim() : "";
   if (!title || title.length > MAX_TITLE_LENGTH) {
-    return { ok: false, error: "Title is required (max. 100 characters)" };
+    return { ok: false, error: "El título es obligatorio (máx. 100 caracteres)" };
   }
 
   const messageBody = typeof record.body === "string" ? record.body.trim() : "";
   if (!messageBody || messageBody.length > MAX_BODY_LENGTH) {
-    return { ok: false, error: "Message is required (max. 500 characters)" };
+    return { ok: false, error: "El mensaje es obligatorio (máx. 500 caracteres)" };
   }
 
   const audience = record.audience as PushAudience;
   const validAudiences: PushAudience[] = ["all", "devices", "zone", "platform", "program", "active"];
   if (!validAudiences.includes(audience)) {
-    return { ok: false, error: "Invalid audience" };
+    return { ok: false, error: "Audiencia inválida" };
   }
 
   let deviceIds: string[] | undefined;
   if (audience === "devices") {
     if (!Array.isArray(record.deviceIds) || record.deviceIds.length === 0) {
-      return { ok: false, error: "You must select at least one device" };
+      return { ok: false, error: "Debes seleccionar al menos un dispositivo" };
     }
     if (record.deviceIds.length > MAX_DEVICE_IDS) {
-      return { ok: false, error: `Maximum ${MAX_DEVICE_IDS} devices per send` };
+      return { ok: false, error: `Máximo ${MAX_DEVICE_IDS} dispositivos por envío` };
     }
     deviceIds = record.deviceIds
       .filter((id): id is string => typeof id === "string")
       .map((id) => id.trim())
       .filter((id) => id.length > 0);
     if (deviceIds.length === 0) {
-      return { ok: false, error: "You must select at least one device" };
+      return { ok: false, error: "Debes seleccionar al menos un dispositivo" };
     }
   }
 
@@ -142,7 +142,7 @@ function validatePushCampaignInput(body: unknown): { ok: true; input: PushCampai
       ? record.zoneId.trim()
       : undefined;
   if (audience === "zone" && !zoneId) {
-    return { ok: false, error: "Zone is required" };
+    return { ok: false, error: "Debes indicar la zona" };
   }
 
   const platform =
@@ -150,7 +150,7 @@ function validatePushCampaignInput(body: unknown): { ok: true; input: PushCampai
       ? record.platform.trim()
       : undefined;
   if (audience === "platform" && !platform) {
-    return { ok: false, error: "Platform is required" };
+    return { ok: false, error: "Debes indicar la plataforma" };
   }
 
   const program =
@@ -158,7 +158,7 @@ function validatePushCampaignInput(body: unknown): { ok: true; input: PushCampai
       ? record.program.trim()
       : undefined;
   if (audience === "program" && !program) {
-    return { ok: false, error: "Program is required" };
+    return { ok: false, error: "Debes indicar el programa" };
   }
 
   const activeDays =
@@ -197,14 +197,14 @@ router.get("/zones", requireAuth, async (_req: Request, res: Response) => {
     logger.error("DevicesAdmin", "Error listing zones", {
       error: err instanceof Error ? err.message : String(err),
     });
-    res.status(500).json({ error: "Failed to fetch zones" });
+    res.status(500).json({ error: "Error al obtener las zonas" });
   }
 });
 
 router.put("/:deviceId/zone", requireAuth, async (req: Request, res: Response) => {
   const { deviceId } = req.params;
   if (!deviceId || typeof deviceId !== "string") {
-    res.status(400).json({ error: "deviceId is required" });
+    res.status(400).json({ error: "deviceId es obligatorio" });
     return;
   }
   const rawZone = (req.body as Record<string, unknown>)?.zoneId;
@@ -220,13 +220,13 @@ router.put("/:deviceId/zone", requireAuth, async (req: Request, res: Response) =
   } catch (err) {
     const error = err as { code?: string };
     if (error.code === "P2025") {
-      res.status(404).json({ error: "Device not found" });
+      res.status(404).json({ error: "Dispositivo no encontrado" });
       return;
     }
     logger.error("DevicesAdmin", "Error assigning zone", {
       error: err instanceof Error ? err.message : String(err),
     });
-    res.status(500).json({ error: "Failed to assign zone" });
+    res.status(500).json({ error: "Error al asignar la zona" });
   }
 });
 
@@ -264,7 +264,7 @@ router.post("/send-notification", requireAuth, async (req: Request, res: Respons
     logger.error("DevicesAdmin", "Error sending push notification", {
       error: err instanceof Error ? err.message : String(err),
     });
-    res.status(500).json({ error: "Failed to send notification" });
+    res.status(500).json({ error: "Error al enviar la notificación" });
   }
 });
 
@@ -282,7 +282,7 @@ router.post("/preview-notification", requireAuth, async (req: Request, res: Resp
     logger.error("DevicesAdmin", "Error previewing push notification", {
       error: err instanceof Error ? err.message : String(err),
     });
-    res.status(500).json({ error: "Failed to preview notification" });
+    res.status(500).json({ error: "Error al previsualizar la notificación" });
   }
 });
 
@@ -320,7 +320,7 @@ router.get("/notification-logs", requireAuth, async (req: Request, res: Response
     logger.error("DevicesAdmin", "Error fetching push notification logs", {
       error: err instanceof Error ? err.message : String(err),
     });
-    res.status(500).json({ error: "Failed to fetch notification history" });
+    res.status(500).json({ error: "Error al obtener el historial de notificaciones" });
   }
 });
 
@@ -351,7 +351,7 @@ router.get("/notifications-stats", requireAuth, async (_req: Request, res: Respo
     logger.error("DevicesAdmin", "Error fetching notification stats", {
       error: err instanceof Error ? err.message : String(err),
     });
-    res.status(500).json({ error: "Failed to fetch notification stats" });
+    res.status(500).json({ error: "Error al obtener las estadísticas de notificaciones" });
   }
 });
 

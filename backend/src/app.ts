@@ -30,46 +30,16 @@ import noticesAdminRouter from "./modules/notices/admin.routes";
 import noticeImagesRouter from "./modules/notices/noticeImages.routes";
 import swaggerFile from "./swagger-output.json";
 
-const FRONTEND_URLS = (process.env.FRONTEND_URL ?? "")
-  .split(",")
-  .map((origin) => origin.trim().replace(/\/$/, ""))
-  .filter(Boolean);
-
-const ALLOWED_ORIGINS = new Set(
-  ["http://localhost:5173", "http://localhost:4173", config.publicUrl, ...FRONTEND_URLS].filter(Boolean)
-);
+const ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:4173"];
 
 export function createApp(): Express {
   const app = express();
 
   app.use(morgan("dev"));
-  app.use(
-    helmet({
-      crossOriginResourcePolicy: false,
-      // The API only returns JSON. A document CSP here would be ignored for
-      // the SPA (served by nginx) but the default helmet CSP would still be
-      // sent on API responses and confuse debugging. Disable it and let the
-      // reverse proxy serve the document CSP (see nginx recommendation below).
-      contentSecurityPolicy: false,
-      // Firebase Google signInWithPopup opens a popup that needs access to
-      // window.closed / window.close. The default "same-origin" blocks it.
-      crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
-      crossOriginEmbedderPolicy: false,
-    })
-  );
+  app.use(helmet({ crossOriginResourcePolicy: false }));
   app.use(
     cors({
-      origin(origin, callback) {
-        // Same-origin / curl / health checks have no Origin header.
-        if (!origin || ALLOWED_ORIGINS.has(origin)) {
-          callback(null, true);
-          return;
-        }
-        // In production FRONTEND_URL must list every allowed web origin.
-        // Allow the request without CORS headers rather than throwing, so
-        // the browser shows a clear CORS error instead of a 500.
-        callback(null, false);
-      },
+      origin: ALLOWED_ORIGINS,
       credentials: true,
     })
   );
