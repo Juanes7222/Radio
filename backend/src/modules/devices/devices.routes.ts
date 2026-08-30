@@ -211,10 +211,14 @@ router.put("/:deviceId/subscriptions", async (req, res) => {
       subscriptions,
     });
   } catch (err) {
-    logger.error("Devices", "Error updating subscriptions", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    res.status(500).json({ error: "Error al actualizar las suscripciones" });
+    const msg = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    logger.error("Devices", "Error updating subscriptions", { error: msg, stack, deviceId: trimmedDeviceId });
+
+    if (msg.includes("no such column") || msg.includes("Unknown arg") || msg.includes("subscriptions")) {
+      logger.error("Devices", "Possible Migrations pending", { error: msg });
+    }
+    res.status(500).json({ error: "Error updating subscriptions", details: msg });
   }
 });
 

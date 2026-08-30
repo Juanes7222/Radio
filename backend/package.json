@@ -11,7 +11,7 @@
     "prisma:migrate:status": "prisma migrate status",
     "prisma:migrate:resolve": "prisma migrate resolve",
     "dev": "pnpm run swagger && ts-node-dev --respawn --transpile-only --exit-child src/index.ts",
-    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && pnpm run swagger && tsc"
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && pnpm run prisma:generate && pnpm run swagger && tsc"
   },
   "dependencies": {
     "@infisical/sdk": "^5.0.2",

@@ -10,11 +10,11 @@ export const SUBSCRIPTIONS_KEY = 'radio-program-subscriptions';
 export const SUBSCRIPTIONS_EVENT = 'onSubscriptionsUpdated';
 
 export const DEFAULT_SUBSCRIPTIONS: string[] = [
-  "Rev Javier Carrascal", 
-  "Rev Humberto Henao", 
-  "Rev Jos� Soto", 
-  "Noticias de Israel", 
-  "Lectura Biblica"
+  "Rev Javier Carrascal",
+  "Rev Humberto Henao",
+  "Rev José Soto",
+  "Noticias de Israel",
+  "Lectura Bíblica"
 ];
 
 async function syncSubscriptionsToServer(subscriptions: string[]): Promise<void> {
