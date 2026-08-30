@@ -17,10 +17,16 @@ export function errorHandler(
   if (err instanceof Error) {
     const code = (err as unknown as { code?: string }).code;
     if (code === "LIMIT_FILE_SIZE") {
-      res.status(413).json({ error: "Imagen demasiado grande. Máximo 8 MB." });
+      // Distinguish image vs video by route path
+      const isVideo = req.originalUrl.includes("/videos");
+      res.status(413).json({
+        error: isVideo
+          ? "Video demasiado grande. Máximo 120 MB."
+          : "Imagen demasiado grande. Máximo 20 MB.",
+      });
       return;
     }
-    if (err.message.includes("Tipo de imagen no permitido")) {
+    if (err.message.includes("Tipo de imagen no permitido") || err.message.includes("Tipo de video no permitido")) {
       res.status(400).json({ error: err.message });
       return;
     }

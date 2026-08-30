@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Trash2, RefreshCw, Layers, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,15 +64,55 @@ export function NoticeMediaField({
   const cfg = KIND_CONFIG[kind];
   const resolved = resolveNoticeMediaSrc(value);
   const previewSrc = resolved ?? localPreview;
+  const prevPreviewRef = useRef<string | null>(null);
+
+  // Revoke previous blob: URL to avoid memory leaks and CSP stale refs
+  useEffect(() => {
+    if (prevPreviewRef.current && prevPreviewRef.current !== localPreview) {
+      if (prevPreviewRef.current.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(prevPreviewRef.current);
+        } catch {}
+      }
+    }
+    prevPreviewRef.current = localPreview;
+    return () => {
+      if (localPreview?.startsWith("blob:")) {
+        // Revoked on next change/unmount; keep current until replaced
+      }
+    };
+  }, [localPreview]);
+
+  useEffect(() => {
+    return () => {
+      if (prevPreviewRef.current?.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(prevPreviewRef.current);
+        } catch {}
+      }
+    };
+  }, []);
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
+    // Revoke previous preview if blob:
+    if (localPreview?.startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(localPreview);
+      } catch {}
+    }
     const preview = URL.createObjectURL(file);
     onLocalPreviewChange(preview);
     const url = await onUpload(file);
     if (url) {
       onChange(url);
+      // Cleanup blob preview after successful upload
+      try {
+        URL.revokeObjectURL(preview);
+      } catch {}
       onLocalPreviewChange(null);
+    } else {
+      // On failure, keep preview for retry but will be revoked on next file or clear
     }
   };
 
@@ -90,7 +131,13 @@ export function NoticeMediaField({
               <video src={previewSrc} controls playsInline className="aspect-[16/9] w-full object-contain bg-black" />
             )}
             <button
+              type="button"
               onClick={() => {
+                if (localPreview?.startsWith("blob:")) {
+                  try {
+                    URL.revokeObjectURL(localPreview);
+                  } catch {}
+                }
                 onChange("");
                 onLocalPreviewChange(null);
               }}
@@ -118,6 +165,11 @@ export function NoticeMediaField({
         <Input
           value={value}
           onChange={(e) => {
+            if (localPreview?.startsWith("blob:")) {
+              try {
+                URL.revokeObjectURL(localPreview);
+              } catch {}
+            }
             onChange(e.target.value);
             onLocalPreviewChange(null);
           }}

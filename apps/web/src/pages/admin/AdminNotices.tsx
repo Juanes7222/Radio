@@ -167,8 +167,22 @@ export default function AdminNotices() {
     setDismissible(true);
     setIsActive(true);
     setPreviewCount(null);
-    setLocalImagePreview(null);
-    setLocalVideoPreview(null);
+    setLocalImagePreview((prev) => {
+      if (prev?.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(prev);
+        } catch {}
+      }
+      return null;
+    });
+    setLocalVideoPreview((prev) => {
+      if (prev?.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(prev);
+        } catch {}
+      }
+      return null;
+    });
   }, []);
 
   const loadImageLibrary = useCallback(async () => {
@@ -212,16 +226,19 @@ export default function AdminNotices() {
       toast.error("Solo imágenes");
       return null;
     }
-    const preview = URL.createObjectURL(file);
-    setLocalImagePreview(preview);
     setImageUploading(true);
     try {
       const record = await uploadNoticeImage(file);
       toast.success(`Imagen optimizada ${Math.round(record.size / 1024)} KB · ${record.width ?? "?"}×${record.height ?? "?"}`);
       await loadImageLibrary();
       return record.url;
-    } catch {
-      toast.error("No se pudo subir la imagen");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { error?: string }; status?: number } })?.response?.data?.error ??
+        (err as { response?: { status?: number } })?.response?.status === 413
+          ? "Imagen demasiado grande para el servidor (límite 20 MB / 25 MB en nginx). Reduce el tamaño."
+          : "No se pudo subir la imagen";
+      toast.error(message);
       return null;
     } finally {
       setImageUploading(false);
@@ -237,16 +254,23 @@ export default function AdminNotices() {
       toast.error("Solo videos");
       return null;
     }
-    const preview = URL.createObjectURL(file);
-    setLocalVideoPreview(preview);
     setVideoUploading(true);
     try {
       const record = await uploadNoticeVideo(file);
       toast.success(`Video subido ${Math.round(record.size / 1024)} KB`);
       await loadVideoLibrary();
       return record.url;
-    } catch {
-      toast.error("No se pudo subir el video");
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string }; status?: number } };
+      const status = axiosError?.response?.status;
+      const serverMsg = axiosError?.response?.data?.error;
+      if (status === 413) {
+        toast.error(serverMsg ?? "Video demasiado grande (límite 120 MB / 130 MB en nginx). Reduce el tamaño o comprime.");
+      } else if (serverMsg) {
+        toast.error(serverMsg);
+      } else {
+        toast.error("No se pudo subir el video. Revisa tu conexión y vuelve a intentar.");
+      }
       return null;
     } finally {
       setVideoUploading(false);
