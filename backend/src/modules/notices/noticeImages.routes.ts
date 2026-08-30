@@ -6,59 +6,48 @@ import { randomUUID } from "crypto";
 import sharp from "sharp";
 import { requireAuth } from "../auth/auth.middleware";
 import { logger } from "../../shared/logger/logger";
+import { NOTICE_IMAGES_DIR, ensureDir, getMediaFilePath, deleteMediaFileIfExists } from "./media/media.storage";
+import { ALLOWED_IMAGE_MIMES, NOTICE_IMAGE_MAX_BYTES, NOTICE_IMAGE_URL_PREFIX } from "./media/media.config";
+import { isAllowedImageMime } from "./media/media.validation";
 
 const router = Router();
 
-function getPrisma() {
+function getPrisma(): any {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { prisma } = require("../../infrastructure/database/prisma") as { prisma: any };
   return prisma as any;
 }
 
-function resolveNoticeImagesDir(): string {
-  const candidates = [
-    path.resolve(process.cwd(), "backend", "storage", "notice-images"),
-    path.resolve(process.cwd(), "storage", "notice-images"),
-    path.resolve(__dirname, "../../storage/notice-images"),
-    path.resolve(__dirname, "../../../storage/notice-images"),
-  ];
-  for (const p of candidates) {
-    if (fs.existsSync(p)) return p;
-  }
-  return candidates[0];
-}
-
-const NOTICE_IMAGES_DIR = resolveNoticeImagesDir();
-
-// asegura directorio
-function ensureDir(): void {
-  try {
-    fs.mkdirSync(NOTICE_IMAGES_DIR, { recursive: true });
-  } catch {}
-}
-ensureDir();
-
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024 }, // 8 MB
+  limits: { fileSize: NOTICE_IMAGE_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
-    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
-    if (allowed.includes(file.mimetype)) cb(null, true);
+    if (isAllowedImageMime(file.mimetype)) cb(null, true);
     else cb(new Error("Tipo de imagen no permitido. Usa JPG, PNG, WebP, GIF o AVIF."));
   },
 });
 
 /**
- * POST /admin-api/notices/images — sube y optimiza una imagen para popups.
- * Optimización: redimensiona a max 1280px, convierte a WebP quality 82, strip metadata.
+ * POST /admin-api/notices/images - upload and optimize an image for notices.
+ * Optimization: resize to max 1280x900, convert to WebP quality 82, strip metadata.
  */
 router.post("/images", requireAuth, upload.single("image"), async (req: Request, res: Response) => {
   const file = (req as unknown as { file?: Express.Multer.File }).file;
-  if (!file) { res.status(400).json({ error: "Archivo requerido" }); return; }
+  if (!file) {
+    res.status(400).json({ error: "Archivo requerido" });
+    return;
+  }
+
+  // Validate mime again to provide user-facing error in Spanish
+  if (!isAllowedImageMime(file.mimetype)) {
+    res.status(400).json({ error: "Tipo de imagen no permitido. Usa JPG, PNG, WebP, GIF o AVIF." });
+    return;
+  }
+
   try {
-    ensureDir();
+    ensureDir(NOTICE_IMAGES_DIR);
     const filename = `${randomUUID()}.webp`;
-    const outPath = path.join(NOTICE_IMAGES_DIR, filename);
+    const outPath = getMediaFilePath(NOTICE_IMAGES_DIR, filename);
 
     const pipeline = sharp(file.buffer)
       .rotate()
@@ -70,20 +59,16 @@ router.post("/images", requireAuth, upload.single("image"), async (req: Request,
     const height = (info as unknown as { height: number }).height;
     const stat = fs.statSync(outPath);
 
-    // Si sharp falló en obtener dims, usa stat
-    const finalW = width ?? undefined;
-    const finalH = height ?? undefined;
-
     const prisma = getPrisma();
     const record = await prisma.noticeImage.create({
       data: {
         filename,
         originalName: file.originalname,
-        url: `/media/notices/${filename}`,
+        url: `${NOTICE_IMAGE_URL_PREFIX}/${filename}`,
         mimeType: "image/webp",
         size: stat.size,
-        width: finalW ?? null,
-        height: finalH ?? null,
+        width: width ?? null,
+        height: height ?? null,
       },
     });
 
@@ -100,12 +85,13 @@ router.post("/images", requireAuth, upload.single("image"), async (req: Request,
     });
   } catch (err) {
     logger.error("NoticeImages", "upload failed", { error: String(err) });
-    res.status(500).json({ error: "Error al optimizar imagen" });
+    const isValidation = err instanceof Error && err.message.includes("Tipo de imagen");
+    res.status(isValidation ? 400 : 500).json({ error: isValidation ? err.message : "Error al optimizar imagen" });
   }
 });
 
 /**
- * GET /admin-api/notices/images — biblioteca reusable
+ * GET /admin-api/notices/images - reusable library with pagination
  */
 router.get("/images", requireAuth, async (req: Request, res: Response) => {
   const prisma = getPrisma();
@@ -140,15 +126,17 @@ router.get("/images", requireAuth, async (req: Request, res: Response) => {
 });
 
 /**
- * DELETE /admin-api/notices/images/:id
+ * DELETE /admin-api/notices/images/:id - remove from DB and disk
  */
 router.delete("/images/:id", requireAuth, async (req: Request, res: Response) => {
   const prisma = getPrisma();
   try {
     const row = await prisma.noticeImage.findUnique({ where: { id: req.params.id } });
-    if (!row) { res.status(404).json({ error: "Imagen no encontrada" }); return; }
-    const filePath = path.join(NOTICE_IMAGES_DIR, row.filename);
-    try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+    if (!row) {
+      res.status(404).json({ error: "Imagen no encontrada" });
+      return;
+    }
+    deleteMediaFileIfExists(getMediaFilePath(NOTICE_IMAGES_DIR, row.filename));
     await prisma.noticeImage.delete({ where: { id: req.params.id } });
     res.json({ ok: true });
   } catch (err) {

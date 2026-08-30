@@ -3,7 +3,6 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
-import path from "path";
 import { errorHandler } from "./shared/errors/error-handler";
 import { config } from "./config";
 import { logger } from "./shared/logger/logger";
@@ -29,8 +28,10 @@ import rotationRouter from "./modules/rotation/rotation.routes";
 import noticesPublicRouter from "./modules/notices/public.routes";
 import noticesAdminRouter from "./modules/notices/admin.routes";
 import noticeImagesRouter from "./modules/notices/noticeImages.routes";
+import noticeVideosRouter from "./modules/notices/noticeVideos.routes";
 import logsRouter from "./modules/logs/logs.routes";
 import swaggerFile from "./swagger-output.json";
+import { NOTICE_IMAGES_DIR, NOTICE_VIDEOS_DIR } from "./modules/notices/media/media.storage";
 
 const ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:4173"];
 
@@ -77,40 +78,52 @@ export function createApp(): Express {
   app.use("/api/notices", noticesPublicRouter);
   app.use("/admin-api/notices", noticesAdminRouter);
   app.use("/admin-api/notices", noticeImagesRouter);
+  app.use("/admin-api/notices", noticeVideosRouter);
   app.use("/admin-api/logs", logsRouter);
-  // imágenes optimizadas reusables — servir estático con cache
-  const noticeImagesDir = (() => {
-    const candidates = [
-      path.resolve(process.cwd(), "backend", "storage", "notice-images"),
-      path.resolve(process.cwd(), "storage", "notice-images"),
-      path.resolve(__dirname, "../storage/notice-images"),
-      path.resolve(__dirname, "../../storage/notice-images"),
-    ];
-    for (const p of candidates) {
-      try { if (p.includes("notice-images")) return p; } catch {}
-    }
-    return candidates[0];
-  })();
+
+  // Reusable optimized images - serve with immutable cache
   app.use(
     "/media/notices",
-    express.static(noticeImagesDir, {
+    express.static(NOTICE_IMAGES_DIR, {
       maxAge: "30d",
       immutable: true,
       setHeaders(res) {
         res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
       },
-    }),
+    })
   );
-  // Alias para que funcione sin cambio nginx: /api/media/notices -> mismo dir (nginx ya proxea /api/)
+  // Alias for nginx compatibility: /api/media/notices proxies to same dir
   app.use(
     "/api/media/notices",
-    express.static(noticeImagesDir, {
+    express.static(NOTICE_IMAGES_DIR, {
       maxAge: "30d",
       immutable: true,
       setHeaders(res) {
         res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
       },
-    }),
+    })
+  );
+
+  // Reusable notice videos - serve with immutable cache
+  app.use(
+    "/media/notice-videos",
+    express.static(NOTICE_VIDEOS_DIR, {
+      maxAge: "30d",
+      immutable: true,
+      setHeaders(res) {
+        res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
+      },
+    })
+  );
+  app.use(
+    "/api/media/notice-videos",
+    express.static(NOTICE_VIDEOS_DIR, {
+      maxAge: "30d",
+      immutable: true,
+      setHeaders(res) {
+        res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
+      },
+    })
   );
   app.use("/api/prayer", prayerRouter);
 

@@ -14,8 +14,8 @@ export interface NoticeFilters {
 }
 
 /**
- * Determina si un aviso aplica para el usuario segun su contexto.
- * La evaluacion es pura y no toca IO, para testear facilmente.
+ * Checks whether a notice applies to a user given their context.
+ * Pure function with no IO, easy to test in isolation.
  */
 export function noticeMatchesAudience(
   notice: {
@@ -54,9 +54,9 @@ export function noticeMatchesAudience(
 }
 
 /**
- * Devuelve los avisos activos dentro de ventana temporal,
- * opcionalmente filtrados por audiencia del dispositivo.
- * Si no se provee contexto, devuelve solo audience=all.
+ * Returns active notices within the time window,
+ * optionally filtered by device audience context.
+ * Without context, only global (audience=all) notices are returned.
  */
 export async function getActiveNotices(ctx: NoticeFilters = {}) {
   const now = new Date();
@@ -68,19 +68,34 @@ export async function getActiveNotices(ctx: NoticeFilters = {}) {
     },
     orderBy: [{ createdAt: "desc" }],
   } as never) as Array<{
-    id: string; title: string; body: string; imageUrl: string | null; ctaLabel: string | null; ctaUrl: string | null;
-    variant: string; audience: string; audienceZoneId: string | null; audiencePlatform: string | null;
-    audienceProgram: string | null; audienceDeviceIds: string | null; startsAt: Date; endsAt: Date;
-    maxDisplaysPerUser: number; dismissible: boolean; isActive: boolean; createdAt: Date;
+    id: string;
+    title: string;
+    body: string;
+    imageUrl: string | null;
+    videoUrl: string | null;
+    ctaLabel: string | null;
+    ctaUrl: string | null;
+    variant: string;
+    audience: string;
+    audienceZoneId: string | null;
+    audiencePlatform: string | null;
+    audienceProgram: string | null;
+    audienceDeviceIds: string | null;
+    startsAt: Date;
+    endsAt: Date;
+    maxDisplaysPerUser: number;
+    dismissible: boolean;
+    isActive: boolean;
+    createdAt: Date;
   }>;
 
-  // Si no hay contexto, entrega solo globales para no filtrar de mas
+  // Without context, return only global notices to avoid over-filtering
   const hasContext = Boolean(ctx.deviceId || ctx.zoneId || ctx.platform || ctx.subscriptions?.length);
   if (!hasContext) {
     return rows.filter((n) => n.audience === "all");
   }
 
-  // Para contexto con deviceId, necesitamos subscriptions reales si no vienen
+  // For device context, enrich with stored device data when needed
   let subscriptions = ctx.subscriptions;
   let zoneId = ctx.zoneId;
   let platform = ctx.platform;

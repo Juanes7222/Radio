@@ -31,6 +31,8 @@ import type {
   AppNoticeInput,
   NoticeImage,
   NoticeImageList,
+  NoticeVideo,
+  NoticeVideoList,
   ZoneRecalcStats,
   ZoneRecalcInput,
   ZoneRecalcResult,
@@ -571,6 +573,24 @@ export function useAdminApi() {
     [request]
   );
 
+  const getNoticeVideos = useCallback(
+    (params: { page?: number; limit?: number } = {}) =>
+      request<NoticeVideoList>({ url: '/admin-api/notices/videos', params }),
+    [request]
+  );
+  const uploadNoticeVideo = useCallback(
+    (file: File) => {
+      const fd = new FormData();
+      fd.append('video', file);
+      return request<NoticeVideo>({ method: 'POST', url: '/admin-api/notices/videos', data: fd, timeout: 120000 });
+    },
+    [request]
+  );
+  const deleteNoticeVideo = useCallback(
+    (id: string) => request({ method: 'DELETE', url: `/admin-api/notices/videos/${id}` }),
+    [request]
+  );
+
   // ── Workers y YouTube ─────────────────────────────────────────
   const getWorkers = useCallback(
     () => request<WorkerNodeInfo[]>({ url: '/admin-api/workers/workers' }),
@@ -688,6 +708,9 @@ export function useAdminApi() {
     getNoticeImages,
     uploadNoticeImage,
     deleteNoticeImage,
+    getNoticeVideos,
+    uploadNoticeVideo,
+    deleteNoticeVideo,
     getWorkers,
     getWorkerJobs,
     getLogSources,

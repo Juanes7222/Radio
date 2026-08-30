@@ -24,6 +24,7 @@ router.get("/active", async (req: Request, res: Response) => {
         title: (n as unknown as { title: string }).title,
         body: (n as unknown as { body: string }).body,
         imageUrl: (n as unknown as { imageUrl: string | null }).imageUrl,
+        videoUrl: (n as unknown as { videoUrl: string | null }).videoUrl ?? null,
         ctaLabel: (n as unknown as { ctaLabel: string | null }).ctaLabel,
         ctaUrl: (n as unknown as { ctaUrl: string | null }).ctaUrl,
         variant: (n as unknown as { variant: string }).variant,

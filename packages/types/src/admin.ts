@@ -463,6 +463,7 @@ export interface AppNotice {
   title: string;
   body: string;
   imageUrl: string | null;
+  videoUrl: string | null;
   ctaLabel: string | null;
   ctaUrl: string | null;
   variant: NoticeVariant;
@@ -492,6 +493,7 @@ export interface AppNoticeInput {
   title: string;
   body: string;
   imageUrl?: string | null;
+  videoUrl?: string | null;
   ctaLabel?: string | null;
   ctaUrl?: string | null;
   variant: NoticeVariant;
@@ -522,6 +524,27 @@ export interface NoticeImage {
 
 export interface NoticeImageList {
   rows: NoticeImage[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface NoticeVideo {
+  id: string;
+  filename: string;
+  originalName: string;
+  url: string;
+  posterUrl: string | null;
+  mimeType: string;
+  size: number;
+  width: number | null;
+  height: number | null;
+  durationMs: number | null;
+  createdAt: string;
+}
+
+export interface NoticeVideoList {
+  rows: NoticeVideo[];
   total: number;
   page: number;
   totalPages: number;

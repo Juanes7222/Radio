@@ -1,13 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart } from 'lucide-react';
-import { apiUrl } from '@/config';
+import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart } from "lucide-react";
+import { resolveNoticeMediaSrc, resolveVideoPosterSrc } from "@/lib/noticeMedia";
 
 interface Notice {
   id: string;
   title: string;
   body: string;
   imageUrl: string | null;
+  videoUrl: string | null;
   ctaLabel: string | null;
   ctaUrl: string | null;
   variant: string;
@@ -63,6 +64,9 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanent
 
   const meta = VARIANT_META[notice.variant] ?? VARIANT_META.info;
   const Icon = meta.icon;
+  const videoSrc = resolveNoticeMediaSrc(notice.videoUrl);
+  const posterSrc = resolveVideoPosterSrc(notice.videoUrl);
+  const imageSrc = resolveNoticeMediaSrc(notice.imageUrl);
 
   return (
     <AnimatePresence>
@@ -132,12 +136,16 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanent
 
           {/* scrollable body */}
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {notice.imageUrl && (
+            {videoSrc ? (
               <div className="relative">
-                <img src={notice.imageUrl.startsWith('/media/') ? apiUrl(notice.imageUrl) : notice.imageUrl} alt="" className="aspect-[16/9] w-full object-cover" loading="eager" />
+                <video src={videoSrc} poster={posterSrc ?? undefined} controls playsInline preload="metadata" className="aspect-[16/9] w-full object-contain bg-black" />
+              </div>
+            ) : imageSrc ? (
+              <div className="relative">
+                <img src={imageSrc} alt="" className="aspect-[16/9] w-full object-cover" loading="eager" />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/30 to-transparent" aria-hidden />
               </div>
-            )}
+            ) : null}
 
             <div className="p-5 sm:p-6">
               <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] font-medium tracking-wide ${meta.badge}`}>

@@ -1,15 +1,17 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart } from 'lucide-react';
-import { API_BASE_URL } from '@/config';
-import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from '@/lib/noticeStorage';
-import { NoticeIntrusiveModal } from './NoticeIntrusiveModal';
+import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart } from "lucide-react";
+import { API_BASE_URL } from "@/config";
+import { resolveNoticeMediaSrc as resolveMediaSrc, resolveVideoPosterSrc } from "@/lib/noticeMedia";
+import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from "@/lib/noticeStorage";
+import { NoticeIntrusiveModal } from "./NoticeIntrusiveModal";
 
 interface Notice {
   id: string;
   title: string;
   body: string;
   imageUrl: string | null;
+  videoUrl: string | null;
   ctaLabel: string | null;
   ctaUrl: string | null;
   variant: string;
@@ -56,11 +58,11 @@ export function NoticeOverlay() {
       const data = (await res.json()) as { notices: Notice[] };
       const eligible = data.notices.filter((n) => shouldShowNotice(n.id, n.maxDisplaysPerUser, n.dismissible));
 
-      // Intrusivo (modal) tiene prioridad y se muestra al entrar — solo uno por sesión
+      // Intrusive modal has priority — shown once per session
       const modals = eligible.filter((n) => (n.displayMode ?? 'toast') === 'modal');
       const toasts = eligible.filter((n) => (n.displayMode ?? 'toast') !== 'modal');
 
-      // elige primer modal no visto en esta sesión
+      // Pick first unseen modal for this session
       const sessionModal = modals.find((m) => !hasSeenModalThisSession(m.id)) ?? null;
       if (sessionModal && !modalNotice) {
         setModalNotice(sessionModal);
@@ -69,21 +71,21 @@ export function NoticeOverlay() {
         markModalSession(sessionModal.id);
       }
 
-      // toast queue: excluye modales; si hay modal activo, el toast espera (no se muestra a la vez)
+      // Toast queue excludes modals; if modal is active, toast waits
       setNotices(toasts);
       if (toasts.length > 0 && !current && !sessionModal) {
         const next = toasts[0];
         setCurrent(next);
         bumpNoticeView(next.id);
       } else if (toasts.length > 0 && !current && sessionModal) {
-        // hay toast pero modal está activo — no montar toast todavía, se montará al cerrar modal
+        // Toast exists but modal is active — defer toast until modal closes
       }
     } catch {}
   }, [current, modalNotice]);
 
   useEffect(() => { void fetchNotices(); }, [fetchNotices]);
 
-  // progress hasta expiración (cinta que avanza) — solo para toast
+  // Expiration progress bar (advancing line) — toast only
   useEffect(() => {
     if (!current) return;
     const end = new Date(current.endsAt).getTime();
@@ -138,7 +140,7 @@ export function NoticeOverlay() {
     dismissNotice(modalNotice.id);
     setModalNotice(null);
     const remainingToasts = notices.filter((n) => n.id !== modalNotice.id && shouldShowNotice(n.id, n.maxDisplaysPerUser, n.dismissible));
-    // también filtra el modal descartado permanentemente
+    // Also filter permanently dismissed modal
     setNotices(remainingToasts.filter((n) => n.id !== modalNotice.id));
   };
 
@@ -163,6 +165,9 @@ export function NoticeOverlay() {
       {current && !modalNotice && (() => {
         const meta = VARIANT_META[current.variant] ?? VARIANT_META.info;
         const Icon = meta.icon;
+        const videoSrc = resolveMediaSrc(current.videoUrl);
+        const posterSrc = resolveVideoPosterSrc(current.videoUrl);
+        const imageSrc = resolveMediaSrc(current.imageUrl);
         return (
         <AnimatePresence>
           <motion.div
@@ -191,12 +196,16 @@ export function NoticeOverlay() {
                 <div className={`absolute inset-y-0 left-0 w-full ${meta.accent} opacity-40`} />
               </div>
 
-              {current.imageUrl && (
+              {videoSrc ? (
                 <div className="relative">
-                  <img src={current.imageUrl.startsWith('/media/') ? `${API_BASE_URL}/api${current.imageUrl}` : current.imageUrl} alt="" className="aspect-[16/7] w-full object-cover" loading="lazy" />
+                  <video src={videoSrc} poster={posterSrc ?? undefined} controls playsInline preload="metadata" className="aspect-[16/9] w-full object-contain bg-black" />
+                </div>
+              ) : imageSrc ? (
+                <div className="relative">
+                  <img src={imageSrc} alt="" className="aspect-[16/7] w-full object-cover" loading="lazy" />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/40 to-transparent" aria-hidden />
                 </div>
-              )}
+              ) : null}
 
               <div className="relative p-4 pr-10">
                 <button

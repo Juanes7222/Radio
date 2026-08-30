@@ -380,13 +380,13 @@ model PrayerRequest {
   @@index([estado])
 }
 
-// Aviso in-app para web y app movil — no es push, se consulta y se muestra
-// dentro de la interfaz con ventana temporal y limite por usuario.
+// In-app notice for web and mobile — not a push notification, queried and displayed inside the UI with time window and per-user limits.
 model AppNotice {
   id                  String   @id @default(uuid())
   title               String
   body                String
   imageUrl            String?  @map("image_url")
+  videoUrl            String?  @map("video_url")
   ctaLabel            String?  @map("cta_label")
   ctaUrl              String?  @map("cta_url")
   variant             String   @default("info") // info | event | warning | prayer
@@ -411,7 +411,7 @@ model AppNotice {
   @@index([audience])
 }
 
-// Biblioteca de imágenes para avisos — reusables, optimizadas con sharp
+// Reusable image library for notices — optimized with sharp
 model NoticeImage {
   id           String   @id @default(uuid())
   filename     String   @unique // uuid.webp en disco
@@ -424,5 +424,23 @@ model NoticeImage {
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("notice_images")
+  @@index([createdAt])
+}
+
+// Reusable video library for notices — optimized to 720p H.264 with poster thumbnail
+model NoticeVideo {
+  id           String   @id @default(uuid())
+  filename     String   @unique // uuid.<ext> on disk
+  originalName String   @map("original_name")
+  url          String   // /media/notice-videos/<filename>
+  posterUrl    String?  @map("poster_url") // /media/notice-videos/<poster>.webp
+  mimeType     String   @map("mime_type")
+  size         Int      // bytes after optimization
+  width        Int?
+  height       Int?
+  durationMs   Int?     @map("duration_ms")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("notice_videos")
   @@index([createdAt])
 }
