@@ -91,11 +91,21 @@ router.all("/station/schedule", requireAuth, (req, res) => {
 
 router.all("/station/*", requireAuth, (req, res) => {
   const path = (req.params as Record<string, string>)[0] ?? "";
-  void proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/${path}`);
+  const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "";
+  const protocol = req.headers["x-forwarded-proto"] ?? "https";
+  const publicUrl = `${protocol}://${host}`;
+  void proxyToAzuraCast(req, res, `/api/station/${config.azuracast.stationId}/${path}`, (d) =>
+    rewriteInternalUrls(d, publicUrl)
+  );
 });
 
 router.get("/nowplaying", requireAuth, (req, res) => {
-  void proxyToAzuraCast(req, res, `/api/nowplaying/${config.azuracast.stationId}`);
+  const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "";
+  const protocol = req.headers["x-forwarded-proto"] ?? "https";
+  const publicUrl = `${protocol}://${host}`;
+  void proxyToAzuraCast(req, res, `/api/nowplaying/${config.azuracast.stationId}`, (d) =>
+    rewriteInternalUrls(d, publicUrl)
+  );
 });
 
 export default router;
