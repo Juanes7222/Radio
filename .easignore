@@ -1,0 +1,44 @@
+# Root .easignore - reduce EAS archive (monorepo)
+# Sincronizado con apps/mobile/.easignore
+
+.git
+node_modules
+**/node_modules
+.pnpm-store
+.expo
+.expo-shared
+.turbo
+**/.turbo
+.ultra.cache
+coverage
+
+# Native - regenerados
+**/android/build
+**/android/.gradle
+**/android/app/build
+**/android/app/.cxx
+**/ios/build
+**/ios/Pods
+
+# Pesados no-workspace
+.venv
+**/.venv
+worker
+**/worker
+scraping
+**/scraping
+.agents
+.opencode
+.devcontainer
+
+# Builds de otros workspaces
+**/backend/dist
+**/apps/web/.next
+**/apps/web/dist
+**/packages/*/dist
+
+# Logs / temp
+*.log
+*.tgz
+*.tar.gz
+*.zip

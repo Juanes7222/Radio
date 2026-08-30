@@ -1,23 +1,127 @@
+# EAS Build - monorepo optimizado para @radio/mobile
+# Reduce archive de 312MB -> ~30-50MB
+
+# Git / meta
 .git
+.gitignore
+.mercurial
+.svn
+
+# Dependencias - reinstaladas en builder con pnpm install --frozen-lockfile
 node_modules
-.expo/
-dist/
-.turbo/
-.idea/
+**/node_modules
+.pnpm-store
+.pnpm-debug.log
 
-android/build/
-android/.gradle/
-ios/build/
-ios/Pods/
+# Expo / Metro cache
+.expo
+.expo-shared
+.expo/*
+.expo-shared/*
 
-*.log
+# Build outputs
+dist
+build
+out
+.next
+.turbo
+**/.turbo
+.ultra.cache
+coverage
+.nyc_output
+*.tsbuildinfo
 
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Native generados - regenerados por prebuildCommand (expo prebuild --clean)
+android
+ios
+android/*
+ios/*
+**/android/build
+**/android/.gradle
+**/android/app/build
+**/android/app/.cxx
+**/android/.idea
+**/ios/build
+**/ios/Pods
+**/ios/.symlinks
+
+# Monorepo: carpetas no-workspace pesadas (1.3GB worker, 155MB .venv, etc.)
+# NOTA: no ignorar apps/mobile/app ni apps/mobile/scripts (requeridos)
+.venv
+venv
+**/.venv
+worker
+**/worker
+scraping
+**/scraping
+docs
+**/docs
+.agents
+**/.agents
+.opencode
+**/.opencode
+.devcontainer
+**/.devcontainer
+
+# Artefactos de otros workspaces (mantiene package.json, ignora builds)
+**/backend/dist
+**/backend/build
+**/backend/.turbo
+**/apps/web/dist
+**/apps/web/build
+**/apps/web/.next
+**/apps/web/.expo
+**/packages/*/dist
+**/packages/*/build
+**/packages/*/.turbo
+
+# Mantener siempre scripts necesarios para prebuild
+!scripts
+!scripts/*
+!app
+!app/*
+
+# Tests
 **/__tests__
 **/*.test.ts
 **/*.test.tsx
 **/*.spec.ts
 **/*.spec.tsx
+**/*.e2e.ts
+**/*.e2e.tsx
 
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Env locales - EAS usa EAS env vars (production), no archivos locales
 .env
 .env.local
 .env.development
+.env.*.local
+.env.docker
+!.env.example
+!.env.production
+
+# Archivos grandes / temporales
+*.tgz
+*.tar.gz
+*.zip
+*.aab
+*.apk
+*.ipa
