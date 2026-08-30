@@ -27,10 +27,11 @@ interface Props {
   notice: Notice | null;
   viewCount: number;
   onDismiss: () => void;
+  onPermanentDismiss?: () => void;
   onCta?: () => void;
 }
 
-export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onCta }: Props) {
+export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanentDismiss, onCta }: Props) {
   const shouldReduce = useReducedMotion();
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -179,6 +180,14 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onCta }: Pr
                   </button>
                 )}
               </div>
+              {notice.dismissible && onPermanentDismiss && (
+                <button
+                  onClick={onPermanentDismiss}
+                  className="mt-3 w-full text-center font-mono text-[11px] text-faint underline-offset-4 hover:text-foreground hover:underline sm:text-left"
+                >
+                  No volver a mostrar
+                </button>
+              )}
 
               {notice.maxDisplaysPerUser > 0 && (
                 <p className="mt-4 text-center font-mono text-[11px] text-faint sm:text-left">

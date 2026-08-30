@@ -99,8 +99,35 @@ export function NoticeOverlay() {
     }
   };
 
+  const handlePermanentDismiss = async () => {
+    if (!current) return;
+    await dismissNotice(current.id);
+    if (queue.length > 0) {
+      const next = queue[0];
+      setQueue((q) => q.slice(1));
+      setCurrent(next);
+      const s = await bumpNoticeView(next.id);
+      setViewCount(s.count);
+    } else {
+      setCurrent(null);
+    }
+  };
+
   const handleDismissModal = async () => {
     if (!modalNotice) return;
+    setModalNotice(null);
+    if (queue.length > 0) {
+      const next = queue[0];
+      setQueue((q) => q.slice(1));
+      setCurrent(next);
+      const s = await bumpNoticeView(next.id);
+      setViewCount(s.count);
+    }
+  };
+
+  const handlePermanentDismissModal = async () => {
+    if (!modalNotice) return;
+    await dismissNotice(modalNotice.id);
     setModalNotice(null);
     if (queue.length > 0) {
       const next = queue[0];
@@ -182,6 +209,11 @@ export function NoticeOverlay() {
                       <Text style={mStyles.secondaryDarkText}>Continuar escuchando</Text>
                     </Pressable>
                   </View>
+                  {modalNotice.dismissible ? (
+                    <Pressable onPress={handlePermanentDismissModal} style={{ marginTop: 8, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: '#64748B', textDecorationLine: 'underline' }}>No volver a mostrar</Text>
+                    </Pressable>
+                  ) : null}
 
                   {modalNotice.maxDisplaysPerUser > 0 ? (
                     <Text style={mStyles.counter}>{modalViewCount}/{modalNotice.maxDisplaysPerUser} vistas</Text>
@@ -232,10 +264,13 @@ export function NoticeOverlay() {
               </Pressable>
             ) : null}
             <Pressable onPress={handleDismiss} style={styles.secondary}>
-              <Text style={styles.secondaryText}>
-                {current.dismissible ? 'No volver a mostrar' : 'Ocultar'}
-              </Text>
+              <Text style={styles.secondaryText}>Ocultar</Text>
             </Pressable>
+            {current.dismissible ? (
+              <Pressable onPress={handlePermanentDismiss} style={[styles.secondary, { paddingVertical: 6 }]}>
+                <Text style={[styles.secondaryText, { fontSize: 11, textDecorationLine: 'underline' }]}>No volver a mostrar</Text>
+              </Pressable>
+            ) : null}
           </View>
 
           {current.maxDisplaysPerUser > 0 ? (

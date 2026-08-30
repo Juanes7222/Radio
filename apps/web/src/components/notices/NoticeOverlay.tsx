@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart } from 'lucide-react';
 import { API_BASE_URL } from '@/config';
-import { getNoticeState, bumpNoticeView, shouldShowNotice } from '@/lib/noticeStorage';
+import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from '@/lib/noticeStorage';
 import { NoticeIntrusiveModal } from './NoticeIntrusiveModal';
 
 interface Notice {
@@ -110,16 +110,36 @@ export function NoticeOverlay() {
     } else setCurrent(null);
   };
 
+  const handlePermanentDismissToast = () => {
+    if (!current) return;
+    dismissNotice(current.id);
+    const remaining = notices.filter((n) => n.id !== current.id && shouldShowNotice(n.id, n.maxDisplaysPerUser, n.dismissible));
+    setNotices(remaining);
+    if (remaining.length > 0) {
+      const next = remaining[0];
+      setCurrent(next);
+      bumpNoticeView(next.id);
+    } else setCurrent(null);
+  };
+
   const handleDismissModal = () => {
     if (!modalNotice) return;
     setModalNotice(null);
-    // tras cerrar modal, si hay toasts pendientes, muestra el primero
     const remainingToasts = notices.filter((n) => shouldShowNotice(n.id, n.maxDisplaysPerUser, n.dismissible));
     if (remainingToasts.length > 0 && !current) {
       const next = remainingToasts[0];
       setCurrent(next);
       bumpNoticeView(next.id);
     }
+  };
+
+  const handlePermanentDismissModal = () => {
+    if (!modalNotice) return;
+    dismissNotice(modalNotice.id);
+    setModalNotice(null);
+    const remainingToasts = notices.filter((n) => n.id !== modalNotice.id && shouldShowNotice(n.id, n.maxDisplaysPerUser, n.dismissible));
+    // también filtra el modal descartado permanentemente
+    setNotices(remainingToasts.filter((n) => n.id !== modalNotice.id));
   };
 
   const handleCtaToast = () => {
@@ -136,6 +156,7 @@ export function NoticeOverlay() {
         notice={modalNotice}
         viewCount={modalViewCount}
         onDismiss={handleDismissModal}
+        onPermanentDismiss={handlePermanentDismissModal}
         onCta={handleCtaModal}
       />
 
@@ -209,8 +230,16 @@ export function NoticeOverlay() {
                     onClick={handleDismissToast}
                     className="rounded-full px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
-                    {current.dismissible ? 'No volver a mostrar' : 'Ocultar por ahora'}
+                    Ocultar
                   </button>
+                  {current.dismissible && (
+                    <button
+                      onClick={handlePermanentDismissToast}
+                      className="rounded-full px-3 py-2 text-xs font-medium text-faint underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                      No volver a mostrar
+                    </button>
+                  )}
                 </div>
 
                 {current.maxDisplaysPerUser > 0 && (
