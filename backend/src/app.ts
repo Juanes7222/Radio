@@ -27,7 +27,7 @@ import noticesPublicRouter from "./modules/notices/public.routes";
 import noticesAdminRouter from "./modules/notices/admin.routes";
 import noticeImagesRouter from "./modules/notices/noticeImages.routes";
 import noticeVideosRouter from "./modules/notices/noticeVideos.routes";
-import logsRouter from "./modules/logs/logs.routes";
+import logsRouter from "./modules/systemLogs/logs.routes";
 import swaggerFile from "./swagger-output.json";
 import { NOTICE_IMAGES_DIR, NOTICE_VIDEOS_DIR } from "./modules/notices/media/media.storage";
 
