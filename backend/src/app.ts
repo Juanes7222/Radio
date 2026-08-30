@@ -4,8 +4,6 @@ import helmet from "helmet";
 import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
 import { errorHandler } from "./shared/errors/error-handler";
-import { config } from "./config";
-import { logger } from "./shared/logger/logger";
 import authRouter from "./modules/auth/auth.routes";
 import proxyRouter from "./modules/azuracast/proxy.routes";
 import publicRouter from "./modules/azuracast/public.routes";
