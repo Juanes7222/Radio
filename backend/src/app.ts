@@ -29,6 +29,7 @@ import rotationRouter from "./modules/rotation/rotation.routes";
 import noticesPublicRouter from "./modules/notices/public.routes";
 import noticesAdminRouter from "./modules/notices/admin.routes";
 import noticeImagesRouter from "./modules/notices/noticeImages.routes";
+import logsRouter from "./modules/logs/logs.routes";
 import swaggerFile from "./swagger-output.json";
 
 const ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:4173"];
@@ -76,6 +77,7 @@ export function createApp(): Express {
   app.use("/api/notices", noticesPublicRouter);
   app.use("/admin-api/notices", noticesAdminRouter);
   app.use("/admin-api/notices", noticeImagesRouter);
+  app.use("/admin-api/logs", logsRouter);
   // imágenes optimizadas reusables — servir estático con cache
   const noticeImagesDir = (() => {
     const candidates = [

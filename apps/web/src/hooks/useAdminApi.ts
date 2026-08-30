@@ -593,6 +593,22 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Logs · Sala de máquinas ────────────────────────────────
+  const getLogSources = useCallback(
+    () => request<{ sources: { id: string; label: string; shortLabel: string; description: string; health: string; lastAt: string | null; lastLevel: string | null; counts: Record<string, number>; total: number }[] }>({ url: '/admin-api/logs/sources' }),
+    [request]
+  );
+  const getLogs = useCallback(
+    (params: { source?: string; level?: string; search?: string; limit?: number; cursor?: string; order?: string } = {}) =>
+      request<{ rows: { id: string; ts: string; level: string; source: string; msg: string; meta?: Record<string, unknown> }[]; nextCursor: string | null; histogram: { ts: string; count: number; errors: number }[] }>({ url: '/admin-api/logs', params }),
+    [request]
+  );
+  const getLogsTail = useCallback(
+    (params: { source?: string; since?: string; limit?: number } = {}) =>
+      request<{ rows: { id: string; ts: string; level: string; source: string; msg: string; meta?: Record<string, unknown> }[] }>({ url: '/admin-api/logs/tail', params }),
+    [request]
+  );
+
   // ── Facebook Live ────────────────────────────────────────────
   const getLiveStatus = useCallback(
     () => request<{ active: boolean; url: string | null }>({ url: '/admin-api/live/status' }),
@@ -674,6 +690,9 @@ export function useAdminApi() {
     deleteNoticeImage,
     getWorkers,
     getWorkerJobs,
+    getLogSources,
+    getLogs,
+    getLogsTail,
     skipCurrentTrack,
     restartStation,
     getLiveStatus,

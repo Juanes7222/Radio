@@ -20,6 +20,7 @@ import {
   Youtube,
   Repeat,
   BookOpen,
+  Terminal,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,10 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/admin/devices', label: 'Dispositivos', icon: Smartphone },
       { to: '/admin/notices', label: 'Avisos', icon: Megaphone },
     ],
+  },
+  {
+    title: 'Sistema',
+    items: [{ to: '/admin/logs', label: 'Bitácora', icon: Terminal }],
   },
 ];
 

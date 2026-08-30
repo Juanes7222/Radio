@@ -13,3 +13,4 @@ export { default as AdminUpload } from './AdminUpload';
 export { default as AdminLocutor } from './locutor';
 export { default as AdminDevices } from './AdminDevices';
 export { default as AdminYouTube } from './AdminYouTube';
+export { default as AdminLogs } from './AdminLogs';
