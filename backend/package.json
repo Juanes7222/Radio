@@ -37,6 +37,7 @@
     "sharp": "^0.35.3",
     "swagger-autogen": "^2.23.7",
     "swagger-ui-express": "^5.0.1",
+    "tar": "^7.5.22",
     "ws": "^8.19.0",
     "xml2js": "^0.6.0"
   },
@@ -54,6 +55,7 @@
     "@types/node-fetch": "^2.6.13",
     "@types/nodemailer": "^8.0.1",
     "@types/swagger-ui-express": "^4.1.8",
+    "@types/tar": "^7.0.87",
     "@types/ws": "^8.18.1",
     "@types/xml2js": "^0.4.14",
     "prisma": "^6.19.3",

@@ -11,6 +11,17 @@ export const geoipConfig = {
   // (Tue/Fri) by MaxMind, so schedule a job to refresh it.
   mmdbPath: envOr("GEOIP_MMDB_PATH", ""),
 
+  // MaxMind auto-update. Requires a MaxMind account and license key.
+  // When enabled the scheduler downloads GeoLite2-City twice a week.
+  updateEnabled: boolEnvOr("GEOIP_UPDATE_ENABLED", false),
+  licenseKey: envOr("GEOIP_LICENSE_KEY", ""),
+  accountId: envOr("GEOIP_ACCOUNT_ID", ""),
+  editionId: envOr("GEOIP_EDITION_ID", "GeoLite2-City"),
+  // Cron martes y viernes 03:00 America/Bogota (MaxMind publica mar/vie).
+  updateCron: envOr("GEOIP_UPDATE_CRON", "0 3 * * 2,5"),
+  // Descarga también al arrancar si el archivo no existe.
+  updateOnStartup: boolEnvOr("GEOIP_UPDATE_ON_STARTUP", true),
+
   // Trusted proxy handling for Cloudflare / CDN headers. Only enable when the
   // backend is actually behind that proxy; otherwise headers can be spoofed
   // by any client.

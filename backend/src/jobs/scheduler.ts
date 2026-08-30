@@ -6,6 +6,7 @@ import { registerJobRecovery } from "../modules/workers/jobRecovery.job";
 import { registerProgramNotifyJob } from "../modules/schedule/programNotify.job";
 import { registerListenerSamplingJob } from "../modules/azuracast/listenerHistory.job";
 import { registerRotationJob } from "../modules/rotation/rotation.job";
+import { registerGeoIpUpdateJob } from "../modules/devices/geoipUpdate.job";
 import { logger } from "../shared/logger/logger";
 
 export function startScheduler() {
@@ -17,8 +18,9 @@ export function startScheduler() {
   registerProgramNotifyJob();
   registerListenerSamplingJob();
   registerRotationJob();
+  registerGeoIpUpdateJob();
   logger.info(
     "Scheduler",
-    "Jobs registered: Nightly (2:30 AM), Hourly Check (:45), Folder Cleanup (07:00, 13:00, 19:00), Playback (random announcements in safe hours), Job Recovery (every 5 min), Program Notify (every 5 min), Listener Sampling (every 5 min), Rotations (3:30 AM)"
+    "Jobs registered: Nightly (2:30 AM), Hourly Check (:45), Folder Cleanup (07:00, 13:00, 19:00), Playback (random announcements in safe hours), Job Recovery (every 5 min), Program Notify (every 5 min), Listener Sampling (every 5 min), Rotations (3:30 AM), GeoIP Update (Tue/Fri 03:00)"
   );
 }

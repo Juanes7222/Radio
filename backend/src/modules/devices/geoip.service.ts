@@ -63,6 +63,18 @@ async function getMaxmindReader(): Promise<typeof maxmindReader> {
   return maxmindReader;
 }
 
+/**
+ * Forces reload of the MaxMind reader (used after DB auto-update).
+ * Clears cache so next lookup uses fresh data.
+ */
+export async function reloadMaxmindReader(): Promise<void> {
+  maxmindTried = false;
+  maxmindReader = null;
+  cache.clear();
+  await getMaxmindReader();
+  logger.info("GeoIP", "MaxMind reader reloaded after update");
+}
+
 function normalizeIp(ip: string): string {
   const trimmed = ip.trim();
   if (trimmed.startsWith("::ffff:")) return trimmed.slice(7);
