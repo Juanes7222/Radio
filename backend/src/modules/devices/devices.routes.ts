@@ -9,11 +9,28 @@ const MAX_SUBSCRIPTIONS = 100;
 const MAX_SUBSCRIPTION_LENGTH = 200;
 
 /**
+ * Persists the public IP observed for this device so the admin panel can
+ * bulk-recalculate zones later without requiring a new request from each device.
+ * Runs in background and never blocks the response.
+ */
+async function persistLastIp(deviceId: string, ip: string | null): Promise<void> {
+  if (!ip) return;
+  try {
+    await prisma.device.update({
+      where: { deviceId },
+      data: { lastIp: ip, lastIpAt: new Date() },
+    });
+  } catch {
+    // best-effort, ignore if device race condition
+  }
+}
+
+/**
  * Best-effort zone auto-detection for devices that do not have a zone yet.
  * - Never overwrites an existing zoneId (MANUAL or previous AUTO).
  * - Distinguishes source so the admin can audit how the zone was assigned.
  * - Runs in background so request latency or a geolocation failure never
- *   affects registration. The IP is not persisted, only the derived zone.
+ *   affects registration.
  */
 async function assignZoneIfMissing(deviceId: string, ip: string | null, proxyCity: string | null): Promise<void> {
   // Allow proxy city even when IP is missing, otherwise require a public IP.
@@ -93,6 +110,8 @@ router.post("/", async (req, res) => {
   }
 
   const trimmedDeviceId = deviceId.trim();
+  const clientIp = getClientIp(req);
+  const proxyCity = getTrustedProxyCity(req);
 
   try {
     const device = await prisma.device.upsert({
@@ -102,17 +121,22 @@ router.post("/", async (req, res) => {
         fcmToken: typeof fcmToken === "string" ? fcmToken : null,
         platform: typeof platform === "string" ? platform : null,
         appVersion: typeof appVersion === "string" ? appVersion : null,
+        lastIp: clientIp,
+        lastIpAt: clientIp ? new Date() : null,
       },
       update: {
         fcmToken: typeof fcmToken === "string" ? fcmToken : undefined,
         platform: typeof platform === "string" ? platform : undefined,
         appVersion: typeof appVersion === "string" ? appVersion : undefined,
         lastSeen: new Date(),
+        ...(clientIp ? { lastIp: clientIp, lastIpAt: new Date() } : {}),
       },
     });
 
     logger.info("Devices", "Registered device", { deviceId: trimmedDeviceId });
-    void assignZoneIfMissing(trimmedDeviceId, getClientIp(req), getTrustedProxyCity(req));
+    void assignZoneIfMissing(trimmedDeviceId, clientIp, proxyCity);
+    // Ensure IP is persisted even when assignZoneIfMissing skips due to existing zone
+    if (clientIp) void persistLastIp(trimmedDeviceId, clientIp);
     res.status(201).json({
       id: device.id,
       deviceId: device.deviceId,
@@ -143,17 +167,20 @@ router.put("/:deviceId/token", async (req, res) => {
     return;
   }
 
+  const clientIp = getClientIp(req);
   try {
     const device = await prisma.device.update({
       where: { deviceId },
       data: {
         fcmToken: fcmToken.trim(),
         lastSeen: new Date(),
+        ...(clientIp ? { lastIp: clientIp, lastIpAt: new Date() } : {}),
       },
     });
 
     logger.info("Devices", "Token updated", { deviceId });
-    void assignZoneIfMissing(deviceId, getClientIp(req), getTrustedProxyCity(req));
+    void assignZoneIfMissing(deviceId, clientIp, getTrustedProxyCity(req));
+    if (clientIp) void persistLastIp(deviceId, clientIp);
     res.json({
       deviceId: device.deviceId,
       fcmToken: device.fcmToken,
@@ -187,6 +214,7 @@ router.put("/:deviceId/subscriptions", async (req, res) => {
   }
 
   const trimmedDeviceId = deviceId.trim();
+  const clientIp = getClientIp(req);
 
   try {
     const device = await prisma.device.upsert({
@@ -194,10 +222,13 @@ router.put("/:deviceId/subscriptions", async (req, res) => {
       create: {
         deviceId: trimmedDeviceId,
         subscriptions: JSON.stringify(subscriptions),
+        lastIp: clientIp,
+        lastIpAt: clientIp ? new Date() : null,
       },
       update: {
         subscriptions: JSON.stringify(subscriptions),
         lastSeen: new Date(),
+        ...(clientIp ? { lastIp: clientIp, lastIpAt: new Date() } : {}),
       },
     });
 
@@ -205,7 +236,8 @@ router.put("/:deviceId/subscriptions", async (req, res) => {
       deviceId: trimmedDeviceId,
       count: subscriptions.length,
     });
-    void assignZoneIfMissing(trimmedDeviceId, getClientIp(req), getTrustedProxyCity(req));
+    void assignZoneIfMissing(trimmedDeviceId, clientIp, getTrustedProxyCity(req));
+    if (clientIp) void persistLastIp(trimmedDeviceId, clientIp);
     res.json({
       deviceId: device.deviceId,
       subscriptions,

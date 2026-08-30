@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart } from 'lucide-react';
 import { API_BASE_URL } from '@/config';
-import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from '@/lib/noticeStorage';
+import { getNoticeState, bumpNoticeView, shouldShowNotice } from '@/lib/noticeStorage';
 import { NoticeIntrusiveModal } from './NoticeIntrusiveModal';
 
 interface Notice {
@@ -101,8 +101,6 @@ export function NoticeOverlay() {
 
   const handleDismissToast = () => {
     if (!current) return;
-    if (current.dismissible) dismissNotice(current.id);
-    else bumpNoticeView(current.id);
     const remaining = notices.filter((n) => n.id !== current.id && shouldShowNotice(n.id, n.maxDisplaysPerUser, n.dismissible));
     setNotices(remaining);
     if (remaining.length > 0) {
@@ -114,8 +112,6 @@ export function NoticeOverlay() {
 
   const handleDismissModal = () => {
     if (!modalNotice) return;
-    if (modalNotice.dismissible) dismissNotice(modalNotice.id);
-    // si no es descartable ya se hizo bump al mostrar
     setModalNotice(null);
     // tras cerrar modal, si hay toasts pendientes, muestra el primero
     const remainingToasts = notices.filter((n) => shouldShowNotice(n.id, n.maxDisplaysPerUser, n.dismissible));

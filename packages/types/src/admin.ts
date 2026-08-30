@@ -229,6 +229,10 @@ export interface AdminDevice {
   subscriptions: string[];
   /** Administrative zone assigned to the device (e.g. a city or region) */
   zoneId: string | null;
+  zoneSource?: string | null;
+  zoneAssignedAt?: string | null;
+  zoneRegion?: string | null;
+  zoneCountry?: string | null;
   lastSeen: string;
   createdAt: string;
 }
@@ -298,6 +302,45 @@ export interface PushNotificationLogList {
 
 export interface DeviceZoneList {
   zones: string[];
+}
+
+export type ZoneRecalcScope = 'missing' | 'auto' | 'all';
+
+export interface ZoneRecalcStats {
+  total: number;
+  withZone: number;
+  withoutZone: number;
+  manual: number;
+  auto: number;
+  withIp: number;
+  withoutIp: number;
+  zones: string[];
+}
+
+export interface ZoneRecalcInput {
+  scope?: ZoneRecalcScope;
+  forceManual?: boolean;
+  dryRun?: boolean;
+  limit?: number;
+}
+
+export interface ZoneRecalcResult {
+  total: number;
+  considered: number;
+  updated: number;
+  skippedManual: number;
+  skippedNoIp: number;
+  failed: number;
+  dryRun: boolean;
+  changes: Array<{
+    deviceId: string;
+    oldZone: string | null;
+    newZone: string | null;
+    oldSource: string | null;
+    newSource: string | null;
+    region: string | null;
+    country: string | null;
+  }>;
 }
 
 /** One media row of a sequential playlist (from AzuraCast playlist order) */

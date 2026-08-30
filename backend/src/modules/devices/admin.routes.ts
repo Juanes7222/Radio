@@ -10,6 +10,7 @@ import {
   type PushAudience,
   type PushCampaignInput,
 } from "./push.service";
+import { getZoneRecalcStats, recalculateZones, type ZoneRecalcScope } from "./zoneRecalc.service";
 
 const router = Router();
 
@@ -206,6 +207,43 @@ router.get("/zones", requireAuth, async (_req: Request, res: Response) => {
       error: err instanceof Error ? err.message : String(err),
     });
     res.status(500).json({ error: "Error al obtener las zonas" });
+  }
+});
+
+router.get("/recalc-stats", requireAuth, async (_req: Request, res: Response) => {
+  try {
+    const stats = await getZoneRecalcStats();
+    res.json(stats);
+  } catch (err) {
+    logger.error("DevicesAdmin", "Error fetching recalc stats", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ error: "Error al obtener estadísticas de zonas" });
+  }
+});
+
+router.post("/recalc-zones", requireAuth, async (req: Request, res: Response) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const scopeRaw = typeof body.scope === "string" ? body.scope.trim() : "auto";
+  const allowedScopes: ZoneRecalcScope[] = ["missing", "auto", "all"];
+  const scope: ZoneRecalcScope = allowedScopes.includes(scopeRaw as ZoneRecalcScope)
+    ? (scopeRaw as ZoneRecalcScope)
+    : "auto";
+  const forceManual = Boolean(body.forceManual);
+  const dryRun = Boolean(body.dryRun);
+  const limitRaw = Number(body.limit);
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(5000, Math.floor(limitRaw)) : undefined;
+
+  // Timeout protection: recalculation can take many seconds due to GeoIP lookups.
+  // Client should have at least 60s timeout.
+  try {
+    const result = await recalculateZones({ scope, forceManual, dryRun, limit });
+    res.json(result);
+  } catch (err) {
+    logger.error("DevicesAdmin", "Error recalculating zones", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ error: "Error al recalcular las zonas" });
   }
 });
 

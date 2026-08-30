@@ -7,7 +7,8 @@ import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from 
 
 function resolveImageUri(url: string | null): string | null {
   if (!url) return null;
-  if (url.startsWith('/media/')) return `${BACKEND_URL}${url}`;
+  if (url.startsWith('/media/')) return `${BACKEND_URL}/api${url}`;
+  if (url.startsWith('/api/media/')) return `${BACKEND_URL}${url}`;
   return url;
 }
 
@@ -87,7 +88,6 @@ export function NoticeOverlay() {
 
   const handleDismiss = async () => {
     if (!current) return;
-    if (current.dismissible) await dismissNotice(current.id);
     if (queue.length > 0) {
       const next = queue[0];
       setQueue((q) => q.slice(1));
@@ -101,9 +101,7 @@ export function NoticeOverlay() {
 
   const handleDismissModal = async () => {
     if (!modalNotice) return;
-    if (modalNotice.dismissible) await dismissNotice(modalNotice.id);
     setModalNotice(null);
-    // tras cerrar modal, si hay toasts en cola, muestra el primero
     if (queue.length > 0) {
       const next = queue[0];
       setQueue((q) => q.slice(1));

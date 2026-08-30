@@ -239,6 +239,11 @@ model Device {
   // Optional diagnostic fields populated on auto-assign (city -> zoneId).
   zoneRegion    String?   @map("zone_region")
   zoneCountry   String?   @map("zone_country")
+  // Last public IP observed for this device. Stored to allow bulk zone
+  // recalculation from the admin panel without requiring a new request
+  // from each device. Only the IP string is stored, not geodata.
+  lastIp        String?   @map("last_ip")
+  lastIpAt      DateTime? @map("last_ip_at")
   lastSeen      DateTime  @default(now())
   createdAt     DateTime  @default(now())
 
@@ -249,6 +254,7 @@ model Device {
   @@index([fcmToken])
   @@index([zoneId])
   @@index([zoneSource])
+  @@index([lastIp])
 }
 
 // History of custom push notifications sent from the admin panel.

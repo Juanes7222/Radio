@@ -31,6 +31,9 @@ import type {
   AppNoticeInput,
   NoticeImage,
   NoticeImageList,
+  ZoneRecalcStats,
+  ZoneRecalcInput,
+  ZoneRecalcResult,
 } from '@radio/types';
 import { API_BASE_URL } from '@/config';
 
@@ -511,6 +514,22 @@ export function useAdminApi() {
     [request]
   );
 
+  const getZoneRecalcStats = useCallback(
+    () => request<ZoneRecalcStats>({ url: '/admin-api/devices/recalc-stats' }),
+    [request]
+  );
+
+  const recalcZones = useCallback(
+    (input: ZoneRecalcInput) =>
+      request<ZoneRecalcResult>({
+        method: 'POST',
+        url: '/admin-api/devices/recalc-zones',
+        data: input,
+        timeout: 120000,
+      }),
+    [request]
+  );
+
   // ── Avisos in-app ───────────────────────────────────────────────
   const getNotices = useCallback(
     (params: { page?: number; limit?: number } = {}) =>
@@ -643,6 +662,8 @@ export function useAdminApi() {
     sendPushCampaign,
     getPushNotificationLogs,
     getNotificationStats,
+    getZoneRecalcStats,
+    recalcZones,
     getNotices,
     createNotice,
     updateNotice,
