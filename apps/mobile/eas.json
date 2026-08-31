@@ -7,14 +7,14 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "prebuildCommand": "node scripts/write-google-services.js",
+      "prebuildCommand": "node scripts/write-google-services.js && npx expo prebuild",
       "node": "22.22.3",
       "pnpm": "10.11.0"
     },
     "preview": {
       "distribution": "internal",
       "channel": "staging",
-      "prebuildCommand": "node scripts/write-google-services.js",
+      "prebuildCommand": "node scripts/write-google-services.js && npx expo prebuild",
       "android": {
         "buildType": "apk"
       },
@@ -24,7 +24,7 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
-      "prebuildCommand": "node scripts/write-google-services.js",
+      "prebuildCommand": "node scripts/write-google-services.js && npx expo prebuild",
       "node": "22.22.3",
       "pnpm": "10.11.0"
     }

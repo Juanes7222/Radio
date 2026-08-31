@@ -62,6 +62,9 @@
         "exclude": ["react-native-track-player", "exact-alarms"],
         "listUnknownPackages": false
       }
+    },
+    "install": {
+      "exclude": ["react-native-worklets"]
     }
   },
   "devDependencies": {
