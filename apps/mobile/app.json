@@ -7,14 +7,9 @@
       "policy": "fingerprint"
     },
     "orientation": "portrait",
-    "icon": "./assets/android/mipmap-xxxhdpi/ic_launcher.png",
+    "icon": "./assets/icon.png",
     "scheme": "radio",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0f172a"
-    },
     "updates": {
       "enabled": true,
       "fallbackToCacheTimeout": 0,
@@ -32,7 +27,7 @@
     "android": {
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/android/mipmap-xxxhdpi/ic_launcher_foreground.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.lavozverdad.radio",

@@ -30,9 +30,9 @@ function withCmakeVersion(config) {
 
   let withAppBuildGradle;
   try {
-    ({ withAppBuildGradle } = require('@expo/config-plugins'));
+    ({ withAppBuildGradle } = require('expo/config-plugins'));
   } catch {
-    console.warn('[withCmakeVersion] @expo/config-plugins not found; skipping.');
+    console.warn('[withCmakeVersion] expo/config-plugins not found; skipping.');
     return config;
   }
 
