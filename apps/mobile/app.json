@@ -4,7 +4,7 @@
     "slug": "la-voz-de-la-verdad",
     "version": "1.0.0",
     "runtimeVersion": {
-      "policy": "fingerprint"
+      "policy": "appVersion"
     },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
