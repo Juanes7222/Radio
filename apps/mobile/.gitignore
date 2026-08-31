@@ -4,8 +4,12 @@
 
 expo-env.d.ts
 # @end expo-cli
-android/
-!modules/*/android/
+/android
+/ios
+!modules/
+!modules/exact-alarms/
+!modules/exact-alarms/android/
+!modules/exact-alarms/ios/
 .expo/
 .idea/
 
