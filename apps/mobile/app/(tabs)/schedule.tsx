@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable, RefreshControl, LayoutAnimation, UIManager, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable, RefreshControl, LayoutAnimation } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -22,10 +22,7 @@ const MODAL_BORDER = 'rgba(255,255,255,0.1)';
 
 const NEUTRAL_ACCENT = { dot: TEXT_MUTED, glow: 'rgba(139,146,165,0.25)' };
 
-// Enable LayoutAnimation on Android for smooth section collapse/expand.
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+
 
 const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   music: 'musical-notes',

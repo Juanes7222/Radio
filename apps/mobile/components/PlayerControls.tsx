@@ -98,6 +98,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   playButtonPressed: {
+    opacity: 0.85,
     transform: [{ scale: 0.93 }],
     shadowOpacity: 0.3,
   },

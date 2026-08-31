@@ -10,7 +10,6 @@
     "icon": "./assets/android/mipmap-xxxhdpi/ic_launcher.png",
     "scheme": "radio",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -82,7 +81,8 @@
           "imageWidth": 200
         }
       ],
-      "expo-font"
+      "expo-font",
+      "./plugins/withCmakeVersion.js"
     ],
     "experiments": {
       "typedRoutes": true

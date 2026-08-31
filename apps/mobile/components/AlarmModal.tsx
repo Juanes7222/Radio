@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { TimeWheelPicker } from '@/components/alarm/TimeWheelPicker';
 import type { AlarmInput, RadioAlarm } from '@/hooks/useAlarmClock';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { useProgramNotify } from '@/hooks/useProgramNotify';
+import { openExactAlarmSettings } from '@/modules/exact-alarms';
 
 const WEEKDAY_LABELS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -64,6 +67,7 @@ export function AlarmModal({
   onToggle,
 }: AlarmModalProps) {
   const insets = useSafeAreaInsets();
+  const { exactAlarmGranted } = useProgramNotify();
   const [form, setForm] = useState<AlarmForm>(DEFAULT_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -146,6 +150,24 @@ export function AlarmModal({
                   <Ionicons name="close" size={24} color={Colors.textMuted} />
                 </TouchableOpacity>
               </View>
+
+              {Platform.OS === 'android' && exactAlarmGranted === false && (
+                <View style={styles.exactAlarmBanner}>
+                  <Ionicons name="alarm-outline" size={20} color={Colors.warning} />
+                  <View style={styles.exactAlarmTextContainer}>
+                    <Text style={styles.exactAlarmTitle}>Avisos más puntuales</Text>
+                    <Text style={styles.exactAlarmBody}>
+                      Las alertas pueden llegar con retraso. Activa "Alarmas y recordatorios" para que lleguen a la hora exacta.
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => openExactAlarmSettings()}
+                    style={styles.exactAlarmButton}
+                  >
+                    <Text style={styles.exactAlarmButtonText}>Activar</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
                 {alarms.length === 0 ? (
@@ -556,5 +578,38 @@ const styles = StyleSheet.create({
     color: Colors.danger,
     fontSize: 16,
     fontWeight: '600',
+  },
+  exactAlarmBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.warningMuted,
+    borderRadius: Radii.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  exactAlarmTextContainer: {
+    flex: 1,
+  },
+  exactAlarmTitle: {
+    ...Typography.body,
+    color: Colors.warning,
+    fontWeight: '700',
+  },
+  exactAlarmBody: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  exactAlarmButton: {
+    backgroundColor: 'rgba(245,158,11,0.25)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radii.sm,
+  },
+  exactAlarmButtonText: {
+    ...Typography.caption,
+    color: Colors.warning,
+    fontWeight: '700',
   },
 });

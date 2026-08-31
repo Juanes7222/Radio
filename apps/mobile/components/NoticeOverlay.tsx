@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { View, Text, Image, Pressable, StyleSheet, Linking, Modal, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BACKEND_URL } from "@/constants/api";
@@ -7,6 +7,7 @@ import { resolveNoticeMediaUri } from "@/lib/noticeMedia";
 import { InlineVideo } from "./notices/InlineVideo";
 import { MobileNoticeCarousel } from "./notices/MobileNoticeCarousel";
 import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from "@/lib/noticeStorage";
+import type { VideoPlayer } from "expo-video";
 
 interface Notice {
   id: string;
@@ -87,6 +88,8 @@ export function NoticeOverlay() {
   const [modalViewCount, setModalViewCount] = useState(0);
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
   const [lightboxType, setLightboxType] = useState<"image" | "video">("image");
+  const [resumeTime, setResumeTime] = useState(0);
+  const previewPlayerRef = useRef<VideoPlayer | null>(null);
 
   const fetchNotices = useCallback(async () => {
     try {
@@ -208,15 +211,15 @@ export function NoticeOverlay() {
           <Pressable style={StyleSheet.absoluteFill} onPress={handleDismissModal} />
           {/* lightbox */}
         {lightboxUri && (
-          <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => setLightboxUri(null)}>
-            <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center", alignItems: "center", padding: 16 }} onPress={() => setLightboxUri(null)}>
-              <Pressable style={{ position: "absolute", top: 50, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }} onPress={() => setLightboxUri(null)}>
+          <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => { try { previewPlayerRef.current?.play(); } catch {} setLightboxUri(null); }}>
+            <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center", alignItems: "center", padding: 16 }} onPress={() => { try { previewPlayerRef.current?.play(); } catch {} setLightboxUri(null); }}>
+              <Pressable style={{ position: "absolute", top: 50, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }} onPress={() => { try { previewPlayerRef.current?.play(); } catch {} setLightboxUri(null); }}>
                 <Ionicons name="close" size={20} color="#fff" />
               </Pressable>
               {lightboxType === "video" ? (
-                <View style={{ width: "100%", aspectRatio: 16/9 }}>
-                  <InlineVideo uri={lightboxUri} aspectRatio={16/9} />
-                </View>
+                <Pressable onPress={(e) => e.stopPropagation()} style={{ width: "100%", aspectRatio: 16/9 }}>
+                  <InlineVideo uri={lightboxUri} aspectRatio={16/9} initialTime={resumeTime} />
+                </Pressable>
               ) : (
                 <Image source={{ uri: lightboxUri }} style={{ width: "100%", height: "75%", maxWidth: 520 }} resizeMode="contain" />
               )}
@@ -259,9 +262,9 @@ export function NoticeOverlay() {
                 {modalNotice.gallery && modalNotice.gallery.length > 0 ? (
                   <MobileNoticeCarousel items={modalNotice.gallery} />
                 ) : videoUri ? (
-                  <Pressable onPress={() => { setLightboxUri(videoUri); setLightboxType("video"); }} style={{ backgroundColor: "#0F172A" }}>
+                  <Pressable onPress={() => { const t = previewPlayerRef.current?.currentTime ?? 0; setResumeTime(t); try { previewPlayerRef.current?.pause(); } catch {} setLightboxUri(videoUri); setLightboxType("video"); }} style={{ backgroundColor: "#0F172A" }}>
                     <View pointerEvents="none">
-                      <InlineVideo uri={videoUri} aspectRatio={16 / 9} />
+                      <InlineVideo uri={videoUri} aspectRatio={16 / 9} onPlayerReady={(p) => (previewPlayerRef.current = p)} />
                     </View>
                     <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 4 }}>
                       <Ionicons name="expand-outline" size={12} color="#fff" />

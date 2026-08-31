@@ -14,7 +14,8 @@
     "build:android": "eas build --platform android",
     "build:ios": "eas build --platform ios",
     "update": "eas update --channel production",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "postinstall": "node scripts/patch-track-player.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "57.0.14",
@@ -53,7 +54,8 @@
     "react-native-svg": "15.15.4",
     "react-native-text-ticker": "^1.15.0",
     "react-native-track-player": "^4.1.2",
-    "react-native-webview": "13.16.1"
+    "react-native-webview": "13.16.1",
+    "react-native-worklets": "0.10.4"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",

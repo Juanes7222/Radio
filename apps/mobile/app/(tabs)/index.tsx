@@ -57,7 +57,7 @@ import { TAB_BAR_HEIGHT } from '../../lib/responsive';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 232);
 // Keeps the play controls clear of the tab bar while staying compact on short screens
-const BOTTOM_CONTROLS_PADDING = TAB_BAR_HEIGHT + Spacing.md - 60;
+const BOTTOM_CONTROLS_PADDING = TAB_BAR_HEIGHT + Spacing.xs - 60;
 
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
@@ -424,7 +424,6 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
   },
-  // Ensure child content stretches correctly and adds padding at the end
   scrollContent: {
     flexGrow: 1,
     paddingBottom: Spacing.xl,
@@ -468,10 +467,11 @@ const styles = StyleSheet.create({
   },
 
   centerSection: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
     gap: Spacing.md,
   },
 
@@ -495,7 +495,8 @@ const styles = StyleSheet.create({
   },
 
   bottomSection: {
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
     paddingHorizontal: Spacing.lg,
     borderTopWidth: 1,
     borderTopColor: Colors.border,

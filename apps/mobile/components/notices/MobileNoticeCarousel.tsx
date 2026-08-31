@@ -26,6 +26,9 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
   const [index, setIndex] = useState(0);
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
   const [lightboxType, setLightboxType] = useState<"image" | "video">("image");
+  const [resumeTime, setResumeTime] = useState(0);
+  const previewPlayers = useRef<Map<number, import("expo-video").VideoPlayer>>(new Map());
+  const openedIndexRef = useRef<number | null>(null);
   const width = Dimensions.get("window").width - 32; // modal padding
 
   useEffect(() => {
@@ -82,9 +85,9 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
           return (
             <View key={`${item.url}-${idx}`} style={{ width, minHeight: 200, maxHeight: 360, backgroundColor: "#0F172A", justifyContent: "center" }}>
               {item.type === "video" ? (
-                <Pressable onPress={() => { if (uri) { setLightboxUri(uri); setLightboxType("video"); } }}>
+                <Pressable onPress={() => { if (uri) { const p = previewPlayers.current.get(idx); const t = p?.currentTime ?? 0; setResumeTime(t); openedIndexRef.current = idx; try { p?.pause(); } catch {} setLightboxUri(uri); setLightboxType("video"); } }}>
                   <View pointerEvents="none">
-                    <InlineVideo uri={uri ?? ""} posterUri={posterUri} aspectRatio={16 / 9} />
+                    <InlineVideo uri={uri ?? ""} posterUri={posterUri} aspectRatio={16 / 9} onPlayerReady={(p) => previewPlayers.current.set(idx, p)} />
                   </View>
                   <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5, flexDirection: "row", alignItems: "center", gap: 4 }}>
                     <Ionicons name="expand-outline" size={12} color="#fff" />
@@ -129,15 +132,15 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
       )}
 
       {lightboxUri && (
-        <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => setLightboxUri(null)}>
-          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center", alignItems: "center", padding: 16 }} onPress={() => setLightboxUri(null)}>
-            <Pressable style={{ position: "absolute", top: 50, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }} onPress={() => setLightboxUri(null)}>
+        <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => { const idx = openedIndexRef.current; if (idx != null) try { previewPlayers.current.get(idx)?.play(); } catch {} setLightboxUri(null); }}>
+          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center", alignItems: "center", padding: 16 }} onPress={() => { const idx = openedIndexRef.current; if (idx != null) try { previewPlayers.current.get(idx)?.play(); } catch {} setLightboxUri(null); }}>
+            <Pressable style={{ position: "absolute", top: 50, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }} onPress={() => { const idx = openedIndexRef.current; if (idx != null) try { previewPlayers.current.get(idx)?.play(); } catch {} setLightboxUri(null); }}>
               <Ionicons name="close" size={20} color="#fff" />
             </Pressable>
             {lightboxType === "video" ? (
-              <View style={{ width: "100%", aspectRatio: 16/9 }}>
-                <InlineVideo uri={lightboxUri} aspectRatio={16/9} />
-              </View>
+              <Pressable onPress={(e) => e.stopPropagation()} style={{ width: "100%", aspectRatio: 16/9 }}>
+                <InlineVideo uri={lightboxUri} aspectRatio={16/9} initialTime={resumeTime} />
+              </Pressable>
             ) : (
               <Image source={{ uri: lightboxUri }} style={{ width: "100%", height: "70%" }} resizeMode="contain" />
             )}
