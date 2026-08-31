@@ -1,7 +1,6 @@
 // plugins/withCmakeVersion.js
 const fs = require('fs');
 const path = require('path');
-const { withAppBuildGradle } = require('@expo/config-plugins');
 
 // Windows-only fix for the "Filename longer than 260 characters" ninja bug
 // (ninja-build/ninja#1900). CMake resolves ninja.exe via the system PATH,
@@ -26,6 +25,14 @@ function findNewestNinja(sdkRoot) {
 
 function withCmakeVersion(config) {
   if (process.platform !== 'win32') {
+    return config;
+  }
+
+  let withAppBuildGradle;
+  try {
+    ({ withAppBuildGradle } = require('@expo/config-plugins'));
+  } catch {
+    console.warn('[withCmakeVersion] @expo/config-plugins not found; skipping.');
     return config;
   }
 
