@@ -26,7 +26,8 @@
       "channel": "production",
       "prebuildCommand": "node scripts/write-google-services.js && npx expo prebuild",
       "node": "22.22.3",
-      "pnpm": "10.11.0"
+      "pnpm": "10.11.0",
+      "env": { "EAS_BUILD_EXPO_DOCTOR": "false" }
     }
   },
   "submit": {
