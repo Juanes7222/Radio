@@ -5,3 +5,7 @@ node_modules
 /src/generated/prisma
 
 swagger-output.json
+
+*.mmdb
+/storage/geoip/
+src/storage/geolite/

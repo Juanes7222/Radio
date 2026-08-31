@@ -9,13 +9,28 @@ import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
 import { reloadMaxmindReader } from "./geoip.service";
 
-function getDownloadUrl(): string | null {
+type DownloadConfig = { url: string; auth?: { username: string; password: string } };
+
+function getDownloadConfig(): DownloadConfig | null {
   const licenseKey = config.geoip.licenseKey?.trim();
   if (!licenseKey) return null;
   const editionId = config.geoip.editionId?.trim() || "GeoLite2-City";
-  // MaxMind download endpoint (requires license key). Account ID is optional
-  // for newer keys but kept for backwards compat.
-  return `https://download.maxmind.com/app/geoip_download?edition_id=${encodeURIComponent(editionId)}&license_key=${encodeURIComponent(licenseKey)}&suffix=tar.gz`;
+  const accountId = config.geoip.accountId?.trim();
+
+  // Desde enero 2024 MaxMind usa R2 presigned URLs: el permalink redirige con 302
+  // a mm-prod-geoip-databases...r2.cloudflarestorage.com. El cliente debe seguir
+  // redirects y permitir HTTPS a ese host. El método recomendado es Basic Auth
+  // contra el permalink. Si hay AccountID, lo usamos; si no, fallback al
+  // endpoint legacy con license_key en query (también redirige).
+  if (accountId) {
+    return {
+      url: `https://download.maxmind.com/geoip/databases/${encodeURIComponent(editionId)}/download?suffix=tar.gz`,
+      auth: { username: accountId, password: licenseKey },
+    };
+  }
+  return {
+    url: `https://download.maxmind.com/app/geoip_download?edition_id=${encodeURIComponent(editionId)}&license_key=${encodeURIComponent(licenseKey)}&suffix=tar.gz`,
+  };
 }
 
 async function findMmdbInDir(dir: string): Promise<string | null> {
@@ -46,8 +61,8 @@ export async function updateGeoIpDatabase(): Promise<{ updated: boolean; reason?
     return { updated: false, reason: "GEOIP_MMDB_PATH empty" };
   }
 
-  const downloadUrl = getDownloadUrl();
-  if (!downloadUrl) {
+  const dl = getDownloadConfig();
+  if (!dl) {
     logger.warn("GeoIPUpdate", "GEOIP_LICENSE_KEY not set, skipping update");
     return { updated: false, reason: "GEOIP_LICENSE_KEY missing" };
   }
@@ -58,13 +73,18 @@ export async function updateGeoIpDatabase(): Promise<{ updated: boolean; reason?
   try {
     logger.info("GeoIPUpdate", "Downloading MaxMind database", {
       editionId: config.geoip.editionId,
+      url: dl.url,
+      hasAccountId: Boolean(dl.auth),
     });
 
-    const response = await axios.get(downloadUrl, {
+    const response = await axios.get(dl.url, {
       responseType: "stream",
       timeout: 60_000,
+      maxRedirects: 5,
+      // axios sigue 302 a R2 presigned URL por defecto; no bloquear ese host en firewall/proxy
       validateStatus: (s) => s >= 200 && s < 300,
       headers: { "User-Agent": "Radio-GeoIP-Updater/1.0" },
+      ...(dl.auth ? { auth: dl.auth } : {}),
     });
 
     await pipeline(response.data as NodeJS.ReadableStream, fs.createWriteStream(tmpTarGz));
