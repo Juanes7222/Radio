@@ -10,9 +10,9 @@ import { broadcastUpdateAvailable } from "./workerServer";
 const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 50 * 1024 * 1024 } });
 const router = Router();
 
-// Admin: upload new release
+// Admin: upload new release - soporta /admin y /admin-api para compatibilidad con nginx legacy
 router.post(
-  "/admin/worker-releases",
+  ["/admin/worker-releases", "/admin-api/worker-releases"],
   requireAuth,
   upload.single("file"),
   async (req: Request, res: Response) => {
@@ -45,7 +45,7 @@ router.post(
   }
 );
 
-router.get("/admin/worker-releases", requireAuth, async (_req: Request, res: Response) => {
+router.get(["/admin/worker-releases", "/admin-api/worker-releases"], requireAuth, async (_req: Request, res: Response) => {
   const { prisma } = await import("../../infrastructure/database/prisma");
   const list = await prisma.workerRelease.findMany({ orderBy: { createdAt: "desc" } });
   res.json(list);
