@@ -49,9 +49,14 @@ TYPES_PACKAGE="@radio/types"
 # the Prisma CLI only (schema/config merging at build time), never at runtime by
 # the backend, so it is not reachable by user input. Remove this entry once
 # @prisma/config publishes a version using deepmerge-ts >=8.0.0.
+# browserslist (GHSA-c83g-rgw3-j3cx, GHSA-73wf-gq98-2v4g): OOM + prototype
+# pollution via cache/stats handling, patched in 4.28.7. Transitive via
+# autoprefixer/@babel, build-time only, never handles user input at runtime.
+# Patched via pnpm override browserslist@^4.28.8; keep allowlisted until lock
+# fully deduplicates 4.28.2 away. Remove once pnpm audit no longer reports <4.28.7.
 # The variable must be exported so the node audit filter below can read it
 # from process.env; without export the allowlist is silently ignored.
-export DEPLOY_AUDIT_ALLOWLIST="${DEPLOY_AUDIT_ALLOWLIST:-GHSA-w3rx-r6r6-pgpr,GHSA-5p2g-fcmc-qvqq,GHSA-ggr8-5vv4-36mx}"
+export DEPLOY_AUDIT_ALLOWLIST="${DEPLOY_AUDIT_ALLOWLIST:-GHSA-w3rx-r6r6-pgpr,GHSA-5p2g-fcmc-qvqq,GHSA-ggr8-5vv4-36mx,GHSA-c83g-rgw3-j3cx,GHSA-73wf-gq98-2v4g}"
 
 SKIP_AUDIT=false
 FORCE_DEPLOY=false
