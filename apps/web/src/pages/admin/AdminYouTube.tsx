@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Server, Film, ExternalLink } from 'lucide-react';
+import { RefreshCw, Server, Film, ExternalLink, RotateCcw } from 'lucide-react';
+import axios from 'axios';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { API_BASE_URL } from '@/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,7 +63,18 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
-function JobDetailDialog({ job, onClose }: { job: WorkerJob | null; onClose: () => void }) {
+function JobDetailDialog({
+  job,
+  onClose,
+  onRetry,
+  retrying,
+}: {
+  job: WorkerJob | null;
+  onClose: () => void;
+  onRetry: () => void;
+  retrying: boolean;
+}) {
+  const canRetry = job ? ['ERROR', 'ABANDONED', 'RETRYING'].includes(job.status) : false;
   return (
     <Dialog open={job !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
@@ -100,6 +114,12 @@ function JobDetailDialog({ job, onClose }: { job: WorkerJob | null; onClose: () 
                 </p>
               </div>
             )}
+            {canRetry && (
+              <Button onClick={onRetry} disabled={retrying} className="w-full gap-2">
+                <RotateCcw className={`w-4 h-4 ${retrying ? 'animate-spin' : ''}`} />
+                {retrying ? 'Reintentando...' : 'Reintento forzoso'}
+              </Button>
+            )}
           </div>
         )}
       </DialogContent>
@@ -109,6 +129,7 @@ function JobDetailDialog({ job, onClose }: { job: WorkerJob | null; onClose: () 
 
 export default function AdminYouTube() {
   const { getWorkers, getWorkerJobs } = useAdminApi();
+  const { token } = useAdminAuth();
 
   const [workers, setWorkers] = useState<WorkerNodeInfo[]>([]);
   const [jobs, setJobs] = useState<WorkerJob[]>([]);
@@ -116,6 +137,7 @@ export default function AdminYouTube() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedJob, setSelectedJob] = useState<WorkerJob | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -145,6 +167,28 @@ export default function AdminYouTube() {
     setLoading(true);
     void load();
   };
+
+  const handleRetry = useCallback(
+    async (jobId: string) => {
+      setRetryingId(jobId);
+      try {
+        await axios.post(`${API_BASE_URL}/admin-api/workers/jobs/${jobId}/retry`, {}, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        await load();
+        setSelectedJob(null);
+      } catch (err) {
+        const msg =
+          axios.isAxiosError(err) && err.response?.data?.error
+            ? String(err.response.data.error)
+            : 'Error al reintentar el job.';
+        setError(msg);
+      } finally {
+        setRetryingId(null);
+      }
+    },
+    [token, load]
+  );
 
   const availableStatuses = Array.from(new Set(jobs.map((job) => job.status)));
   const visibleJobs = statusFilter === 'all' ? jobs : jobs.filter((job) => job.status === statusFilter);
@@ -258,41 +302,68 @@ export default function AdminYouTube() {
                   <TableHead>Deadline</TableHead>
                   <TableHead>Siguiente reintento</TableHead>
                   <TableHead>Último error</TableHead>
+                  <TableHead className="w-10">Acción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleJobs.map((job) => (
-                  <TableRow key={job.id} className="cursor-pointer" onClick={() => setSelectedJob(job)}>
-                    <TableCell>
-                      <a
-                        href={`https://www.youtube.com/watch?v=${job.video.videoId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-2 text-sm text-slate-300 hover:text-white max-w-72 truncate"
-                      >
-                        <ExternalLink className="w-3 h-3 shrink-0 text-slate-500" />
-                        <span className="truncate" title={job.video.title}>
-                          {job.video.title}
-                        </span>
-                      </a>
-                    </TableCell>
-                    <TableCell>{statusBadge(job.status, JOB_STATUS_COLORS)}</TableCell>
-                    <TableCell className="text-slate-400">{job.attempts}</TableCell>
-                    <TableCell className="text-slate-400">{formatDateTime(job.deadlineAt)}</TableCell>
-                    <TableCell className="text-slate-400">{formatDateTime(job.nextRetryAt)}</TableCell>
-                    <TableCell className="text-red-400/80 max-w-56 truncate" title={job.lastError ?? undefined}>
-                      {job.lastError ?? '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {visibleJobs.map((job) => {
+                  const canRetry = ['ERROR', 'ABANDONED', 'RETRYING'].includes(job.status);
+                  const isRetrying = retryingId === job.id;
+                  return (
+                    <TableRow key={job.id} className="cursor-pointer" onClick={() => setSelectedJob(job)}>
+                      <TableCell>
+                        <a
+                          href={`https://www.youtube.com/watch?v=${job.video.videoId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-2 text-sm text-slate-300 hover:text-white max-w-72 truncate"
+                        >
+                          <ExternalLink className="w-3 h-3 shrink-0 text-slate-500" />
+                          <span className="truncate" title={job.video.title}>
+                            {job.video.title}
+                          </span>
+                        </a>
+                      </TableCell>
+                      <TableCell>{statusBadge(job.status, JOB_STATUS_COLORS)}</TableCell>
+                      <TableCell className="text-slate-400">{job.attempts}</TableCell>
+                      <TableCell className="text-slate-400">{formatDateTime(job.deadlineAt)}</TableCell>
+                      <TableCell className="text-slate-400">{formatDateTime(job.nextRetryAt)}</TableCell>
+                      <TableCell className="text-red-400/80 max-w-56 truncate" title={job.lastError ?? undefined}>
+                        {job.lastError ?? '—'}
+                      </TableCell>
+                      <TableCell>
+                        {canRetry && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={isRetrying}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleRetry(job.id);
+                            }}
+                            className="h-7 w-7 p-0"
+                            title="Reintento forzoso"
+                          >
+                            <RotateCcw className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
 
-      <JobDetailDialog job={selectedJob} onClose={() => setSelectedJob(null)} />
+      <JobDetailDialog
+        job={selectedJob}
+        onClose={() => setSelectedJob(null)}
+        onRetry={() => selectedJob && void handleRetry(selectedJob.id)}
+        retrying={selectedJob ? retryingId === selectedJob.id : false}
+      />
     </div>
   );
 }
