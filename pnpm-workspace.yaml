@@ -22,11 +22,13 @@ onlyBuiltDependencies:
   - prisma
   - protobufjs
 overrides:
+  browserslist: ^4.28.8
   expo: ~57.0.18
   expo-router: ~57.0.17
   react: 19.2.3
   react-dom: 19.2.3
   react-native: 0.86.3
+  react-native-worklets: 0.10.1
   body-parser@1: ^1.20.6
   brace-expansion@<2: 1.1.18
   brace-expansion@2: 2.1.4
