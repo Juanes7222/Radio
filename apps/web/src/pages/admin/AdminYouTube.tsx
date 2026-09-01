@@ -240,6 +240,7 @@ export default function AdminYouTube() {
                 <TableRow>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Versión</TableHead>
                   <TableHead>Jobs activos</TableHead>
                   <TableHead>Máx. concurrentes</TableHead>
                   <TableHead>Último visto</TableHead>
@@ -250,7 +251,8 @@ export default function AdminYouTube() {
                   <TableRow key={worker.workerId}>
                     <TableCell className="text-slate-300">{worker.name}</TableCell>
                     <TableCell>{statusBadge(worker.status, WORKER_STATUS_COLORS)}</TableCell>
-                    <TableCell className="text-slate-400">{worker.currentJobs}</TableCell>
+                    <TableCell className="font-mono text-xs text-slate-400">{worker.version ?? "—"}</TableCell>
+                    <TableCell className="text-slate-400">{Array.isArray(worker.currentJobs) ? worker.currentJobs.length : worker.currentJobs}</TableCell>
                     <TableCell className="text-slate-400">{worker.maxConcurrentJobs}</TableCell>
                     <TableCell className="text-slate-400">{timeAgoShort(worker.lastSeenAt)}</TableCell>
                   </TableRow>
@@ -258,6 +260,46 @@ export default function AdminYouTube() {
               </TableBody>
             </Table>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-slate-700 bg-slate-800/60">
+        <CardHeader>
+          <CardTitle className="text-base">Actualizar workers</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const form = e.target as HTMLFormElement;
+              const fd = new FormData(form);
+              try {
+                await axios.post(`${API_BASE_URL}/admin/worker-releases`, fd, {
+                  headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+                });
+                alert("Versión subida, workers en IDLE se actualizarán automáticamente.");
+                form.reset();
+              } catch (err: unknown) {
+                const msg = axios.isAxiosError(err) ? (err.response?.data?.error as string) ?? err.message : String(err);
+                alert(`Error: ${msg}`);
+              }
+            }}
+            className="flex flex-wrap items-end gap-3"
+          >
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-slate-400">Versión (opcional, auto si vacío)</label>
+              <input name="version" pattern="\d+\.\d+\.\d+" placeholder="auto: 1.0.1" className="h-9 rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-200" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-slate-400">ZIP del worker</label>
+              <input type="file" name="file" accept=".zip" required className="text-xs text-slate-400" />
+            </div>
+            <label className="flex items-center gap-2 text-xs text-slate-400">
+              <input type="checkbox" name="mandatory" value="true" /> Obligatoria
+            </label>
+            <Button type="submit" size="sm">Subir versión</Button>
+          </form>
+          <p className="mt-2 text-xs text-slate-500">Los workers la descargan solo en IDLE, con verificación sha256. Tamaño máximo 50 MB.</p>
         </CardContent>
       </Card>
 

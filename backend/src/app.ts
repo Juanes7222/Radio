@@ -16,6 +16,7 @@ import bibleRouter from "./modules/bible/bible.routes";
 import locutorRouter from "./modules/locutor/locutor.routes";
 import youtubeRouter from "./modules/youtube/youtube.routes";
 import workerAdminRouter from "./modules/workers/workerAdmin.routes";
+import releasesRouter from "./modules/workers/releases.routes";
 import prayerRouter from "./modules/prayer/prayer.routes";
 import devicesRouter from "./modules/devices/devices.routes";
 import internalTestRouter from "./modules/internal/internalTest.routes";
@@ -86,6 +87,7 @@ export function createApp(): Express {
   app.use("/admin-api/youtube", youtubeRouter);
   app.use("/api/bible", bibleRouter);
   app.use("/admin-api/workers", workerAdminRouter);
+  app.use(releasesRouter);
   app.use("/internal", internalTestRouter);
   app.use("/admin-api/schedule-categories", scheduleCategoriesRouter);
   app.use("/api/devices", devicesRouter);

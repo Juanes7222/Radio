@@ -33,6 +33,7 @@ router.get("/workers", requireAuth, (_req: Request, res: Response) => {
     workerId: w.workerId,
     name: w.name,
     status: w.status,
+    version: w.version ?? null,
     maxConcurrentJobs: w.maxConcurrentJobs,
     currentJobs: w.currentJobs,
     currentJobId: w.currentJobId,

@@ -85,9 +85,21 @@ model WorkerNode {
   name         String
   status       String        @default("OFFLINE")
   currentJobId String?
+  version      String?
   lastSeenAt   DateTime?
   registeredAt DateTime      @default(now())
   jobs         ProcessingJob[]
+}
+
+model WorkerRelease {
+  id        String   @id @default(cuid())
+  version   String   @unique
+  sha256    String
+  size      Int
+  filePath  String
+  mandatory Boolean  @default(false)
+  createdAt DateTime @default(now())
+  createdBy String?
 }
 
 model ProcessingJob {

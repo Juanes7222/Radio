@@ -9,3 +9,4 @@ swagger-output.json
 *.mmdb
 /storage/geoip/
 src/storage/geolite/
+/data/worker-releases/

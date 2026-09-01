@@ -6,6 +6,7 @@ export interface WorkerEntry {
   name: string;
   socket: WebSocket;
   status: "idle" | "busy" | "dead";
+  version?: string;
   maxConcurrentJobs: number;
   currentJobs: string[];
   currentJobId?: string;
