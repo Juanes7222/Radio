@@ -52,7 +52,7 @@ router.get(["/admin/worker-releases", "/admin-api/worker-releases"], requireAuth
 });
 
 // Worker: latest
-router.get("/workers/updates/latest", async (req: Request, res: Response) => {
+async function handleLatest(req: Request, res: Response): Promise<void> {
   const secret = req.headers["x-worker-secret"] as string | undefined;
   if (secret !== config.worker.authSecret) {
     res.status(403).json({ error: "Invalid secret" });
@@ -72,9 +72,9 @@ router.get("/workers/updates/latest", async (req: Request, res: Response) => {
     return;
   }
   res.json({ ...latest, downloadUrl: `/workers/updates/${latest.version}/download` });
-});
+}
 
-router.get("/workers/updates/:version/download", async (req: Request, res: Response) => {
+async function handleDownload(req: Request, res: Response): Promise<void> {
   const secret = req.headers["x-worker-secret"] as string | undefined;
   if (secret !== config.worker.authSecret) {
     res.status(403).json({ error: "Invalid secret" });
@@ -93,6 +93,12 @@ router.get("/workers/updates/:version/download", async (req: Request, res: Respo
   res.setHeader("Content-Length", String(rel.size));
   res.setHeader("Content-Disposition", `attachment; filename="${rel.version}.zip"`);
   fs.createReadStream(rel.filePath).pipe(res);
-});
+}
+
+router.get("/workers/updates/latest", handleLatest);
+router.get("/workers/updates/:version/download", handleDownload);
+// Compat: workers antiguos con bug baseHttpUrl duplicaban /admin-api/workers prefix
+router.get("/admin-api/workers/workers/updates/latest", handleLatest);
+router.get("/admin-api/workers/workers/updates/:version/download", handleDownload);
 
 export default router;
