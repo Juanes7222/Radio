@@ -1,3 +1,6 @@
+/**
+ * @deprecated Replaced by StationConsole — kept for rollback only.
+ */
 import { useState } from 'react';
 import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { formatMediaTitle } from '@/lib/formatMedia';

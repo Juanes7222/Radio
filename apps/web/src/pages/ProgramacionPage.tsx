@@ -213,9 +213,12 @@ function DayPill({
     <motion.button
       whileTap={{ scale: 0.93 }}
       onClick={onClick}
+      role="tab"
+      aria-selected={isSelected}
+      aria-label={`${label}${isToday ? ' — hoy' : ''}`}
       className={`
         relative h-10 px-4 rounded-xl text-sm font-medium transition-colors duration-150 outline-none
-        focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+        focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background
         ${isSelected
           ? 'bg-primary text-primary-foreground shadow-sm'
           : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
@@ -226,7 +229,8 @@ function DayPill({
       {isToday && (
         <span
           className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
-          style={{ background: 'hsl(var(--brand))' }}
+          style={{ background: 'hsl(var(--primary))' }}
+          aria-hidden
         />
       )}
     </motion.button>
@@ -248,9 +252,11 @@ function CategoryChip({
     <motion.button
       whileTap={{ scale: 0.93 }}
       onClick={onClick}
+      aria-pressed={isSelected}
+      aria-label={`Filtrar por ${label}`}
       className={`
         flex-shrink-0 flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-medium transition-colors duration-150 outline-none
-        focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+        focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background
         ${isSelected
           ? 'text-white shadow-sm'
           : 'text-muted-foreground hover:text-foreground bg-card border border-border'
@@ -262,6 +268,7 @@ function CategoryChip({
         <span
           className="w-2 h-2 rounded-full flex-shrink-0"
           style={{ background: isSelected ? '#ffffff' : color }}
+          aria-hidden
         />
       )}
       {label}
@@ -271,7 +278,8 @@ function CategoryChip({
 
 function SkeletonCard() {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+    <div className="rounded-2xl border border-border bg-card p-5 space-y-3 overflow-hidden relative">
+      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" aria-hidden />
       <div className="h-3 w-28 rounded animate-pulse bg-muted" />
       <div className="h-4 w-48 rounded animate-pulse bg-muted" />
       <div className="h-3 w-32 rounded animate-pulse bg-secondary" />
@@ -408,6 +416,7 @@ export function ProgramacionPage() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.15 }}
           aria-label="Seleccionar día"
+          role="tablist"
           className="flex gap-1 p-1.5 rounded-2xl mb-6 overflow-x-auto no-scrollbar bg-muted"
         >
           {DAYS.map((day, i) => (

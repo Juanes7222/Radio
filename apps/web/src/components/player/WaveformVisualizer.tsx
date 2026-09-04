@@ -125,16 +125,17 @@ export function WaveformVisualizer({
   }
 
   return (
-    <div className="relative w-full h-16 rounded-lg overflow-hidden bg-slate-900/20">
+    <div className="relative w-full h-16 rounded-xl overflow-hidden bg-muted/30 border border-border/30">
       <canvas
         ref={canvasRef}
         width={800}
         height={128}
         className="w-full h-full"
+        aria-hidden
       />
       {!isPlaying && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm font-mono text-muted-foreground">
             Pulsa play para escuchar
           </span>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,22 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
   const isFirstBookAndChapter = currentBook === books[0]?.name && currentChapter === 1;
   const isLastBookAndChapter = currentBook === books[books.length - 1]?.name && currentChapter === (books[books.length - 1]?._count?.chapters || 1);
 
+  const handlePrev = useCallback(() => { if (!isLoading && !isFirstBookAndChapter) actions.prevChapter(); }, [actions, isLoading, isFirstBookAndChapter]);
+  const handleNext = useCallback(() => { if (!isLoading && !isLastBookAndChapter) actions.nextChapter(); }, [actions, isLoading, isLastBookAndChapter]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (isNavOpen || isSearchOpen) return;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); handlePrev(); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); handleNext(); }
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setIsSearchOpen(true); }
+      if (e.key === '/') { e.preventDefault(); setIsSearchOpen(true); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, isNavOpen, isSearchOpen, handlePrev, handleNext]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -37,18 +53,23 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
             onClick={(e) => e.stopPropagation()}
             className="relative w-full h-full md:max-w-4xl md:h-[90vh] flex flex-col bg-background md:rounded-[2rem] shadow-2xl md:border overflow-hidden"
           >
-            {/* Header Minimalista */}
-            <div className="flex items-center justify-between px-6 py-4 z-10 bg-background/50 backdrop-blur-md border-b">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <BookOpen className="w-5 h-5 text-primary" />
-                <span className="font-medium text-sm tracking-widest uppercase">{currentTranslation}</span>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 z-10 bg-card/60 backdrop-blur-md border-b border-border/50">
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <BookOpen className="w-4 h-4 text-primary" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold leading-none">{currentTranslation}</p>
+                  <p className="text-[11px] font-mono tracking-widest uppercase text-muted-foreground">Biblia · Atajos ← → /</p>
+                </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted" onClick={() => setIsSearchOpen(true)}>
+              <div className="flex items-center gap-1.5">
+                <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted" onClick={() => setIsSearchOpen(true)} aria-label="Buscar en la Biblia (/)">
                   <Search className="w-5 h-5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="rounded-full hover:bg-destructive/10 hover:text-destructive" onClick={onClose}>
+                <Button variant="ghost" size="icon" className="rounded-full hover:bg-destructive/10 hover:text-destructive" onClick={onClose} aria-label="Cerrar Biblia">
                   <X className="w-5 h-5" />
                 </Button>
               </div>
@@ -64,21 +85,20 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
                   </div>
                 ) : chapterData?.verses ? (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-                    <h1 className="text-4xl md:text-5xl font-bold text-center mb-2 tracking-tight text-foreground">
+                    <h1 className="font-display text-4xl md:text-5xl font-normal text-center mb-2 tracking-tight text-foreground">
                       {currentBook}
                     </h1>
-                    <h2 className="text-lg font-medium text-center text-primary mb-12 uppercase tracking-widest">
+                    <h2 className="text-sm font-mono tracking-[0.18em] uppercase text-center text-primary mb-12">
                       Capítulo {currentChapter}
                     </h2>
                     
-                    <div className="space-y-6">
+                    <div className="space-y-5">
                       {chapterData.verses.map((verse) => (
-                        <p key={verse.id} className="text-lg md:text-xl leading-loose text-foreground/90 flex items-start group">
-                          {/* Número del versículo sutil pero visible */}
-                          <span className="text-xs font-bold text-primary mr-4 mt-2 opacity-50 group-hover:opacity-100 transition-opacity shrink-0 w-6 text-right select-none">
+                        <p key={verse.id} className="text-[17px] md:text-[18px] leading-[1.9] text-foreground/90 flex items-start group">
+                          <span className="text-[11px] font-mono font-semibold text-primary mr-4 mt-1.5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0 w-6 text-right select-none">
                             {verse.number}
                           </span>
-                          <span className="flex-1 font-serif">{verse.text}</span>
+                          <span className="flex-1 font-display">{verse.text}</span>
                         </p>
                       ))}
                     </div>
@@ -103,17 +123,18 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
                   variant="ghost" 
                   size="icon" 
                   className="rounded-full hover:bg-muted"
-                  onClick={actions.prevChapter} 
+                  onClick={handlePrev} 
                   disabled={isLoading || isFirstBookAndChapter}
+                  aria-label="Capítulo anterior (flecha izquierda)"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </Button>
                 
-                {/* Selector Central */}
                 <Button 
                   variant="ghost" 
-                  className="rounded-full px-6 font-semibold text-base"
+                  className="rounded-full px-6 font-semibold text-sm"
                   onClick={() => setIsNavOpen(true)}
+                  aria-label="Elegir libro y capítulo"
                 >
                   {currentBook} {currentChapter}
                 </Button>
@@ -122,8 +143,9 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
                   variant="ghost" 
                   size="icon" 
                   className="rounded-full hover:bg-muted"
-                  onClick={actions.nextChapter} 
+                  onClick={handleNext} 
                   disabled={isLoading || isLastBookAndChapter}
+                  aria-label="Capítulo siguiente (flecha derecha)"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </Button>

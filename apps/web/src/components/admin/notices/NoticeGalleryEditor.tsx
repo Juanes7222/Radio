@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { Trash2, GripVertical, Image as ImageIcon, Film, Plus, Upload, ChevronUp, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { API_BASE_URL } from "@/config";
 import { resolveNoticeMediaSrc } from "@/lib/noticeMedia";
 import type { NoticeGalleryItemInput } from "@radio/types";

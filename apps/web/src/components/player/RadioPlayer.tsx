@@ -1,3 +1,7 @@
+/**
+ * @deprecated Replaced by StationConsole (apps/web/src/components/player/StationConsole.tsx).
+ * Kept for reference and rollback only. Not used in current home route.
+ */
 import { useState, type RefObject } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 

@@ -5,13 +5,13 @@ import { Radio, AlertCircle } from 'lucide-react';
 export default function MaintenancePage() {
 
   return (
-    <div className="min-h-[100dvh] flex flex-col font-sans overflow-x-hidden transition-colors duration-300 bg-slate-950 text-slate-100 selection:bg-primary/30">
+    <div className="min-h-[100dvh] flex flex-col font-sans overflow-x-hidden transition-colors duration-300 bg-background text-foreground selection:bg-primary/30">
       
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[50%] bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.18)_0%,transparent_65%)]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[50%] bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.18)_0%,transparent_65%)]" />
       </div>
 
-      <div className="relative z-10 border-b border-slate-800">
+      <div className="relative z-10 border-b border-border/50">
         <Header stationName="La Voz de la Verdad" />
       </div>
 
@@ -20,7 +20,7 @@ export default function MaintenancePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="border z-20 rounded-2xl md:rounded-[1.25rem] shadow-xl p-8 md:p-12 lg:p-14 max-w-[580px] w-full text-center relative overflow-hidden bg-slate-900 border-slate-800"
+          className="border z-20 rounded-2xl md:rounded-[1.25rem] shadow-console p-8 md:p-12 lg:p-14 max-w-[580px] w-full text-center relative overflow-hidden bg-card border-border"
           role="main"
         >
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[140px] h-[1px] bg-gradient-to-r from-transparent via-primary to-transparent" aria-hidden="true" />
@@ -63,9 +63,9 @@ export default function MaintenancePage() {
             aria-hidden="true" 
           />
 
-          <h1 className="text-[2rem] md:text-[2.25rem] font-extrabold tracking-tight leading-[1.15] mb-4 text-slate-100">
+          <h1 className="font-display text-[2rem] md:text-[2.25rem] font-normal tracking-tight leading-[1.15] mb-4 text-foreground">
             Estamos afinando<br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-100 via-primary to-slate-100">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-foreground via-primary to-foreground">
               la señal
             </span>
           </h1>
@@ -87,12 +87,12 @@ export default function MaintenancePage() {
             ))}
           </div>
 
-          <p className="text-base leading-relaxed max-w-[44ch] mx-auto mb-8 text-slate-400">
+          <p className="text-base leading-relaxed max-w-[44ch] mx-auto mb-8 text-muted-foreground">
             Estamos realizando mejoras para brindarte una mejor experiencia de escucha.
             Volveremos pronto con la señal al aire. ¡Gracias por tu paciencia!
           </p>
 
-          <p className="flex items-center justify-center gap-2 text-xs opacity-80 text-slate-500">
+          <p className="flex items-center justify-center gap-2 text-xs opacity-80 text-muted-foreground">
             <AlertCircle size={14} strokeWidth={2} aria-hidden="true" />
             Si el problema persiste, contáctanos en redes sociales.
           </p>
@@ -100,8 +100,7 @@ export default function MaintenancePage() {
         </motion.article>
       </main>
 
-      {/* Pie de página con el theme oscuro transferido nativo */}
-      <div className="relative z-10 border-t border-transparent border-slate-800 mt-auto">
+      <div className="relative z-10 border-t border-border/50 mt-auto">
         <AppFooter stationName="La Voz de la Verdad" />
       </div>
     </div>

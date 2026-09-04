@@ -6,46 +6,39 @@
   /* ─── Design tokens (dark only) ─────────────────────────────────────── */
 
   :root {
-    /* Surfaces */
+    /* ── Public — indigo/blue (logo-matched) — admin keeps its own amber in .admin-theme ── */
     --background: 222.2 84% 4.9%;
     --foreground: 0 0% 100%;
 
-    /* Cards */
     --card: 215 28% 17%;
     --card-foreground: 0 0% 100%;
 
-    /* Popovers */
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 0 0% 100%;
 
-    /* Primary (indigo) */
+    /* Indigo primary — matches logo blue, kept separate from admin signal-amber */
     --primary: 244 83% 74%;
     --primary-foreground: 222.2 84% 4.9%;
 
-    /* Secondary */
     --secondary: 215 28% 17%;
     --secondary-foreground: 244 83% 74%;
 
-    /* Muted */
     --muted: 215 28% 17%;
     --muted-foreground: 215 20% 65%;
 
-    /* Accent */
     --accent: 215 28% 17%;
     --accent-foreground: 244 83% 74%;
 
-    /* Destructive (red) */
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders and outlines */
     --border: 215 16% 27%;
     --input: 215 16% 27%;
     --ring: 244 83% 74%;
 
-    --radius: 0.625rem;
+    --radius: 1rem;
 
-    /* Sidebar */
+    /* Sidebar (kept in sync with card) */
     --sidebar-background: 222.2 84% 4.9%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 244 83% 74%;
@@ -55,14 +48,11 @@
     --sidebar-border: 215 16% 27%;
     --sidebar-ring: 244 83% 74%;
 
-    /* Station brand accent (teal) */
     --brand: 188 35% 47%;
     --brand-foreground: 183 77% 22%;
 
-    /* Neutral accent for schedule sections without a category */
     --accent-neutral: 224 13% 60%;
 
-    /* Tally red — used for on-air dot in player and notice modals (fallback for .admin-theme) */
     --tally: 353 75% 58%;
     --success: 152 48% 52%;
     --warning: 36 92% 56%;
@@ -86,7 +76,7 @@
     --google-green: #34a853;
     --google-blue: #4285f4;
 
-    /* Vinyl disc */
+    /* Vinyl disc — indigo-tinted to match logo blue */
     --vinyl-base: #08080f;
     --vinyl-label: #1e1b4b;
     --vinyl-label-ring: rgba(99, 102, 241, 0.35);
@@ -94,7 +84,7 @@
     --vinyl-groove: rgba(255, 255, 255, 0.045);
     --vinyl-sheen: rgba(255, 255, 255, 0.07);
 
-    /* Waveform visualization */
+    /* Waveform — indigo/blue, matches logo */
     --wave-start: #60a5fa;
     --wave-end: #3b82f6;
   }
@@ -304,16 +294,63 @@ button,
 /* ─── Glass effect ──────────────────────────────────────────────────── */
 
 .glass {
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(10, 14, 26, 0.55);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+/* Signal hairline — used for on-air progress in header */
+.signal-hairline {
+  height: 2px;
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.3));
+}
+
+/* Console card — unified surface for player */
+.console-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.7);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Skip link for a11y */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.skip-link:focus {
+  top: 1rem;
 }
 
 /* ─── Typography helpers ────────────────────────────────────────────── */
 
-/* Responsive display title (ProgramacionPage) */
 .fluid-title {
-  font-size: clamp(2rem, 6vw, 2.8rem);
+  font-size: clamp(2.2rem, 5vw, 3.5rem);
+  font-family: 'Instrument Serif', 'IBM Plex Sans Variable', serif;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+}
+
+.display-serif {
+  font-family: 'Instrument Serif', serif;
+  letter-spacing: -0.02em;
+}
+
+.mono-meta {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
 /* ─── Player decorative elements ────────────────────────────────────── */
@@ -343,18 +380,20 @@ button,
   );
 }
 
-/* Glow behind the main play button (RadioPlayer) */
+/* Glow behind the main play button — indigo, matches logo */
 .play-button-shadow {
-  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.28), 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-/* Ambient tint over the mobile hero background */
+.play-button-shadow:hover {
+  box-shadow: 0 12px 36px rgba(99, 102, 241, 0.35), 0 6px 16px rgba(0, 0, 0, 0.45);
+}
+
+/* Ambient tint over the hero background — indigo veil */
 .hero-glow {
-  background: radial-gradient(
-    ellipse 70% 50% at 50% 10%,
-    rgba(69, 63, 237, 0.08),
-    transparent
-  );
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99, 102, 241, 0.09), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 80% 90%, rgba(59, 130, 246, 0.07), transparent 50%);
 }
 
 /* Waveform fallback bars */

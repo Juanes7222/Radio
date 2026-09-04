@@ -11,7 +11,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { ShareModal } from './SharedModla';
-import LOGO2 from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
+import { StationLogo } from './OptimizedLogo';
 import { useNavigate, useLocation } from 'react-router';
 import {
   Tooltip,
@@ -44,7 +44,7 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
     <motion.header
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="sticky top-0 z-50 w-full border-b backdrop-blur-lg bg-slate-900/80 border-slate-800"
+      className="sticky top-0 z-50 w-full border-b backdrop-blur-xl bg-background/70 border-border/50 supports-[backdrop-filter]:bg-background/60"
     >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
@@ -53,15 +53,19 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="w-15 h-10 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer"
+              className="w-[72px] h-10 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer p-1"
               onClick={() => navigate('/')}
+              role="button"
+              tabIndex={0}
+              aria-label="Ir al inicio"
+              onKeyDown={(e) => e.key === 'Enter' && navigate('/')}
             >
-              <img src={LOGO2} alt="Logo" className="w-full h-full object-cover" />
+              <StationLogo className="w-full h-full object-contain" />
             </motion.div>
           )}
           <div className="hidden sm:block">
-            <h1 className="font-bold text-lg leading-tight">{stationName}</h1>
-            <p className="text-xs text-muted-foreground">24/7 Online Radio</p>
+            <h1 className="font-display text-[17px] leading-tight tracking-tight">{stationName}</h1>
+            <p className="text-[11px] font-mono tracking-widest uppercase text-muted-foreground">24/7 · Cartago</p>
           </div>
         </div>
         {/* Desktop actions */}
@@ -134,7 +138,7 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
                 <Menu className="w-5 h-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="bg-slate-900 border-slate-800">
+            <SheetContent side="right" className="bg-card border-border">
               <SheetHeader className="sr-only">
                 <SheetTitle>Menú</SheetTitle>
                 <SheetDescription>Opciones de la aplicación de radio</SheetDescription>
@@ -176,7 +180,7 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
                   <FileKey className="w-5 h-5 mr-2" />
                   Política de Privacidad
                 </Button>
-                <div className="border-t border-slate-800 pt-4">
+                <div className="border-t border-border pt-4">
                   <p className="text-sm text-muted-foreground px-4">
                     {stationName}
                   </p>

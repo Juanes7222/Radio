@@ -14,6 +14,7 @@
     "@floating-ui/react-dom": "^2.1.8",
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/instrument-serif": "^5.3.0",
     "@hookform/resolvers": "^5.2.2",
     "@icons-pack/react-simple-icons": "^13.11.2",
     "@radio/api": "workspace:*",

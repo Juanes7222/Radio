@@ -11,6 +11,11 @@ module.exports = {
           "system-ui",
           "sans-serif",
         ],
+        display: [
+          '"Instrument Serif"',
+          '"IBM Plex Sans Variable"',
+          "serif",
+        ],
         mono: [
           '"IBM Plex Mono"',
           "ui-monospace",
@@ -92,6 +97,8 @@ module.exports = {
       },
       boxShadow: {
         xs: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        console: "0 1px 2px rgba(0,0,0,0.2), 0 8px 32px rgba(0,0,0,0.4)",
+        signal: "0 8px 30px rgba(245,165,36,0.28)",
       },
       keyframes: {
         "accordion-down": {
@@ -106,11 +113,21 @@ module.exports = {
           "0%,70%,100%": { opacity: "1" },
           "20%,50%": { opacity: "0" },
         },
+        shimmer: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(100%)" },
+        },
+        "signal-pulse": {
+          "0%": { transform: "scale(0.92)", opacity: "0.5" },
+          "100%": { transform: "scale(1.35)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "caret-blink": "caret-blink 1.25s ease-out infinite",
+        shimmer: "shimmer 1.6s ease-in-out infinite",
+        "signal-pulse": "signal-pulse 1.8s cubic-bezier(0.4,0,0.6,1) infinite",
       },
     },
   },

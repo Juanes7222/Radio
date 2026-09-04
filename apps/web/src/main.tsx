@@ -1,7 +1,9 @@
 import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router'
+import { LazyMotion, domAnimation, MotionConfig } from 'framer-motion'
 import '@fontsource-variable/ibm-plex-sans'
+import '@fontsource/instrument-serif/400.css'
 import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
 import '@fontsource/ibm-plex-mono/600.css'
@@ -42,12 +44,14 @@ const AdminLogs = lazy(() => import('./pages/admin/AdminLogs.tsx'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AdminAuthProvider>
-      <AudioPlayerProvider>
-        <BrowserRouter>
-            <Toaster richColors position="bottom-center" />
-            <Suspense fallback={<RouteFallback />}>
-              <Routes>
+    <LazyMotion features={domAnimation} strict>
+      <MotionConfig reducedMotion="user" transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.8 }}>
+        <AdminAuthProvider>
+          <AudioPlayerProvider>
+            <BrowserRouter>
+              <Toaster richColors position="bottom-center" />
+              <Suspense fallback={<RouteFallback />}>
+                <Routes>
                 {/* Rutas Publicas con Layout (incluye MiniPlayer) */}
                 <Route element={<PublicLayout />}>
                   <Route path="/" element={<App />} />
@@ -86,8 +90,10 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
-          </BrowserRouter>
-        </AudioPlayerProvider>
-      </AdminAuthProvider>
+            </BrowserRouter>
+          </AudioPlayerProvider>
+        </AdminAuthProvider>
+        </MotionConfig>
+      </LazyMotion>
   </StrictMode>,
 )

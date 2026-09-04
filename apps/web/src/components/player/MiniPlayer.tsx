@@ -1,76 +1,75 @@
 import { useGlobalAudio } from '@/hooks/useGlobalAudio';
-import { Play, Pause, Volume2, Radio } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Radio } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 
 export function MiniPlayer() {
-  const { 
-    data, 
-    playerState, 
-    togglePlay, 
-    toggleMute, 
-    setVolume,
-  } = useGlobalAudio();
+  const { data, playerState, togglePlay, toggleMute, setVolume } = useGlobalAudio();
 
-  // If we don't have enough data yet, we can choose not to render or render a skeleton
-  if (!data?.now_playing) {
-    return null; 
-  }
+  if (!data?.now_playing) return null;
 
   const { song } = data.now_playing;
   const isPlaying = playerState.isPlaying;
+  const progress = data.now_playing.duration > 0 ? (data.now_playing.elapsed / data.now_playing.duration) * 100 : 0;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 h-20 border-t flex items-center justify-between px-4 md:px-6 
-      bg-slate-900 border-slate-800 text-white
-      shadow-lg transition-colors duration-300 backdrop-blur-lg bg-opacity-95"
+    <div
+      className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur-xl border-border supports-[backdrop-filter]:bg-card/80 shadow-console"
+      role="region"
+      aria-label="Reproductor minimizado"
     >
-      {/* Track Info */}
-      <div className="flex items-center gap-3 w-1/3 min-w-0">
-        <div className="relative h-12 w-12 rounded-md overflow-hidden bg-slate-800 flex-shrink-0 flex items-center justify-center">
-          {song.art ? (
-            <img src={song.art} alt="Artwork" className="h-full w-full object-cover" />
-          ) : (
-            <Radio className="h-6 w-6 text-slate-400" />
+      <div className="h-[2px] w-full bg-border/50 overflow-hidden" aria-hidden>
+        <div className="h-full bg-primary transition-all duration-1000 linear" style={{ width: `${progress}%` }} />
+      </div>
+      <div className="h-[4.5rem] md:h-20 flex items-center justify-between px-4 md:px-6 gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="relative h-11 w-11 md:h-12 md:w-12 rounded-xl overflow-hidden bg-muted shrink-0 flex items-center justify-center ring-1 ring-border">
+            {song.art ? (
+              <img src={song.art} alt="" className="h-full w-full object-cover" loading="lazy" />
+            ) : (
+              <Radio className="h-5 w-5 text-muted-foreground" aria-hidden />
+            )}
+            {isPlaying && <span className="absolute inset-0 rounded-xl ring-1 ring-primary/20 animate-pulse" aria-hidden />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold truncate leading-tight" title={song.title}>
+              {song.title || 'La Voz de la Verdad'}
+            </p>
+            <p className="text-xs text-muted-foreground truncate font-mono" title={song.artist}>
+              {song.artist || 'Radio cristiana · 24/7'}
+            </p>
+          </div>
+          {isPlaying && (
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase text-tally ml-2 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-tally animate-pulse" aria-hidden /> En vivo
+            </span>
           )}
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold truncate" title={song.title}>
-            {song.title || 'Desconocido'}
-          </p>
-          <p className="text-xs text-slate-400 truncate" title={song.artist}>
-            {song.artist || 'Radio cristiana'}
-          </p>
-        </div>
-      </div>
 
-      {/* Center Controls */}
-      <div className="flex items-center justify-center gap-4 w-1/3">
-        <button
-          onClick={togglePlay}
-          className="h-10 w-10 md:h-12 md:w-12 rounded-full flex items-center justify-center flex-shrink-0 transition-transform hover:scale-105 active:scale-95
-            bg-white text-slate-900 hover:bg-slate-200"
-        >
-          {isPlaying ? (
-            <Pause className="h-5 w-5 md:h-6 md:w-6 fill-current" />
-          ) : (
-            <Play className="h-5 w-5 md:h-6 md:w-6 fill-current translate-x-0.5" />
-          )}
-        </button>
-      </div>
-
-      {/* Right Controls (Volume etc.) */}
-      <div className="flex items-center justify-end w-1/3 gap-3">
-        <div className="hidden sm:flex items-center gap-2 group w-32 justify-end">
-          <button onClick={toggleMute} className="text-slate-500 hover:text-slate-300">
-            {/* Simple volume logic based on external state if it existed, for now let's just toggle mute */}
-            <Volume2 className="h-5 w-5" />
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={togglePlay}
+            className="h-10 w-10 md:h-11 md:w-11 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:brightness-105 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+            aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
+          >
+            {isPlaying ? <Pause className="h-5 w-5 fill-current" aria-hidden /> : <Play className="h-5 w-5 fill-current translate-x-0.5" aria-hidden />}
           </button>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            className="w-20 accent-white"
-            onChange={(e) => setVolume(parseFloat(e.target.value))}
+        </div>
+
+        <div className="hidden md:flex items-center gap-2 w-40 justify-end shrink-0">
+          <button
+            onClick={toggleMute}
+            className="text-muted-foreground hover:text-foreground p-1.5 rounded-full hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={playerState.isMuted ? 'Activar sonido' : 'Silenciar'}
+          >
+            {playerState.isMuted || playerState.volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
+          <Slider
+            value={[playerState.isMuted ? 0 : playerState.volume]}
+            onValueChange={([v]) => setVolume(v ?? 0)}
+            max={100}
+            step={1}
+            className="w-24"
+            aria-label="Volumen"
           />
         </div>
       </div>
