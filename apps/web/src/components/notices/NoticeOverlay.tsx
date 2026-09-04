@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion, type PanInfo } from 'framer-motion';
 import { X, ExternalLink, Info, CalendarRange, AlertTriangle, Heart, Expand } from "lucide-react";
 import { API_BASE_URL } from "@/config";
 import { resolveNoticeMediaSrc as resolveMediaSrc, resolveVideoPosterSrc } from "@/lib/noticeMedia";
@@ -44,6 +44,7 @@ function markModalSession(id: string): void {
 }
 
 export function NoticeOverlay() {
+  const shouldReduceMotion = useReducedMotion();
   const [notices, setNotices] = useState<Notice[]>([]);
   const [current, setCurrent] = useState<Notice | null>(null);
   const [progress, setProgress] = useState(0);
@@ -51,6 +52,8 @@ export function NoticeOverlay() {
   const [modalViewCount, setModalViewCount] = useState(0);
   const [lightbox, setLightbox] = useState<{ src: string; type: "image" | "video"; poster: string | null; initialTime: number; autoPlay: boolean } | null>(null);
   const toastVideoRef = useRef<HTMLVideoElement>(null);
+  const dragStartRef = useRef<number>(0);
+  const isDraggingRef = useRef(false);
 
   const fetchNotices = useCallback(async () => {
     try {
@@ -157,6 +160,25 @@ export function NoticeOverlay() {
     if (modalNotice?.ctaUrl) window.open(modalNotice.ctaUrl, '_blank', 'noopener');
   };
 
+  const handleToastDragStart = useCallback(() => {
+    dragStartRef.current = Date.now();
+    isDraggingRef.current = true;
+  }, []);
+
+  const handleToastDragEnd = useCallback((_e: unknown, info: PanInfo) => {
+    isDraggingRef.current = false;
+    const offsetX = info.offset.x;
+    const velocityX = info.velocity.x;
+    const elapsed = Date.now() - dragStartRef.current;
+    // Velocity in px/ms — threshold 0.5px/ms approximates a quick flick
+    const computedVelocity = elapsed > 0 ? Math.abs(offsetX) / elapsed : 0;
+    const isFlick = computedVelocity > 0.5 || Math.abs(velocityX) > 500;
+    const isFar = Math.abs(offsetX) > 80;
+    if (isFlick || isFar) {
+      handleDismissToast();
+    }
+  }, []);
+
   return (
     <>
       <NoticeIntrusiveModal
@@ -196,14 +218,25 @@ export function NoticeOverlay() {
         <AnimatePresence>
           <motion.div
             key={current.id}
-            initial={{ y: 80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 40, opacity: 0 }}
-            transition={{ type: 'spring', damping: 22, stiffness: 260 }}
-            className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:justify-end sm:px-4 sm:pb-6"
+            initial={shouldReduceMotion ? { opacity: 0 } : { y: 16, opacity: 0, scale: 0.97 }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { y: 0, opacity: 1, scale: 1 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { y: 16, opacity: 0, scale: 0.98 }}
+            transition={{ duration: shouldReduceMotion ? 0.15 : 0.28, ease: [0.23, 1, 0.32, 1] }}
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:justify-end sm:px-4 sm:pb-6 will-change-transform"
             aria-live="polite"
           >
-            <div className="pointer-events-auto w-full max-w-[420px] overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-[0_16px_40px_rgba(0,0,0,0.45)]">
+            <motion.div
+              drag={shouldReduceMotion ? false : 'x'}
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.18}
+              dragMomentum={false}
+              dragDirectionLock
+              onDragStart={handleToastDragStart}
+              onDragEnd={handleToastDragEnd}
+              whileDrag={{ scale: 0.98, cursor: 'grabbing' }}
+              style={{ touchAction: 'pan-y' }}
+              className="pointer-events-auto w-full max-w-[420px] overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-[0_16px_40px_rgba(0,0,0,0.45)] cursor-grab active:cursor-grabbing select-none"
+            >
               {/* accent top */}
               <div className={`h-[3px] w-full ${meta.accent}`} aria-hidden />
               <div className="flex items-center gap-1.5 border-b border-border bg-muted/40 px-3 py-2">
@@ -214,9 +247,9 @@ export function NoticeOverlay() {
                 <span className="flex gap-1" aria-hidden>{Array.from({ length: 4 }).map((_, i) => <span key={i} className="h-1 w-1 rounded-full bg-border" />)}</span>
                 <span className="ml-auto font-mono text-[10px] tracking-[0.14em] text-muted-foreground/60">AVISO</span>
               </div>
-              {/* progress */}
-              <div className="relative h-[2px] bg-border/50" aria-hidden>
-                <div className="absolute inset-y-0 left-0 bg-primary transition-all" style={{ width: `${Math.min(100, Math.max(4, progress))}%` }} />
+              {/* progress — scaleX for GPU */}
+              <div className="relative h-[2px] bg-border/50 overflow-hidden" aria-hidden>
+                <div className="absolute inset-y-0 left-0 w-full bg-primary origin-left transition-transform duration-300 ease-linear will-change-transform" style={{ transform: `scaleX(${Math.min(100, Math.max(4, progress)) / 100})` }} />
                 <div className={`absolute inset-y-0 left-0 w-full ${meta.accent} opacity-40`} />
               </div>
 
@@ -256,7 +289,7 @@ export function NoticeOverlay() {
                 <button
                   onClick={handleDismissToast}
                   aria-label={current.dismissible ? 'Cerrar aviso' : 'Ocultar aviso'}
-                  className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-muted text-muted-foreground active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-out hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -276,7 +309,7 @@ export function NoticeOverlay() {
                   {current.ctaLabel && current.ctaUrl && (
                     <button
                       onClick={handleCtaToast}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[0_4px_12px_hsl(var(--primary)/0.25)] transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[0_4px_12px_hsl(var(--primary)/0.25)] active:scale-[0.97] transition-[transform,background-color] duration-150 ease-out hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {current.ctaLabel}
                       <ExternalLink className="h-3.5 w-3.5" />
@@ -284,7 +317,7 @@ export function NoticeOverlay() {
                   )}
                   <button
                     onClick={handleDismissToast}
-                    className="rounded-full px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className="rounded-full px-3 py-2 text-xs font-medium text-muted-foreground active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-out hover:bg-accent hover:text-foreground"
                   >
                     Ocultar
                   </button>
@@ -304,7 +337,7 @@ export function NoticeOverlay() {
                   </p>
                 )}
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         </AnimatePresence>
         );

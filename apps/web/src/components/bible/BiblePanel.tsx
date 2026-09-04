@@ -45,11 +45,11 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
           className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-6 bg-background/80 backdrop-blur-sm"
           onClick={onClose}
         >
-          <motion.div
-            initial={{ y: 20, opacity: 0, scale: 0.98 }}
+            <motion.div
+            initial={{ y: 20, opacity: 0, scale: 0.97 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 20, opacity: 0, scale: 0.98 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            exit={{ y: 20, opacity: 0, scale: 0.97 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 340, mass: 0.7 }}
             onClick={(e) => e.stopPropagation()}
             className="relative w-full h-full md:max-w-4xl md:h-[90vh] flex flex-col bg-background md:rounded-[2rem] shadow-2xl md:border overflow-hidden"
           >
@@ -84,7 +84,13 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
                     <p className="animate-pulse">Preparando la lectura...</p>
                   </div>
                 ) : chapterData?.verses ? (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+                  <motion.div
+                    key={`${currentBook}-${currentChapter}`}
+                    initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }}
+                    transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                  >
                     <h1 className="font-display text-4xl md:text-5xl font-normal text-center mb-2 tracking-tight text-foreground">
                       {currentBook}
                     </h1>
@@ -93,13 +99,19 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
                     </h2>
                     
                     <div className="space-y-5">
-                      {chapterData.verses.map((verse) => (
-                        <p key={verse.id} className="text-[17px] md:text-[18px] leading-[1.9] text-foreground/90 flex items-start group">
+                      {chapterData.verses.map((verse, idx) => (
+                        <motion.p
+                          key={verse.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: Math.min(idx * 0.025, 0.2), duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                          className="text-[17px] md:text-[18px] leading-[1.9] text-foreground/90 flex items-start group"
+                        >
                           <span className="text-[11px] font-mono font-semibold text-primary mr-4 mt-1.5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0 w-6 text-right select-none">
                             {verse.number}
                           </span>
                           <span className="flex-1 font-display">{verse.text}</span>
-                        </p>
+                        </motion.p>
                       ))}
                     </div>
                   </motion.div>
@@ -114,10 +126,10 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
             {/* Navegación Inferior Flotante (Glassmorphism) */}
             <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none px-4">
               <motion.div 
-                initial={{ y: 50, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2, type: 'spring' }}
-                className="flex items-center gap-2 p-2 rounded-full bg-background/70 backdrop-blur-xl border shadow-2xl pointer-events-auto"
+                initial={{ y: 24, opacity: 0, scale: 0.96 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                transition={{ delay: 0.18, type: 'spring', damping: 26, stiffness: 320 }}
+                className="flex items-center gap-2 p-2 rounded-full bg-background/70 backdrop-blur-xl border shadow-2xl pointer-events-auto will-change-transform"
               >
                 <Button 
                   variant="ghost" 

@@ -42,18 +42,19 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
       />
 
     <motion.header
-      initial={{ opacity: 0, y: -20 }}
+      initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="sticky top-0 z-50 w-full border-b backdrop-blur-xl bg-background/70 border-border/50 supports-[backdrop-filter]:bg-background/60"
+      transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+      className="sticky top-0 z-50 w-full border-b backdrop-blur-xl bg-background/70 border-border/50 supports-[backdrop-filter]:bg-background/60 will-change-transform"
     >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-3">
           {!isHome && (
             <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="w-[72px] h-10 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer p-1"
+              whileTap={{ scale: 0.97 }}
+              transition={{ duration: 0.14, ease: [0.23, 1, 0.32, 1] }}
+              className="w-[72px] h-10 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer p-1 will-change-transform"
               onClick={() => navigate('/')}
               role="button"
               tabIndex={0}

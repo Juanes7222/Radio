@@ -87,6 +87,11 @@
     /* Waveform — indigo/blue, matches logo */
     --wave-start: #60a5fa;
     --wave-end: #3b82f6;
+
+    /* Motion tokens — Emil: custom easings have punch */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   }
 
   * {
@@ -193,10 +198,30 @@ body {
   }
 }
 
-/* Touch feedback for interactive elements */
+/* Press feedback — every pressable should respond */
+button:active:not(:disabled),
+[role="button"]:active:not([aria-disabled="true"]) {
+  transform: scale(0.97);
+  transition: transform 140ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pressable:hover {
+    transform: translateY(-1px);
+  }
+}
+
 @media (hover: none) {
   .active-scale:active {
     transform: scale(0.95);
+  }
+}
+
+/* Focused pressable: keep scale but respect motion */
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled),
+  [role="button"]:active {
+    transform: none;
   }
 }
 
@@ -245,14 +270,19 @@ button,
 }
 
 /* ─── Reduced motion ────────────────────────────────────────────────── */
-
+/* Keep opacity/color transitions that aid comprehension, remove positional motion */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  /* Preserve only opacity/background transitions; kill transforms */
+  * {
     transition-duration: 0.01ms !important;
+    transition-property: opacity, background-color, color, border-color !important;
   }
 }
 
@@ -270,7 +300,7 @@ button,
 }
 
 .animate-pulse-ring {
-  animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: pulse-ring 1.5s var(--ease-out) infinite;
 }
 
 /* ─── On-air tally light (admin console) ────────────────────────────── */
@@ -383,10 +413,18 @@ button,
 /* Glow behind the main play button — indigo, matches logo */
 .play-button-shadow {
   box-shadow: 0 8px 30px rgba(99, 102, 241, 0.28), 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 200ms var(--ease-out), transform 160ms var(--ease-out);
 }
 
-.play-button-shadow:hover {
-  box-shadow: 0 12px 36px rgba(99, 102, 241, 0.35), 0 6px 16px rgba(0, 0, 0, 0.45);
+@media (hover: hover) and (pointer: fine) {
+  .play-button-shadow:hover {
+    box-shadow: 0 12px 36px rgba(99, 102, 241, 0.35), 0 6px 16px rgba(0, 0, 0, 0.45);
+    transform: translateY(-1px);
+  }
+}
+
+.play-button-shadow:active {
+  transform: scale(0.97);
 }
 
 /* Ambient tint over the hero background — indigo veil */
@@ -396,14 +434,16 @@ button,
     radial-gradient(ellipse 70% 50% at 80% 90%, rgba(59, 130, 246, 0.07), transparent 50%);
 }
 
-/* Waveform fallback bars */
+/* Waveform fallback bars — only transform + opacity */
 .wave-bar-active {
   background-color: var(--wave-start);
+  transition: transform 300ms var(--ease-out), opacity 300ms var(--ease-out);
 }
 
 .wave-bar-idle {
   background-color: var(--wave-end);
   opacity: 0.35;
+  transition: transform 300ms var(--ease-out), opacity 300ms var(--ease-out);
 }
 
 /* Groove rings overlay on disc artwork (MobilePlayerHero) */

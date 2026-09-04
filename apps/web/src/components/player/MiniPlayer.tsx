@@ -18,7 +18,10 @@ export function MiniPlayer() {
       aria-label="Reproductor minimizado"
     >
       <div className="h-[2px] w-full bg-border/50 overflow-hidden" aria-hidden>
-        <div className="h-full bg-primary transition-all duration-1000 linear" style={{ width: `${progress}%` }} />
+        <div
+          className="h-full bg-primary origin-left transition-transform duration-1000 ease-linear will-change-transform"
+          style={{ transform: `scaleX(${progress / 100})` }}
+        />
       </div>
       <div className="h-[4.5rem] md:h-20 flex items-center justify-between px-4 md:px-6 gap-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -48,7 +51,7 @@ export function MiniPlayer() {
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={togglePlay}
-            className="h-10 w-10 md:h-11 md:w-11 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:brightness-105 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+            className="h-10 w-10 md:h-11 md:w-11 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:brightness-105 active:scale-[0.97] transition-[transform,filter] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
             aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
           >
             {isPlaying ? <Pause className="h-5 w-5 fill-current" aria-hidden /> : <Play className="h-5 w-5 fill-current translate-x-0.5" aria-hidden />}
@@ -58,7 +61,7 @@ export function MiniPlayer() {
         <div className="hidden md:flex items-center gap-2 w-40 justify-end shrink-0">
           <button
             onClick={toggleMute}
-            className="text-muted-foreground hover:text-foreground p-1.5 rounded-full hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="text-muted-foreground hover:text-foreground p-1.5 rounded-full hover:bg-muted active:scale-[0.97] transition-[transform,background-color,color] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={playerState.isMuted ? 'Activar sonido' : 'Silenciar'}
           >
             {playerState.isMuted || playerState.volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}

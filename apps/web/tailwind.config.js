@@ -100,6 +100,12 @@ module.exports = {
         console: "0 1px 2px rgba(0,0,0,0.2), 0 8px 32px rgba(0,0,0,0.4)",
         signal: "0 8px 30px rgba(245,165,36,0.28)",
       },
+      transitionTimingFunction: {
+        'out-expo': 'cubic-bezier(0.23, 1, 0.32, 1)',
+        'out-strong': 'cubic-bezier(0.23, 1, 0.32, 1)',
+        'in-out-expo': 'cubic-bezier(0.77, 0, 0.175, 1)',
+        drawer: 'cubic-bezier(0.32, 0.72, 0, 1)',
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

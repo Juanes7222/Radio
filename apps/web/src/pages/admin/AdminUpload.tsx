@@ -293,7 +293,7 @@ export default function AdminUpload() {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => (mode === 'folder' ? folderInputRef : fileInputRef).current?.click()}
-            className={`group relative cursor-pointer select-none overflow-hidden rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.99] ${isDragging ? 'scale-[1.01] border-primary bg-primary/5' : 'border-border bg-sunken/50 hover:border-primary/30 hover:bg-card'}`}
+            className={`group relative cursor-pointer select-none overflow-hidden rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200 ease-out-expo active:scale-[0.99] ${isDragging ? 'scale-[1.01] border-primary bg-primary/5' : 'border-border bg-sunken/50 hover:border-primary/30 hover:bg-card'}`}
           >
             <input ref={fileInputRef} type="file" accept="audio/*" multiple className="hidden" onChange={(e) => e.target.files && addToQueue(e.target.files)} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
             <input ref={folderInputRef} type="file" accept="audio/*" multiple {...({ webkitdirectory: '' } as React.InputHTMLAttributes<HTMLInputElement>)} className="hidden" onChange={(e) => e.target.files && addToQueue(e.target.files)} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />

@@ -180,17 +180,17 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, requestS
                 {searchResults.map((item, index) => (
                   <motion.div
                     key={item.request_id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ delay: index * 0.05 }}
+                    initial={{ opacity: 0, x: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: 8, scale: 0.98 }}
+                    transition={{ delay: Math.min(index * 0.04, 0.2), duration: 0.24, ease: [0.23, 1, 0.32, 1] }}
                     onClick={() => handleRequest(item)}
-                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer select-none transition-all ${
+                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer select-none transition-[transform,background-color,border-color,opacity] duration-150 ease-out will-change-transform ${
                       requestedSongs.has(item.request_id)
                         ? 'bg-green-500/15 border border-green-500/30'
                         : loadingSong === item.request_id
                         ? 'bg-slate-800/50 opacity-70'
-                        : 'bg-slate-800/50 hover:bg-slate-700/70 active:scale-[0.98]'
+                        : 'bg-slate-800/50 hover:bg-slate-700/70 active:scale-[0.97]'
                     }`}
                   >
                     {/* Carátula mini */}
@@ -258,9 +258,10 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, requestS
         <AnimatePresence>
           {requestStatus && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.97 }}
+              transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
               className={`mx-6 mb-4 mt-1 shrink-0 p-3 rounded-lg flex items-center gap-2 ${
                 requestStatus.status === 'success'
                   ? 'bg-green-500/10 text-green-500'

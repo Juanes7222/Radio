@@ -223,11 +223,11 @@ export function StationConsole({
             {artworkUrl && (
               <motion.div
                 key={artworkUrl}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 1 }}
-                className="absolute inset-0 scale-125 blur-[42px] opacity-[0.18]"
+                initial={{ opacity: 0, filter: 'blur(8px)' }}
+                animate={{ opacity: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, filter: 'blur(4px)' }}
+                transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
+                className="absolute inset-0 scale-125 blur-[42px] opacity-[0.18] will-change-transform"
                 style={{ backgroundImage: `url(${artworkUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
               />
             )}
@@ -256,13 +256,13 @@ export function StationConsole({
             </div>
             
           </div>
-          {/* Signal hairline progress */}
+          {/* Signal hairline progress — scaleX for GPU */}
           {currentSong && (
             <div className="h-[2px] w-full bg-border/50 overflow-hidden" aria-hidden>
               <motion.div
-                className="h-full bg-primary"
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPct}%` }}
+                className="h-full bg-primary origin-left will-change-transform"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: progressPct / 100 }}
                 transition={{ duration: 1, ease: 'linear' }}
               />
             </div>
@@ -356,12 +356,13 @@ export function StationConsole({
 
                 <motion.button
                   key={songData?.id ?? 'no-song'}
-                  initial={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.92 }}
+                  initial={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.92 }}
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
+                  whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
                   onClick={onTogglePlay}
-                  className="relative focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-full"
+                  className="relative focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-full will-change-transform"
                   aria-label={playerState.isPlaying ? 'Pausar reproducción' : 'Reproducir emisora'}
                 >
                   {artworkUrl && (
@@ -424,8 +425,9 @@ export function StationConsole({
 
               {sleepTimer.isActive && (
                 <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
                   className="flex items-center gap-2 text-xs text-amber-500 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-full"
                   role="status"
                   aria-live="polite"
@@ -462,17 +464,21 @@ export function StationConsole({
               <AnimatePresence mode="wait">
                 <motion.div
                   key={songData?.id ?? 'no-info'}
-                  initial={shouldReduceMotion ? undefined : { opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -12 }}
-                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                  className="space-y-3 flex flex-col items-center w-full"
+                  initial={shouldReduceMotion ? undefined : { opacity: 0, y: 8, filter: 'blur(4px)' }}
+                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }}
+                  transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
+                  className="space-y-3 flex flex-col items-center w-full will-change-transform"
                 >
                   {isLoading ? (
-                    <div className="space-y-3">
-                      <div className="h-9 w-3/4 rounded-lg animate-pulse bg-muted" />
-                      <div className="h-4 w-1/2 rounded-full animate-pulse bg-muted/70" />
-                      <div className="h-4 w-24 rounded-full animate-pulse bg-muted/50" />
+                    <div className="space-y-3 w-full flex flex-col items-center">
+                      <div className="h-9 w-3/4 rounded-lg bg-muted animate-shimmer relative overflow-hidden">
+                        <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" aria-hidden />
+                      </div>
+                      <div className="h-4 w-1/2 rounded-full bg-muted/70 animate-shimmer relative overflow-hidden">
+                        <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" aria-hidden />
+                      </div>
+                      <div className="h-4 w-24 rounded-full bg-muted/50 animate-pulse" />
                     </div>
                   ) : (
                     <>
@@ -514,9 +520,9 @@ export function StationConsole({
                     </div>
                     <div className="h-1 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={Math.round(progressPct)} aria-valuemin={0} aria-valuemax={100} aria-label="Progreso de la canción">
                       <motion.div
-                        className="h-full bg-primary rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progressPct}%` }}
+                        className="h-full bg-primary rounded-full origin-left will-change-transform"
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: progressPct / 100 }}
                         transition={{ duration: 1, ease: 'linear' }}
                       />
                     </div>

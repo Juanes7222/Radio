@@ -33,10 +33,10 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
             {!embedUrl ? (
               <motion.div
                 key="placeholder"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
                 className="w-full rounded-2xl border-2 border-dashed border-gray-700/50 bg-slate-900/50 backdrop-blur-sm p-8 md:p-12"
               >
                 <div className="flex flex-col items-center justify-center text-center space-y-4">
@@ -58,11 +58,11 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
             ) : (
               <motion.div
                 key="player"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="w-full"
+                initial={{ opacity: 0, y: 12, scale: 0.97, filter: 'blur(4px)' }}
+                animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, y: -12, scale: 0.97, filter: 'blur(4px)' }}
+                transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+                className="w-full will-change-transform"
               >
                 {/* Live Badge */}
                 <div className="flex items-center justify-center mb-4">
@@ -104,7 +104,7 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
                       href={liveUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                      className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 active:scale-[0.97] transition-[transform,color] duration-150 ease-out"
                     >
                       <span>Abrir en Facebook</span>
                       <svg

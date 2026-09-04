@@ -65,16 +65,15 @@ export function WaveformVisualizer({
       ctx.clearRect(0, 0, width, height);
 
       const rootStyles = getComputedStyle(document.documentElement);
-      const gradientStart = rootStyles.getPropertyValue('--wave-start').trim();
-      const gradientEnd = rootStyles.getPropertyValue('--wave-end').trim();
+      const gradientStart = rootStyles.getPropertyValue('--wave-start').trim() || '#60a5fa';
+      const gradientEnd = rootStyles.getPropertyValue('--wave-end').trim() || '#3b82f6';
+      const gradient = ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, gradientStart);
+      gradient.addColorStop(1, gradientEnd);
+      ctx.fillStyle = gradient;
 
       for (let i = 0; i < bufferLength; i++) {
         const barHeight = (dataArray[i] / 255) * height * 0.8;
-        const gradient = ctx.createLinearGradient(0, height - barHeight, 0, height);
-        gradient.addColorStop(0, gradientStart);
-        gradient.addColorStop(1, gradientEnd);
-
-        ctx.fillStyle = gradient;
 
         const radius = barWidth / 2;
         ctx.beginPath();
@@ -108,9 +107,7 @@ export function WaveformVisualizer({
         {Array.from({ length: bars }).map((_, i) => (
           <div
             key={i}
-            className={`w-2 rounded-t transition-all duration-300 ${
-              isPlaying ? 'wave-bar-active' : 'wave-bar-idle'
-            }`}
+            className={`w-2 rounded-t will-change-transform ${isPlaying ? 'wave-bar-active' : 'wave-bar-idle'}`}
             style={{
               height: isPlaying ? `${20 + Math.sin(i * 0.5) * 16}px` : '4px',
             }}

@@ -303,7 +303,7 @@ export default function AdminPrayerRequests() {
               size="sm"
               onClick={handleRefresh}
               disabled={loading}
-              className="gap-1.5 bg-card transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97]"
+              className="gap-1.5 bg-card transition-transform duration-150 ease-out-expo active:scale-[0.97]"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Actualizar
@@ -325,7 +325,7 @@ export default function AdminPrayerRequests() {
                     setEstadoFilter('all');
                     setPage(1);
                   }}
-                  className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-[transform,background-color,border-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] ${
+                  className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-[transform,background-color,border-color,color] duration-150 ease-out-expo active:scale-[0.97] ${
                     estadoFilter === 'all'
                       ? 'border-primary/30 bg-primary text-primary-foreground shadow-sm'
                       : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -521,7 +521,7 @@ export default function AdminPrayerRequests() {
                       ? { duration: 0.16 }
                       : { type: 'spring', duration: 0.44, bounce: 0.14, delay: Math.min(idx * 0.035, 0.16) }
                   }
-                  className={`group relative overflow-hidden rounded-2xl border bg-card text-card-foreground transition-[border-color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] hover:shadow-[0_8px_24px_hsl(var(--foreground)/0.06)] hover:border-border ${
+                  className={`group relative overflow-hidden rounded-2xl border bg-card text-card-foreground transition-[border-color,box-shadow,transform] duration-200 ease-out-expo hover:shadow-[0_8px_24px_hsl(var(--foreground)/0.06)] hover:border-border ${
                     unread ? 'border-primary/20 shadow-[0_0_0_1px_hsl(var(--primary)/0.08)]' : 'border-border'
                   } ${selectedIds.has(req.id) ? 'ring-1 ring-primary/30 border-primary/30' : ''}`}
                 >

@@ -32,8 +32,8 @@ export function DesktopSocialLinks({ links }: SocialLinksSectionProps) {
             target="_blank"
             rel="noopener noreferrer"
             whileTap={{ scale: 0.97 }}
-            whileHover={{ y: -1 }}
-            className={`relative flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-2xl ${bg} text-white font-semibold text-sm shadow-md ${shadow} hover:shadow-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
+            transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+            className={`relative flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-2xl ${bg} text-white font-semibold text-sm shadow-md ${shadow} hover:shadow-lg transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [@media(hover:none)]:hover:transform-none`}
             aria-label={isLive ? `${label} — transmisión en vivo` : `Seguir en ${label}`}
           >
             {isLive && (
@@ -59,8 +59,8 @@ export function DesktopSocialLinks({ links }: SocialLinksSectionProps) {
               target="_blank"
               rel="noopener noreferrer"
               whileTap={{ scale: 0.97 }}
-              whileHover={{ y: -1 }}
-              className={`flex items-center gap-4 px-6 py-3.5 rounded-2xl ${bg} text-white shadow-md ${shadow} hover:shadow-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
+              transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+              className={`flex items-center gap-4 px-6 py-3.5 rounded-2xl ${bg} text-white shadow-md ${shadow} hover:shadow-lg transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [@media(hover:none)]:hover:transform-none`}
               aria-label="Descargar en Google Play"
             >
               <span className="w-8 h-8 flex-shrink-0" aria-hidden>{icon}</span>
@@ -121,7 +121,8 @@ export function MobileSocialLinks({ links }: SocialLinksSectionProps) {
               target="_blank"
               rel="noopener noreferrer"
               whileTap={{ scale: 0.97 }}
-              className={`flex items-center gap-4 px-5 py-3.5 rounded-2xl ${bg} text-white shadow-md ${shadow} hover:shadow-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
+              transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+              className={`flex items-center gap-4 px-5 py-3.5 rounded-2xl ${bg} text-white shadow-md ${shadow} hover:shadow-lg transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [@media(hover:none)]:hover:transform-none`}
               aria-label="Descargar en Google Play"
             >
               <span className="w-8 h-8 flex-shrink-0" aria-hidden>{icon}</span>

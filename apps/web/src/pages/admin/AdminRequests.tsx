@@ -114,7 +114,7 @@ export default function AdminRequests() {
             size="sm"
             onClick={handleRefresh}
             disabled={loading}
-            className="gap-1.5 transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97]"
+            className="gap-1.5 transition-transform duration-150 ease-out-expo active:scale-[0.97]"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
@@ -320,7 +320,7 @@ export default function AdminRequests() {
                           onClick={() => void handleDeny(req.id)}
                           disabled={actionId === req.id}
                           aria-label={`Descartar ${req.song.title}`}
-                          className="h-8 gap-1.5 rounded-full px-3 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50 transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97]"
+                          className="h-8 gap-1.5 rounded-full px-3 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50 transition-[transform,background-color,color] duration-150 ease-out-expo active:scale-[0.97]"
                         >
                           {actionId === req.id ? (
                             <RefreshCw className="h-3.5 w-3.5 animate-spin" />
