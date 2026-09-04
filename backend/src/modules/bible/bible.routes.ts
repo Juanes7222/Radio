@@ -94,13 +94,28 @@ interface VerseReference {
   verseEnd?: number;
 }
 
-function resolveBookAlias(raw: string): string | null {
-  const normalized = raw
+function normalizeKey(raw: string): string {
+  return raw
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // strip accents for matching
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "")
     .trim();
-  return BOOK_ALIASES[normalized] ?? null;
+}
+
+const NORMALIZED_ALIASES: Record<string, string> = Object.fromEntries(
+  Object.entries(BOOK_ALIASES).map(([alias, canonical]) => [normalizeKey(alias), canonical]),
+);
+
+// Falls back to the canonical name itself, so full names like "1 Corintios"
+// resolve even without an explicit abbreviation entry.
+const CANONICAL_BOOK_LOOKUP: Record<string, string> = Object.fromEntries(
+  [...new Set(Object.values(BOOK_ALIASES))].map((name) => [normalizeKey(name), name]),
+);
+
+function resolveBookAlias(raw: string): string | null {
+  const key = normalizeKey(raw);
+  return NORMALIZED_ALIASES[key] ?? CANONICAL_BOOK_LOOKUP[key] ?? null;
 }
 
 /**
@@ -117,7 +132,7 @@ function parseQueryReference(query: string): VerseReference | null {
   if (!match) return null;
 
   const prefix = match[1]?.trim() ?? "";
-  const bookRaw = (prefix + match[2]).replace(/\s+/g, "");
+  const bookRaw = prefix ? `${prefix} ${match[2]}` : match[2];
   const chapter = parseInt(match[3], 10);
   const verseStart = match[4] ? parseInt(match[4], 10) : 1;
   const verseEnd = match[5] ? parseInt(match[5], 10) : undefined;
@@ -126,6 +141,17 @@ function parseQueryReference(query: string): VerseReference | null {
   if (!bookName) return null;
 
   return { bookName, chapter, verseStart, verseEnd };
+}
+
+function buildFtsMatchQuery(query: string): string {
+  // Quoting each term as a prefix phrase sidesteps FTS5 operator syntax
+  // (AND, OR, NOT, hyphens) while still doing implicit AND across terms.
+  return query
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((term) => `"${term.replace(/"/g, '""')}"*`)
+    .join(" ");
 }
 
 // Lectura bíblica programada: devuelve los capítulos que se están
@@ -281,9 +307,54 @@ router.get("/search", async (req, res) => {
       });
     }
 
+    // Full-text branch: try FTS5 with BM25 ranking and highlighted snippets.
+    // Falls back to LIKE search if the virtual table is unavailable (e.g. migration not yet applied).
+    try {
+      const ftsQuery = buildFtsMatchQuery(q.trim());
+      if (ftsQuery) {
+        const ftsRows = await prisma.$queryRaw<{ verse_id: string; snippet: string; rank: number }[]>`
+          SELECT verse_id,
+                 snippet(bible_verse_fts, 1, '<mark>', '</mark>', '…', 8) AS snippet,
+                 bm25(bible_verse_fts) AS rank
+          FROM bible_verse_fts
+          JOIN "BibleVerse" ON "BibleVerse".id = bible_verse_fts.verse_id
+          JOIN "BibleChapter" ON "BibleChapter".id = "BibleVerse".chapterId
+          JOIN "BibleBook" ON "BibleBook".id = "BibleChapter".bookId
+          JOIN "BibleTranslation" ON "BibleTranslation".id = "BibleBook".translationId
+          WHERE bible_verse_fts MATCH ${ftsQuery}
+            AND "BibleTranslation".abbreviation = ${translationAbbr}
+          ORDER BY rank ASC
+          LIMIT 50
+        `;
+
+        if (ftsRows.length === 0) {
+          return res.json({ type: "fulltext", results: [] });
+        }
+
+        const rankById = new Map(ftsRows.map((row) => [row.verse_id, row]));
+
+        const verses = await prisma.bibleVerse.findMany({
+          where: {
+            id: { in: [...rankById.keys()] },
+            chapter: { book: { translation: { abbreviation: translationAbbr } } },
+          },
+          include: { chapter: { include: { book: true } } },
+        });
+
+        const results = verses
+          .sort((a, b) => rankById.get(a.id)!.rank - rankById.get(b.id)!.rank)
+          .map((verse) => ({ ...verse, snippet: rankById.get(verse.id)!.snippet }));
+
+        return res.json({ type: "fulltext", results });
+      }
+    } catch (err) {
+      // FTS5 unavailable or query syntax error — log and fall through to LIKE fallback
+      console.warn("[bible/search] FTS5 query failed, falling back to LIKE:", err instanceof Error ? err.message : err);
+    }
+
     const verses = await prisma.bibleVerse.findMany({
       where: {
-        text: { contains: q },
+        text: { contains: q as string },
         chapter: {
           book: { translation: { abbreviation: translationAbbr } },
         },

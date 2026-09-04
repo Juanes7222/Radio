@@ -40,6 +40,7 @@ export interface BibleSearchResult {
   id: string;
   text: string;
   number: number;
+  snippet?: string;
   chapter: {
     number: number;
     book: {

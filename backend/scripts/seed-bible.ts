@@ -123,6 +123,19 @@ async function seedBible() {
   }
 
   console.log('Seeding completed successfully!');
+
+  await rebuildBibleFts();
+}
+
+async function rebuildBibleFts(): Promise<void> {
+  try {
+    await prisma.$executeRawUnsafe('CREATE VIRTUAL TABLE IF NOT EXISTS "bible_verse_fts" USING fts5(verse_id UNINDEXED, text, tokenize = \'unicode61\')');
+    await prisma.$executeRaw`DELETE FROM bible_verse_fts`;
+    await prisma.$executeRaw`INSERT INTO bible_verse_fts(verse_id, text) SELECT id, text FROM "BibleVerse"`;
+    console.log('FTS index rebuilt');
+  } catch (e) {
+    console.warn('Could not rebuild FTS index (table may not exist, run migrations):', e instanceof Error ? e.message : e);
+  }
 }
 
 seedBible().catch(e => {
