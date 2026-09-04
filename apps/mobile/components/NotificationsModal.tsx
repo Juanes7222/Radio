@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
   ScrollView,
   Switch,
@@ -11,7 +10,7 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { fetchSchedule, fetchScheduleCategories } from '@radio/api';
 import type { ScheduleItem } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
@@ -20,6 +19,7 @@ import { useProgramSubscriptions } from '@/hooks/useProgramSubscriptions';
 import { openExactAlarmSettings } from '@/modules/exact-alarms';
 import { formatMediaTitle, normalizeTitle } from '@/lib/formatMedia';
 import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
+import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 
 interface NotificationsModalProps {
   visible: boolean;
@@ -37,10 +37,7 @@ export function NotificationsModal({
   onToggleCurrent,
   currentSongTitle,
   exactAlarmGranted,
-}: NotificationsModalProps) {  const insets = useSafeAreaInsets();
-  
-  
-  // Extraer las nuevas funciones
+}: NotificationsModalProps) {
   const { 
     subscribedPrograms, 
     toggleSubscription, 
@@ -68,8 +65,6 @@ export function NotificationsModal({
     };
 
     (async () => {
-      // Reuse the schedule cache used by the schedule screen: open the modal
-      // instantly when fresh, and only hit the network when stale.
       const cached = await readScheduleCache();
       if (cancelled) return;
 
@@ -110,136 +105,124 @@ export function NotificationsModal({
   }, [visible]);
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        
-        <View style={[styles.content, { paddingBottom: insets.bottom + Spacing.lg }]}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Mis Notificaciones</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={Colors.textMuted} />
+    <AppBottomSheet visible={visible} onClose={onClose} snapPoints={['72%', '85%']}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Notificaciones</Text>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={8}>
+          <Ionicons name="close" size={22} color={Colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
+        {Platform.OS === 'android' && exactAlarmGranted === false && (
+          <View style={styles.exactAlarmBanner}>
+            <View style={styles.exactAlarmIcon}>
+              <Ionicons name="alarm-outline" size={18} color={Colors.signal} />
+            </View>
+            <View style={styles.exactAlarmTextContainer}>
+              <Text style={styles.exactAlarmTitle}>Avisos más puntuales</Text>
+              <Text style={styles.exactAlarmBody}>
+                Las alertas pueden llegar con retraso. Activa "Alarmas y recordatorios" para hora exacta.
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                openExactAlarmSettings();
+              }}
+              style={styles.exactAlarmButton}
+            >
+              <Text style={styles.exactAlarmButtonText}>Activar</Text>
             </TouchableOpacity>
           </View>
+        )}
 
-          <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
-            {Platform.OS === 'android' && exactAlarmGranted === false && (
-              <View style={styles.exactAlarmBanner}>
-                <Ionicons name="alarm-outline" size={20} color={Colors.warning} />
-                <View style={styles.exactAlarmTextContainer}>
-                  <Text style={styles.exactAlarmTitle}>Avisos más puntuales</Text>
-                  <Text style={styles.exactAlarmBody}>
-                    Las alertas de programas pueden llegar con unos minutos de retraso. Activa "Alarmas y recordatorios" en los ajustes para que lleguen a la hora exacta.
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    openExactAlarmSettings();
-                  }}
-                  style={styles.exactAlarmButton}
-                >
-                  <Text style={styles.exactAlarmButtonText}>Activar</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Sonando ahora</Text>
+          <View style={[styles.row, styles.rowCard]}>
+            <View style={styles.rowTextContainer}>
+              <Text style={styles.rowTitle}>Avisarme de esta pista</Text>
+              <Text style={styles.rowSubtitle} numberOfLines={1}>
+                {currentSongTitle || 'Desconocido'}
+              </Text>
+            </View>
+            <Switch
+              value={notifyEnabled}
+              onValueChange={() => {
+                Haptics.selectionAsync().catch(() => {});
+                onToggleCurrent();
+              }}
+              trackColor={{ false: Colors.borderGlass, true: Colors.signal }}
+              thumbColor="#fff"
+            />
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Programas</Text>
+            {programs.length > 0 && (
+              <View style={styles.bulkActions}>
+                <TouchableOpacity onPress={() => { Haptics.selectionAsync().catch(() => {}); subscribeAll(programs); }}>
+                  <Text style={styles.bulkText}>Todas</Text>
+                </TouchableOpacity>
+                <Text style={styles.bulkSeparator}>·</Text>
+                <TouchableOpacity onPress={() => { Haptics.selectionAsync().catch(() => {}); unsubscribeAll(); }}>
+                  <Text style={styles.bulkText}>Ninguna</Text>
                 </TouchableOpacity>
               </View>
             )}
+          </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Sonando Ahora</Text>
-              <View style={styles.row}>
-                <View style={styles.rowTextContainer}>
-                  <Text style={styles.rowTitle}>Avisarme de esta pista</Text>
-                  <Text style={styles.rowSubtitle} numberOfLines={1}>
-                    {currentSongTitle || 'Desconocido'}
-                  </Text>
-                </View>
-                <Switch
-                  value={notifyEnabled}
-                  onValueChange={onToggleCurrent}
-                  trackColor={{ false: Colors.border, true: Colors.accent }}
-                  thumbColor={Platform.OS === 'ios' ? '#fff' : notifyEnabled ? '#fff' : '#f4f3f4'}
-                />
-              </View>
+          {loading ? (
+            <View style={styles.loaderWrap}>
+              <ActivityIndicator size="small" color={Colors.signal} />
+              <Text style={styles.loaderText}>Cargando programas…</Text>
             </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.section}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Programas Especiales</Text>
-                {programs.length > 0 && (
-                  <View style={styles.bulkActions}>
-                    <TouchableOpacity onPress={() => subscribeAll(programs)}>
-                      <Text style={styles.bulkText}>Todas</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.bulkSeparator}>·</Text>
-                    <TouchableOpacity onPress={unsubscribeAll}>
-                      <Text style={styles.bulkText}>Ninguna</Text>
-                    </TouchableOpacity>
+          ) : programs.length > 0 ? (
+            programs.map((program) => {
+                const isSubscribed = subscribedPrograms.some(
+                  sub => normalizeTitle(sub) === normalizeTitle(program)
+                );
+                const { title } = formatMediaTitle(program);
+                
+                return (
+                  <View key={program} style={[styles.row, styles.rowCard]}>
+                    <View style={styles.rowTextContainer}>
+                      <Text style={styles.rowTitle}>{title}</Text>
+                    </View>
+                    <Switch
+                      value={isSubscribed}
+                      onValueChange={() => {
+                        Haptics.selectionAsync().catch(() => {});
+                        toggleSubscription(program);
+                      }}
+                      trackColor={{ false: Colors.borderGlass, true: Colors.signal }}
+                      thumbColor="#fff"
+                    />
                   </View>
-                )}
-              </View>
-
-              {loading ? (
-                <ActivityIndicator size="small" color={Colors.accent} style={styles.loader} />
-              ) : programs.length > 0 ? (
-                programs.map((program) => {
-                    const isSubscribed = subscribedPrograms.some(
-                      sub => normalizeTitle(sub) === normalizeTitle(program)
-                    );
-                    const { title } = formatMediaTitle(program);
-                    
-                    return (
-                      <View key={program} style={styles.row}>
-                        <View style={styles.rowTextContainer}>
-                          <Text style={styles.rowTitle}>{title}</Text>
-                        </View>
-                        <Switch
-                          value={isSubscribed}
-                          onValueChange={() => toggleSubscription(program)}
-                          trackColor={{ false: Colors.border, true: Colors.accent }}
-                          thumbColor={Platform.OS === 'ios' ? '#fff' : isSubscribed ? '#fff' : '#f4f3f4'}
-                        />
-                      </View>
-                    );
-                  })
-              ) : (
-                <Text style={styles.emptyText}>No hay programas disponibles.</Text>
-              )}
-            </View>
-          </ScrollView>
+                );
+              })
+          ) : (
+            <Text style={styles.emptyText}>No hay programas disponibles.</Text>
+          )}
         </View>
-      </View>
-    </Modal>
+      </ScrollView>
+    </AppBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-  },
-  content: {
-    backgroundColor: '#12121f',
-    borderTopLeftRadius: Radii.xl,
-    borderTopRightRadius: Radii.xl,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    maxHeight: '80%',
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderGlass,
   },
   title: {
     ...Typography.screenTitle,
@@ -247,9 +230,13 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: Spacing.xs,
+    backgroundColor: Colors.surfaceGlass,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.borderGlass,
   },
   scrollArea: {
-    flexGrow: 0,
+    flex: 1,
   },
   section: {
     marginBottom: Spacing.md,
@@ -261,11 +248,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   sectionTitle: {
-    ...Typography.caption,
-    color: Colors.accent,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    ...Typography.eyebrow,
+    color: Colors.signal,
   },
   bulkActions: {
     flexDirection: 'row',
@@ -274,8 +258,8 @@ const styles = StyleSheet.create({
   },
   bulkText: {
     ...Typography.caption,
-    color: Colors.accent,
-    fontWeight: '600',
+    color: Colors.signal,
+    fontWeight: '700',
   },
   bulkSeparator: {
     ...Typography.caption,
@@ -287,6 +271,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.sm,
   },
+  rowCard: {
+    backgroundColor: Colors.surfaceGlass,
+    borderRadius: Radii.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.borderGlass,
+    marginBottom: 8,
+  },
   rowTextContainer: {
     flex: 1,
     paddingRight: Spacing.md,
@@ -294,7 +287,7 @@ const styles = StyleSheet.create({
   rowTitle: {
     ...Typography.body,
     color: Colors.text,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   rowSubtitle: {
     ...Typography.caption,
@@ -302,13 +295,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   divider: {
-    height: 1,
-    backgroundColor: Colors.border,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.borderGlass,
     marginVertical: Spacing.md,
   },
-  loader: {
-    marginVertical: Spacing.lg,
-  },
+  loaderWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: Spacing.md },
+  loaderText: { ...Typography.caption, color: Colors.textMuted },
   emptyText: {
     ...Typography.body,
     color: Colors.textMuted,
@@ -317,34 +309,44 @@ const styles = StyleSheet.create({
   exactAlarmBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.warningMuted,
-    borderRadius: Radii.md,
+    backgroundColor: Colors.signalMuted,
+    borderRadius: Radii.lg,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,181,71,0.18)',
+  },
+  exactAlarmIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,181,71,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   exactAlarmTextContainer: {
     flex: 1,
   },
   exactAlarmTitle: {
-    ...Typography.body,
-    color: Colors.warning,
-    fontWeight: '700',
+    ...Typography.bodyStrong,
+    color: Colors.signal,
+    fontSize: 13,
   },
   exactAlarmBody: {
     ...Typography.caption,
     color: Colors.textMuted,
     marginTop: 2,
+    lineHeight: 16,
   },
   exactAlarmButton: {
-    backgroundColor: 'rgba(245,158,11,0.25)',
+    backgroundColor: Colors.signal,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: Radii.sm,
+    paddingVertical: 7,
+    borderRadius: Radii.full,
   },
   exactAlarmButtonText: {
-    ...Typography.caption,
-    color: Colors.warning,
-    fontWeight: '700',
+    ...Typography.captionStrong,
+    color: Colors.textOnSignal,
   },
 });

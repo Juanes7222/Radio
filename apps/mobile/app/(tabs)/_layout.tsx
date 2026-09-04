@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, AccessibilityInfo } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
@@ -9,11 +9,14 @@ import Animated, {
   useAnimatedStyle,
   withRepeat,
   withTiming,
+  withSpring,
   Easing,
 } from 'react-native-reanimated';
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
 import { useEffect } from 'react';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { Colors } from '@/constants/theme';
+import { Spring } from '@/constants/motion';
 
 const TAB_HEIGHT_BASE = 56;
 
@@ -53,6 +56,41 @@ const liveStyles = StyleSheet.create({
   halo: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.tally, opacity: 0.5 },
 });
 
+// Animated wrapper for the entire tab bar — single orchestrated entry
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function AnimatedTabBar(props: any) {
+  const translateY = useSharedValue(56);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    const run = async () => {
+      const reduce = await AccessibilityInfo.isReduceMotionEnabled?.();
+      if (reduce) {
+        translateY.value = 0;
+        opacity.value = 1;
+      } else {
+        translateY.value = withSpring(0, Spring.snappy);
+        opacity.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.ease) });
+      }
+    };
+    run().catch(() => {
+      translateY.value = withSpring(0, Spring.snappy);
+      opacity.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.ease) });
+    });
+  }, [opacity, translateY]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <BottomTabBar {...props} />
+    </Animated.View>
+  );
+}
+
 export default function TabLayout() {
   const { liveUrl } = useFacebookLive();
   const insets = useSafeAreaInsets();
@@ -65,6 +103,8 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tabBar={(props: any) => <AnimatedTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.signal,

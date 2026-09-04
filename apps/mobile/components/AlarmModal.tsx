@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -10,11 +8,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { TimeWheelPicker } from '@/components/alarm/TimeWheelPicker';
 import type { AlarmInput, RadioAlarm } from '@/hooks/useAlarmClock';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 
 const WEEKDAY_LABELS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -63,7 +62,6 @@ export function AlarmModal({
   onRemove,
   onToggle,
 }: AlarmModalProps) {
-  const insets = useSafeAreaInsets();
   const [form, setForm] = useState<AlarmForm>(DEFAULT_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -79,6 +77,7 @@ export function AlarmModal({
   }, [visible]);
 
   const openEditor = (alarm: RadioAlarm) => {
+    Haptics.selectionAsync().catch(() => {});
     setForm({
       hour: alarm.hour,
       minute: alarm.minute,
@@ -91,6 +90,7 @@ export function AlarmModal({
   };
 
   const openNewEditor = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setForm(DEFAULT_FORM);
     setRepeatExpanded(false);
     setEditingId(null);
@@ -98,6 +98,7 @@ export function AlarmModal({
   };
 
   const toggleDay = (day: number) => {
+    Haptics.selectionAsync().catch(() => {});
     setForm((prev) => ({
       ...prev,
       days: prev.days.includes(day)
@@ -107,6 +108,7 @@ export function AlarmModal({
   };
 
   const save = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     const input: AlarmInput = {
       hour: form.hour,
       minute: form.minute,
@@ -128,249 +130,230 @@ export function AlarmModal({
   const isEveryDay = form.days.length === 7;
 
   return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-          accessibilityLabel="Cerrar recordatorios"
-        />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + Spacing.lg }]}>
-          <View style={styles.handle} />
+    <AppBottomSheet visible={visible} onClose={onClose} snapPoints={showEditor ? ['88%', '96%'] : ['72%', '86%']}>
+      {!showEditor ? (
+        <View style={styles.listView}>
+          <View style={styles.listHeader}>
+            <Text style={styles.title}>Recordatorios</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityLabel="Cerrar">
+              <Ionicons name="close" size={24} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
 
-          {!showEditor ? (
-            <View style={styles.listView}>
-              <View style={styles.listHeader}>
-                <Text style={styles.title}>Recordatorios</Text>
-                <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityLabel="Cerrar">
-                  <Ionicons name="close" size={24} color={Colors.textMuted} />
-                </TouchableOpacity>
+          <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
+            {alarms.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <View style={styles.emptyIcon}>
+                  <Ionicons name="alarm-outline" size={28} color={Colors.textFaint} />
+                </View>
+                <Text style={styles.emptyText}>Aún no tienes recordatorios.</Text>
+                <Text style={styles.emptyHint}>Programa la radio como tu despertador</Text>
               </View>
+            ) : (
+              alarms.map((alarm) => (
+                <View key={alarm.id} style={styles.alarmRow}>
+                  <TouchableOpacity
+                    style={styles.alarmMain}
+                    activeOpacity={0.6}
+                    onPress={() => openEditor(alarm)}
+                    accessibilityLabel={`Editar recordatorio de las ${formatTime(alarm.hour, alarm.minute)}`}
+                  >
+                    <Text
+                      style={[
+                        styles.alarmTime,
+                        !alarm.enabled && styles.alarmTimeDisabled,
+                      ]}
+                    >
+                      {formatTime(alarm.hour, alarm.minute)}
+                    </Text>
+                    <Text
+                      style={[styles.alarmSchedule, !alarm.enabled && styles.alarmScheduleDisabled]}
+                      numberOfLines={1}
+                    >
+                      {alarm.label ? `${alarm.label} · ${describeSchedule(alarm.days)}` : describeSchedule(alarm.days)}
+                    </Text>
+                  </TouchableOpacity>
+                  <Switch
+                    value={alarm.enabled}
+                    onValueChange={(enabled) => {
+                      Haptics.selectionAsync().catch(() => {});
+                      onToggle(alarm.id, enabled);
+                    }}
+                    trackColor={{ false: Colors.border, true: Colors.signal }}
+                    thumbColor="#fff"
+                    accessibilityLabel={alarm.enabled ? 'Apagar recordatorio' : 'Encender recordatorio'}
+                  />
+                </View>
+              ))
+            )}
+          </ScrollView>
 
-              <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
-                {alarms.length === 0 ? (
-                  <Text style={styles.emptyText}>Aún no tienes recordatorios.</Text>
-                ) : (
-                  alarms.map((alarm) => (
-                    <View key={alarm.id} style={styles.alarmRow}>
+          <TouchableOpacity
+            style={styles.addButton}
+            activeOpacity={0.7}
+            onPress={openNewEditor}
+            accessibilityLabel="Nuevo recordatorio"
+          >
+            <View style={styles.addIconWrap}>
+              <Ionicons name="add" size={20} color={Colors.textOnSignal} />
+            </View>
+            <Text style={styles.addButtonText}>Nuevo recordatorio</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.editorView}>
+          <View style={styles.editorNav}>
+            <TouchableOpacity
+              onPress={() => {
+                setEditingId(null);
+                setShowEditor(false);
+              }}
+              hitSlop={8}
+            >
+              <Text style={styles.navButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+            <Text style={styles.title}>Recordatorio</Text>
+            <TouchableOpacity onPress={save} hitSlop={8} accessibilityLabel="Guardar recordatorio">
+              <Text style={[styles.navButtonText, styles.saveButtonText]}>Guardar</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TimeWheelPicker
+            hour={form.hour}
+            minute={form.minute}
+            onHourChange={(hour) => setForm((prev) => ({ ...prev, hour }))}
+            onMinuteChange={(minute) => setForm((prev) => ({ ...prev, minute }))}
+          />
+
+          <ScrollView
+            style={styles.editorScroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.settingsCard}>
+              <TouchableOpacity
+                style={styles.settingsRow}
+                activeOpacity={0.6}
+                onPress={() => setRepeatExpanded((expanded) => !expanded)}
+                accessibilityLabel="Configurar repetición"
+              >
+                <Text style={styles.settingsLabel}>Repetir</Text>
+                <View style={styles.settingsValue}>
+                  <Text style={styles.settingsValueText}>{describeSchedule(form.days)}</Text>
+                  <Ionicons
+                    name={repeatExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={Colors.textFaint}
+                  />
+                </View>
+              </TouchableOpacity>
+
+              {repeatExpanded && (
+                <View style={styles.repeatPanel}>
+                  <View style={styles.shortcutRow}>
+                    <TouchableOpacity
+                      style={[styles.shortcutChip, form.days.length === 0 && styles.chipActive]}
+                      activeOpacity={0.7}
+                      onPress={() => setForm((prev) => ({ ...prev, days: [] }))}
+                    >
+                      <Text
+                        style={[
+                          styles.shortcutChipText,
+                          form.days.length === 0 && styles.chipTextActive,
+                        ]}
+                      >
+                        Una vez
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.shortcutChip, isWeekend && styles.chipActive]}
+                      activeOpacity={0.7}
+                      onPress={() => setForm((prev) => ({ ...prev, days: [0, 6] }))}
+                    >
+                      <Text style={[styles.shortcutChipText, isWeekend && styles.chipTextActive]}>
+                        Fines de semana
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.shortcutChip, isEveryDay && styles.chipActive]}
+                      activeOpacity={0.7}
+                      onPress={() => setForm((prev) => ({ ...prev, days: ALL_DAYS }))}
+                    >
+                      <Text
+                        style={[
+                          styles.shortcutChipText,
+                          isEveryDay && styles.chipTextActive,
+                        ]}
+                      >
+                        Todos los días
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.dayRow}>
+                    {WEEKDAY_LABELS.map((label, day) => (
                       <TouchableOpacity
-                        style={styles.alarmMain}
-                        activeOpacity={0.6}
-                        onPress={() => openEditor(alarm)}
-                        accessibilityLabel={`Editar recordatorio de las ${formatTime(alarm.hour, alarm.minute)}`}
+                        key={day}
+                        style={[
+                          styles.dayChip,
+                          form.days.includes(day) && styles.chipActive,
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={() => toggleDay(day)}
                       >
                         <Text
                           style={[
-                            styles.alarmTime,
-                            !alarm.enabled && styles.alarmTimeDisabled,
+                            styles.dayChipText,
+                            form.days.includes(day) && styles.chipTextActive,
                           ]}
                         >
-                          {formatTime(alarm.hour, alarm.minute)}
-                        </Text>
-                        <Text
-                          style={[styles.alarmSchedule, !alarm.enabled && styles.alarmScheduleDisabled]}
-                          numberOfLines={1}
-                        >
-                          {alarm.label ? `${alarm.label} · ${describeSchedule(alarm.days)}` : describeSchedule(alarm.days)}
+                          {label}
                         </Text>
                       </TouchableOpacity>
-                      <Switch
-                        value={alarm.enabled}
-                        onValueChange={(enabled) => onToggle(alarm.id, enabled)}
-                        trackColor={{ false: Colors.border, true: Colors.signal }}
-                        thumbColor="#fff"
-                        accessibilityLabel={alarm.enabled ? 'Apagar recordatorio' : 'Encender recordatorio'}
-                      />
-                    </View>
-                  ))
-                )}
-              </ScrollView>
-
-              <TouchableOpacity
-                style={styles.addButton}
-                activeOpacity={0.7}
-                onPress={openNewEditor}
-                accessibilityLabel="Nuevo recordatorio"
-              >
-                <Ionicons name="add" size={22} color={Colors.signal} />
-                <Text style={styles.addButtonText}>Nuevo recordatorio</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.editorView}>
-              <View style={styles.editorNav}>
-                <TouchableOpacity
-                  onPress={() => {
-                    setEditingId(null);
-                    setShowEditor(false);
-                  }}
-                  hitSlop={8}
-                >
-                  <Text style={styles.navButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-                <Text style={styles.title}>Recordatorio</Text>
-                <TouchableOpacity onPress={save} hitSlop={8} accessibilityLabel="Guardar recordatorio">
-                  <Text style={[styles.navButtonText, styles.saveButtonText]}>Guardar</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TimeWheelPicker
-                hour={form.hour}
-                minute={form.minute}
-                onHourChange={(hour) => setForm((prev) => ({ ...prev, hour }))}
-                onMinuteChange={(minute) => setForm((prev) => ({ ...prev, minute }))}
-              />
-
-              <ScrollView
-                style={styles.editorScroll}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-              >
-                <View style={styles.settingsCard}>
-                  <TouchableOpacity
-                    style={styles.settingsRow}
-                    activeOpacity={0.6}
-                    onPress={() => setRepeatExpanded((expanded) => !expanded)}
-                    accessibilityLabel="Configurar repetición"
-                  >
-                    <Text style={styles.settingsLabel}>Repetir</Text>
-                    <View style={styles.settingsValue}>
-                      <Text style={styles.settingsValueText}>{describeSchedule(form.days)}</Text>
-                      <Ionicons
-                        name={repeatExpanded ? 'chevron-up' : 'chevron-down'}
-                        size={16}
-                        color={Colors.textFaint}
-                      />
-                    </View>
-                  </TouchableOpacity>
-
-                  {repeatExpanded && (
-                    <View style={styles.repeatPanel}>
-                      <View style={styles.shortcutRow}>
-                        <TouchableOpacity
-                          style={[styles.shortcutChip, form.days.length === 0 && styles.chipActive]}
-                          activeOpacity={0.7}
-                          onPress={() => setForm((prev) => ({ ...prev, days: [] }))}
-                        >
-                          <Text
-                            style={[
-                              styles.shortcutChipText,
-                              form.days.length === 0 && styles.chipTextActive,
-                            ]}
-                          >
-                            Una vez
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.shortcutChip, isWeekend && styles.chipActive]}
-                          activeOpacity={0.7}
-                          onPress={() => setForm((prev) => ({ ...prev, days: [0, 6] }))}
-                        >
-                          <Text style={[styles.shortcutChipText, isWeekend && styles.chipTextActive]}>
-                            Fines de semana
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.shortcutChip, isEveryDay && styles.chipActive]}
-                          activeOpacity={0.7}
-                          onPress={() => setForm((prev) => ({ ...prev, days: ALL_DAYS }))}
-                        >
-                          <Text
-                            style={[styles.shortcutChipText, isEveryDay && styles.chipTextActive]}
-                          >
-                            Todos los días
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      <View style={styles.dayRow}>
-                        {WEEKDAY_LABELS.map((label, day) => (
-                          <TouchableOpacity
-                            key={day}
-                            style={[
-                              styles.dayChip,
-                              form.days.includes(day) && styles.chipActive,
-                            ]}
-                            activeOpacity={0.7}
-                            onPress={() => toggleDay(day)}
-                          >
-                            <Text
-                              style={[
-                                styles.dayChipText,
-                                form.days.includes(day) && styles.chipTextActive,
-                              ]}
-                            >
-                              {label}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-
-                  <View style={styles.settingsRow}>
-                    <Text style={styles.settingsLabel}>Etiqueta</Text>
-                    <TextInput
-                      style={styles.labelInput}
-                      value={form.label}
-                      onChangeText={(label) => setForm((prev) => ({ ...prev, label }))}
-                      placeholder="Recordatorio de radio"
-                      placeholderTextColor={Colors.textFaint}
-                      maxLength={40}
-                      returnKeyType="done"
-                      accessibilityLabel="Etiqueta de la alarma"
-                    />
+                    ))}
                   </View>
                 </View>
+              )}
 
-                {editingId && (
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      onRemove(editingId);
-                      setEditingId(null);
-                      setShowEditor(false);
-                      setForm(DEFAULT_FORM);
-                    }}
-                    accessibilityLabel="Eliminar alarma"
-                  >
-                    <Text style={styles.deleteButtonText}>Eliminar alarma</Text>
-                  </TouchableOpacity>
-                )}
-              </ScrollView>
+              <View style={styles.settingsRow}>
+                <Text style={styles.settingsLabel}>Etiqueta</Text>
+                <TextInput
+                  style={styles.labelInput}
+                  value={form.label}
+                  onChangeText={(label) => setForm((prev) => ({ ...prev, label }))}
+                  placeholder="Recordatorio de radio"
+                  placeholderTextColor={Colors.textFaint}
+                  maxLength={40}
+                  returnKeyType="done"
+                  accessibilityLabel="Etiqueta de la alarma"
+                />
+              </View>
             </View>
-          )}
+
+            {editingId && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                activeOpacity={0.7}
+                onPress={() => {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+                  onRemove(editingId);
+                  setEditingId(null);
+                  setShowEditor(false);
+                  setForm(DEFAULT_FORM);
+                }}
+                accessibilityLabel="Eliminar alarma"
+              >
+                <Text style={styles.deleteButtonText}>Eliminar alarma</Text>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
         </View>
-      </View>
-    </Modal>
+      )}
+    </AppBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  sheet: {
-    backgroundColor: Colors.inkElevated,
-    borderTopLeftRadius: Radii.xl,
-    borderTopRightRadius: Radii.xl,
-    paddingTop: 12,
-    paddingHorizontal: Spacing.lg,
-    borderTopWidth: 1,
-    borderColor: Colors.border,
-    height: '84%',
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.border,
-    alignSelf: 'center',
-    marginBottom: Spacing.lg,
-  },
   listView: {
     flex: 1,
   },
@@ -390,19 +373,31 @@ const styles = StyleSheet.create({
   listScroll: {
     flex: 1,
   },
+  emptyWrap: { alignItems: 'center', paddingVertical: Spacing.xl, gap: 8 },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: Colors.surfaceGlass,
+    borderWidth: 1,
+    borderColor: Colors.borderGlass,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
   emptyText: {
     ...Typography.body,
-    color: Colors.textAlt,
-    fontStyle: 'italic',
+    color: Colors.textMuted,
+    fontWeight: '600' as const,
     textAlign: 'center',
-    paddingVertical: Spacing.xl,
   },
+  emptyHint: { ...Typography.caption, color: Colors.textFaint, textAlign: 'center' },
   alarmRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderGlass,
   },
   alarmMain: {
     flex: 1,
@@ -410,12 +405,13 @@ const styles = StyleSheet.create({
   },
   alarmTime: {
     color: Colors.textBright,
-    fontSize: 36,
+    fontSize: 34,
     fontWeight: '800',
     letterSpacing: -1,
+    fontFamily: Typography.mono.fontFamily,
   },
   alarmTimeDisabled: {
-    color: Colors.textAlt,
+    color: Colors.textFaint,
   },
   alarmSchedule: {
     ...Typography.caption,
@@ -429,15 +425,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
     paddingVertical: Spacing.md,
     marginTop: Spacing.xs,
+    backgroundColor: Colors.surfaceGlass,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderGlass,
+  },
+  addIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Colors.signal,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   addButtonText: {
     ...Typography.body,
-    color: Colors.accentLight,
+    color: Colors.text,
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 15,
   },
   editorView: {
     flex: 1,
@@ -450,7 +458,7 @@ const styles = StyleSheet.create({
   },
   navButtonText: {
     ...Typography.body,
-    color: Colors.accentLight,
+    color: Colors.signal,
     fontSize: 16,
   },
   saveButtonText: {
@@ -460,10 +468,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   settingsCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceGlass,
     borderRadius: Radii.lg,
     overflow: 'hidden',
     marginTop: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.borderGlass,
   },
   settingsRow: {
     flexDirection: 'row',
@@ -471,8 +481,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderGlass,
   },
   settingsLabel: {
     ...Typography.body,
@@ -490,8 +500,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   repeatPanel: {
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderGlass,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     gap: Spacing.md,
@@ -507,17 +517,20 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radii.full,
     backgroundColor: Colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   shortcutChipText: {
     ...Typography.body,
-    color: Colors.textAlt,
+    color: Colors.textMuted,
     fontSize: 13,
   },
   chipActive: {
-    backgroundColor: Colors.accent,
+    backgroundColor: Colors.signal,
+    borderColor: Colors.signal,
   },
   chipTextActive: {
-    color: Colors.background,
+    color: Colors.textOnSignal,
     fontWeight: '700',
   },
   dayRow: {
@@ -531,10 +544,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   dayChipText: {
     ...Typography.body,
-    color: Colors.textAlt,
+    color: Colors.textMuted,
     fontSize: 13,
   },
   labelInput: {
@@ -553,8 +568,8 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     ...Typography.body,
-    color: Colors.danger,
-    fontSize: 16,
+    color: Colors.tally,
+    fontSize: 15,
     fontWeight: '600',
   },
 });
