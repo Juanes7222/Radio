@@ -49,3 +49,5 @@ packageExtensions:
   expo-router@57.0.17:
     dependencies:
       nanoid: ^3.3.18
+patchedDependencies:
+  expo-modules-autolinking@57.0.12: patches/expo-modules-autolinking@57.0.12.patch
