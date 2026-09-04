@@ -1,8 +1,9 @@
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import type { StreamQuality } from '@radio/types';
-import { Colors, Radii, Typography } from '@/constants/theme';
+import { Colors, Typography } from '@/constants/theme';
+import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 
 const QUALITY_LABELS: Record<StreamQuality, string> = {
   '64': '64 kbps',
@@ -25,83 +26,66 @@ export function QualityModal({
   onClose,
   onSelect,
 }: QualityModalProps) {
-  const insets = useSafeAreaInsets();
-
   return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable
-          style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <View style={styles.handle} />
-
-          <Text style={styles.title}>Calidad del stream</Text>
-
-          {availableQualities.map((quality) => (
+    <AppBottomSheet visible={visible} onClose={onClose} snapPoints={['36%', '44%']}>
+      <Text style={styles.title}>Calidad</Text>
+      <Text style={styles.subtitle}>Elige el balance datos / fidelidad</Text>
+      <View style={styles.options}>
+        {availableQualities.map((quality) => {
+          const isActive = quality === currentQuality;
+          return (
             <TouchableOpacity
               key={quality}
-              style={styles.option}
-              activeOpacity={0.7}
-              onPress={() => onSelect(quality)}
+              style={[styles.option, isActive && styles.optionActive]}
+              activeOpacity={0.85}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                onSelect(quality);
+              }}
             >
-              <Text style={styles.optionText}>{QUALITY_LABELS[quality]}</Text>
-              {quality === currentQuality && (
-                <Ionicons name="checkmark" size={18} color={Colors.accent} />
-              )}
+              <Text style={[styles.optionText, isActive && styles.optionTextActive]}>{QUALITY_LABELS[quality]}</Text>
+              {isActive && <Ionicons name="checkmark" size={18} color={Colors.signal} />}
             </TouchableOpacity>
-          ))}
-        </Pressable>
-      </Pressable>
-    </Modal>
+          );
+        })}
+      </View>
+    </AppBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  sheet: {
-    backgroundColor: '#12121f',
-    borderTopLeftRadius: Radii.xl,
-    borderTopRightRadius: Radii.xl,
-    paddingTop: 12,
-    paddingHorizontal: 24,
-    borderTopWidth: 1,
-    borderColor: Colors.border,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.border,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
   title: {
     ...Typography.screenTitle,
     color: Colors.text,
-    marginBottom: 16,
     textAlign: 'center',
   },
+  subtitle: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  options: { gap: 8 },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: Colors.surfaceGlass,
+    borderWidth: 1,
+    borderColor: Colors.borderGlass,
+  },
+  optionActive: {
+    backgroundColor: Colors.signalMuted,
+    borderColor: 'rgba(255,181,71,0.22)',
   },
   optionText: {
     ...Typography.body,
     color: Colors.text,
-    fontSize: 16,
+    fontSize: 15,
   },
+  optionTextActive: { color: Colors.signal, fontWeight: '700' as const },
 });

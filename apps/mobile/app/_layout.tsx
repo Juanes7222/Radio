@@ -7,6 +7,15 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 import TrackPlayer from 'react-native-track-player';
+import { useFonts, Fraunces_600SemiBold, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
+import {
+  InstrumentSans_400Regular,
+  InstrumentSans_500Medium,
+  InstrumentSans_600SemiBold,
+  InstrumentSans_700Bold,
+} from '@expo-google-fonts/instrument-sans';
+import { IBMPlexMono_500Medium } from '@expo-google-fonts/ibm-plex-mono';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { initTrackPlayer, PlaybackService } from '../service';
 import { FacebookLiveProvider } from '@/hooks/useFacebookLive';
 import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
@@ -18,6 +27,15 @@ SplashScreen.preventAutoHideAsync();
 TrackPlayer.registerPlaybackService(() => PlaybackService);
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Fraunces_600SemiBold,
+    Fraunces_700Bold,
+    InstrumentSans_400Regular,
+    InstrumentSans_500Medium,
+    InstrumentSans_600SemiBold,
+    InstrumentSans_700Bold,
+    IBMPlexMono_500Medium,
+  });
   const [appIsReady, setAppIsReady] = useState(false);
 
   useNotificationNavigation();
@@ -34,9 +52,10 @@ export default function RootLayout() {
         await SplashScreen.hideAsync();
       }
     }
-    
-    prepareApp();
-  }, []);
+    if (fontsLoaded) {
+      prepareApp();
+    }
+  }, [fontsLoaded]);
 
   useEffect(() => {
     const sub = Notifications.addPushTokenListener((tokenData) => {
@@ -48,21 +67,23 @@ export default function RootLayout() {
     return () => sub.remove();
   }, []);
 
-  if (!appIsReady) {
+  if (!appIsReady || !fontsLoaded) {
     return null;
   }
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
-        <FacebookLiveProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-          <NoticeOverlay />
-        </FacebookLiveProvider>
-        <StatusBar style="light" translucent backgroundColor="transparent" />
-      </SafeAreaProvider>
+      <BottomSheetModalProvider>
+        <SafeAreaProvider>
+          <FacebookLiveProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" />
+            </Stack>
+            <NoticeOverlay />
+          </FacebookLiveProvider>
+          <StatusBar style="light" translucent backgroundColor="transparent" />
+        </SafeAreaProvider>
+      </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
 }

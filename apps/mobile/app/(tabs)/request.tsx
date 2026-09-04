@@ -3,11 +3,11 @@ import {
   View,
   Text,
   TextInput,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -310,7 +310,7 @@ export default function RequestScreen() {
         )}
       </View>
 
-      <FlatList
+      <FlashList style={{ flex: 1 }}
         data={songs}
         keyExtractor={(item) => item.request_id}
         renderItem={({ item }) => (
@@ -354,15 +354,6 @@ export default function RequestScreen() {
         onRefresh={handleRefresh}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.6}
-        initialNumToRender={8}
-        maxToRenderPerBatch={10}
-        windowSize={7}
-        removeClippedSubviews
-        getItemLayout={(_, index) => ({
-          length: 74,
-          offset: 74 * index,
-          index,
-        })}
       />
 
       {requestError && (

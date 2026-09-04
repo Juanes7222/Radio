@@ -57,8 +57,8 @@ export const Colors = {
   text: '#F8F7FF',
   textBright: '#FFFFFF',
   textSoft: '#F1F1FF',
-  textMuted: 'rgba(248,247,255,0.64)',
-  textFaint: 'rgba(248,247,255,0.38)',
+  textMuted: 'rgba(248,247,255,0.68)',
+  textFaint: 'rgba(248,247,255,0.52)',
   textAlt: '#9CA3AF',
   textAltFaint: '#6B7280',
   textOnSignal: '#1A0F00',
@@ -89,21 +89,31 @@ export const Spacing = {
   '3xl': 64,
 } as const;
 
+export const Fonts = {
+  displayBold: 'Fraunces_700Bold',
+  displaySemi: 'Fraunces_600SemiBold',
+  bodyRegular: 'InstrumentSans_400Regular',
+  bodyMedium: 'InstrumentSans_500Medium',
+  bodySemi: 'InstrumentSans_600SemiBold',
+  bodyBold: 'InstrumentSans_700Bold',
+  mono: 'IBMPlexMono_500Medium',
+} as const;
+
 export const Typography = {
-  display: { fontSize: 28, fontWeight: '700' as const, letterSpacing: -0.8, lineHeight: 32 },
-  screenTitle: { fontSize: 20, fontWeight: '700' as const, letterSpacing: -0.4, lineHeight: 26 },
-  sectionTitle: { fontSize: 14, fontWeight: '700' as const, letterSpacing: -0.2, lineHeight: 18 },
-  songTitle: { fontSize: 22, fontWeight: '700' as const, letterSpacing: -0.5, lineHeight: 26 },
-  artistName: { fontSize: 15, fontWeight: '500' as const, letterSpacing: -0.1, lineHeight: 20 },
-  albumName: { fontSize: 13, fontWeight: '400' as const, lineHeight: 18 },
-  body: { fontSize: 14, fontWeight: '400' as const, lineHeight: 20 },
-  bodyStrong: { fontSize: 14, fontWeight: '600' as const, lineHeight: 20 },
-  label: { fontSize: 11, fontWeight: '700' as const, letterSpacing: 0.08 * 11, lineHeight: 14, textTransform: 'uppercase' as const },
-  eyebrow: { fontSize: 11, fontWeight: '700' as const, letterSpacing: 1.4, lineHeight: 14, textTransform: 'uppercase' as const },
-  caption: { fontSize: 12, fontWeight: '400' as const, lineHeight: 16 },
-  captionStrong: { fontSize: 12, fontWeight: '600' as const, lineHeight: 16 },
-  mono: { fontSize: 11, fontWeight: '500' as const, letterSpacing: 0.04 * 11, lineHeight: 14, fontVariant: ['tabular-nums'] as unknown as string },
-  monoLarge: { fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.02 * 13, lineHeight: 16, fontVariant: ['tabular-nums'] as unknown as string },
+  display: { fontFamily: Fonts.displayBold, fontSize: 28, fontWeight: '700' as const, letterSpacing: -0.8, lineHeight: 32 },
+  screenTitle: { fontFamily: Fonts.bodyBold, fontSize: 20, fontWeight: '700' as const, letterSpacing: -0.4, lineHeight: 26 },
+  sectionTitle: { fontFamily: Fonts.bodySemi, fontSize: 14, fontWeight: '700' as const, letterSpacing: -0.2, lineHeight: 18 },
+  songTitle: { fontFamily: Fonts.displaySemi, fontSize: 22, fontWeight: '700' as const, letterSpacing: -0.5, lineHeight: 26 },
+  artistName: { fontFamily: Fonts.bodyMedium, fontSize: 15, fontWeight: '500' as const, letterSpacing: -0.1, lineHeight: 20 },
+  albumName: { fontFamily: Fonts.bodyRegular, fontSize: 13, fontWeight: '400' as const, lineHeight: 18 },
+  body: { fontFamily: Fonts.bodyRegular, fontSize: 14, fontWeight: '400' as const, lineHeight: 20 },
+  bodyStrong: { fontFamily: Fonts.bodySemi, fontSize: 14, fontWeight: '600' as const, lineHeight: 20 },
+  label: { fontFamily: Fonts.bodyBold, fontSize: 11, fontWeight: '700' as const, letterSpacing: 0.08 * 11, lineHeight: 14, textTransform: 'uppercase' as const },
+  eyebrow: { fontFamily: Fonts.bodyBold, fontSize: 11, fontWeight: '700' as const, letterSpacing: 1.4, lineHeight: 14, textTransform: 'uppercase' as const },
+  caption: { fontFamily: Fonts.bodyRegular, fontSize: 12, fontWeight: '400' as const, lineHeight: 16 },
+  captionStrong: { fontFamily: Fonts.bodySemi, fontSize: 12, fontWeight: '600' as const, lineHeight: 16 },
+  mono: { fontFamily: Fonts.mono, fontSize: 11, fontWeight: '500' as const, letterSpacing: 0.04 * 11, lineHeight: 14, fontVariant: ['tabular-nums'] as unknown as string },
+  monoLarge: { fontFamily: Fonts.mono, fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.02 * 13, lineHeight: 16, fontVariant: ['tabular-nums'] as unknown as string },
 } as const;
 
 export const Shadows = {
