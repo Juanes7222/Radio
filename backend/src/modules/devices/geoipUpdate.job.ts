@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
-import { isDatabaseStale, updateGeoIpDatabase } from "./geoipUpdate.service";
+import { isDatabaseStale, updateDbIpDatabase, updateGeoIpDatabase } from "./geoipUpdate.service";
 
 /**
  * Registra el cron de actualización de MaxMind GeoLite2-City.
@@ -41,12 +41,8 @@ export function registerGeoIpUpdateJob(): void {
     async () => {
       try {
         logger.info("GeoIPUpdate", "Scheduled update starting");
-        const result = await updateGeoIpDatabase();
-        if (result.updated) {
-          logger.info("GeoIPUpdate", "Scheduled update completed");
-        } else {
-          logger.info("GeoIPUpdate", "Scheduled update skipped", { reason: result.reason });
-        }
+        const [mmResult, dbipResult] = await Promise.all([updateGeoIpDatabase(), updateDbIpDatabase()]);
+        logger.info("GeoIPUpdate", "Scheduled update completed", { mmResult, dbipResult });
       } catch (err) {
         logger.error("GeoIPUpdate", "Scheduled update failed", {
           error: err instanceof Error ? err.message : String(err),
@@ -56,10 +52,11 @@ export function registerGeoIpUpdateJob(): void {
     { timezone: config.locutor.timezone }
   );
 
-  logger.info("GeoIPUpdate", "Job scheduled", {
+  logger.info("GeoIPUpdate", "Job scheduled (GeoLite + DB-IP)", {
     cron: schedule,
     timezone: config.locutor.timezone,
     mmdbPath: config.geoip.mmdbPath,
+    dbipPath: config.geoip.dbipPath,
   });
 
   // Update on startup if file missing or stale.
@@ -68,12 +65,12 @@ export function registerGeoIpUpdateJob(): void {
       try {
         const stale = await isDatabaseStale();
         if (!stale) {
-          logger.info("GeoIPUpdate", "Database fresh, skipping startup update");
+          logger.info("GeoIPUpdate", "Databases fresh, skipping startup update");
           return;
         }
         logger.info("GeoIPUpdate", "Database stale or missing, running startup update");
-        const result = await updateGeoIpDatabase();
-        logger.info("GeoIPUpdate", "Startup update result", { updated: result.updated, reason: result.reason });
+        const [mmResult, dbipResult] = await Promise.all([updateGeoIpDatabase(), updateDbIpDatabase()]);
+        logger.info("GeoIPUpdate", "Startup update result", { mmResult, dbipResult });
       } catch (err) {
         logger.warn("GeoIPUpdate", "Startup update failed (will retry on schedule)", {
           error: err instanceof Error ? err.message : String(err),

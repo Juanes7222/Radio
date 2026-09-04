@@ -135,15 +135,67 @@ export async function updateGeoIpDatabase(): Promise<{ updated: boolean; reason?
 }
 
 /**
+ * Descarga DB-IP City Lite (gratuita, sin key) a GEOIP_DBIP_PATH.
+ * La URL oficial free cambia cada mes (dbip-city-lite-YYYY-MM.mmdb.gz) y
+ * https://download.db-ip.com/free/dbip-city-lite-latest.mmdb.gz da 404.
+ * Usamos el mirror estable de WP-Statistics/jsDelivr que se actualiza el día 1:
+ * https://cdn.jsdelivr.net/npm/dbip-city-lite/dbip-city-lite.mmdb.gz
+ */
+export async function updateDbIpDatabase(): Promise<{ updated: boolean; reason?: string }> {
+  const dbipPath = config.geoip.dbipPath?.trim();
+  if (!dbipPath) return { updated: false, reason: "GEOIP_DBIP_PATH empty" };
+
+  const url = "https://cdn.jsdelivr.net/npm/dbip-city-lite/dbip-city-lite.mmdb.gz";
+  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "dbip-"));
+  const tmpGz = path.join(tmpDir, "dbip.mmdb.gz");
+  const tmpMmdb = path.join(tmpDir, "dbip.mmdb");
+
+  try {
+    logger.info("GeoIPUpdate", "Downloading DB-IP database", { url });
+    const response = await axios.get(url, {
+      responseType: "stream",
+      timeout: 60_000,
+      maxRedirects: 5,
+      validateStatus: (s) => s >= 200 && s < 300,
+      headers: { "User-Agent": "Radio-GeoIP-Updater/1.0" },
+    });
+    await pipeline(response.data as NodeJS.ReadableStream, fs.createWriteStream(tmpGz));
+
+    const { createGunzip } = await import("zlib");
+    await pipeline(fs.createReadStream(tmpGz), createGunzip(), fs.createWriteStream(tmpMmdb));
+
+    await fs.promises.mkdir(path.dirname(dbipPath), { recursive: true });
+    const tmpTarget = `${dbipPath}.tmp`;
+    await fs.promises.copyFile(tmpMmdb, tmpTarget);
+    await fs.promises.rename(tmpTarget, dbipPath);
+
+    logger.info("GeoIPUpdate", "DB-IP database updated", { dbipPath });
+    await reloadMaxmindReader();
+    return { updated: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn("GeoIPUpdate", "DB-IP update failed (opcional)", { error: message });
+    return { updated: false, reason: message };
+  } finally {
+    await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/**
  * Checks if the mmdb file is missing or older than maxAgeMs.
  */
 export async function isDatabaseStale(maxAgeMs = 7 * 24 * 60 * 60 * 1000): Promise<boolean> {
   const mmdbPath = config.geoip.mmdbPath?.trim();
-  if (!mmdbPath) return true;
-  try {
-    const stat = await fs.promises.stat(mmdbPath);
-    return Date.now() - stat.mtimeMs > maxAgeMs;
-  } catch {
-    return true;
+  const dbipPath = config.geoip.dbipPath?.trim();
+  const paths = [mmdbPath, dbipPath].filter(Boolean) as string[];
+  if (paths.length === 0) return true;
+  for (const p of paths) {
+    try {
+      const stat = await fs.promises.stat(p);
+      if (Date.now() - stat.mtimeMs > maxAgeMs) return true;
+    } catch {
+      return true;
+    }
   }
+  return false;
 }

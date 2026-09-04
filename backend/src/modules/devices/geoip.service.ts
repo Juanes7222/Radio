@@ -7,7 +7,7 @@ import { logger } from "../../shared/logger/logger";
 
 const ZONE_MAX_LENGTH = 80;
 
-export type GeoIpSource = "MAXMIND" | "IPWHOIS" | "IPAPI_CO" | "CF" | "MANUAL" | "LEGACY_IPAPI";
+export type GeoIpSource = "MAXMIND" | "DBIP" | "IPWHOIS" | "IPAPI_CO" | "CF" | "MANUAL" | "LEGACY_IPAPI";
 
 export interface GeoIpResult {
   city: string;
@@ -35,44 +35,58 @@ type MaxmindCityResponse = {
 
 let maxmindReader: { get(ip: string): MaxmindCityResponse | null } | null = null;
 let maxmindTried = false;
+let dbipReader: { get(ip: string): MaxmindCityResponse | null } | null = null;
+let dbipTried = false;
 
-async function getMaxmindReader(): Promise<typeof maxmindReader> {
-  if (maxmindTried) return maxmindReader;
-  maxmindTried = true;
-  const mmdbPath = config.geoip.mmdbPath?.trim();
-  if (!mmdbPath) return null;
-  if (!fs.existsSync(mmdbPath)) {
-    logger.warn("GeoIP", "MaxMind mmdb not found, skipping local lookup", { mmdbPath });
+async function openMmdb(mmdbPath: string, label: string): Promise<{ get(ip: string): MaxmindCityResponse | null } | null> {
+  if (!mmdbPath || !fs.existsSync(mmdbPath)) {
+    if (mmdbPath) logger.warn("GeoIP", `${label} mmdb not found, skipping`, { mmdbPath });
     return null;
   }
   try {
-    // Dynamic import so the dependency is optional until a mmdb is configured.
-    // @ts-ignore - maxmind is an optional peer dependency, installed via pnpm add maxmind
+    // @ts-ignore - maxmind is optional, lee tanto MaxMind como DB-IP (ambos .mmdb)
     const maxmind = await import("maxmind");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const open = (maxmind as unknown as { open: (path: string) => Promise<any> }).open;
     if (typeof open !== "function") throw new Error("maxmind.open not found");
-    maxmindReader = await open(mmdbPath);
-    logger.info("GeoIP", "MaxMind mmdb loaded", { mmdbPath });
+    const reader = await open(mmdbPath);
+    logger.info("GeoIP", `${label} mmdb loaded`, { mmdbPath });
+    return reader;
   } catch (err) {
-    logger.warn("GeoIP", "Failed to load MaxMind mmdb", {
+    logger.warn("GeoIP", `Failed to load ${label} mmdb`, {
+      mmdbPath,
       error: err instanceof Error ? err.message : String(err),
     });
-    maxmindReader = null;
+    return null;
   }
+}
+
+async function getMaxmindReader(): Promise<typeof maxmindReader> {
+  if (maxmindTried) return maxmindReader;
+  maxmindTried = true;
+  maxmindReader = await openMmdb(config.geoip.mmdbPath?.trim() ?? "", "MaxMind");
   return maxmindReader;
 }
 
+async function getDbIpReader(): Promise<typeof dbipReader> {
+  if (dbipTried) return dbipReader;
+  dbipTried = true;
+  dbipReader = await openMmdb(config.geoip.dbipPath?.trim() ?? "", "DB-IP");
+  return dbipReader;
+}
+
 /**
- * Forces reload of the MaxMind reader (used after DB auto-update).
+ * Forces reload of the MaxMind/DB-IP readers (used after DB auto-update).
  * Clears cache so next lookup uses fresh data.
  */
 export async function reloadMaxmindReader(): Promise<void> {
   maxmindTried = false;
   maxmindReader = null;
+  dbipTried = false;
+  dbipReader = null;
   cache.clear();
-  await getMaxmindReader();
-  logger.info("GeoIP", "MaxMind reader reloaded after update");
+  await Promise.all([getMaxmindReader(), getDbIpReader()]);
+  logger.info("GeoIP", "MaxMind/DB-IP readers reloaded after update");
 }
 
 function normalizeIp(ip: string): string {
@@ -151,22 +165,32 @@ export function getTrustedProxyCity(req: Request): string | null {
   return city;
 }
 
-// --- Providers (sequential, validated) ---
+// --- Providers ( AzuraCast: GeoLite + DB-IP + APIs ) ---
+
+function parseMmdbResult(data: MaxmindCityResponse | null, source: GeoIpSource): GeoIpResult | null {
+  if (!data) return null;
+  const city = sanitizeZone(data.city?.names?.es) || sanitizeZone(data.city?.names?.en) || null;
+  if (!city) return null;
+  const region = sanitizeZone(data.subdivisions?.[0]?.names?.es) || sanitizeZone(data.subdivisions?.[0]?.names?.en) || null;
+  const country = data.country?.iso_code?.trim().toUpperCase() || null;
+  return { city, region, country, source };
+}
 
 async function fetchFromMaxmind(ip: string): Promise<GeoIpResult | null> {
   const reader = await getMaxmindReader();
   if (!reader) return null;
   try {
-    const data = reader.get(ip);
-    if (!data) return null;
-    const city =
-      sanitizeZone(data.city?.names?.es) ||
-      sanitizeZone(data.city?.names?.en) ||
-      null;
-    if (!city) return null;
-    const region = sanitizeZone(data.subdivisions?.[0]?.names?.es) || sanitizeZone(data.subdivisions?.[0]?.names?.en) || null;
-    const country = data.country?.iso_code?.trim().toUpperCase() || null;
-    return { city, region, country, source: "MAXMIND" };
+    return parseMmdbResult(reader.get(ip), "MAXMIND");
+  } catch {
+    return null;
+  }
+}
+
+async function fetchFromDbIp(ip: string): Promise<GeoIpResult | null> {
+  const reader = await getDbIpReader();
+  if (!reader) return null;
+  try {
+    return parseMmdbResult(reader.get(ip), "DBIP");
   } catch {
     return null;
   }
@@ -252,13 +276,44 @@ function isValidResult(result: GeoIpResult | null): result is GeoIpResult {
   return result !== null && typeof result.city === "string" && result.city.length > 0;
 }
 
+function pickBestResult(candidates: GeoIpResult[]): GeoIpResult | null {
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  // Para Colombia (caso principal de la app), si algún proveedor dice CO y otro
+  // dice otro país (ej: Mumbai/IN), descartamos los no-CO como outliers de
+  // bases desactualizadas. Esto corrige el caso que reportas: Mumbai vs Cartago.
+  const coCandidates = candidates.filter((c) => c.country === "CO");
+  const pool = coCandidates.length > 0 ? coCandidates : candidates;
+
+  // Votación por ciudad normalizada
+  const cityCounts = new Map<string, number>();
+  for (const c of pool) {
+    const key = c.city.toLowerCase();
+    cityCounts.set(key, (cityCounts.get(key) ?? 0) + 1);
+  }
+  const maxVotes = Math.max(...cityCounts.values());
+  const winners = pool.filter((c) => (cityCounts.get(c.city.toLowerCase()) ?? 0) === maxVotes);
+
+  if (winners.length === 1) return winners[0];
+
+  // Empate: AzuraCast usa DB-IP y GeoLite; en CO DB-IP suele acertar más
+  // que GeoLite free (que da Chia/San José para el pool de Bogotá).
+  const priority: GeoIpSource[] = ["DBIP", "IPWHOIS", "MAXMIND", "IPAPI_CO", "LEGACY_IPAPI"];
+  for (const src of priority) {
+    const found = winners.find((c) => c.source === src);
+    if (found) return found;
+  }
+  return winners[0];
+}
+
 /**
  * Resolves a public IP to a structured GeoIP result (city, region, country,
- * source). Providers are consulted sequentially with validation:
- *   1. MaxMind local mmdb (if configured)
- *   2. ipwho.is
- *   3. ipapi.co
- *   4. legacy ip-api.com (only if endpoint is custom)
+ * source). Los proveedores se consultan en paralelo y se vota:
+ *   - MaxMind local (si hay mmdb), ipwho.is, ipapi.co (y legacy si está configurado)
+ *   - Se descarta el primer válido si es outlier (ej: Mumbai/IN vs 2× CO)
+ *   - Esto corrige el secuencial anterior que se quedaba con Chia/San José/Mumbai
+ *     aunque los otros proveedores dijeran Valle del Cauca.
  *
  * Failures are cached with a short TTL so a provider outage does not turn
  * every registration into outbound calls. Successful lookups are cached with
@@ -274,48 +329,55 @@ export async function resolveZoneDetails(ip: string): Promise<GeoIpResult | null
   const cached = cache.get(normalized);
   if (cached && cached.expiresAt > now) return cached.result;
 
-  const providers: Array<() => Promise<GeoIpResult | null>> = [
+  const providerFns: Array<() => Promise<GeoIpResult | null>> = [
+    () => fetchFromDbIp(normalized),
     () => fetchFromMaxmind(normalized),
     () => fetchFromIpWhoIs(normalized),
     () => fetchFromIpApiCo(normalized),
   ];
-
-  // Only add legacy provider if endpoint was customized (not the default ip-api.com)
-  // to avoid an extra HTTP call when the operator has not opted in.
   if (config.geoip.endpoint && !config.geoip.endpoint.includes("ip-api.com")) {
-    providers.push(() => fetchFromLegacyIpApi(normalized));
+    providerFns.push(() => fetchFromLegacyIpApi(normalized));
   }
 
-  let result: GeoIpResult | null = null;
-  for (const provider of providers) {
-    try {
-      const candidate = await provider();
-      if (isValidResult(candidate)) {
-        result = candidate;
-        break;
-      }
-    } catch (err) {
+  const settled = await Promise.allSettled(providerFns.map((fn) => fn()));
+  const candidates: GeoIpResult[] = [];
+  const rawForLog: Array<{ source: string; city: string | null; region: string | null; country: string | null; error?: string }> = [];
+
+  settled.forEach((r, idx) => {
+    const src = ["DBIP", "MAXMIND", "IPWHOIS", "IPAPI_CO", "LEGACY_IPAPI"][idx] ?? `P${idx}`;
+    if (r.status === "fulfilled" && isValidResult(r.value)) {
+      candidates.push(r.value);
+      rawForLog.push({ source: r.value.source, city: r.value.city, region: r.value.region, country: r.value.country });
+    } else if (r.status === "fulfilled") {
+      rawForLog.push({ source: src, city: null, region: null, country: null });
+    } else {
+      rawForLog.push({ source: src, city: null, region: null, country: null, error: String(r.reason) });
       logger.warn("GeoIP", "Provider lookup failed", {
-        error: err instanceof Error ? err.message : String(err),
+        source: src,
+        error: r.reason instanceof Error ? r.reason.message : String(r.reason),
       });
-      // Continue to next provider instead of failing fast.
     }
-  }
+  });
 
-  // Diagnostic log without raw IP (privacy: IP is not persisted nor logged verbatim).
+  const result = pickBestResult(candidates);
+
+  // Log diagnóstico sin IP cruda: permite medir por qué GeoLite decía
+  // Chia/San José/Mumbai mientras AzuraCast decía Cartago.
   if (result) {
     logger.info("GeoIP", "Zone resolved", {
       city: result.city,
       region: result.region,
       country: result.country,
       source: result.source,
+      candidates: rawForLog,
+      picked: result.source,
     });
     cache.set(normalized, {
       result,
       expiresAt: now + config.geoip.cacheTtlSeconds * 1000,
     });
   } else {
-    logger.warn("GeoIP", "Zone lookup returned no result", {});
+    logger.warn("GeoIP", "Zone lookup returned no result", { candidates: rawForLog });
     cache.set(normalized, {
       result: null,
       expiresAt: now + config.geoip.failureTtlSeconds * 1000,
@@ -355,4 +417,6 @@ export function __clearGeoIpCache(): void {
 export function __resetMaxmindForTests(): void {
   maxmindReader = null;
   maxmindTried = false;
+  dbipReader = null;
+  dbipTried = false;
 }

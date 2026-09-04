@@ -5,10 +5,13 @@ export const geoipConfig = {
   // Set GEOIP_ENABLED=false to keep zones fully manual.
   enabled: boolEnvOr("GEOIP_ENABLED", true),
 
-  // Local MaxMind database. When the file exists it is used as primary source.
-  // Download GeoLite2-City.mmdb from MaxMind (requires free account) and set
-  // GEOIP_MMDB_PATH to its path relative to the backend working directory
-  mmdbPath: envOr("GEOIP_MMDB_PATH", ""),
+  // Local databases. AzuraCast soporta ambos (ver App\Service\IpGeolocator):
+  // - GeoLite2-City.mmdb (MaxMind, cuenta requerida, mar/vie) -> GEOIP_MMDB_PATH
+  // - dbip-city-lite.mmdb (DB-IP, sin key, mensual) -> GEOIP_DBIP_PATH
+  // Cuando existen se consultan en paralelo. Rutas relativas al cwd del backend
+  // (pm2 cwd: /var/www/radio/backend, ej: storage/geoip/GeoLite2-City.mmdb).
+  mmdbPath: envOr("GEOIP_MMDB_PATH", "storage/geoip/GeoLite2-City.mmdb"),
+  dbipPath: envOr("GEOIP_DBIP_PATH", "storage/geoip/dbip-city-lite.mmdb"),
 
   // MaxMind auto-update. Requires a MaxMind account and license key.
   // When enabled the scheduler downloads GeoLite2-City twice a week.
