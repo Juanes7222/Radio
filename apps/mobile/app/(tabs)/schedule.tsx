@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable, RefreshControl, LayoutAnimation, UIManager, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
+import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, Easing } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { fetchSchedule, fetchScheduleCategories, mergeConsecutiveScheduleItems } from '@radio/api';
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
@@ -21,11 +23,6 @@ const OVERLAY = 'rgba(0,0,0,0.64)';
 const MODAL_BORDER = Colors.borderGlass;
 
 const NEUTRAL_ACCENT = { dot: Colors.textFaint, glow: 'rgba(248,247,255,0.12)' };
-
-// Enable LayoutAnimation on Android for smooth section collapse/expand.
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   music: 'musical-notes',
@@ -66,10 +63,14 @@ type ViewMode = 'categories' | 'chronological';
 /* ------------------------------------------------------------------ */
 
 function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewMode) => void }) {
+  const handleChange = (next: ViewMode) => {
+    if (next !== mode) Haptics.selectionAsync().catch(() => {});
+    onChange(next);
+  };
   return (
     <View style={styles.viewToggle}>
       <TouchableOpacity
-        onPress={() => onChange('categories')}
+        onPress={() => handleChange('categories')}
         activeOpacity={0.8}
         style={[styles.viewToggleSegment, mode === 'categories' && styles.viewToggleSegmentActive]}
       >
@@ -83,7 +84,7 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewM
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
-        onPress={() => onChange('chronological')}
+        onPress={() => handleChange('chronological')}
         activeOpacity={0.8}
         style={[styles.viewToggleSegment, mode === 'chronological' && styles.viewToggleSegmentActive]}
       >
@@ -197,10 +198,12 @@ function ProgramRow({
   program,
   accent,
   onPress,
+  index = 0,
 }: {
   program: ScheduleItem;
   accent: { dot: string; glow: string };
   onPress: () => void;
+  index?: number;
 }) {
   const startTime = formatScheduleTime(program.start_timestamp);
   const endTime = formatScheduleTime(program.end_timestamp);
@@ -208,28 +211,36 @@ function ProgramRow({
   const isNow = program.is_now;
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.8}
-      style={[styles.rowCard, isNow && styles.rowCardNow]}
+    <Animated.View
+      entering={FadeInDown.delay(Math.min(index * 32, 160)).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+      layout={LinearTransition.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
     >
-      <View style={[styles.rowDot, { backgroundColor: accent.dot }]} />
-      <View style={styles.rowInfo}>
-        <Text style={styles.rowTitle} numberOfLines={1}>{program.title}</Text>
-        <Text style={styles.rowTime}>
-          {startTime} → {endTime}
-          {program.slots && program.slots > 1 ? ` · ${program.slots} bloques` : ''}
-        </Text>
-      </View>
-      {isLive && (
-        <View style={[styles.liveBadge, { backgroundColor: accent.glow }]}>
-          <View style={[styles.liveBadgeDot, { backgroundColor: accent.dot }]} />
-          <Text style={[styles.liveBadgeText, { color: accent.dot }]}>
-            {isNow ? 'AHORA' : 'EN VIVO'}
+      <TouchableOpacity
+        onPress={() => {
+          Haptics.selectionAsync().catch(() => {});
+          onPress();
+        }}
+        activeOpacity={0.8}
+        style={[styles.rowCard, isNow && styles.rowCardNow]}
+      >
+        <View style={[styles.rowDot, { backgroundColor: accent.dot }]} />
+        <View style={styles.rowInfo}>
+          <Text style={styles.rowTitle} numberOfLines={1}>{program.title}</Text>
+          <Text style={styles.rowTime}>
+            {startTime} → {endTime}
+            {program.slots && program.slots > 1 ? ` · ${program.slots} bloques` : ''}
           </Text>
         </View>
-      )}
-    </TouchableOpacity>
+        {isLive && (
+          <View style={[styles.liveBadge, { backgroundColor: accent.glow }]}>
+            <View style={[styles.liveBadgeDot, { backgroundColor: accent.dot }]} />
+            <Text style={[styles.liveBadgeText, { color: accent.dot }]}>
+              {isNow ? 'AHORA' : 'EN VIVO'}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -247,8 +258,8 @@ function ScheduleSectionView({
   const accent = getAccent(section.category);
 
   return (
-    <View style={styles.section}>
-      <TouchableOpacity onPress={onToggle} activeOpacity={0.8} style={styles.sectionHeader}>
+    <Animated.View layout={LinearTransition.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))} style={styles.section}>
+      <TouchableOpacity onPress={() => { Haptics.selectionAsync().catch(() => {}); onToggle(); }} activeOpacity={0.8} style={styles.sectionHeader}>
         <View style={[styles.sectionIcon, { backgroundColor: accent.glow }]}>
           <Ionicons name={getCategoryIcon(section.category)} size={16} color={accent.dot} />
         </View>
@@ -261,26 +272,33 @@ function ScheduleSectionView({
           </Text>
         </View>
         <View style={[styles.sectionLine, { backgroundColor: accent.dot }]} />
-        <Ionicons
-          name={collapsed ? 'chevron-down' : 'chevron-up'}
-          size={16}
-          color={TEXT_MUTED}
-        />
+        <Animated.View style={{ transform: [{ rotate: collapsed ? '0deg' : '180deg' }] }}>
+          <Ionicons
+            name="chevron-down"
+            size={16}
+            color={TEXT_MUTED}
+          />
+        </Animated.View>
       </TouchableOpacity>
 
       {!collapsed && (
-        <View style={styles.sectionRows}>
-          {section.items.map((program) => (
+        <Animated.View
+          entering={FadeIn.duration(220).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          exiting={FadeOut.duration(180).easing(Easing.bezier(0.4, 0, 1, 1))}
+          style={styles.sectionRows}
+        >
+          {section.items.map((program, idx) => (
             <ProgramRow
               key={`${program.id}-${program.start_timestamp}`}
               program={program}
               accent={accent}
+              index={idx}
               onPress={() => onSelect(program)}
             />
           ))}
-        </View>
+        </Animated.View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -292,10 +310,12 @@ function TimelineRow({
   program,
   isLast,
   onPress,
+  index = 0,
 }: {
   program: ScheduleItem;
   isLast: boolean;
   onPress: () => void;
+  index?: number;
 }) {
   const accent = getAccent(program.category);
   const startTime = formatScheduleTime(program.start_timestamp);
@@ -304,7 +324,11 @@ function TimelineRow({
   const isNow = program.is_now;
 
   return (
-    <View style={styles.timelineRow}>
+    <Animated.View
+      entering={FadeInDown.delay(Math.min(index * 28, 140)).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+      layout={LinearTransition.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+      style={styles.timelineRow}
+    >
       <Text style={[styles.timelineTime, isNow && styles.timelineTimeNow]}>{startTime}</Text>
 
       <View style={styles.timelineRail}>
@@ -313,7 +337,7 @@ function TimelineRow({
       </View>
 
       <TouchableOpacity
-        onPress={onPress}
+        onPress={() => { Haptics.selectionAsync().catch(() => {}); onPress(); }}
         activeOpacity={0.8}
         style={[styles.timelineCard, isNow && styles.timelineCardNow]}
       >
@@ -341,7 +365,7 @@ function TimelineRow({
           </Text>
         </View>
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -502,7 +526,7 @@ export default function ScheduleScreen() {
     sectionKeys.length > 0 && sectionKeys.every((key) => collapsedCategories.has(key));
 
   const toggleCategoryCollapse = useCallback((key: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    Haptics.selectionAsync().catch(() => {});
     setCollapsedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
@@ -515,7 +539,7 @@ export default function ScheduleScreen() {
   }, []);
 
   const handleToggleAllSections = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    Haptics.selectionAsync().catch(() => {});
     setCollapsedCategories(allSectionsCollapsed ? new Set() : new Set(sectionKeys));
   };
 
@@ -558,16 +582,17 @@ export default function ScheduleScreen() {
 
     if (viewMode === 'chronological') {
       return (
-        <View>
+        <Animated.View layout={LinearTransition.duration(260)}>
           {dayPrograms.map((program, index) => (
             <TimelineRow
               key={`${program.id}-${program.start_timestamp}`}
               program={program}
               isLast={index === dayPrograms.length - 1}
+              index={index}
               onPress={() => setSelectedProgram(program)}
             />
           ))}
-        </View>
+        </Animated.View>
       );
     }
 
@@ -622,24 +647,33 @@ export default function ScheduleScreen() {
           contentContainerStyle={styles.daysContainer}
         >
           {DAYS.map((day, i) => (
-            <TouchableOpacity
+            <Animated.View
               key={day}
-              onPress={() => setSelectedDay(i)}
-              style={[
-                styles.dayPill,
-                selectedDay === i && styles.dayPillSelected,
-              ]}
+              entering={FadeInDown.delay(Math.min(i * 28, 160)).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+              layout={LinearTransition.duration(200)}
             >
-              <Text style={[
-                styles.dayText,
-                selectedDay === i && styles.dayTextSelected,
-              ]}>
-                {day}
-              </Text>
-              {currentDay === i && (
-                <View style={styles.todayIndicator} />
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  if (selectedDay !== i) Haptics.selectionAsync().catch(() => {});
+                  setSelectedDay(i);
+                }}
+                activeOpacity={0.8}
+                style={[
+                  styles.dayPill,
+                  selectedDay === i && styles.dayPillSelected,
+                ]}
+              >
+                <Text style={[
+                  styles.dayText,
+                  selectedDay === i && styles.dayTextSelected,
+                ]}>
+                  {day}
+                </Text>
+                {currentDay === i && (
+                  <View style={styles.todayIndicator} />
+                )}
+              </TouchableOpacity>
+            </Animated.View>
           ))}
         </ScrollView>
 

@@ -1,8 +1,20 @@
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withSequence,
+  Easing,
+} from 'react-native-reanimated';
+import { useEffect } from 'react';
 import { Colors, Radii, Shadows } from '@/constants/theme';
 import { scale } from '@/lib/responsive';
+import { Spring } from '@/constants/motion';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface PlayerControlsProps {
   isPlaying: boolean;
@@ -21,8 +33,28 @@ export function PlayerControls({
   onToggleFavorite,
   onShare,
 }: PlayerControlsProps) {
+  const favScale = useSharedValue(1);
+  const favPressed = useSharedValue(0);
+  const playPressed = useSharedValue(0);
+  const sharePressed = useSharedValue(0);
+
+  useEffect(() => {
+    if (isFavorite) {
+      favScale.value = withSequence(
+        withSpring(1.32, Spring.bouncy),
+        withSpring(1, Spring.gentle)
+      );
+    }
+  }, [isFavorite, favScale]);
+
   const handleFavorite = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    // micro burst even when unfaving
+    // eslint-disable-next-line react-hooks/immutability
+    favScale.value = withSequence(
+      withTiming(0.92, { duration: 90, easing: Easing.out(Easing.ease) }),
+      withSpring(1, Spring.snappy)
+    );
     onToggleFavorite();
   };
   const handlePlay = () => {
@@ -36,11 +68,29 @@ export function PlayerControls({
     onShare();
   };
 
+  const favStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: favScale.value * (1 - favPressed.value * 0.06) },
+    ],
+    opacity: 1 - favPressed.value * 0.08,
+  }));
+
+  const playStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - playPressed.value * 0.06 }],
+  }));
+
+  const shareStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - sharePressed.value * 0.06 }],
+    opacity: 1 - sharePressed.value * 0.08,
+  }));
+
   return (
     <View style={styles.row}>
-      <Pressable
+      <AnimatedPressable
         onPress={handleFavorite}
-        style={({ pressed }) => [styles.sideButton, pressed && styles.pressed]}
+        onPressIn={() => { favPressed.value = withTiming(1, { duration: 110 }); }}
+        onPressOut={() => { favPressed.value = withTiming(0, { duration: 160, easing: Easing.out(Easing.ease) }); }}
+        style={[styles.sideButton, favStyle]}
         accessibilityLabel={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
         hitSlop={8}
       >
@@ -49,11 +99,13 @@ export function PlayerControls({
           size={scale(22)}
           color={isFavorite ? Colors.tally : Colors.textMuted}
         />
-      </Pressable>
+      </AnimatedPressable>
 
-      <Pressable
+      <AnimatedPressable
         onPress={handlePlay}
-        style={({ pressed }) => [styles.playButton, pressed && styles.playButtonPressed]}
+        onPressIn={() => { playPressed.value = withTiming(1, { duration: 110 }); }}
+        onPressOut={() => { playPressed.value = withTiming(0, { duration: 160, easing: Easing.out(Easing.ease) }); }}
+        style={[styles.playButton, playStyle]}
         accessibilityLabel={isPlaying ? 'Pausar' : 'Reproducir'}
         accessibilityRole="button"
         hitSlop={8}
@@ -68,16 +120,18 @@ export function PlayerControls({
             style={!isPlaying ? { marginLeft: scale(3) } : undefined}
           />
         )}
-      </Pressable>
+      </AnimatedPressable>
 
-      <Pressable
+      <AnimatedPressable
         onPress={handleShare}
-        style={({ pressed }) => [styles.sideButton, pressed && styles.pressed]}
+        onPressIn={() => { sharePressed.value = withTiming(1, { duration: 110 }); }}
+        onPressOut={() => { sharePressed.value = withTiming(0, { duration: 160, easing: Easing.out(Easing.ease) }); }}
+        style={[styles.sideButton, shareStyle]}
         accessibilityLabel="Compartir"
         hitSlop={8}
       >
         <Ionicons name="share-outline" size={scale(22)} color={Colors.textMuted} />
-      </Pressable>
+      </AnimatedPressable>
     </View>
   );
 }
@@ -99,10 +153,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderGlass,
   },
-  pressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.94 }],
-  },
   playButton: {
     width: scale(76),
     height: scale(76),
@@ -111,9 +161,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadows.signal,
-  },
-  playButtonPressed: {
-    transform: [{ scale: 0.94 }],
-    shadowOpacity: 0.25,
   },
 });

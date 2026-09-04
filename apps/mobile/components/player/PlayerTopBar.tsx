@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated';
 import { LiveBadge } from '@/components/LiveBadge';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 
@@ -41,10 +42,14 @@ export function PlayerTopBar({
         </TouchableOpacity>
 
         {showTooltip && (
-          <View style={styles.tooltipContainer}>
+          <Animated.View
+            entering={FadeIn.duration(180).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+            exiting={FadeOut.duration(120)}
+            style={styles.tooltipContainer}
+          >
             <View style={styles.tooltipArrow} />
             <Text style={styles.tooltipText}>Configúralo aquí cuando desees</Text>
-          </View>
+          </Animated.View>
         )}
       </View>
 

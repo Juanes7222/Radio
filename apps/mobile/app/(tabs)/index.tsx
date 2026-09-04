@@ -15,6 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeIn, FadeInDown, Easing } from 'react-native-reanimated';
 import { DialVivo } from '@/components/player/DialVivo';
 import { PlayerControls } from '@/components/PlayerControls';
 import { SleepTimerModal } from '@/components/SleepTimerModal';
@@ -254,20 +255,29 @@ export default function PlayerScreen() {
           colors={[Colors.ink, Colors.inkSoft, Colors.ink]}
           style={StyleSheet.absoluteFill}
         />
-        <View style={styles.loadingHalo} />
+        <Animated.View
+          entering={FadeIn.duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          style={styles.loadingHalo}
+        />
         <ActivityIndicator size="large" color={Colors.signal} />
         <Text style={styles.loadingText}>Conectando con la emisora…</Text>
-        <View style={styles.skeletonRow}>
+        <Animated.View
+          entering={FadeInDown.delay(120).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          style={styles.skeletonRow}
+        >
           <View style={styles.skeletonLine} />
           <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
-        </View>
+        </Animated.View>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.center}>
+      <Animated.View
+        entering={FadeIn.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+        style={styles.center}
+      >
         <LinearGradient
           colors={[Colors.ink, Colors.inkSoft, Colors.ink]}
           style={StyleSheet.absoluteFill}
@@ -277,7 +287,7 @@ export default function PlayerScreen() {
         </View>
         <Text style={styles.errorText}>{error}</Text>
         <Text style={styles.errorHint}>Reintentamos automáticamente cuando vuelva la señal</Text>
-      </View>
+      </Animated.View>
     );
   }
 
@@ -294,7 +304,10 @@ export default function PlayerScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.topSection, { paddingTop: insets.top + Spacing.sm }]}>
+        <Animated.View
+          entering={FadeInDown.duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          style={[styles.topSection, { paddingTop: insets.top + Spacing.sm }]}
+        >
           <ConnectionBanner reconnectAttempt={reconnectAttempt} error={audioError} />
 
           <PlayerTopBar
@@ -311,48 +324,51 @@ export default function PlayerScreen() {
             onOpenAlarm={() => setShowAlarmMenu(true)}
           />
 
-          {/* Recordatorios deshabilitados temporalmente - componente conservado en components/player/ReminderBanner.tsx
-          {showReminder && (
-            <ReminderBanner
-              onDismiss={handleDismissReminder}
-              onDismissForever={dismissReminderForever}
-              onConfigure={() => {
-                dismissReminder();
-                setShowNotifyMenu(true);
-              }}
-            />
-          )} */}
-
-          <Image
-            source={LOGO}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-
-          <TouchableOpacity
-            style={styles.bibleButton}
-            onPress={() => {
-              setBibleOpened(true);
-              setShowBible(true);
-            }}
-            activeOpacity={0.8}
+          <Animated.View
+            entering={FadeInDown.delay(60).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}
           >
-            <Ionicons name="book" size={18} color="#fff" />
-            <Text style={styles.bibleButtonText}>Biblia</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.centerSection}>
-          {liveUrl ? (
-            <FacebookLivePlayer liveUrl={liveUrl} />
-          ) : (
-            <DialVivo
-              artworkUri={artworkUri}
-              isPlaying={(isPlaying || isBuffering) && isFocused}
-              isPreaching={isPreaching}
-              size={VINYL_SIZE}
+            <Image
+              source={LOGO}
+              style={styles.logo}
+              resizeMode="contain"
             />
-          )}
+          </Animated.View>
+
+          <Animated.View
+            entering={FadeInDown.delay(110).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          >
+            <TouchableOpacity
+              style={styles.bibleButton}
+              onPress={() => {
+                setBibleOpened(true);
+                setShowBible(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="book" size={18} color="#fff" />
+              <Text style={styles.bibleButtonText}>Biblia</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(160).duration(340).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          style={styles.centerSection}
+        >
+          <Animated.View
+            entering={FadeIn.duration(380).delay(180).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          >
+            {liveUrl ? (
+              <FacebookLivePlayer liveUrl={liveUrl} />
+            ) : (
+              <DialVivo
+                artworkUri={artworkUri}
+                isPlaying={(isPlaying || isBuffering) && isFocused}
+                isPreaching={isPreaching}
+                size={VINYL_SIZE}
+              />
+            )}
+          </Animated.View>
 
           <NowPlayingInfo title={title} artist={artist} isPreaching={isPreaching} />
 
@@ -361,10 +377,13 @@ export default function PlayerScreen() {
           )}
 
           {data?.playing_next && <NextUpCard song={data.playing_next.song} active={isFocused} />}
-        </View>
+        </Animated.View>
       </ScrollView>
 
-      <View style={[styles.bottomSection, { paddingBottom: insets.bottom + BOTTOM_CONTROLS_PADDING }]}>
+      <Animated.View
+        entering={FadeInDown.delay(220).duration(320).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+        style={[styles.bottomSection, { paddingBottom: insets.bottom + BOTTOM_CONTROLS_PADDING }]}
+      >
         <PlayerControls
           isPlaying={isPlaying}
           isBuffering={isBuffering}
@@ -373,7 +392,7 @@ export default function PlayerScreen() {
           onToggleFavorite={toggleFavorite}
           onShare={handleShare}
         />
-      </View>
+      </Animated.View>
 
       <SleepTimerModal
         visible={showSleepMenu}

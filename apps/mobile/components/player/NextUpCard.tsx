@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TextTicker from 'react-native-text-ticker';
+import Animated, { FadeInDown, FadeOut, Easing } from 'react-native-reanimated';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { formatMediaTitle } from '@/lib/formatMedia';
 
@@ -14,7 +15,11 @@ export function NextUpCard({ song, active = true }: NextUpCardProps) {
   const { artist, title } = formatMediaTitle(song.title, song.artist);
 
   return (
-    <View style={styles.nextCard}>
+    <Animated.View
+      entering={FadeInDown.delay(120).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+      exiting={FadeOut.duration(180)}
+      style={styles.nextCard}
+    >
       <Ionicons name="play-skip-forward" size={13} color={Colors.accent} />
       <Text style={styles.nextLabel}>A continuación: </Text>
 
@@ -37,7 +42,7 @@ export function NextUpCard({ song, active = true }: NextUpCardProps) {
           </Text>
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

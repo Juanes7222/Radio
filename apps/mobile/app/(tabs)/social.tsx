@@ -3,6 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import  FontAwesome  from '@expo/vector-icons/FontAwesome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { useFacebookLive } from '../../hooks/useFacebookLive';
 
@@ -61,7 +63,8 @@ export default function SocialScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <View
+      <Animated.View
+        entering={FadeInDown.duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}
         style={[
           styles.content,
           {
@@ -70,35 +73,48 @@ export default function SocialScreen() {
           },
         ]}
       >
-        <Text style={styles.heading}>Redes Sociales</Text>
-        <Text style={styles.subheading}>Conéctate con nuestra comunidad</Text>
+        <Animated.View entering={FadeInDown.delay(40).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+          <Text style={styles.heading}>Redes Sociales</Text>
+          <Text style={styles.subheading}>Conéctate con nuestra comunidad</Text>
+        </Animated.View>
 
         {/* Banner live */}
         {liveUrl && (
-          <TouchableOpacity
-            style={styles.liveBanner}
-            activeOpacity={0.85}
-            onPress={() => Linking.openURL(liveUrl)}
-          >
-            <View style={styles.liveDot}>
-              <View style={styles.liveDotInner} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.liveBannerTitle}>¡Estamos en vivo!</Text>
-              <Text style={styles.liveBannerSub}>Toca para ver en Facebook</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#fff" />
-          </TouchableOpacity>
+          <Animated.View entering={FadeInDown.delay(80).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+            <TouchableOpacity
+              style={styles.liveBanner}
+              activeOpacity={0.85}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                Linking.openURL(liveUrl);
+              }}
+            >
+              <View style={styles.liveDot}>
+                <View style={styles.liveDotInner} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.liveBannerTitle}>¡Estamos en vivo!</Text>
+                <Text style={styles.liveBannerSub}>Toca para ver en Facebook</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#fff" />
+            </TouchableOpacity>
+          </Animated.View>
         )}
 
         <View style={styles.linkList}>
-          {socialLinks.map((link) => (
-            <TouchableOpacity
+          {socialLinks.map((link, idx) => (
+            <Animated.View
               key={link.id}
-              style={[styles.linkCard, link.isLive && styles.linkCardLive]}
-              activeOpacity={0.75}
-              onPress={() => Linking.openURL(link.url)}
+              entering={FadeInDown.delay(100 + idx * 40).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
             >
+              <TouchableOpacity
+                style={[styles.linkCard, link.isLive && styles.linkCardLive]}
+                activeOpacity={0.82}
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => {});
+                  Linking.openURL(link.url);
+                }}
+              >
               <View style={[styles.iconCircle, { backgroundColor: link.color + '22' }]}>
                 {link.isLive && <View style={styles.liveIndicator} />}
                 {link.icon === null
@@ -113,10 +129,11 @@ export default function SocialScreen() {
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.textFaint} />
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </Animated.View>
           ))}
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }

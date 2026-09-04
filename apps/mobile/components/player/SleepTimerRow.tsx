@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown, FadeOut, Easing } from 'react-native-reanimated';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 
 interface SleepTimerRowProps {
@@ -9,7 +10,11 @@ interface SleepTimerRowProps {
 
 export function SleepTimerRow({ display, onCancel }: SleepTimerRowProps) {
   return (
-    <View style={styles.sleepRow}>
+    <Animated.View
+      entering={FadeInDown.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+      exiting={FadeOut.duration(180).easing(Easing.bezier(0.4, 0, 1, 1))}
+      style={styles.sleepRow}
+    >
       <Ionicons name="timer-outline" size={14} color={Colors.warning} />
       <Text style={styles.sleepText}>Apagado en {display}</Text>
       <Pressable
@@ -18,7 +23,7 @@ export function SleepTimerRow({ display, onCancel }: SleepTimerRowProps) {
       >
         <Text style={styles.cancelButtonText}>Cancelar</Text>
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 

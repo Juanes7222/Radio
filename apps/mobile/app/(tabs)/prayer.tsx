@@ -17,6 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Linking } from 'react-native';
+import Animated, { FadeInDown, FadeIn, Easing } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { BACKEND_URL, WEB_URL } from '@/constants/api';
 import { Colors } from '@/constants/theme';
 import { getDeviceId } from '@/lib/device';
@@ -117,7 +119,10 @@ export default function PrayerScreen() {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
+        <Animated.View
+          entering={FadeInDown.duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          style={styles.header}
+        >
           <Ionicons name="heart" size={isSmallScreen ? 24 : 32} color={ROSE} />
           <Text style={[styles.heading, isSmallScreen && styles.headingSmall]}>
             Petición de oración
@@ -125,18 +130,21 @@ export default function PrayerScreen() {
           <Text style={[styles.subtitle, isSmallScreen && styles.subtitleSmall]}>
             Comparte tu petición y nuestro equipo intercederá por ti.
           </Text>
-        </View>
+        </Animated.View>
 
         {!sent && !loading && (
-          <View style={styles.headerActions}>
-            <TouchableOpacity onPress={() => router.push('/prayer-history')} style={styles.historyLink} activeOpacity={0.8}>
+          <Animated.View entering={FadeIn.delay(80).duration(220)} style={styles.headerActions}>
+            <TouchableOpacity onPress={() => { Haptics.selectionAsync().catch(()=>{}); router.push('/prayer-history'); }} style={styles.historyLink} activeOpacity={0.8}>
               <Ionicons name="list-outline" size={14} color={Colors.accent} />
               <Text style={styles.historyLinkText}>Mis peticiones</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         )}
         {sent ? (
-          <View style={[styles.successCard, isSmallScreen && styles.successCardSmall]}>
+          <Animated.View
+            entering={FadeInDown.duration(320).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+            style={[styles.successCard, isSmallScreen && styles.successCardSmall]}
+          >
             <Ionicons name="checkmark-circle" size={isSmallScreen ? 36 : 48} color={Colors.success} />
             <Text style={[styles.successTitle, isSmallScreen && styles.successTitleSmall]}>
               Petición enviada
@@ -151,9 +159,9 @@ export default function PrayerScreen() {
               <Ionicons name="list-outline" size={14} color={Colors.accent} />
               <Text style={styles.viewHistoryBtnText}>Ver mis peticiones</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         ) : (
-          <View style={styles.form}>
+          <Animated.View entering={FadeInDown.delay(100).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))} style={styles.form}>
             <View style={styles.field}>
               <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Nombre</Text>
               <TextInput
@@ -235,7 +243,7 @@ export default function PrayerScreen() {
                 </>
               )}
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         )}
       </ScrollView>
     </KeyboardAvoidingView>

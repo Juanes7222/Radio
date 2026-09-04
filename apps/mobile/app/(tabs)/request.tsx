@@ -13,6 +13,8 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Animated, { FadeInDown, FadeIn, FadeOut, Easing } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { fetchRequestableSongs, requestSong } from '@radio/api';
 import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
@@ -56,7 +58,10 @@ const SongRow = memo(function SongRow({
   );
 
   return (
-    <View style={styles.row}>
+    <Animated.View
+      entering={FadeInDown.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+      style={styles.row}
+    >
       {item.song.art ? (
         <Image
           source={{ uri: item.song.art }}
@@ -77,7 +82,10 @@ const SongRow = memo(function SongRow({
       </View>
 
       <TouchableOpacity
-        onPress={() => onRequest(item)}
+        onPress={() => {
+          Haptics.selectionAsync().catch(() => {});
+          onRequest(item);
+        }}
         disabled={isSent || isRequesting}
         style={[styles.btn, isSent && styles.btnSent]}
         activeOpacity={0.8}
@@ -85,12 +93,14 @@ const SongRow = memo(function SongRow({
         {isRequesting ? (
           <ActivityIndicator size="small" color={Colors.textBright} />
         ) : isSent ? (
-          <Ionicons name="checkmark" size={16} color={Colors.textBright} />
+          <Animated.View entering={FadeIn.duration(180).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+            <Ionicons name="checkmark" size={16} color={Colors.textBright} />
+          </Animated.View>
         ) : (
           <Text style={styles.btnText}>Pedir</Text>
         )}
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 });
 
@@ -282,16 +292,22 @@ export default function RequestScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={{ paddingTop: insets.top + 20 }}>
+      <Animated.View
+        entering={FadeInDown.duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+        style={{ paddingTop: insets.top + 20 }}
+      >
         <Text style={styles.heading}>
           Solicitar canción
         </Text>
         <Text style={styles.subtitle}>
           Busca entre nuestra discografía y pide la canción que quieras escuchar
         </Text>
-      </View>
+      </Animated.View>
 
-      <View style={styles.searchWrapper}>
+      <Animated.View
+        entering={FadeInDown.delay(60).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+        style={styles.searchWrapper}
+      >
           <Ionicons name="search" size={16} color={Colors.textAltFaint} style={styles.searchIcon} />
         <TextInput
           style={styles.search}
@@ -308,7 +324,7 @@ export default function RequestScreen() {
             <Ionicons name="close-circle" size={16} color={Colors.textAltFaint} />
           </TouchableOpacity>
         )}
-      </View>
+      </Animated.View>
 
       <FlashList style={{ flex: 1 }}
         data={songs}
@@ -357,10 +373,14 @@ export default function RequestScreen() {
       />
 
       {requestError && (
-        <View style={[styles.errorBanner, { bottom: insets.bottom + TAB_BAR_HEIGHT + 12 }]}>
+        <Animated.View
+          entering={FadeInDown.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          exiting={FadeOut.duration(180).easing(Easing.bezier(0.4, 0, 1, 1))}
+          style={[styles.errorBanner, { bottom: insets.bottom + TAB_BAR_HEIGHT + 12 }]}
+        >
           <Ionicons name="alert-circle" size={16} color={ERROR_TEXT} />
           <Text style={styles.errorBannerText}>{requestError}</Text>
-        </View>
+        </Animated.View>
       )}
     </View>
   );
