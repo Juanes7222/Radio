@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown, Easing } from 'react-native-reanimated';
+import { ShimmerBox } from '@/components/ui/Shimmer';
 import { DialVivo } from '@/components/player/DialVivo';
 import { PlayerControls } from '@/components/PlayerControls';
 import { SleepTimerModal } from '@/components/SleepTimerModal';
@@ -265,8 +266,8 @@ export default function PlayerScreen() {
           entering={FadeInDown.delay(120).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
           style={styles.skeletonRow}
         >
-          <View style={styles.skeletonLine} />
-          <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
+          <ShimmerBox style={styles.skeletonLine} borderRadius={6} />
+          <ShimmerBox style={[styles.skeletonLine, styles.skeletonLineShort]} borderRadius={6} />
         </Animated.View>
       </View>
     );

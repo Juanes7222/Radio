@@ -21,6 +21,7 @@ import { BACKEND_URL } from '@/constants/api';
 import { Colors } from '@/constants/theme';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import { scale, TAB_BAR_HEIGHT } from '../../lib/responsive';
+import { ShimmerBox } from '@/components/ui/Shimmer';
 
 const PAGE_SIZE = 25;
 const CACHE_KEY = 'requestable_songs_cache_v2';
@@ -341,11 +342,11 @@ export default function RequestScreen() {
           isInitialLoading ? (
             <View style={{ paddingTop: 32, gap: 12 }}>
               {[0,1,2].map((i)=>(
-                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, opacity: 0.8 - i*0.15 }}>
-                  <View style={{ width: 50, height: 50, borderRadius: 10, backgroundColor: Colors.surfaceElevated }} />
-                  <View style={{ flex: 1, gap: 6 }}><View style={{ height: 12, width: '62%', backgroundColor: Colors.surfaceElevated, borderRadius: 6 }} /><View style={{ height: 8, width: 90, backgroundColor: Colors.surface, borderRadius: 4 }} /></View>
-                  <View style={{ width: 56, height: 32, borderRadius: 10, backgroundColor: Colors.surface }} />
-                </View>
+                <Animated.View key={i} entering={FadeInDown.delay(i * 50).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <ShimmerBox style={{ width: 50, height: 50, borderRadius: 10 }} borderRadius={10} />
+                  <View style={{ flex: 1, gap: 6 }}><ShimmerBox style={{ height: 12, width: '62%' }} borderRadius={6} /><ShimmerBox style={{ height: 8, width: 90 }} borderRadius={4} /></View>
+                  <ShimmerBox style={{ width: 56, height: 32 }} borderRadius={10} />
+                </Animated.View>
               ))}
               <ActivityIndicator size="small" color={Colors.signalLight} style={{ marginTop: 12 }} />
             </View>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { View, ScrollView, Pressable, StyleSheet, Dimensions, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "react-native";
+import Animated, { LinearTransition, Easing } from "react-native-reanimated";
 import { resolveNoticeMediaUri } from "@/lib/noticeMedia";
 import { InlineVideo } from "./InlineVideo";
 
@@ -36,7 +37,7 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
     return () => clearInterval(id);
   }, [index, items.length, autoPlayMs, width]);
 
-  const handleScroll = (event: any) => {
+  const handleScroll = (event: { nativeEvent: { contentOffset: { x: number } } }) => {
     const offset = event.nativeEvent.contentOffset.x;
     const newIndex = Math.round(offset / width);
     if (newIndex !== index) setIndex(newIndex);
@@ -105,11 +106,15 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
           <Pressable onPress={goNext} style={[styles.arrow, styles.arrowRight]} hitSlop={10}>
             <Ionicons name="chevron-forward" size={18} color="#fff" />
           </Pressable>
-          <View style={styles.dots}>
+          <Animated.View layout={LinearTransition.duration(200).easing(Easing.bezier(0.16, 1, 0.3, 1))} style={styles.dots}>
             {items.map((_, i) => (
-              <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
+              <Animated.View
+                key={i}
+                layout={LinearTransition.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+                style={[styles.dot, i === index && styles.dotActive]}
+              />
             ))}
-          </View>
+          </Animated.View>
         </>
       )}
     </View>

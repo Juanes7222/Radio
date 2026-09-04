@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -11,6 +11,8 @@ import { BACKEND_URL } from '@/constants/api';
 import { Colors } from '@/constants/theme';
 import { formatScheduleTime, getBogotaDayOfWeek } from '@/lib/time';
 import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
+import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
+import { ShimmerBox } from '@/components/ui/Shimmer';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -149,44 +151,41 @@ function CategoryPickerModal({
   ];
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <View style={styles.pickerOverlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={styles.pickerSheet}>
-          <View style={styles.pickerHandle} />
-          <Text style={styles.pickerTitle}>Filtrar por categoría</Text>
-          <ScrollView style={styles.pickerList} bounces={false} showsVerticalScrollIndicator={false}>
-            {options.map((option) => {
-              const isSelected = option.id === selectedId;
-              const dotColor = option.color ?? TEXT_MUTED;
-              const iconName: keyof typeof Ionicons.glyphMap = option.icon
-                ? CATEGORY_ICONS[option.icon] ?? 'radio'
-                : 'albums-outline';
+    <AppBottomSheet visible={visible} onClose={onClose} snapPoints={['48%', '68%']}>
+      <Text style={styles.pickerTitle}>Filtrar por categoría</Text>
+      <ScrollView style={styles.pickerList} bounces={false} showsVerticalScrollIndicator={false}>
+        {options.map((option) => {
+          const isSelected = option.id === selectedId;
+          const dotColor = option.color ?? TEXT_MUTED;
+          const iconName: keyof typeof Ionicons.glyphMap = option.icon
+            ? CATEGORY_ICONS[option.icon] ?? 'radio'
+            : 'albums-outline';
 
-              return (
-                <TouchableOpacity
-                  key={option.id ?? '__all__'}
-                  onPress={() => onSelect(option.id)}
-                  activeOpacity={0.8}
-                  style={[styles.pickerOption, isSelected && styles.pickerOptionSelected]}
-                >
-                  <View style={[styles.pickerOptionIcon, { backgroundColor: `${dotColor}26` }]}>
-                    <Ionicons name={iconName} size={16} color={dotColor} />
-                  </View>
-                  <Text
-                    style={[styles.pickerOptionText, isSelected && styles.pickerOptionTextSelected]}
-                    numberOfLines={1}
-                  >
-                    {option.name}
-                  </Text>
-                  {isSelected && <Ionicons name="checkmark" size={18} color={CIAN} />}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
+          return (
+            <TouchableOpacity
+              key={option.id ?? '__all__'}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                onSelect(option.id);
+              }}
+              activeOpacity={0.8}
+              style={[styles.pickerOption, isSelected && styles.pickerOptionSelected]}
+            >
+              <View style={[styles.pickerOptionIcon, { backgroundColor: `${dotColor}26` }]}>
+                <Ionicons name={iconName} size={16} color={dotColor} />
+              </View>
+              <Text
+                style={[styles.pickerOptionText, isSelected && styles.pickerOptionTextSelected]}
+                numberOfLines={1}
+              >
+                {option.name}
+              </Text>
+              {isSelected && <Ionicons name="checkmark" size={18} color={CIAN} />}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </AppBottomSheet>
   );
 }
 
@@ -548,14 +547,18 @@ export default function ScheduleScreen() {
       return (
         <View style={{ gap: 12, marginTop: 8 }}>
           {[0,1,2,3].map((i) => (
-            <View key={i} style={[styles.rowCard, { opacity: 0.7 - i*0.12 }]}>
-              <View style={[styles.rowDot, { backgroundColor: Colors.surfaceElevated }]} />
+            <Animated.View
+              key={i}
+              entering={FadeInDown.delay(i * 60).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+              style={[styles.rowCard, { opacity: 0.9 - i*0.08 }]}
+            >
+              <ShimmerBox style={[styles.rowDot, { backgroundColor: Colors.surfaceElevated }]} borderRadius={5} />
               <View style={{ flex: 1, gap: 6 }}>
-                <View style={{ height: 12, width: `${68 - i*7}%`, backgroundColor: Colors.surfaceElevated, borderRadius: 6 }} />
-                <View style={{ height: 8, width: 90, backgroundColor: Colors.surface, borderRadius: 4, opacity: 0.7 }} />
+                <ShimmerBox style={{ height: 12, width: `${68 - i * 7}%` }} borderRadius={6} />
+                <ShimmerBox style={{ height: 8, width: 90, opacity: 0.7 }} borderRadius={4} />
               </View>
-              <View style={{ width: 64, height: 22, backgroundColor: Colors.surface, borderRadius: 8, opacity: 0.5 }} />
-            </View>
+              <ShimmerBox style={{ width: 64, height: 22, opacity: 0.5 }} borderRadius={8} />
+            </Animated.View>
           ))}
           <ActivityIndicator size="small" color={CIAN} style={{ marginTop: 12 }} />
         </View>
@@ -737,71 +740,68 @@ export default function ScheduleScreen() {
         onClose={() => setShowCategoryPicker(false)}
       />
 
-      {/* Program Detail Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
+      {/* Program Detail Sheet */}
+      <AppBottomSheet
         visible={!!selectedProgram}
-        onRequestClose={() => setSelectedProgram(null)}
+        onClose={() => setSelectedProgram(null)}
+        snapPoints={['44%', '62%']}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedProgram?.title}</Text>
-              <Pressable onPress={() => setSelectedProgram(null)} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color={Colors.textBright} />
-              </Pressable>
-            </View>
-            <View style={styles.modalBody}>
-              {selectedProgram?.category && (
-                <>
-                  <View style={styles.detailRow}>
-                    <Ionicons
-                      name={getCategoryIcon(selectedProgram.category)}
-                      size={18}
-                      color={selectedProgram.category.color}
-                    />
-                    <Text style={[styles.categoryName, { color: selectedProgram.category.color }]}>
-                      {selectedProgram.category.name}
-                    </Text>
-                  </View>
-                  {selectedProgram.category.description && (
-                    <Text style={styles.categoryDescription}>
-                      {selectedProgram.category.description}
-                    </Text>
-                  )}
-                </>
-              )}
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>{selectedProgram?.title}</Text>
+          <Pressable onPress={() => setSelectedProgram(null)} style={styles.closeButton}>
+            <Ionicons name="close" size={22} color={Colors.textMuted} />
+          </Pressable>
+        </View>
+        <View style={styles.modalBody}>
+          {selectedProgram?.category && (
+            <>
               <View style={styles.detailRow}>
-                <Ionicons name="time-outline" size={18} color={TEXT_MUTED} />
-                <Text style={styles.detailText}>
-                  {selectedProgram
-                    ? `${formatScheduleTime(selectedProgram.start_timestamp)} - ${formatScheduleTime(selectedProgram.end_timestamp)}`
-                    : ''}
-                </Text>
-              </View>
-              {selectedProgram?.slots && selectedProgram.slots > 1 && (
-                <View style={styles.detailRow}>
-                  <Ionicons name="layers-outline" size={18} color={TEXT_MUTED} />
-                  <Text style={styles.detailText}>
-                    Programado en {selectedProgram.slots} bloques consecutivos
-                  </Text>
+                <View style={[styles.sectionIcon, { backgroundColor: selectedProgram.category ? `${selectedProgram.category.color}26` : NEUTRAL_ACCENT.glow }]}>
+                  <Ionicons
+                    name={getCategoryIcon(selectedProgram.category)}
+                    size={16}
+                    color={selectedProgram.category.color}
+                  />
                 </View>
-              )}
-              <View style={styles.detailRow}>
-                <Ionicons
-                  name={selectedProgram?.type === 'streamer' ? "mic-outline" : "musical-notes-outline"}
-                  size={18}
-                  color={TEXT_MUTED}
-                />
-                <Text style={styles.detailText}>
-                  {selectedProgram?.type === 'streamer' ? 'Programa en vivo' : 'Programa automático'}
+                <Text style={[styles.categoryName, { color: selectedProgram.category.color }]}>
+                  {selectedProgram.category.name}
                 </Text>
               </View>
+              {selectedProgram.category.description && (
+                <Text style={styles.categoryDescription}>
+                  {selectedProgram.category.description}
+                </Text>
+              )}
+            </>
+          )}
+          <View style={styles.detailRow}>
+            <Ionicons name="time-outline" size={18} color={TEXT_MUTED} />
+            <Text style={styles.detailText}>
+              {selectedProgram
+                ? `${formatScheduleTime(selectedProgram.start_timestamp)} - ${formatScheduleTime(selectedProgram.end_timestamp)}`
+                : ''}
+            </Text>
+          </View>
+          {selectedProgram?.slots && selectedProgram.slots > 1 && (
+            <View style={styles.detailRow}>
+              <Ionicons name="layers-outline" size={18} color={TEXT_MUTED} />
+              <Text style={styles.detailText}>
+                Programado en {selectedProgram.slots} bloques consecutivos
+              </Text>
             </View>
+          )}
+          <View style={styles.detailRow}>
+            <Ionicons
+              name={selectedProgram?.type === 'streamer' ? "mic-outline" : "musical-notes-outline"}
+              size={18}
+              color={TEXT_MUTED}
+            />
+            <Text style={styles.detailText}>
+              {selectedProgram?.type === 'streamer' ? 'Programa en vivo' : 'Programa automático'}
+            </Text>
           </View>
         </View>
-      </Modal>
+      </AppBottomSheet>
     </View>
   );
 }

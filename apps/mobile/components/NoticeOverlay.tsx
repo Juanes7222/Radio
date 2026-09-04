@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { View, Text, Image, Pressable, StyleSheet, Linking, Modal, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeInDown, FadeOut, Easing } from "react-native-reanimated";
 import { BACKEND_URL } from "@/constants/api";
 import { getDeviceId } from "@/lib/device";
 import { resolveNoticeMediaUri } from "@/lib/noticeMedia";
@@ -163,7 +164,11 @@ export function NoticeOverlay() {
       <Modal visible transparent animationType="fade" statusBarTranslucent>
         <View style={mStyles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={handleDismissModal} />
-          <View style={mStyles.cardWrap} pointerEvents="box-none">
+          <Animated.View
+            entering={FadeInDown.duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+            style={mStyles.cardWrap}
+            pointerEvents="box-none"
+          >
             <View style={mStyles.card}>
               {/* Console header */}
               <View style={mStyles.consoleHeader}>
@@ -232,7 +237,7 @@ export function NoticeOverlay() {
                 </View>
               </ScrollView>
             </View>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     );
@@ -246,7 +251,12 @@ export function NoticeOverlay() {
   const imageUri = resolveNoticeMediaUri(current.imageUrl);
 
   return (
-    <View style={styles.wrapper} pointerEvents="box-none">
+    <Animated.View
+      entering={FadeInDown.duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+      exiting={FadeOut.duration(180)}
+      style={styles.wrapper}
+      pointerEvents="box-none"
+    >
       <View style={styles.card}>
         <View style={[styles.accentBar, { backgroundColor: accent }]} />
         <View style={styles.perforatedHeader}>
@@ -298,7 +308,7 @@ export function NoticeOverlay() {
           {current.maxDisplaysPerUser > 0 ? <Text style={styles.counter}>{viewCount}/{current.maxDisplaysPerUser} vistas</Text> : null}
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
