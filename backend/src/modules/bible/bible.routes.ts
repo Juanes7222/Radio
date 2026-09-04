@@ -1,6 +1,8 @@
-import { Router, type Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { prisma } from "../../infrastructure/database/prisma";
 import { getTodayReading } from "../rotation/rotation.service";
+import { asyncHandler } from "../../shared/errors/async-handler";
+import { logger } from "../../shared/logger/logger";
 
 const router = Router();
 
@@ -8,6 +10,14 @@ const router = Router();
 // by CDNs and browsers (the client also mirrors it with a local TTL).
 function setStaticCache(res: Response): void {
   res.setHeader("Cache-Control", "public, max-age=86400");
+}
+
+function setShortCache(res: Response): void {
+  res.setHeader("Cache-Control", "public, max-age=300");
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 
 // Maps common abbreviations and alternate spellings to canonical book names.
@@ -156,85 +166,100 @@ function buildFtsMatchQuery(query: string): string {
 
 // Lectura bíblica programada: devuelve los capítulos que se están
 // reproduciendo hoy según la rotación bíblica activa, si existe.
-router.get("/reading/today", async (_req, res) => {
-  try {
+router.get(
+  "/reading/today",
+  asyncHandler(async (_req: Request, res: Response) => {
+    setShortCache(res);
     const reading = await getTodayReading();
     if (!reading) {
       return res.json({ reading: null });
     }
     res.json({ reading });
-  } catch {
-    res.status(500).json({ error: "Error fetching today's reading" });
-  }
-});
+  }),
+);
 
-router.get("/translations", async (_req, res) => {
-  setStaticCache(res);
-  try {
+router.get(
+  "/translations",
+  asyncHandler(async (_req: Request, res: Response) => {
+    setStaticCache(res);
     const translations = await prisma.bibleTranslation.findMany({
       orderBy: { abbreviation: "asc" },
     });
     res.json(translations);
-  } catch {
-    res.status(500).json({ error: "Error fetching translations" });
-  }
-});
+  }),
+);
 
-router.get("/books", async (req, res) => {
-  setStaticCache(res);
-  const { translation = "RVR1960" } = req.query;
+router.get(
+  "/books",
+  asyncHandler(async (req: Request, res: Response) => {
+    setStaticCache(res);
+    if (req.query.translation !== undefined && asString(req.query.translation) === null) {
+      return res.status(400).json({ error: "Invalid translation parameter" });
+    }
+    const translationAbbr = asString(req.query.translation) ?? "RVR1960";
 
-  try {
     const books = await prisma.bibleBook.findMany({
-      where: { translation: { abbreviation: String(translation) } },
+      where: { translation: { abbreviation: translationAbbr } },
       include: { _count: { select: { chapters: true } } },
       orderBy: { order: "asc" },
     });
     res.json(books);
-  } catch {
-    res.status(500).json({ error: "Error fetching books" });
-  }
-});
+  }),
+);
 
-router.get("/chapters", async (req, res) => {
-  setStaticCache(res);
-  const { translation = "RVR1960", book } = req.query;
+router.get(
+  "/chapters",
+  asyncHandler(async (req: Request, res: Response) => {
+    setStaticCache(res);
+    if (req.query.translation !== undefined && asString(req.query.translation) === null) {
+      return res.status(400).json({ error: "Invalid translation parameter" });
+    }
+    const translationAbbr = asString(req.query.translation) ?? "RVR1960";
 
-  if (!book) {
-    return res.status(400).json({ error: "Book parameter is required" });
-  }
+    const bookName = asString(req.query.book);
+    if (!bookName) {
+      return res.status(400).json({ error: "Book parameter is required" });
+    }
 
-  try {
     const chapters = await prisma.bibleChapter.findMany({
       where: {
         book: {
-          name: String(book),
-          translation: { abbreviation: String(translation) },
+          name: bookName,
+          translation: { abbreviation: translationAbbr },
         },
       },
       orderBy: { number: "asc" },
     });
     res.json(chapters);
-  } catch {
-    res.status(500).json({ error: "Error fetching chapters" });
-  }
-});
+  }),
+);
 
-router.get("/chapter", async (req, res) => {
-  setStaticCache(res);
-  const { translation = "RVR1960", book, chapter } = req.query;
+router.get(
+  "/chapter",
+  asyncHandler(async (req: Request, res: Response) => {
+    setStaticCache(res);
+    if (req.query.translation !== undefined && asString(req.query.translation) === null) {
+      return res.status(400).json({ error: "Invalid translation parameter" });
+    }
+    const translationAbbr = asString(req.query.translation) ?? "RVR1960";
 
-  if (!book || !chapter) {
-    return res.status(400).json({ error: "Book and chapter parameters are required" });
-  }
+    const bookName = asString(req.query.book);
+    const chapterRaw = asString(req.query.chapter);
+    if (!bookName || !chapterRaw) {
+      return res.status(400).json({ error: "Book and chapter parameters are required" });
+    }
 
-  try {
+    const chapterNumber = parseInt(chapterRaw, 10);
+    if (!Number.isInteger(chapterNumber) || chapterNumber < 1) {
+      return res.status(400).json({ error: "Invalid chapter parameter" });
+    }
+
     const chapterData = await prisma.bibleChapter.findFirst({
       where: {
-        number: parseInt(String(chapter), 10),
+        number: chapterNumber,
         book: {
-          name: String(book),
-          translation: { abbreviation: String(translation) },
+          name: bookName,
+          translation: { abbreviation: translationAbbr },
         },
       },
       include: {
@@ -253,23 +278,29 @@ router.get("/chapter", async (req, res) => {
       chapter: chapterData.number,
       verses: chapterData.verses,
     });
-  } catch {
-    res.status(500).json({ error: "Error fetching chapter verses" });
-  }
-});
+  }),
+);
 
-router.get("/search", async (req, res) => {
-  const { translation = "RVR1960", q } = req.query;
+router.get(
+  "/search",
+  asyncHandler(async (req: Request, res: Response) => {
+    if (req.query.translation !== undefined && asString(req.query.translation) === null) {
+      return res.status(400).json({ error: "Invalid translation parameter" });
+    }
+    const translationAbbr = asString(req.query.translation) ?? "RVR1960";
 
-  if (!q || typeof q !== "string" || q.trim() === "") {
-    return res.status(400).json({ error: "Search query is required" });
-  }
+    const q = asString(req.query.q);
+    if (!q) {
+      return res.status(400).json({ error: "Search query is required" });
+    }
 
-  const translationAbbr = String(translation);
-  const reference = parseQueryReference(q.trim());
+    const reference = parseQueryReference(q);
 
-  try {
     if (reference) {
+      if (reference.verseEnd !== undefined && reference.verseEnd < reference.verseStart) {
+        return res.status(400).json({ error: "Invalid verse range: end must be >= start" });
+      }
+
       const verseFilter = reference.verseEnd
         ? { gte: reference.verseStart, lte: reference.verseEnd }
         : reference.verseStart;
@@ -307,10 +338,15 @@ router.get("/search", async (req, res) => {
       });
     }
 
+    // Guard against single-character full-text queries that would match almost everything
+    if (q.length < 2) {
+      return res.status(400).json({ error: "Search query too short (minimum 2 characters)" });
+    }
+
     // Full-text branch: try FTS5 with BM25 ranking and highlighted snippets.
     // Falls back to LIKE search if the virtual table is unavailable (e.g. migration not yet applied).
     try {
-      const ftsQuery = buildFtsMatchQuery(q.trim());
+      const ftsQuery = buildFtsMatchQuery(q);
       if (ftsQuery) {
         const ftsRows = await prisma.$queryRaw<{ verse_id: string; snippet: string; rank: number }[]>`
           SELECT verse_id,
@@ -349,12 +385,15 @@ router.get("/search", async (req, res) => {
       }
     } catch (err) {
       // FTS5 unavailable or query syntax error — log and fall through to LIKE fallback
-      console.warn("[bible/search] FTS5 query failed, falling back to LIKE:", err instanceof Error ? err.message : err);
+      logger.warn("Bible", "FTS5 query failed, falling back to LIKE", {
+        error: err instanceof Error ? err.message : String(err),
+        query: q,
+      });
     }
 
     const verses = await prisma.bibleVerse.findMany({
       where: {
-        text: { contains: q as string },
+        text: { contains: q },
         chapter: {
           book: { translation: { abbreviation: translationAbbr } },
         },
@@ -366,9 +405,7 @@ router.get("/search", async (req, res) => {
     });
 
     res.json({ type: "fulltext", results: verses });
-  } catch {
-    res.status(500).json({ error: "Error searching bible" });
-  }
-});
+  }),
+);
 
 export default router;
