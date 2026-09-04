@@ -550,14 +550,15 @@ export default function ScheduleScreen() {
             <Animated.View
               key={i}
               entering={FadeInDown.delay(i * 60).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
-              style={[styles.rowCard, { opacity: 0.9 - i*0.08 }]}
             >
-              <ShimmerBox style={[styles.rowDot, { backgroundColor: Colors.surfaceElevated }]} borderRadius={5} />
-              <View style={{ flex: 1, gap: 6 }}>
-                <ShimmerBox style={{ height: 12, width: `${68 - i * 7}%` }} borderRadius={6} />
-                <ShimmerBox style={{ height: 8, width: 90, opacity: 0.7 }} borderRadius={4} />
+              <View style={[styles.rowCard, { opacity: 0.9 - i*0.08 }]}>
+                <ShimmerBox style={[styles.rowDot, { backgroundColor: Colors.surfaceElevated }]} borderRadius={5} />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <ShimmerBox style={{ height: 12, width: `${68 - i * 7}%` }} borderRadius={6} />
+                  <ShimmerBox style={{ height: 8, width: 90, opacity: 0.7 }} borderRadius={4} />
+                </View>
+                <ShimmerBox style={{ width: 64, height: 22, opacity: 0.5 }} borderRadius={8} />
               </View>
-              <ShimmerBox style={{ width: 64, height: 22, opacity: 0.5 }} borderRadius={8} />
             </Animated.View>
           ))}
           <ActivityIndicator size="small" color={CIAN} style={{ marginTop: 12 }} />

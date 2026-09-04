@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, SafeAreaView, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, useWindowDimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { BibleBook } from '@radio/types';
 import { Colors, Typography, Radii, Spacing } from '@/constants/theme';

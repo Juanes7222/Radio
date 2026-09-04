@@ -256,10 +256,9 @@ export default function PlayerScreen() {
           colors={[Colors.ink, Colors.inkSoft, Colors.ink]}
           style={StyleSheet.absoluteFill}
         />
-        <Animated.View
-          entering={FadeIn.duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
-          style={styles.loadingHalo}
-        />
+        <Animated.View entering={FadeIn.duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+          <View style={styles.loadingHalo} />
+        </Animated.View>
         <ActivityIndicator size="large" color={Colors.signal} />
         <Text style={styles.loadingText}>Conectando con la emisora…</Text>
         <Animated.View
