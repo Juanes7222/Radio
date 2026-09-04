@@ -56,7 +56,7 @@ export default function SocialScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#0c0c1e', '#13102a', '#0c0c1e']}
+        colors={[Colors.ink, Colors.inkSoft, Colors.ink]}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />

@@ -1,45 +1,118 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import { useEffect } from 'react';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
+import { Colors } from '@/constants/theme';
 
-const ACCENT = '#6366f1';
-const BACKGROUND = 'rgba(12, 12, 30, 0.97)';
+const TAB_HEIGHT_BASE = 56;
+
+function LiveDot() {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(0.55);
+
+  useEffect(() => {
+    scale.value = withRepeat(
+      withTiming(1.55, { duration: 1400, easing: Easing.out(Easing.ease) }),
+      -1,
+      false
+    );
+    opacity.value = withRepeat(
+      withTiming(0, { duration: 1400, easing: Easing.out(Easing.ease) }),
+      -1,
+      false
+    );
+  }, [scale, opacity]);
+
+  const haloStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <View style={liveStyles.container}>
+      <Animated.View style={[liveStyles.halo, haloStyle]} />
+      <View style={liveStyles.dot} />
+    </View>
+  );
+}
+
+const liveStyles = StyleSheet.create({
+  container: { position: 'absolute', top: -2, right: -4, width: 12, height: 12, alignItems: 'center', justifyContent: 'center' },
+  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.tally, borderWidth: 1.5, borderColor: 'rgba(8,10,30,0.9)', zIndex: 1 },
+  halo: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.tally, opacity: 0.5 },
+});
 
 export default function TabLayout() {
   const { liveUrl } = useFacebookLive();
   const insets = useSafeAreaInsets();
 
-  const BASE_HEIGHT = Platform.OS === 'ios' ? 55 : 63;
-  const TAB_HEIGHT = BASE_HEIGHT + insets.bottom;
+  const TAB_HEIGHT = TAB_HEIGHT_BASE + insets.bottom;
+
+  const handleTabPress = () => {
+    Haptics.selectionAsync().catch(() => {});
+  };
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: ACCENT,
-        tabBarInactiveTintColor: '#8b92a5',
+        tabBarActiveTintColor: Colors.signal,
+        tabBarInactiveTintColor: Colors.textFaint,
         tabBarStyle: {
-          backgroundColor: BACKGROUND,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: 'rgba(255, 255, 255, 0.15)',
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
           height: TAB_HEIGHT,
-          paddingBottom: Platform.OS === 'ios' ? insets.bottom : insets.bottom + 8,
-          paddingTop: 2,
+          paddingBottom: insets.bottom + 6,
+          paddingTop: 6,
+          paddingHorizontal: 8,
           elevation: 0,
+          position: 'absolute',
         },
+        tabBarBackground: () => (
+          <BlurView
+            intensity={28}
+            tint="dark"
+            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(8,10,30,0.72)', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.borderGlass }]}
+          />
+        ),
         tabBarItemStyle: {
           justifyContent: 'center',
           paddingVertical: 4,
+          borderRadius: 14,
         },
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: '600',
-          letterSpacing: 0.3,
-          marginTop: 2,
+          fontWeight: '700',
+          letterSpacing: 0.4,
+          marginTop: 3,
+          textTransform: 'uppercase',
         },
         tabBarAllowFontScaling: false,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        tabBarButton: (props: any) => (
+          <Pressable
+            {...props}
+            onPress={(e) => {
+              handleTabPress();
+              props.onPress?.(e);
+            }}
+            style={({ pressed }) => [
+              props.style,
+              pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] },
+            ]}
+          />
+        ),
       }}
     >
       <Tabs.Screen
@@ -90,19 +163,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <View>
               <Ionicons name="earth-outline" size={size - 2} color={color} />
-              {liveUrl && (
-                <View style={{
-                  position: 'absolute',
-                  top: -2,
-                  right: -4,
-                  width: 10,
-                  height: 10,
-                  borderRadius: 5,
-                  backgroundColor: '#ef4444',
-                  borderWidth: 2,
-                  borderColor: BACKGROUND,
-                }} />
-              )}
+              {liveUrl && <LiveDot />}
             </View>
           ),
         }}

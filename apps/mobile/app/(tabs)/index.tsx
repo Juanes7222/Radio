@@ -15,7 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VinylDisc } from '@/components/VinylDisc';
+import { DialVivo } from '@/components/player/DialVivo';
 import { PlayerControls } from '@/components/PlayerControls';
 import { SleepTimerModal } from '@/components/SleepTimerModal';
 import { FacebookLivePlayer } from '@/components/FacebookLivePlayer';
@@ -88,7 +88,7 @@ export default function PlayerScreen() {
 
   const { data, isLoading, error, getStreamUrl } = useAzuraCast({
     apiBaseUrl: BACKEND_URL,
-    pollInterval: 3000,
+    pollInterval: 5000,
     enabled: realtimeEnabled,
   });
 
@@ -251,11 +251,16 @@ export default function PlayerScreen() {
     return (
       <View style={styles.center}>
         <LinearGradient
-          colors={['#080810', '#120820', '#080810']}
+          colors={[Colors.ink, Colors.inkSoft, Colors.ink]}
           style={StyleSheet.absoluteFill}
         />
-        <ActivityIndicator size="large" color={Colors.accent} />
+        <View style={styles.loadingHalo} />
+        <ActivityIndicator size="large" color={Colors.signal} />
         <Text style={styles.loadingText}>Conectando con la emisora…</Text>
+        <View style={styles.skeletonRow}>
+          <View style={styles.skeletonLine} />
+          <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
+        </View>
       </View>
     );
   }
@@ -264,11 +269,14 @@ export default function PlayerScreen() {
     return (
       <View style={styles.center}>
         <LinearGradient
-          colors={['#080810', '#120820', '#080810']}
+          colors={[Colors.ink, Colors.inkSoft, Colors.ink]}
           style={StyleSheet.absoluteFill}
         />
-        <Ionicons name="wifi-outline" size={52} color={Colors.danger} />
+        <View style={styles.errorIconWrap}>
+          <Ionicons name="wifi-outline" size={40} color={Colors.tally} />
+        </View>
         <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.errorHint}>Reintentamos automáticamente cuando vuelva la señal</Text>
       </View>
     );
   }
@@ -276,7 +284,7 @@ export default function PlayerScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#0c0c1e', '#13102a', '#0c0c1e']}
+        colors={[Colors.ink, Colors.inkSoft, Colors.ink]}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -338,14 +346,12 @@ export default function PlayerScreen() {
           {liveUrl ? (
             <FacebookLivePlayer liveUrl={liveUrl} />
           ) : (
-            <View style={styles.vinylWrapper}>
-              <View style={styles.vinylGlow} />
-              <VinylDisc
-                artworkUri={artworkUri}
-                isPlaying={(isPlaying || isBuffering) && isFocused}
-                size={VINYL_SIZE}
-              />
-            </View>
+            <DialVivo
+              artworkUri={artworkUri}
+              isPlaying={(isPlaying || isBuffering) && isFocused}
+              isPreaching={isPreaching}
+              size={VINYL_SIZE}
+            />
           )}
 
           <NowPlayingInfo title={title} artist={artist} isPreaching={isPreaching} />
@@ -437,8 +443,30 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     gap: Spacing.md,
   },
+  loadingHalo: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: Colors.signalGlow,
+    opacity: 0.22,
+  },
+  skeletonRow: { gap: 8, alignItems: 'center', marginTop: Spacing.md },
+  skeletonLine: { width: 160, height: 10, borderRadius: 6, backgroundColor: Colors.surfaceGlass, opacity: 0.9 },
+  skeletonLineShort: { width: 110, opacity: 0.6 },
   loadingText: { ...Typography.body, color: Colors.textMuted, marginTop: Spacing.sm },
-  errorText: { ...Typography.body, color: Colors.danger, textAlign: 'center', maxWidth: 280 },
+  errorText: { ...Typography.body, color: Colors.text, textAlign: 'center', maxWidth: 280, fontWeight: '600' as const },
+  errorHint: { ...Typography.caption, color: Colors.textFaint, textAlign: 'center', maxWidth: 260, marginTop: 4 },
+  errorIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: Colors.tallyMuted,
+    borderWidth: 1,
+    borderColor: 'rgba(255,59,58,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   topSection: {
     paddingHorizontal: Spacing.lg,
@@ -448,21 +476,24 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.accent,
+    backgroundColor: 'transparent',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: Radii.full,
     gap: Spacing.xs,
     marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.signal,
   },
   bibleButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
+    color: Colors.signal,
+    fontWeight: '700' as const,
+    fontSize: 13,
+    letterSpacing: 0.4,
   },
   logo: {
-    width: 190,
-    height: 84,
+    width: 168,
+    height: 72,
     alignSelf: 'center',
     marginBottom: Spacing.sm,
   },
@@ -475,30 +506,11 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
 
-  vinylWrapper: {
-    width: VINYL_SIZE,
-    height: VINYL_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vinylGlow: {
-    position: 'absolute',
-    width: VINYL_SIZE * 0.9,
-    height: VINYL_SIZE * 0.9,
-    borderRadius: VINYL_SIZE / 2,
-    backgroundColor: Colors.accentGlow,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 40,
-    elevation: 20,
-  },
-
   bottomSection: {
     paddingTop: Spacing.lg,
     paddingHorizontal: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    backgroundColor: 'rgba(12,12,30,0.95)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderGlass,
+    backgroundColor: 'rgba(8,10,30,0.72)',
   },
 });

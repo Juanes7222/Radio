@@ -13,14 +13,14 @@ import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-const CARD_BG = '#16162c';
-const TEXT_MUTED = '#8b92a5';
-const CIAN = '#4f98a3';
-const CIAN_MUTED = 'rgba(79,152,163,0.15)';
-const OVERLAY = 'rgba(0,0,0,0.7)';
-const MODAL_BORDER = 'rgba(255,255,255,0.1)';
+const CARD_BG = Colors.inkElevated;
+const TEXT_MUTED = Colors.textMuted;
+const CIAN = Colors.signal;
+const CIAN_MUTED = Colors.signalMuted;
+const OVERLAY = 'rgba(0,0,0,0.64)';
+const MODAL_BORDER = Colors.borderGlass;
 
-const NEUTRAL_ACCENT = { dot: TEXT_MUTED, glow: 'rgba(139,146,165,0.25)' };
+const NEUTRAL_ACCENT = { dot: Colors.textFaint, glow: 'rgba(248,247,255,0.12)' };
 
 // Enable LayoutAnimation on Android for smooth section collapse/expand.
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -521,7 +521,21 @@ export default function ScheduleScreen() {
 
   const renderContent = () => {
     if (loading) {
-      return <ActivityIndicator size="large" color={CIAN} style={{ marginTop: 40 }} />;
+      return (
+        <View style={{ gap: 12, marginTop: 8 }}>
+          {[0,1,2,3].map((i) => (
+            <View key={i} style={[styles.rowCard, { opacity: 0.7 - i*0.12 }]}>
+              <View style={[styles.rowDot, { backgroundColor: Colors.surfaceElevated }]} />
+              <View style={{ flex: 1, gap: 6 }}>
+                <View style={{ height: 12, width: `${68 - i*7}%`, backgroundColor: Colors.surfaceElevated, borderRadius: 6 }} />
+                <View style={{ height: 8, width: 90, backgroundColor: Colors.surface, borderRadius: 4, opacity: 0.7 }} />
+              </View>
+              <View style={{ width: 64, height: 22, backgroundColor: Colors.surface, borderRadius: 8, opacity: 0.5 }} />
+            </View>
+          ))}
+          <ActivityIndicator size="small" color={CIAN} style={{ marginTop: 12 }} />
+        </View>
+      );
     }
 
     if (dayPrograms.length === 0) {

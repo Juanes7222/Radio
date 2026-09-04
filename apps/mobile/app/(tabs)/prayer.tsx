@@ -100,7 +100,7 @@ export default function PrayerScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={[Colors.backgroundAlt, Colors.gradientDeep, Colors.backgroundAlt]}
+        colors={[Colors.ink, Colors.inkSoft, Colors.ink]}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />

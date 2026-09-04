@@ -177,7 +177,7 @@ export function AlarmModal({
                       <Switch
                         value={alarm.enabled}
                         onValueChange={(enabled) => onToggle(alarm.id, enabled)}
-                        trackColor={{ false: Colors.border, true: Colors.accent }}
+                        trackColor={{ false: Colors.border, true: Colors.signal }}
                         thumbColor="#fff"
                         accessibilityLabel={alarm.enabled ? 'Apagar recordatorio' : 'Encender recordatorio'}
                       />
@@ -192,7 +192,7 @@ export function AlarmModal({
                 onPress={openNewEditor}
                 accessibilityLabel="Nuevo recordatorio"
               >
-                <Ionicons name="add" size={22} color={Colors.accentLight} />
+                <Ionicons name="add" size={22} color={Colors.signal} />
                 <Text style={styles.addButtonText}>Nuevo recordatorio</Text>
               </TouchableOpacity>
             </View>
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
   },
   sheet: {
-    backgroundColor: '#12121f',
+    backgroundColor: Colors.inkElevated,
     borderTopLeftRadius: Radii.xl,
     borderTopRightRadius: Radii.xl,
     paddingTop: 12,

@@ -9,34 +9,51 @@ interface NowPlayingInfoProps {
 }
 
 export function NowPlayingInfo({ title, artist, isPreaching }: NowPlayingInfoProps) {
+  // Ticker solo si el texto desborda; evitamos marquee molesto en títulos cortos.
+  const titleLooksLong = title.length > 28;
+  const artistLooksLong = artist.length > 30;
+
   return (
     <View style={styles.songInfo}>
       {isPreaching && (
         <View style={styles.preachingBadge}>
-          <Text style={styles.preachingBadgeText}>Prédica</Text>
+          <View style={styles.preachingDot} />
+          <Text style={styles.preachingBadgeText}>Prédica · En vivo</Text>
         </View>
       )}
-      <TextTicker
-        style={styles.songTitle}
-        duration={8000}
-        loop
-        bounce={false}
-        repeatSpacer={50}
-        marqueeDelay={2000}
-      >
-        {title}
-      </TextTicker>
-      {artist ? (
+      {titleLooksLong ? (
         <TextTicker
-          style={styles.artistName}
-          duration={8000}
+          style={styles.songTitle}
+          duration={9000}
           loop
           bounce={false}
-          repeatSpacer={50}
-          marqueeDelay={2000}
+          repeatSpacer={48}
+          marqueeDelay={1800}
         >
-          {artist}
+          {title}
         </TextTicker>
+      ) : (
+        <Text style={styles.songTitle} numberOfLines={2}>
+          {title}
+        </Text>
+      )}
+      {artist ? (
+        artistLooksLong ? (
+          <TextTicker
+            style={styles.artistName}
+            duration={9000}
+            loop
+            bounce={false}
+            repeatSpacer={48}
+            marqueeDelay={1800}
+          >
+            {artist}
+          </TextTicker>
+        ) : (
+          <Text style={styles.artistName} numberOfLines={1}>
+            {artist}
+          </Text>
+        )
       ) : null}
     </View>
   );
@@ -52,18 +69,27 @@ const styles = StyleSheet.create({
   songTitle: { ...Typography.songTitle, color: Colors.text, textAlign: 'center' },
   artistName: { ...Typography.artistName, color: Colors.textMuted, textAlign: 'center' },
   preachingBadge: {
-    backgroundColor: 'rgba(99,102,241,0.15)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.signalMuted,
     borderWidth: 1,
-    borderColor: 'rgba(99,102,241,0.3)',
+    borderColor: 'rgba(255,181,71,0.22)',
     borderRadius: Radii.full,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 4,
+  },
+  preachingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.signal,
   },
   preachingBadgeText: {
     ...Typography.caption,
-    color: Colors.accent,
+    color: Colors.signal,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.9,
   },
 });

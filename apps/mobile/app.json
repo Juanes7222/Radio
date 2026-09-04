@@ -10,11 +10,11 @@
     "icon": "./assets/android/mipmap-xxxhdpi/ic_launcher.png",
     "scheme": "radio",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0f172a"
+      "backgroundColor": "#080A1E"
     },
     "updates": {
       "enabled": true,
@@ -68,7 +68,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#6366f1",
+          "color": "#FFB547",
           "sounds": [
             "./assets/audio/ring.wav"
           ]
@@ -77,7 +77,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0f172a",
+          "backgroundColor": "#080A1E",
           "image": "./assets/splash-icon.png",
           "imageWidth": 200
         }

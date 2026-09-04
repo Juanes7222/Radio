@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   container: {
-    backgroundColor: '#0c0c1e',
+    backgroundColor: Colors.ink,
     flex: 1, 
     borderTopLeftRadius: Radii.xl,
     borderTopRightRadius: Radii.xl,
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     width: 200,
-    backgroundColor: 'rgba(12, 12, 30, 0.5)',
+    backgroundColor: 'rgba(8,10,30,0.55)',
   },
   navBtn: {
     padding: Spacing.sm,

@@ -25,9 +25,9 @@ const CACHE_KEY = 'requestable_songs_cache_v2';
 const CACHE_TTL_MS = 1000 * 60 * 30;
 const DEBOUNCE_MS = 350;
 
-const PLACEHOLDER = '#374151';
-const SUCCESS_DARK = '#16a34a';
-const ERROR_BG = 'rgba(127, 29, 29, 0.92)';
+const PLACEHOLDER = Colors.textFaint;
+const SUCCESS_DARK = Colors.success;
+const ERROR_BG = 'rgba(127, 29, 29, 0.94)';
 const ERROR_BORDER = 'rgba(252, 165, 165, 0.2)';
 const ERROR_TEXT = '#fca5a5';
 
@@ -277,7 +277,7 @@ export default function RequestScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-          colors={[Colors.backgroundAlt, Colors.gradientDeep, Colors.backgroundAlt]}
+          colors={[Colors.ink, Colors.inkSoft, Colors.ink]}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -323,7 +323,16 @@ export default function RequestScreen() {
         )}
         ListEmptyComponent={
           isInitialLoading ? (
-            <ActivityIndicator style={styles.loadingIndicator} color={Colors.accentLight} />
+            <View style={{ paddingTop: 32, gap: 12 }}>
+              {[0,1,2].map((i)=>(
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, opacity: 0.8 - i*0.15 }}>
+                  <View style={{ width: 50, height: 50, borderRadius: 10, backgroundColor: Colors.surfaceElevated }} />
+                  <View style={{ flex: 1, gap: 6 }}><View style={{ height: 12, width: '62%', backgroundColor: Colors.surfaceElevated, borderRadius: 6 }} /><View style={{ height: 8, width: 90, backgroundColor: Colors.surface, borderRadius: 4 }} /></View>
+                  <View style={{ width: 56, height: 32, borderRadius: 10, backgroundColor: Colors.surface }} />
+                </View>
+              ))}
+              <ActivityIndicator size="small" color={Colors.signalLight} style={{ marginTop: 12 }} />
+            </View>
           ) : (
             <Text style={styles.empty}>
               {normalizedQuery ? 'No se encontraron coincidencias' : 'No se encontraron canciones'}
@@ -332,7 +341,7 @@ export default function RequestScreen() {
         }
         ListFooterComponent={
           isLoadingMore ? (
-            <ActivityIndicator style={{ marginVertical: 16 }} color={Colors.accentLight} />
+            <ActivityIndicator style={{ marginVertical: 16 }} color={Colors.signal} />
           ) : null
         }
         contentContainerStyle={[
@@ -412,7 +421,7 @@ const styles = StyleSheet.create({
   artFallback: { backgroundColor: Colors.surfaceSoft },
   info: { flex: 1 },
   preachingBadge: {
-    color: Colors.accentLight,
+    color: Colors.signal,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -422,7 +431,7 @@ const styles = StyleSheet.create({
   title: { color: Colors.textSoft, fontSize: 14, fontWeight: '600' },
   artist: { color: Colors.textAltFaint, fontSize: 12, marginTop: 3 },
   btn: {
-    backgroundColor: Colors.accentLight,
+    backgroundColor: Colors.signal,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
@@ -430,7 +439,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnSent: { backgroundColor: SUCCESS_DARK },
-  btnText: { color: Colors.backgroundAlt, fontSize: 13, fontWeight: '700' },
+  btnText: { color: Colors.textOnSignal, fontSize: 13, fontWeight: '700' },
   errorBanner: {
     position: 'absolute',
     left: 16,

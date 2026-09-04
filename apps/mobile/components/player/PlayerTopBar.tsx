@@ -36,7 +36,7 @@ export function PlayerTopBar({
           <Ionicons
             name={notifyEnabled ? 'notifications' : 'notifications-outline'}
             size={20}
-            color={notifyEnabled ? Colors.accent : Colors.textFaint}
+            color={notifyEnabled ? Colors.signal : Colors.textFaint}
           />
         </TouchableOpacity>
 
@@ -95,26 +95,26 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 10,
     borderRadius: Radii.full,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceGlass,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderGlass,
   },
-  iconButtonActive: { backgroundColor: Colors.warningMuted },
+  iconButtonActive: { backgroundColor: Colors.signalMuted, borderColor: 'rgba(255,181,71,0.22)' },
   qualityBadge: {
     ...Typography.caption,
     color: Colors.textFaint,
     fontWeight: '600',
   },
-  timerBadge: { ...Typography.caption, color: Colors.warning, fontWeight: '700' },
+  timerBadge: { ...Typography.caption, color: Colors.signal, fontWeight: '700' },
   tooltipContainer: {
     position: 'absolute',
     top: '100%',
     left: 0,
     marginTop: 8,
-    backgroundColor: Colors.accent,
+    backgroundColor: Colors.signal,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radii.sm,
@@ -138,11 +138,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: Colors.accent,
+    borderBottomColor: Colors.signal,
   },
   tooltipText: {
     ...Typography.caption,
-    color: '#ffffff',
+    color: Colors.textOnSignal,
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 16,
