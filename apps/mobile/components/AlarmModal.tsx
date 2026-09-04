@@ -572,4 +572,37 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  exactAlarmBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.warningMuted,
+    borderRadius: Radii.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  exactAlarmTextContainer: {
+    flex: 1,
+  },
+  exactAlarmTitle: {
+    ...Typography.body,
+    color: Colors.warning,
+    fontWeight: '700',
+  },
+  exactAlarmBody: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  exactAlarmButton: {
+    backgroundColor: 'rgba(245,158,11,0.25)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radii.sm,
+  },
+  exactAlarmButtonText: {
+    ...Typography.caption,
+    color: Colors.warning,
+    fontWeight: '700',
+  },
 });

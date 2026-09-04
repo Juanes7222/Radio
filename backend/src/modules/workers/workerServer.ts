@@ -114,6 +114,30 @@ export function startWorkerServer(): WebSocketServer {
   return wss;
 }
 
+export function broadcastUpdateAvailable(payload: {
+  version: string;
+  sha256: string;
+  mandatory: boolean;
+}): void {
+  const msg = JSON.stringify({
+    type: "update_available",
+    version: payload.version,
+    sha256: payload.sha256,
+    url: `/workers/updates/${payload.version}/download`,
+    mandatory: payload.mandatory,
+  });
+  for (const worker of getAllWorkers()) {
+    if (worker.socket.readyState === WebSocket.OPEN) {
+      try {
+        worker.socket.send(msg);
+      } catch {
+        // ignore
+      }
+    }
+  }
+  logger.info("WorkerServer", "Broadcast update_available", { version: payload.version });
+}
+
 async function handleRegister(
   socket: WebSocket,
   message: RegisterMessage
@@ -129,6 +153,7 @@ async function handleRegister(
     name: message.name,
     socket,
     status: "idle",
+    version: (message as RegisterMessage & { version?: string }).version,
     maxConcurrentJobs: message.maxConcurrentJobs,
     currentJobs: [],
     lastSeenAt: new Date(),
@@ -136,8 +161,18 @@ async function handleRegister(
 
   await prisma.workerNode.upsert({
     where: { workerId: message.workerId },
-    create: { workerId: message.workerId, name: message.name, status: "ONLINE" },
-    update: { name: message.name, status: "ONLINE", lastSeenAt: new Date() },
+    create: {
+      workerId: message.workerId,
+      name: message.name,
+      status: "ONLINE",
+      version: (message as RegisterMessage & { version?: string }).version,
+    },
+    update: {
+      name: message.name,
+      status: "ONLINE",
+      version: (message as RegisterMessage & { version?: string }).version,
+      lastSeenAt: new Date(),
+    },
   });
 
   socket.send(JSON.stringify({ type: "acknowledge", message: "registered" }));

@@ -144,6 +144,12 @@ secrets/
 .turbo/
 swagger-output.json
 
+# MaxMind GeoIP databases (auto-descargadas, no versionar)
+*.mmdb
+/backend/storage/geoip/
+backend/storage/geoip/
+src/storage/geolite/
+
 TODO.md
 *.db
 

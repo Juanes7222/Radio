@@ -567,8 +567,9 @@ export interface WorkerNodeInfo {
   workerId: string;
   name: string;
   status: string;
+  version?: string | null;
   maxConcurrentJobs: number;
-  currentJobs: number;
+  currentJobs: string[] | number;
   currentJobId: string | null;
   lastSeenAt: string | null;
 }

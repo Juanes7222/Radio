@@ -7,8 +7,7 @@ export const geoipConfig = {
 
   // Local MaxMind database. When the file exists it is used as primary source.
   // Download GeoLite2-City.mmdb from MaxMind (requires free account) and set
-  // GEOIP_MMDB_PATH to its absolute path. The file is updated twice a week
-  // (Tue/Fri) by MaxMind, so schedule a job to refresh it.
+  // GEOIP_MMDB_PATH to its path relative to the backend working directory
   mmdbPath: envOr("GEOIP_MMDB_PATH", ""),
 
   // MaxMind auto-update. Requires a MaxMind account and license key.

@@ -3,7 +3,7 @@ import multer from "multer";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { getAllWorkers } from "./workerPool";
+import { getAllWorkers, markWorkerIdle } from "./workerPool";
 import { prisma } from "../../infrastructure/database/prisma";
 import { uploadMp3ToAzuracast } from "../azuracast/upload-mp3.service";
 import { logger } from "../../shared/logger/logger";
@@ -33,6 +33,7 @@ router.get("/workers", requireAuth, (_req: Request, res: Response) => {
     workerId: w.workerId,
     name: w.name,
     status: w.status,
+    version: w.version ?? null,
     maxConcurrentJobs: w.maxConcurrentJobs,
     currentJobs: w.currentJobs,
     currentJobId: w.currentJobId,
@@ -48,6 +49,56 @@ router.get("/jobs", requireAuth, async (_req: Request, res: Response) => {
     include: { video: { select: { title: true, videoId: true } } },
   });
   res.json(jobs);
+});
+
+router.post("/jobs/:id/retry", requireAuth, async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const job = await prisma.processingJob.findUnique({ where: { id } });
+  if (!job) {
+    res.status(404).json({ error: "Job no encontrado" });
+    return;
+  }
+  if (job.status === "DONE") {
+    res.status(409).json({ error: "Job ya completado, no requiere reintento" });
+    return;
+  }
+  if (job.status === "ASSIGNED") {
+    res.status(409).json({ error: "Job en ejecución, no se puede reintentar" });
+    return;
+  }
+
+  const now = new Date();
+  const newDeadline = new Date(now.getTime() + config.processing.jobDeadlineHours * 60 * 60 * 1000);
+
+  if (job.workerId) {
+    markWorkerIdle(job.workerId, job.id);
+    await prisma.workerNode.updateMany({
+      where: { workerId: job.workerId },
+      data: { status: "ONLINE", currentJobId: null },
+    });
+  }
+
+  const updated = await prisma.processingJob.update({
+    where: { id: job.id },
+    data: {
+      status: "PENDING",
+      workerId: null,
+      lastError: null,
+      nextRetryAt: null,
+      finishedAt: null,
+      deadlineAt: newDeadline,
+      attempts: 0,
+    },
+    include: { video: { select: { title: true, videoId: true } } },
+  });
+
+  await prisma.youTubeVideo.updateMany({
+    where: { videoId: job.videoId },
+    data: { status: "PENDING", lastError: null },
+  });
+
+  logger.info("WorkerAdmin", "Job retry forzoso", { jobId: job.id, previousStatus: job.status });
+  res.json(updated);
 });
 
 async function processBackgroundUpload(

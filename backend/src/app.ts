@@ -4,8 +4,6 @@ import helmet from "helmet";
 import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
 import { errorHandler } from "./shared/errors/error-handler";
-import { config } from "./config";
-import { logger } from "./shared/logger/logger";
 import authRouter from "./modules/auth/auth.routes";
 import proxyRouter from "./modules/azuracast/proxy.routes";
 import publicRouter from "./modules/azuracast/public.routes";
@@ -18,6 +16,7 @@ import bibleRouter from "./modules/bible/bible.routes";
 import locutorRouter from "./modules/locutor/locutor.routes";
 import youtubeRouter from "./modules/youtube/youtube.routes";
 import workerAdminRouter from "./modules/workers/workerAdmin.routes";
+import releasesRouter from "./modules/workers/releases.routes";
 import prayerRouter from "./modules/prayer/prayer.routes";
 import devicesRouter from "./modules/devices/devices.routes";
 import internalTestRouter from "./modules/internal/internalTest.routes";
@@ -29,7 +28,7 @@ import noticesPublicRouter from "./modules/notices/public.routes";
 import noticesAdminRouter from "./modules/notices/admin.routes";
 import noticeImagesRouter from "./modules/notices/noticeImages.routes";
 import noticeVideosRouter from "./modules/notices/noticeVideos.routes";
-import logsRouter from "./modules/logs/logs.routes";
+import logsRouter from "./modules/systemLogs/logs.routes";
 import swaggerFile from "./swagger-output.json";
 import { NOTICE_IMAGES_DIR, NOTICE_VIDEOS_DIR } from "./modules/notices/media/media.storage";
 
@@ -39,7 +38,25 @@ export function createApp(): Express {
   const app = express();
 
   app.use(morgan("dev"));
-  app.use(helmet({ crossOriginResourcePolicy: false }));
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+          imgSrc: ["'self'", "data:", "https:", "blob:"],
+          mediaSrc: ["'self'", "https:", "http:", "blob:", "data:"],
+          fontSrc: ["'self'", "data:", "https:"],
+          connectSrc: ["'self'", "https:", "wss:", "ws:"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+        },
+      },
+    })
+  );
   app.use(
     cors({
       origin: ALLOWED_ORIGINS,
@@ -54,8 +71,9 @@ export function createApp(): Express {
     express.text({ type: "application/xml" })
   );
 
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  // Increase limits to avoid 413 on large JSON payloads (gallery, notices). Multer handles multipart separately.
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
   app.use("/api", publicRouter);
   app.use("/admin-api/auth", authRouter);
@@ -69,6 +87,7 @@ export function createApp(): Express {
   app.use("/admin-api/youtube", youtubeRouter);
   app.use("/api/bible", bibleRouter);
   app.use("/admin-api/workers", workerAdminRouter);
+  app.use(releasesRouter);
   app.use("/internal", internalTestRouter);
   app.use("/admin-api/schedule-categories", scheduleCategoriesRouter);
   app.use("/api/devices", devicesRouter);

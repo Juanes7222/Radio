@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View, ScrollView, Pressable, StyleSheet, Dimensions, Text } from "react-native";
+import { View, ScrollView, Pressable, StyleSheet, Dimensions, Text, Modal, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "react-native";
 import Animated, { LinearTransition, Easing } from "react-native-reanimated";
@@ -25,6 +25,11 @@ interface Props {
 export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
+  const [lightboxUri, setLightboxUri] = useState<string | null>(null);
+  const [lightboxType, setLightboxType] = useState<"image" | "video">("image");
+  const [resumeTime, setResumeTime] = useState(0);
+  const previewPlayers = useRef<Map<number, import("expo-video").VideoPlayer>>(new Map());
+  const openedIndexRef = useRef<number | null>(null);
   const width = Dimensions.get("window").width - 32; // modal padding
 
   useEffect(() => {
@@ -79,11 +84,24 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
           const uri = resolveNoticeMediaUri(item.url);
           const posterUri = item.posterUrl ? resolveNoticeMediaUri(item.posterUrl) : null;
           return (
-            <View key={`${item.url}-${idx}`} style={{ width, aspectRatio: 16 / 9, backgroundColor: "#0F172A" }}>
+            <View key={`${item.url}-${idx}`} style={{ width, minHeight: 200, maxHeight: 360, backgroundColor: "#0F172A", justifyContent: "center" }}>
               {item.type === "video" ? (
-                <InlineVideo uri={uri ?? ""} posterUri={posterUri} aspectRatio={16 / 9} />
+                <Pressable onPress={() => { if (uri) { const p = previewPlayers.current.get(idx); const t = p?.currentTime ?? 0; setResumeTime(t); openedIndexRef.current = idx; try { p?.pause(); } catch {} setLightboxUri(uri); setLightboxType("video"); } }}>
+                  <View pointerEvents="none">
+                    <InlineVideo uri={uri ?? ""} posterUri={posterUri} aspectRatio={16 / 9} onPlayerReady={(p) => previewPlayers.current.set(idx, p)} />
+                  </View>
+                  <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <Ionicons name="expand-outline" size={12} color="#fff" />
+                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}>Ampliar</Text>
+                  </View>
+                </Pressable>
               ) : (
-                <Image source={{ uri: uri ?? undefined }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                <Pressable onPress={() => { if (uri) { setLightboxUri(uri); setLightboxType("image"); } }} style={{ width: "100%", height: "100%", justifyContent: "center", alignItems: "center" }}>
+                  <Image source={{ uri: uri ?? undefined }} style={{ width: "100%", height: 220, maxHeight: 360 }} resizeMode="contain" />
+                  <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999, width: 28, height: 28, alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name="expand-outline" size={14} color="#fff" />
+                  </View>
+                </Pressable>
               )}
             </View>
           );
@@ -116,6 +134,23 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
             ))}
           </Animated.View>
         </>
+      )}
+
+      {lightboxUri && (
+        <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => { const idx = openedIndexRef.current; if (idx != null) try { previewPlayers.current.get(idx)?.play(); } catch {} setLightboxUri(null); }}>
+          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center", alignItems: "center", padding: 16 }} onPress={() => { const idx = openedIndexRef.current; if (idx != null) try { previewPlayers.current.get(idx)?.play(); } catch {} setLightboxUri(null); }}>
+            <Pressable style={{ position: "absolute", top: 50, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }} onPress={() => { const idx = openedIndexRef.current; if (idx != null) try { previewPlayers.current.get(idx)?.play(); } catch {} setLightboxUri(null); }}>
+              <Ionicons name="close" size={20} color="#fff" />
+            </Pressable>
+            {lightboxType === "video" ? (
+              <Pressable onPress={(e) => e.stopPropagation()} style={{ width: "100%", aspectRatio: 16/9 }}>
+                <InlineVideo uri={lightboxUri} aspectRatio={16/9} initialTime={resumeTime} />
+              </Pressable>
+            ) : (
+              <Image source={{ uri: lightboxUri }} style={{ width: "100%", height: "70%" }} resizeMode="contain" />
+            )}
+          </Pressable>
+        </Modal>
       )}
     </View>
   );

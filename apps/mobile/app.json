@@ -4,10 +4,10 @@
     "slug": "la-voz-de-la-verdad",
     "version": "1.0.0",
     "runtimeVersion": {
-      "policy": "fingerprint"
+      "policy": "appVersion"
     },
     "orientation": "portrait",
-    "icon": "./assets/android/mipmap-xxxhdpi/ic_launcher.png",
+    "icon": "./assets/icon.png",
     "scheme": "radio",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -33,7 +33,7 @@
     "android": {
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/android/mipmap-xxxhdpi/ic_launcher_foreground.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.lavozverdad.radio",
@@ -82,7 +82,9 @@
           "imageWidth": 200
         }
       ],
-      "expo-font"
+      "expo-font",
+      "./plugins/withGoogleServices.js",
+      "./plugins/withCmakeVersion.js"
     ],
     "experiments": {
       "typedRoutes": true

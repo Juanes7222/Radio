@@ -5,6 +5,7 @@ import { azuracastConfig } from "./azuracast.config";
 import { geoipConfig } from "./geoip.config";
 import { locutorConfig } from "./locutor.config";
 import { notificationsConfig } from "./notifications.config";
+import { logsConfig } from "./logs.config";
 import { processingConfig } from "./processing.config";
 import { webhookConfig } from "./webhook.config";
 import { workersConfig } from "./workers.config";
@@ -21,4 +22,5 @@ export const config = {
   processing: processingConfig,
   notifications: notificationsConfig,
   webhook: webhookConfig,
+  logs: logsConfig,
 };

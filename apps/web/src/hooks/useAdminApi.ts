@@ -564,7 +564,7 @@ export function useAdminApi() {
     (file: File) => {
       const fd = new FormData();
       fd.append('image', file);
-      return request<NoticeImage>({ method: 'POST', url: '/admin-api/notices/images', data: fd, timeout: 30000 });
+      return request<NoticeImage>({ method: 'POST', url: '/admin-api/notices/images', data: fd, timeout: 60000 });
     },
     [request]
   );
@@ -582,7 +582,8 @@ export function useAdminApi() {
     (file: File) => {
       const fd = new FormData();
       fd.append('video', file);
-      return request<NoticeVideo>({ method: 'POST', url: '/admin-api/notices/videos', data: fd, timeout: 120000 });
+      // 5 min: large file upload + ffmpeg transcode (720p) can take >2 min on slow CPU
+      return request<NoticeVideo>({ method: 'POST', url: '/admin-api/notices/videos', data: fd, timeout: 300000 });
     },
     [request]
   );

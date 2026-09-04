@@ -1,4 +1,12 @@
-export type ServerMessageType = "assign_job" | "ping" | "acknowledge";
+export type ServerMessageType = "assign_job" | "ping" | "acknowledge" | "update_available";
+
+export interface UpdateAvailableMessage {
+  type: "update_available";
+  version: string;
+  sha256: string;
+  url: string;
+  mandatory: boolean;
+}
 
 export type WorkerMessageType =
   | "register"
@@ -15,6 +23,7 @@ export interface RegisterMessage {
   secret: string;
   name: string;
   maxConcurrentJobs: number;
+  version?: string;
 }
 
 export interface HeartbeatMessage {
