@@ -213,28 +213,31 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size }: DialVivoP
         <Animated.View
           key={artworkUri ?? 'default-art'}
           entering={FadeIn.duration(360).easing(Easing.bezier(0.16, 1, 0.3, 1))}
-          style={{
-            position: 'absolute',
-            top: radius - labelRadius,
-            left: radius - labelRadius,
-            width: labelSize,
-            height: labelSize,
-            borderRadius: labelRadius,
-            overflow: 'hidden',
-            borderWidth: 1.5,
-            borderColor: 'rgba(255,255,255,0.14)',
-            backgroundColor: '#0A0A14',
-          }}
         >
-          <Image
-            source={artworkUri ? { uri: artworkUri } : DefaultAlbumArt}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            transition={320}
-            cachePolicy="memory-disk"
-            priority="high"
-          />
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.12)' }]} />
+          <View
+            style={{
+              position: 'absolute',
+              top: radius - labelRadius,
+              left: radius - labelRadius,
+              width: labelSize,
+              height: labelSize,
+              borderRadius: labelRadius,
+              overflow: 'hidden',
+              borderWidth: 1.5,
+              borderColor: 'rgba(255,255,255,0.14)',
+              backgroundColor: '#0A0A14',
+            }}
+          >
+            <Image
+              source={artworkUri ? { uri: artworkUri } : DefaultAlbumArt}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={320}
+              cachePolicy="memory-disk"
+              priority="high"
+            />
+            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.12)' }]} />
+          </View>
         </Animated.View>
 
         <View

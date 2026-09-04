@@ -108,6 +108,12 @@ export function updateFCMToken(newToken: string): Promise<void> {
         if (response.ok) {
           await AsyncStorage.setItem(FCM_TOKEN_KEY, newToken);
           console.log('[Device] FCM token updated');
+        } else if (response.status === 404) {
+          // Device aún no existe en backend (fresh install o backend reiniciado)
+          // Fallback a registro completo para crear el documento
+          console.warn('[Device] Token update 404 -> fallback to registerDevice');
+          await AsyncStorage.removeItem(FCM_TOKEN_KEY);
+          await registerDevice();
         } else {
           console.warn('[Device] Token update failed:', response.status);
         }

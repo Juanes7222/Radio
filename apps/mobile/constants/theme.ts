@@ -1,22 +1,25 @@
 /**
- * Design tokens — La Voz de la Verdad (Mobile Redesign 2026)
- * Palette anclada al objeto: transistor bakelita, dial ámbar, papel biblia, noche Caribe.
- * Mantiene aliases legacy (accent, accentLight…) para migración incremental.
+ * Design tokens — La Voz de la Verdad (Mobile) alineado a Web
+ * Espeja apps/web/src/index.css :root (public) para paridad visual.
+ * Web :root usa indigo #8D86F4 como primary; .admin-theme usa amber #FAB742.
+ * Mobile migraba al dial ámbar (#FFB547, cercano a admin). Ahora se alinea al public indigo.
+ * Mantiene aliases legacy (accent/cian) apuntando al nuevo primary para compatibilidad.
  */
 
 export const Colors = {
-  // ——— Core ———
-  ink: '#080A1E',
-  inkElevated: '#131636',
-  inkSoft: '#1A1440',
-  background: '#080A1E',
-  backgroundAlt: '#0A0C24',
-  backgroundElevated: '#131636',
-  gradientDeep: '#1A1440',
+  // ——— Core — espeja :root en apps/web/src/index.css:8 ———
+  ink: '#020817', // --background 222.2 84% 4.9%
+  inkElevated: '#1F2937', // --card 215 28% 17%
+  inkSoft: '#181C25', // --surface-sunken 222 22% 12%
+  background: '#020817', // --background
+  backgroundAlt: '#0F172A', // slate-900 intermedio para gradientes (entre background y card)
+  backgroundElevated: '#1F2937', // --card
+  gradientDeep: '#181C25', // --surface-sunken
   paper: '#FFF6E5',
   paperMuted: '#F5E6C8',
 
   // ——— Surfaces (glass system sobre ink) ———
+  // Glass se mantiene como overlay blanco translúcido; web usa bg-background/70 + backdrop-blur.
   surface: 'rgba(255,255,255,0.06)',
   surfaceDim: 'rgba(255,255,255,0.035)',
   surfaceFaint: 'rgba(255,255,255,0.05)',
@@ -24,49 +27,53 @@ export const Colors = {
   surfaceBorder: 'rgba(255,255,255,0.07)',
   surfaceElevated: 'rgba(255,255,255,0.10)',
   surfaceGlass: 'rgba(255,255,255,0.06)',
-  border: 'rgba(255,255,255,0.08)',
-  borderGlass: 'rgba(255,255,255,0.08)',
-  borderStrong: 'rgba(255,255,255,0.14)',
+  border: '#334155', // --border 215 16% 27% => #3A4350 (ajustado a slate-700 para AA)
+  borderGlass: 'rgba(148,163,184,0.14)', // --border con alpha, para hairlines sobre glass
+  borderStrong: 'rgba(148,163,184,0.24)',
 
-  // ——— Signal (ámbar dial) — primario absoluto ———
-  signal: '#FFB547',
-  signalLight: '#FFC46E',
-  signalMuted: 'rgba(255,181,71,0.14)',
-  signalGlow: 'rgba(255,181,71,0.32)',
-  signalSoft: 'rgba(255,181,71,0.08)',
-  signalFaint: 'rgba(255,181,71,0.06)',
+  // ——— Signal -> Primary indigo — espeja --primary 244 83% 74% #8D86F4 ———
+  // Antes: amber dial #FFB547 (cercano a .admin-theme --primary 38 95% 62% #FAB742)
+  // Ahora: indigo public #8D86F4. Aliases accent/cian siguen al nuevo primary.
+  signal: '#8D86F4',
+  signalLight: '#A7A2F6', // 244 83% 80% - hover/light
+  signalMuted: 'rgba(141,134,244,0.14)',
+  signalGlow: 'rgba(141,134,244,0.32)',
+  signalSoft: 'rgba(141,134,244,0.08)',
+  signalFaint: 'rgba(141,134,244,0.06)',
 
   // ——— Legacy aliases (migración) ———
-  accent: '#FFB547',
-  accentLight: '#FFC46E',
-  accentMuted: 'rgba(255,181,71,0.14)',
-  accentGlow: 'rgba(255,181,71,0.32)',
+  accent: '#8D86F4',
+  accentLight: '#A7A2F6',
+  accentMuted: 'rgba(141,134,244,0.14)',
+  accentGlow: 'rgba(141,134,244,0.32)',
 
-  // ——— Semantic ———
-  tally: '#FF3B3A',
-  tallyMuted: 'rgba(255,59,58,0.14)',
-  tallyGlow: 'rgba(255,59,58,0.28)',
-  danger: '#FF3B3A',
-  dangerMuted: 'rgba(255,59,58,0.14)',
-  warning: '#FFB547',
-  warningMuted: 'rgba(255,181,71,0.14)',
-  success: '#22c55e',
-  successMuted: 'rgba(34,197,94,0.14)',
+  // ——— Semantic — espeja :root semantic en index.css:51 ———
+  tally: '#E44456', // --tally 353 75% 58%
+  tallyMuted: 'rgba(228,68,86,0.14)',
+  tallyGlow: 'rgba(228,68,86,0.28)',
+  danger: '#E44456',
+  dangerMuted: 'rgba(228,68,86,0.14)',
+  warning: '#F6A328', // --warning 36 92% 56%
+  warningMuted: 'rgba(246,163,40,0.14)',
+  success: '#4ABF89', // --success 152 48% 52%
+  successMuted: 'rgba(74,191,137,0.14)',
+  info: '#4CBCF0', // --info 199 85% 62% (nuevo, antes no existía en mobile)
+  infoMuted: 'rgba(76,188,240,0.14)',
 
-  // ——— Text ———
-  text: '#F8F7FF',
-  textBright: '#FFFFFF',
-  textSoft: '#F1F1FF',
-  textMuted: 'rgba(248,247,255,0.68)',
-  textFaint: 'rgba(248,247,255,0.52)',
-  textAlt: '#9CA3AF',
-  textAltFaint: '#6B7280',
-  textOnSignal: '#1A0F00',
+  // ——— Text — espeja --foreground / --muted-foreground / --faint ———
+  text: '#F8FAFC', // slate-50, cercano a --foreground 0 0% 100%
+  textBright: '#FFFFFF', // --foreground
+  textSoft: '#F1F5F9', // slate-100
+  textMuted: '#94A3B8', // --muted-foreground 215 20% 65%
+  textFaint: '#848E9F', // --faint 218 12% 57%
+  textAlt: '#94A3B8',
+  textAltFaint: '#64748B', // slate-500
+  textOnSignal: '#020817', // --primary-foreground 222.2 84% 4.9% (texto oscuro sobre indigo)
   textOnPaper: '#1C1400',
 
   // ——— Legacy surfaces translation ———
-  cian: '#FFB547',
-  cianMuted: 'rgba(255,181,71,0.14)',
+  cian: '#8D86F4',
+  cianMuted: 'rgba(141,134,244,0.14)',
 } as const;
 
 export const Radii = {
@@ -118,9 +125,9 @@ export const Typography = {
 
 export const Shadows = {
   signal: {
-    shadowColor: '#FFB547',
+    shadowColor: '#8D86F4',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
+    shadowOpacity: 0.28, // ajustado para indigo (web: 0 8px 30px rgba(99,102,241,0.28))
     shadowRadius: 20,
     elevation: 12,
   },

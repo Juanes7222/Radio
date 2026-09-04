@@ -14,7 +14,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#080A1E"
+      "backgroundColor": "#020817"
     },
     "updates": {
       "enabled": true,
@@ -69,7 +69,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#FFB547",
+          "color": "#8D86F4",
           "sounds": [
             "./assets/audio/ring.wav"
           ]
@@ -78,7 +78,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#080A1E",
+          "backgroundColor": "#020817",
           "image": "./assets/splash-icon.png",
           "imageWidth": 200
         }
@@ -86,7 +86,8 @@
       "expo-font",
       "./plugins/withGoogleServices.js",
       "./plugins/withCmakeVersion.js",
-      "./plugins/withKotlinFix.js"
+      "./plugins/withKotlinFix.js",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true

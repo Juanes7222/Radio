@@ -12,7 +12,7 @@ import Animated, {
   withSpring,
   Easing,
 } from 'react-native-reanimated';
-import { BottomTabBar } from '@react-navigation/bottom-tabs';
+import { BottomTabBar } from 'expo-router/js-tabs';
 import { useEffect } from 'react';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { Colors } from '@/constants/theme';
