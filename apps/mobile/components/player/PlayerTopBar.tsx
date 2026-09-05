@@ -33,6 +33,7 @@ export function PlayerTopBar({
           style={styles.iconButton}
           activeOpacity={0.7}
           accessibilityLabel="Configurar notificaciones"
+          accessibilityRole="button"
         >
           <Ionicons
             name={notifyEnabled ? 'notifications' : 'notifications-outline'}
@@ -61,6 +62,7 @@ export function PlayerTopBar({
           style={styles.iconButton}
           activeOpacity={0.7}
           accessibilityLabel="Alarma de radio"
+          accessibilityRole="button"
         >
           <Ionicons name="alarm-outline" size={20} color={Colors.textFaint} />
         </TouchableOpacity>
@@ -69,7 +71,9 @@ export function PlayerTopBar({
           onPress={onOpenSleepTimer}
           style={[styles.iconButton, sleepTimerActive && styles.iconButtonActive]}
           activeOpacity={0.7}
-          accessibilityLabel="Temporizador de apagado"
+          accessibilityLabel={sleepTimerActive ? `Temporizador de apagado activo, ${sleepTimerDisplay}` : 'Temporizador de apagado'}
+          accessibilityRole="button"
+          accessibilityState={{ selected: sleepTimerActive }}
         >
           <Ionicons
             name="timer-outline"
@@ -95,19 +99,22 @@ const styles = StyleSheet.create({
   actionsRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
   },
   iconButton: {
+    minWidth: 44,
+    minHeight: 44,
     padding: 10,
     borderRadius: Radii.full,
     backgroundColor: Colors.surfaceGlass,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.xs,
     borderWidth: 1,
     borderColor: Colors.borderGlass,
   },
-  iconButtonActive: { backgroundColor: Colors.signalMuted, borderColor: 'rgba(255,181,71,0.22)' },
+  iconButtonActive: { backgroundColor: Colors.signalMuted, borderColor: Colors.signalGlow },
   qualityBadge: {
     ...Typography.caption,
     color: Colors.textFaint,

@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
 import { Colors, Radii, Typography } from '@/constants/theme';
 import { scale } from '@/lib/responsive';
 
@@ -10,8 +10,16 @@ interface LiveBadgeProps {
 export function LiveBadge({ listenersCount }: LiveBadgeProps) {
   const pulseScale = useRef(new Animated.Value(1)).current;
   const pulseOpacity = useRef(new Animated.Value(0.8)).current;
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled?.()
+      ?.then((enabled: boolean) => setReduceMotion(!!enabled))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion) return;
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.parallel([
@@ -42,21 +50,33 @@ export function LiveBadge({ listenersCount }: LiveBadgeProps) {
     );
     pulse.start();
     return () => pulse.stop();
-  }, [pulseOpacity, pulseScale]);
+  }, [pulseOpacity, pulseScale, reduceMotion]);
 
   const formattedListeners = listenersCount > 999
     ? `${(listenersCount / 1000).toFixed(1)}k`
     : String(listenersCount);
+  const accessibilityLabel =
+    listenersCount > 0
+      ? `En vivo, ${formattedListeners} ${listenersCount === 1 ? 'oyente' : 'oyentes'}`
+      : 'En vivo';
 
   return (
-    <View style={styles.row}>
-      <View style={styles.dotContainer}>
-        <Animated.View
-          style={[
-            styles.pulseDot,
-            { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
-          ]}
-        />
+    <View
+      style={styles.row}
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityLiveRegion="polite"
+    >
+      <View style={styles.dotContainer} accessible={false} importantForAccessibility="no-hide-descendants">
+        {!reduceMotion && (
+          <Animated.View
+            style={[
+              styles.pulseDot,
+              { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
+            ]}
+          />
+        )}
         <View style={styles.solidDot} />
       </View>
 
@@ -116,7 +136,7 @@ const styles = StyleSheet.create({
   },
   listenersText: {
     ...Typography.caption,
-    color: 'rgba(239,68,68,0.75)',
-    fontWeight: '500',
+    color: Colors.danger,
+    fontWeight: '600',
   },
 });

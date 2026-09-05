@@ -92,7 +92,10 @@ export function PlayerControls({
         onPressOut={() => { favPressed.value = withTiming(0, { duration: 160, easing: Easing.out(Easing.ease) }); }}
         style={[styles.sideButton, favStyle]}
         accessibilityLabel={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isFavorite }}
+        accessibilityHint="Avisa cuando suene esta canción si activas notificaciones"
+        hitSlop={12}
       >
         <Ionicons
           name={isFavorite ? 'heart' : 'heart-outline'}
@@ -106,9 +109,11 @@ export function PlayerControls({
         onPressIn={() => { playPressed.value = withTiming(1, { duration: 110 }); }}
         onPressOut={() => { playPressed.value = withTiming(0, { duration: 160, easing: Easing.out(Easing.ease) }); }}
         style={[styles.playButton, playStyle]}
-        accessibilityLabel={isPlaying ? 'Pausar' : 'Reproducir'}
+        accessibilityLabel={isBuffering ? 'Cargando emisión' : isPlaying ? 'Pausar' : 'Reproducir'}
         accessibilityRole="button"
-        hitSlop={8}
+        accessibilityState={{ busy: isBuffering }}
+        accessibilityHint={isPlaying ? 'Pausa la emisión en vivo' : 'Reanuda la emisión en vivo'}
+        hitSlop={12}
       >
         {isBuffering ? (
           <ActivityIndicator size="large" color={Colors.textOnSignal} />
@@ -127,8 +132,10 @@ export function PlayerControls({
         onPressIn={() => { sharePressed.value = withTiming(1, { duration: 110 }); }}
         onPressOut={() => { sharePressed.value = withTiming(0, { duration: 160, easing: Easing.out(Easing.ease) }); }}
         style={[styles.sideButton, shareStyle]}
-        accessibilityLabel="Compartir"
-        hitSlop={8}
+        accessibilityLabel="Compartir emisora"
+        accessibilityRole="button"
+        accessibilityHint="Comparte un enlace a la aplicación"
+        hitSlop={12}
       >
         <Ionicons name="share-outline" size={scale(22)} color={Colors.textMuted} />
       </AnimatedPressable>

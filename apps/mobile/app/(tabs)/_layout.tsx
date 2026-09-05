@@ -43,7 +43,7 @@ function LiveDot() {
   }));
 
   return (
-    <View style={liveStyles.container}>
+    <View style={liveStyles.container} accessible={false} importantForAccessibility="no-hide-descendants">
       {!reduceMotion && <Animated.View style={[liveStyles.halo, haloStyle]} />}
       <View style={liveStyles.dot} />
     </View>
@@ -96,13 +96,13 @@ export default function TabLayout() {
           borderRadius: 14,
         },
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: '700',
           letterSpacing: 0.4,
           marginTop: 3,
           textTransform: 'uppercase',
         },
-        tabBarAllowFontScaling: false,
+        tabBarAllowFontScaling: true,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         tabBarButton: (props: any) => (
           <Pressable

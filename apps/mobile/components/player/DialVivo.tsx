@@ -154,7 +154,7 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size }: DialVivoP
           width: size * 0.88,
           height: size * 0.88,
           borderRadius: size / 2,
-          backgroundColor: isPreaching ? 'rgba(255,181,71,0.08)' : 'rgba(255,181,71,0.06)',
+          backgroundColor: isPreaching ? Colors.signalGlow : Colors.signalSoft,
         }}
       />
 

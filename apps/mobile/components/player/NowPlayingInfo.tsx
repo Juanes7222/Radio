@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 import TextTicker from 'react-native-text-ticker';
 import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
@@ -10,12 +11,23 @@ interface NowPlayingInfoProps {
 }
 
 export function NowPlayingInfo({ title, artist, isPreaching }: NowPlayingInfoProps) {
-  // Ticker solo si el texto desborda; evitamos marquee molesto en títulos cortos.
-  const titleLooksLong = title.length > 28;
-  const artistLooksLong = artist.length > 30;
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled?.()
+      ?.then((enabled: boolean) => setReduceMotion(!!enabled))
+      .catch(() => {});
+  }, []);
+
+  // Ticker solo si el texto desborda y el usuario no pidió reducir movimiento.
+  const titleLooksLong = !reduceMotion && title.length > 28;
+  const artistLooksLong = !reduceMotion && artist.length > 30;
+  const accessibilityLabel = isPreaching
+    ? `Prédica en vivo: ${title}, ${artist}`
+    : `Sonando ahora: ${title}, ${artist}`;
 
   return (
-    <View style={styles.songInfo}>
+    <View style={styles.songInfo} accessible accessibilityRole="text" accessibilityLabel={accessibilityLabel} accessibilityLiveRegion="polite">
       {isPreaching && (
         <Animated.View
           entering={FadeIn.duration(220).easing(Easing.bezier(0.16, 1, 0.3, 1))}
@@ -96,7 +108,7 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: Colors.signalMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255,181,71,0.22)',
+    borderColor: Colors.signalGlow,
     borderRadius: Radii.full,
     paddingHorizontal: Spacing.sm + 2,
     paddingVertical: 4,
