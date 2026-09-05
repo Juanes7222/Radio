@@ -97,12 +97,36 @@ const BOOK_ALIASES: Record<string, string> = {
   ap: "Apocalipsis", apo: "Apocalipsis", rev: "Apocalipsis", revelation: "Apocalipsis",
 };
 
-interface VerseReference {
-  bookName: string;
-  chapter: number;
-  verseStart: number;
-  verseEnd?: number;
+type ParsedReference =
+  | { kind: "book"; bookName: string }
+  | { kind: "chapter"; bookName: string; chapter: number }
+  | { kind: "verse"; bookName: string; chapter: number; verseStart: number; verseEnd?: number };
+
+const ORDINAL_TO_DIGIT: Record<string, string> = {
+  primera: "1",
+  primero: "1",
+  primer: "1",
+  segunda: "2",
+  segundo: "2",
+  tercera: "3",
+  tercero: "3",
+  tercer: "3",
+};
+
+// Lets people type "primera de Juan" the way they'd say it out loud.
+function spellOutOrdinalPrefix(query: string): string {
+  const match = query.match(
+    /^(primero|primera|primer|segundo|segunda|tercero|tercera|tercer)\s+(?:de\s+)?/i,
+  );
+  if (!match) return query;
+  return `${ORDINAL_TO_DIGIT[match[1].toLowerCase()]} ${query.slice(match[0].length)}`;
 }
+
+// Accepts compact typing ("jn3:16"), a trailing period on abbreviations
+// ("Jn. 3:16"), ":" "." or "," as the chapter-verse separator, and "-" or
+// "al" as the verse-range separator.
+const REFERENCE_PATTERN =
+  /^(\d\s*)?([a-záéíóúüñ]+)\.?(?:\s*(\d+)(?:\s*[:.,]\s*(\d+)(?:\s*(?:-|al)\s*(\d+))?)?)?$/i;
 
 function normalizeKey(raw: string): string {
   return raw
@@ -130,38 +154,94 @@ function resolveBookAlias(raw: string): string | null {
 
 /**
  * Attempts to parse a query string as a verse reference.
- * Supports formats: "Mateo 8:1", "Mt 8:1", "1Co 13:4-7", "Salmos 23"
- * Returns null when the query does not match a recognizable reference pattern.
+ * Classifies intent as book ("Apocalipsis"), chapter ("Salmos 23"),
+ * or verse ("Jn 3:16", "jn3:16", "Jn. 3:16", "Juan 3.16", "Juan 3,16",
+ * "Juan 3:16 al 18"). Returns null when the query is free text.
  */
-function parseQueryReference(query: string): VerseReference | null {
-  // Pattern: optional number prefix + book name + chapter + optional :verse[-verse]
-  // Examples: "Mateo 8:1", "1 Corintios 13:4", "Sal 23", "Jn 3:16-18"
-  const pattern = /^(\d\s*)?([a-záéíóúüñ]+)\s+(\d+)(?::(\d+)(?:-(\d+))?)?$/i;
-  const normalized = query.trim();
-  const match = normalized.match(pattern);
+function parseQueryReference(query: string): ParsedReference | null {
+  const normalized = spellOutOrdinalPrefix(query.trim());
+  const match = normalized.match(REFERENCE_PATTERN);
   if (!match) return null;
 
-  const prefix = match[1]?.trim() ?? "";
-  const bookRaw = prefix ? `${prefix} ${match[2]}` : match[2];
-  const chapter = parseInt(match[3], 10);
-  const verseStart = match[4] ? parseInt(match[4], 10) : 1;
-  const verseEnd = match[5] ? parseInt(match[5], 10) : undefined;
-
-  const bookName = resolveBookAlias(bookRaw);
+  const [, prefix, bookRaw, chapterRaw, verseStartRaw, verseEndRaw] = match;
+  const bookName = resolveBookAlias(`${prefix ?? ""} ${bookRaw}`);
   if (!bookName) return null;
 
-  return { bookName, chapter, verseStart, verseEnd };
+  if (!chapterRaw) return { kind: "book", bookName };
+
+  const chapter = parseInt(chapterRaw, 10);
+  if (!verseStartRaw) return { kind: "chapter", bookName, chapter };
+
+  return {
+    kind: "verse",
+    bookName,
+    chapter,
+    verseStart: parseInt(verseStartRaw, 10),
+    verseEnd: verseEndRaw ? parseInt(verseEndRaw, 10) : undefined,
+  };
 }
 
-function buildFtsMatchQuery(query: string): string {
+function buildFtsQuery(terms: string[], mode: "AND" | "OR"): string {
   // Quoting each term as a prefix phrase sidesteps FTS5 operator syntax
-  // (AND, OR, NOT, hyphens) while still doing implicit AND across terms.
-  return query
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((term) => `"${term.replace(/"/g, '""')}"*`)
-    .join(" ");
+  // (AND, OR, NOT, hyphens) while still ranking with BM25.
+  const quoted = terms.map((term) => `"${term.replace(/"/g, '""')}"*`);
+  return mode === "AND" ? quoted.join(" ") : quoted.join(" OR ");
+}
+
+interface FtsRow {
+  verse_id: string;
+  snippet: string;
+  rank: number;
+}
+
+async function runFullTextSearch(ftsQuery: string, translationAbbr: string): Promise<FtsRow[]> {
+  return prisma.$queryRaw<FtsRow[]>`
+    SELECT verse_id,
+           snippet(bible_verse_fts, 1, '<mark>', '</mark>', '…', 8) AS snippet,
+           bm25(bible_verse_fts) AS rank
+    FROM bible_verse_fts
+    JOIN "BibleVerse" ON "BibleVerse".id = bible_verse_fts.verse_id
+    JOIN "BibleChapter" ON "BibleChapter".id = "BibleVerse".chapterId
+    JOIN "BibleBook" ON "BibleBook".id = "BibleChapter".bookId
+    JOIN "BibleTranslation" ON "BibleTranslation".id = "BibleBook".translationId
+    WHERE bible_verse_fts MATCH ${ftsQuery}
+      AND "BibleTranslation".abbreviation = ${translationAbbr}
+    ORDER BY rank ASC
+    LIMIT 50
+  `;
+}
+
+async function fetchRankedVerses(ftsRows: FtsRow[], translationAbbr: string) {
+  const rankById = new Map(ftsRows.map((row) => [row.verse_id, row]));
+
+  const verses = await prisma.bibleVerse.findMany({
+    where: {
+      id: { in: [...rankById.keys()] },
+      chapter: { book: { translation: { abbreviation: translationAbbr } } },
+    },
+    include: { chapter: { include: { book: true } } },
+  });
+
+  return verses
+    .sort((a, b) => rankById.get(a.id)!.rank - rankById.get(b.id)!.rank)
+    .map((verse) => ({ ...verse, snippet: rankById.get(verse.id)!.snippet }));
+}
+
+// Shared lookup between GET /chapter and the chapter intent of GET /search.
+async function getChapterWithVerses(bookName: string, chapterNumber: number, translationAbbr: string) {
+  return prisma.bibleChapter.findFirst({
+    where: {
+      number: chapterNumber,
+      book: {
+        name: bookName,
+        translation: { abbreviation: translationAbbr },
+      },
+    },
+    include: {
+      book: { include: { translation: true } },
+      verses: { orderBy: { number: "asc" } },
+    },
+  });
 }
 
 // Lectura bíblica programada: devuelve los capítulos que se están
@@ -254,19 +334,7 @@ router.get(
       return res.status(400).json({ error: "Invalid chapter parameter" });
     }
 
-    const chapterData = await prisma.bibleChapter.findFirst({
-      where: {
-        number: chapterNumber,
-        book: {
-          name: bookName,
-          translation: { abbreviation: translationAbbr },
-        },
-      },
-      include: {
-        book: { include: { translation: true } },
-        verses: { orderBy: { number: "asc" } },
-      },
-    });
+    const chapterData = await getChapterWithVerses(bookName, chapterNumber, translationAbbr);
 
     if (!chapterData) {
       return res.status(404).json({ error: "Chapter not found" });
@@ -297,6 +365,47 @@ router.get(
     const reference = parseQueryReference(q);
 
     if (reference) {
+      if (reference.kind === "book") {
+        const chapters = await prisma.bibleChapter.findMany({
+          where: {
+            book: { name: reference.bookName, translation: { abbreviation: translationAbbr } },
+          },
+          orderBy: { number: "asc" },
+          select: { number: true },
+        });
+        if (chapters.length === 0) {
+          return res.status(404).json({ error: "Book not found" });
+        }
+        return res.json({
+          type: "book",
+          book: reference.bookName,
+          chapterCount: chapters.length,
+          chapters: chapters.map((chapter) => chapter.number),
+          results: [],
+        });
+      }
+
+      if (reference.kind === "chapter") {
+        const chapterData = await getChapterWithVerses(
+          reference.bookName,
+          reference.chapter,
+          translationAbbr,
+        );
+        if (!chapterData) return res.status(404).json({ error: "Chapter not found" });
+        const results = chapterData.verses.map((verse) => ({
+          ...verse,
+          chapter: { number: chapterData.number, book: { name: chapterData.book.name } },
+        }));
+        return res.json({
+          type: "chapter",
+          translation: chapterData.book.translation,
+          book: chapterData.book,
+          chapter: chapterData.number,
+          verses: chapterData.verses,
+          results,
+        });
+      }
+
       if (reference.verseEnd !== undefined && reference.verseEnd < reference.verseStart) {
         return res.status(400).json({ error: "Invalid verse range: end must be >= start" });
       }
@@ -346,40 +455,21 @@ router.get(
     // Full-text branch: try FTS5 with BM25 ranking and highlighted snippets.
     // Falls back to LIKE search if the virtual table is unavailable (e.g. migration not yet applied).
     try {
-      const ftsQuery = buildFtsMatchQuery(q);
-      if (ftsQuery) {
-        const ftsRows = await prisma.$queryRaw<{ verse_id: string; snippet: string; rank: number }[]>`
-          SELECT verse_id,
-                 snippet(bible_verse_fts, 1, '<mark>', '</mark>', '…', 8) AS snippet,
-                 bm25(bible_verse_fts) AS rank
-          FROM bible_verse_fts
-          JOIN "BibleVerse" ON "BibleVerse".id = bible_verse_fts.verse_id
-          JOIN "BibleChapter" ON "BibleChapter".id = "BibleVerse".chapterId
-          JOIN "BibleBook" ON "BibleBook".id = "BibleChapter".bookId
-          JOIN "BibleTranslation" ON "BibleTranslation".id = "BibleBook".translationId
-          WHERE bible_verse_fts MATCH ${ftsQuery}
-            AND "BibleTranslation".abbreviation = ${translationAbbr}
-          ORDER BY rank ASC
-          LIMIT 50
-        `;
+      const terms = q.trim().split(/\s+/).filter(Boolean);
+      if (terms.length > 0) {
+        let ftsRows = await runFullTextSearch(buildFtsQuery(terms, "AND"), translationAbbr);
+
+        // People often misremember one word of a verse; widen the search instead
+        // of returning nothing.
+        if (ftsRows.length === 0 && terms.length > 1) {
+          ftsRows = await runFullTextSearch(buildFtsQuery(terms, "OR"), translationAbbr);
+        }
 
         if (ftsRows.length === 0) {
           return res.json({ type: "fulltext", results: [] });
         }
 
-        const rankById = new Map(ftsRows.map((row) => [row.verse_id, row]));
-
-        const verses = await prisma.bibleVerse.findMany({
-          where: {
-            id: { in: [...rankById.keys()] },
-            chapter: { book: { translation: { abbreviation: translationAbbr } } },
-          },
-          include: { chapter: { include: { book: true } } },
-        });
-
-        const results = verses
-          .sort((a, b) => rankById.get(a.id)!.rank - rankById.get(b.id)!.rank)
-          .map((verse) => ({ ...verse, snippet: rankById.get(verse.id)!.snippet }));
+        const results = await fetchRankedVerses(ftsRows, translationAbbr);
 
         return res.json({ type: "fulltext", results });
       }
