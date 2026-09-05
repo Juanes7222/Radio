@@ -20,8 +20,13 @@ ExecStopPost=/usr/bin/pm2 save
 Restart=on-failure
 RestartSec=10s
 
-StandardOutput=append:/var/log/pm2/radio-backend-out.log
-StandardError=append:/var/log/pm2/radio-backend-error.log
+# Do not mix PM2 CLI wrapper output with app logs. The panel reads
+# /var/log/pm2/radio-backend-out(-N).log and radio-backend-error(-N).log as
+# app output; redirecting systemd stdout there filled the bitacora with
+# "[PM2] Spawning daemon / tables / Script not found" spam instead of real
+# Express logs. Keep wrapper output in journal + a separate file.
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

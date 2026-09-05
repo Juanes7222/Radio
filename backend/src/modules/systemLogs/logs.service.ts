@@ -166,6 +166,47 @@ async function readTailLines(filePath: string, maxLines: number, maxBytes = TAIL
   }
 }
 
+// ── PM2 file resolution ───────────────────────────────────────────────────
+// ecosystem.config.cjs sets error_file/out_file to base paths like
+// /var/log/pm2/radio-backend-out.log, but PM2 in cluster mode writes app
+// output to instance files like radio-backend-out-0.log. The base paths only
+// receive systemd-captured PM2 CLI output (tables, daemon messages) via
+// StandardOutput=/StandardError= in radio-backend.service, so reading only
+// the base path shows "[PM2] Script not found" spam instead of app logs.
+async function expandPm2Candidates(basePath: string): Promise<string[]> {
+  const normalized = path.resolve(basePath);
+  const dir = path.dirname(normalized);
+  const base = path.basename(normalized);
+  const ext = path.extname(base);
+  const stem = ext ? base.slice(0, -ext.length) : base;
+  try {
+    const names = await fs.promises.readdir(dir);
+    const matches = names.filter(
+      (n) => n === base || (n.startsWith(`${stem}-`) && n.endsWith(ext || ".log")),
+    );
+    // Instance files first (real app logs), base file last (PM2 CLI wrapper output).
+    matches.sort((a, b) => {
+      if (a === base) return 1;
+      if (b === base) return -1;
+      return a.localeCompare(b);
+    });
+    return matches.map((n) => path.join(dir, n));
+  } catch {
+    return [normalized];
+  }
+}
+
+function isPm2CliNoise(raw: string): boolean {
+  const line = raw.trim();
+  if (!line) return true;
+  // PM2 table framing never appears in app logs.
+  if (/[┌┐└┘├┤┬┴┼─│]/.test(line)) return true;
+  // PM2 daemon/CLI output (spawn, save, tables, Script not found, ...).
+  // Real app logs are "YYYY-MM-DD HH:mm:ss: ..." or JSON, never "[PM2]...".
+  if (/^\[PM2\]/i.test(line)) return true;
+  return false;
+}
+
 // ── Docker logs ─────────────────────────────────────────────────────────────
 
 async function readDockerLogs(container: string, tail: number, since?: string): Promise<string[]> {
@@ -207,6 +248,7 @@ async function readDockerLogs(container: string, tail: number, since?: string): 
 // ── Parsers ─────────────────────────────────────────────────────────────────
 
 function parsePm2Line(raw: string): { ts: string; level: LogLevel; msg: string; meta?: Record<string, unknown>; context?: string } | null {
+  if (isPm2CliNoise(raw)) return null;
   const line = raw.trim();
   if (!line) return null;
 
@@ -258,8 +300,10 @@ function parsePm2Line(raw: string): { ts: string; level: LogLevel; msg: string; 
     return { ts, level, msg: `${context ? `[${context}] ` : ""}${String(message)}`, meta: finalMeta, context };
   }
 
-  // Fallback: morgan / plain text
-  // Detect level by keywords
+  // Fallback: morgan / plain text. PM2 always prefixes app output with
+  // "YYYY-MM-DD HH:mm:ss: " (log_date_format), so a line without prefix is
+  // PM2 CLI leftovers. Assigning "now" here flooded the panel with dozens of
+  // rows sharing the query timestamp, hiding real logs. Skip instead.
   let level: LogLevel = "info";
   const lower = line.toLowerCase();
   if (lower.includes(" error ") || lower.includes("[error]") || lower.startsWith("error")) level = "error";
@@ -267,11 +311,10 @@ function parsePm2Line(raw: string): { ts: string; level: LogLevel; msg: string; 
   else if (lower.includes(" debug ")) level = "debug";
   else if (lower.includes(" fatal ") || lower.includes(" crit ")) level = "fatal";
 
+  if (!prefixTs) return null;
   let ts = new Date().toISOString();
-  if (prefixTs) {
-    const d = new Date(prefixTs);
-    if (!Number.isNaN(d.getTime())) ts = d.toISOString();
-  }
+  const d = new Date(prefixTs);
+  if (!Number.isNaN(d.getTime())) ts = d.toISOString();
   return { ts, level, msg: line, meta: undefined };
 }
 
@@ -361,9 +404,12 @@ function inferVirtualSource(context: string | undefined, msg: string): SourceId 
 // ── Core loaders per source ──────────────────────────────────────────────────
 
 async function loadRawServerEntries(tail: number): Promise<LogRow[]> {
-  const outLines = await readTailLines(logsConfig.pm2OutFile, tail);
-  const errLines = await readTailLines(logsConfig.pm2ErrorFile, tail);
-  const all = [...outLines, ...errLines];
+  const outFiles = await expandPm2Candidates(logsConfig.pm2OutFile);
+  const errFiles = await expandPm2Candidates(logsConfig.pm2ErrorFile);
+  const perFile = Math.max(50, Math.ceil(tail / Math.max(1, outFiles.length + errFiles.length)));
+  const outNested = await Promise.all(outFiles.map((f) => readTailLines(f, perFile)));
+  const errNested = await Promise.all(errFiles.map((f) => readTailLines(f, perFile)));
+  const all = [...outNested.flat(), ...errNested.flat()];
   const rows: LogRow[] = [];
   all.forEach((raw, idx) => {
     const parsed = parsePm2Line(raw);
