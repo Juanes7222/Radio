@@ -437,7 +437,7 @@ export default function AdminNotices() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-faint">Cabina · Tablón de avisos</p>
-              <h1 className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+              <h1 className="mt-1 flex items-center gap-2 font-display text-2xl font-semibold tracking-tight">
                 <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
                   <Megaphone className="h-4 w-4" />
                 </span>
@@ -548,7 +548,7 @@ export default function AdminNotices() {
                           <span className={`h-2 w-2 rounded-full ${cfg.dot}`} aria-hidden />
                           <span className="font-mono text-[10px] uppercase tracking-widest text-faint">{cfg.label}</span>
                           <span
-                            className={`inline-flex items-center rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${mode === "modal" ? "border-amber-500/30 bg-amber-500/10 text-amber-700" : "border-border bg-card text-faint"}`}
+                            className={`inline-flex items-center rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${mode === "modal" ? "border-warning/30 bg-warning/10 text-warning" : "border-border bg-card text-faint"}`}
                           >
                             {mode === "modal" ? "● Central" : "▬ Discreto"}
                           </span>
@@ -613,7 +613,7 @@ export default function AdminNotices() {
                           <img src={resolveNoticeMediaSrc(notice.imageUrl) ?? ""} alt="" className="aspect-[16/8] w-full object-cover" />
                         ) : null}
                         <div className="flex flex-1 flex-col gap-2 p-3">
-                          <h3 className="line-clamp-2 text-[15px] font-semibold leading-tight" style={{ fontFamily: "'Fraunces', Georgia, serif" }}>
+                          <h3 className="line-clamp-2 font-display text-[15px] font-semibold leading-tight">
                             {notice.title}
                           </h3>
                           <p className="line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{notice.body}</p>
@@ -672,7 +672,7 @@ export default function AdminNotices() {
       >
         <DialogContent className="max-h-[90vh] overflow-y-auto border-border bg-card sm:max-w-[720px]">
           <DialogHeader>
-            <DialogTitle style={{ fontFamily: "'Fraunces', Georgia, serif" }}>{editing ? "Editar aviso" : "Nuevo aviso"}</DialogTitle>
+            <DialogTitle className="font-display">{editing ? "Editar aviso" : "Nuevo aviso"}</DialogTitle>
             <DialogDescription>Elige si es tarjeta discreta o anuncio central que aparece al entrar. Define ventana y frecuencia. Puedes añadir imagen, video o ambos.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 md:grid-cols-[1.15fr_0.85fr]">
@@ -777,7 +777,7 @@ export default function AdminNotices() {
                   </button>
                 </div>
                 {displayMode === "modal" && (
-                  <p className="rounded-lg bg-amber-500/10 px-2.5 py-2 font-mono text-[11px] leading-relaxed text-amber-700 ring-1 ring-amber-500/20">
+                  <p className="rounded-lg bg-warning/10 px-2.5 py-2 font-mono text-[11px] leading-relaxed text-warning ring-1 ring-warning/20">
                     Modo intrusivo: aparece una sola vez al entrar (respeta máx. por usuario) y se puede cerrar con ×, clic fuera o Esc. Úsalo solo para avisos que no
                     pueden perderse.
                   </p>

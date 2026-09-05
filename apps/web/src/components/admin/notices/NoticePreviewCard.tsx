@@ -108,10 +108,7 @@ export function NoticePreviewCard({ title, body, imageUrl, videoUrl, gallery, ct
           <span className={`inline-flex rounded-full border px-2 py-0.5 font-mono text-[11px] ${cfg.badge}`}>
             {cfg.label} · centrado al entrar
           </span>
-          <h4
-            className="mt-2 font-[800] leading-tight tracking-tight text-card-foreground"
-            style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: "20px" }}
-          >
+          <h4 className="mt-2 font-display text-xl font-bold leading-tight tracking-tight text-card-foreground">
             {title || "Título del aviso"}
           </h4>
           <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">

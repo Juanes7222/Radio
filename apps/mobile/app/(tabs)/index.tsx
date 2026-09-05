@@ -15,7 +15,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeIn, FadeInDown, Easing } from 'react-native-reanimated';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import Animated, { FadeIn, Easing } from 'react-native-reanimated';
 import { ShimmerBox } from '@/components/ui/Shimmer';
 import { DialVivo } from '@/components/player/DialVivo';
 import { PlayerControls } from '@/components/PlayerControls';
@@ -54,15 +55,12 @@ import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 
-import { TAB_BAR_HEIGHT } from '../../lib/responsive';
-
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 232);
-// Keeps the play controls clear of the tab bar while staying compact on short screens
-const BOTTOM_CONTROLS_PADDING = TAB_BAR_HEIGHT + Spacing.xs - 60;
 
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
 
   const [appActive, setAppActive] = useState(true);
   useEffect(() => {
@@ -126,7 +124,6 @@ export default function PlayerScreen() {
   }, [liveUrl, pause]);
 
   const [showBible, setShowBible] = useState(false);
-  const [bibleOpened, setBibleOpened] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [showNotifyMenu, setShowNotifyMenu] = useState(false);
   const [showAlarmMenu, setShowAlarmMenu] = useState(false);
@@ -262,7 +259,7 @@ export default function PlayerScreen() {
         <ActivityIndicator size="large" color={Colors.signal} />
         <Text style={styles.loadingText}>Conectando con la emisora…</Text>
         <Animated.View
-          entering={FadeInDown.delay(120).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          entering={FadeIn.delay(120).duration(260)}
           style={styles.skeletonRow}
         >
           <ShimmerBox style={styles.skeletonLine} borderRadius={6} />
@@ -304,10 +301,7 @@ export default function PlayerScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View
-          entering={FadeInDown.duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}
-          style={[styles.topSection, { paddingTop: insets.top + Spacing.sm }]}
-        >
+        <View style={[styles.topSection, { paddingTop: insets.top + Spacing.sm }]}>
           <ConnectionBanner reconnectAttempt={reconnectAttempt} error={audioError} />
 
           <PlayerTopBar
@@ -324,23 +318,18 @@ export default function PlayerScreen() {
             onOpenAlarm={() => setShowAlarmMenu(true)}
           />
 
-          <Animated.View
-            entering={FadeInDown.delay(60).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}
-          >
+          <View>
             <Image
               source={LOGO}
               style={styles.logo}
               resizeMode="contain"
             />
-          </Animated.View>
+          </View>
 
-          <Animated.View
-            entering={FadeInDown.delay(110).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
-          >
+          <View>
             <TouchableOpacity
               style={styles.bibleButton}
               onPress={() => {
-                setBibleOpened(true);
                 setShowBible(true);
               }}
               activeOpacity={0.8}
@@ -348,16 +337,11 @@ export default function PlayerScreen() {
               <Ionicons name="book" size={18} color="#fff" />
               <Text style={styles.bibleButtonText}>Biblia</Text>
             </TouchableOpacity>
-          </Animated.View>
-        </Animated.View>
+          </View>
+        </View>
 
-        <Animated.View
-          entering={FadeInDown.delay(160).duration(340).easing(Easing.bezier(0.16, 1, 0.3, 1))}
-          style={styles.centerSection}
-        >
-          <Animated.View
-            entering={FadeIn.duration(380).delay(180).easing(Easing.bezier(0.16, 1, 0.3, 1))}
-          >
+        <View style={styles.centerSection}>
+          <View>
             {liveUrl ? (
               <FacebookLivePlayer liveUrl={liveUrl} />
             ) : (
@@ -368,7 +352,7 @@ export default function PlayerScreen() {
                 size={VINYL_SIZE}
               />
             )}
-          </Animated.View>
+          </View>
 
           <NowPlayingInfo title={title} artist={artist} isPreaching={isPreaching} />
 
@@ -377,12 +361,11 @@ export default function PlayerScreen() {
           )}
 
           {data?.playing_next && <NextUpCard song={data.playing_next.song} active={isFocused} />}
-        </Animated.View>
+        </View>
       </ScrollView>
 
-      <Animated.View
-        entering={FadeInDown.delay(220).duration(320).easing(Easing.bezier(0.16, 1, 0.3, 1))}
-        style={[styles.bottomSection, { paddingBottom: insets.bottom + BOTTOM_CONTROLS_PADDING }]}
+      <View
+        style={[styles.bottomSection, { paddingBottom: tabBarHeight + Spacing.md }]}
       >
         <PlayerControls
           isPlaying={isPlaying}
@@ -392,7 +375,7 @@ export default function PlayerScreen() {
           onToggleFavorite={toggleFavorite}
           onShare={handleShare}
         />
-      </Animated.View>
+      </View>
 
       <SleepTimerModal
         visible={showSleepMenu}
@@ -435,9 +418,7 @@ export default function PlayerScreen() {
         exactAlarmGranted={exactAlarmGranted}
       />
 
-      {bibleOpened && (
-        <BiblePanel isOpen={showBible} onClose={() => setShowBible(false)} />
-      )}
+      <BiblePanel isOpen={showBible} onClose={() => setShowBible(false)} />
     </View>
   );
 }
@@ -531,6 +512,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.borderGlass,
-    backgroundColor: 'rgba(8,10,30,0.72)',
+    backgroundColor: 'rgba(8,10,30,0.92)',
   },
 });

@@ -53,7 +53,6 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size }: DialVivoP
   // Rotation loop
   useEffect(() => {
     if (isPlaying && !reduceMotion.value) {
-      rotation.value = 0;
       rotation.value = withRepeat(
         withTiming(1, { duration: Motion.vinylRotationMs, easing: Easing.linear }),
         -1,

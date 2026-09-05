@@ -9,42 +9,42 @@ import Animated, {
   useAnimatedStyle,
   withRepeat,
   withTiming,
-  withSpring,
   Easing,
 } from 'react-native-reanimated';
-import { BottomTabBar } from 'expo-router/js-tabs';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { Colors } from '@/constants/theme';
-import { Spring } from '@/constants/motion';
 
 const TAB_HEIGHT_BASE = 56;
 
 function LiveDot() {
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(0.55);
+  const progress = useSharedValue(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
-    scale.value = withRepeat(
-      withTiming(1.55, { duration: 1400, easing: Easing.out(Easing.ease) }),
+    AccessibilityInfo.isReduceMotionEnabled?.()
+      ?.then((enabled: boolean) => setReduceMotion(!!enabled))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    progress.value = 0;
+    progress.value = withRepeat(
+      withTiming(1, { duration: 1400, easing: Easing.out(Easing.ease) }),
       -1,
       false
     );
-    opacity.value = withRepeat(
-      withTiming(0, { duration: 1400, easing: Easing.out(Easing.ease) }),
-      -1,
-      false
-    );
-  }, [scale, opacity]);
+  }, [progress, reduceMotion]);
 
   const haloStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
+    transform: [{ scale: 1 + progress.value * 0.55 }],
+    opacity: 0.55 * (1 - progress.value),
   }));
 
   return (
     <View style={liveStyles.container}>
-      <Animated.View style={[liveStyles.halo, haloStyle]} />
+      {!reduceMotion && <Animated.View style={[liveStyles.halo, haloStyle]} />}
       <View style={liveStyles.dot} />
     </View>
   );
@@ -55,41 +55,6 @@ const liveStyles = StyleSheet.create({
   dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.tally, borderWidth: 1.5, borderColor: 'rgba(8,10,30,0.9)', zIndex: 1 },
   halo: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.tally, opacity: 0.5 },
 });
-
-// Animated wrapper for the entire tab bar — single orchestrated entry
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function AnimatedTabBar(props: any) {
-  const translateY = useSharedValue(56);
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    const run = async () => {
-      const reduce = await AccessibilityInfo.isReduceMotionEnabled?.();
-      if (reduce) {
-        translateY.value = 0;
-        opacity.value = 1;
-      } else {
-        translateY.value = withSpring(0, Spring.snappy);
-        opacity.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.ease) });
-      }
-    };
-    run().catch(() => {
-      translateY.value = withSpring(0, Spring.snappy);
-      opacity.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.ease) });
-    });
-  }, [opacity, translateY]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View style={animatedStyle}>
-      <BottomTabBar {...props} />
-    </Animated.View>
-  );
-}
 
 export default function TabLayout() {
   const { liveUrl } = useFacebookLive();
@@ -103,10 +68,9 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      tabBar={(props: any) => <AnimatedTabBar {...props} />}
       screenOptions={{
         headerShown: false,
+        sceneStyle: { backgroundColor: Colors.background },
         tabBarActiveTintColor: Colors.signal,
         tabBarInactiveTintColor: Colors.textFaint,
         tabBarStyle: {
