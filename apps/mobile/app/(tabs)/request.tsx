@@ -20,7 +20,7 @@ import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors } from '@/constants/theme';
 import { formatMediaTitle } from '@/lib/formatMedia';
-import { scale, TAB_BAR_HEIGHT } from '../../lib/responsive';
+import { scale, TAB_BAR_BASE } from '../../lib/responsive';
 import { ShimmerBox } from '@/components/ui/Shimmer';
 
 const PAGE_SIZE = 25;
@@ -363,7 +363,7 @@ export default function RequestScreen() {
         }
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 16 },
+          { paddingBottom: TAB_BAR_BASE + insets.bottom + 16 },
         ]}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         showsVerticalScrollIndicator={false}
@@ -377,7 +377,7 @@ export default function RequestScreen() {
         <Animated.View
           entering={FadeInDown.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
           exiting={FadeOut.duration(180).easing(Easing.bezier(0.4, 0, 1, 1))}
-          style={[styles.errorBanner, { bottom: insets.bottom + TAB_BAR_HEIGHT + 12 }]}
+          style={[styles.errorBanner, { bottom: TAB_BAR_BASE + insets.bottom + 12 }]}
         >
           <Ionicons name="alert-circle" size={16} color={ERROR_TEXT} />
           <Text style={styles.errorBannerText}>{requestError}</Text>

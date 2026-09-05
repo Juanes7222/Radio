@@ -13,6 +13,7 @@ import { formatScheduleTime, getBogotaDayOfWeek } from '@/lib/time';
 import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 import { ShimmerBox } from '@/components/ui/Shimmer';
+import { TAB_BAR_BASE } from '@/lib/responsive';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -621,7 +622,7 @@ export default function ScheduleScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_BASE + insets.bottom + 24 }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

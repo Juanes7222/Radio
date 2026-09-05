@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,7 +24,7 @@ import { BACKEND_URL, WEB_URL } from '@/constants/api';
 import { Colors } from '@/constants/theme';
 import { getDeviceId } from '@/lib/device';
 
-import { TAB_BAR_HEIGHT } from '../../lib/responsive';
+import { TAB_BAR_BASE } from '../../lib/responsive';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -31,6 +32,13 @@ const ROSE = '#f43f5e';
 const ACCENT_TINT = 'rgba(99,102,241,0.12)';
 const NAME_MAX_LENGTH = 50;
 const REQUEST_MAX_LENGTH = 500;
+const DRAFT_KEY = 'prayer_draft_v1';
+
+interface PrayerFieldErrors {
+  name?: string;
+  request?: string;
+  consent?: string;
+}
 
 export default function PrayerScreen() {
   const insets = useSafeAreaInsets();
@@ -40,23 +48,62 @@ export default function PrayerScreen() {
   const [acceptsDataTreatment, setAcceptsDataTreatment] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<PrayerFieldErrors>({});
+  const nameRef = useRef<TextInput>(null);
+  const requestRef = useRef<TextInput>(null);
+  const draftLoadedRef = useRef(false);
 
   const isSmallScreen = useMemo(() => SCREEN_HEIGHT < 700, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem(DRAFT_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        const draft = JSON.parse(raw) as { name?: string; request?: string };
+        if (typeof draft.name === 'string') setName(draft.name.slice(0, NAME_MAX_LENGTH));
+        if (typeof draft.request === 'string') setRequest(draft.request.slice(0, REQUEST_MAX_LENGTH));
+      })
+      .catch(() => {})
+      .finally(() => {
+        draftLoadedRef.current = true;
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!draftLoadedRef.current || sent) return;
+    const timer = setTimeout(() => {
+      AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ name, request })).catch(() => {});
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [name, request, sent]);
 
   const handleSubmit = useCallback(async () => {
     const trimmedName = name.trim();
     const trimmedRequest = request.trim();
+    const errors: PrayerFieldErrors = {};
 
-    if (!trimmedName || !trimmedRequest) {
-      Alert.alert('Campos incompletos', 'Por favor ingresa tu nombre y la petición.');
+    if (!trimmedName) {
+      errors.name = 'Ingresa tu nombre para identificar tu petición.';
+    }
+    if (!trimmedRequest) {
+      errors.request = 'Escribe tu petición antes de enviarla.';
+    } else if (trimmedRequest.length < 10) {
+      errors.request = 'Cuéntanos un poco más, mínimo 10 caracteres.';
+    }
+    if (!acceptsDataTreatment) {
+      errors.consent = 'Acepta la Política de Tratamiento de Datos para continuar.';
+    }
+    setFieldErrors(errors);
+
+    if (errors.name) {
+      nameRef.current?.focus();
       return;
     }
-
-    if (!acceptsDataTreatment) {
-      Alert.alert(
-        'Autorización requerida',
-        'Debes aceptar la Política de Tratamiento de Datos Personales para enviar tu petición.'
-      );
+    if (errors.request) {
+      requestRef.current?.focus();
+      return;
+    }
+    if (errors.consent) {
       return;
     }
 
@@ -73,6 +120,8 @@ export default function PrayerScreen() {
         setSent(true);
         setName('');
         setRequest('');
+        setFieldErrors({});
+        AsyncStorage.removeItem(DRAFT_KEY).catch(() => {});
       } else {
         const data = await res.json().catch(() => ({}));
         Alert.alert('Error', data.error || 'No se pudo enviar la petición.');
@@ -94,6 +143,8 @@ export default function PrayerScreen() {
     setSent(false);
     setName('');
     setRequest('');
+    setFieldErrors({});
+    AsyncStorage.removeItem(DRAFT_KEY).catch(() => {});
   };
 
   return (
@@ -112,7 +163,7 @@ export default function PrayerScreen() {
           styles.scroll,
           {
             paddingTop: Math.max(insets.top, 12) + (isSmallScreen ? 8 : 16),
-            paddingBottom: insets.bottom + TAB_BAR_HEIGHT + (isSmallScreen ? 8 : 16),
+            paddingBottom: TAB_BAR_BASE + insets.bottom + (isSmallScreen ? 8 : 16),
           },
         ]}
         keyboardShouldPersistTaps="handled"
@@ -165,34 +216,58 @@ export default function PrayerScreen() {
             <View style={styles.field}>
               <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Nombre</Text>
               <TextInput
-                style={[styles.input, isSmallScreen && styles.inputSmall]}
+                ref={nameRef}
+                style={[styles.input, isSmallScreen && styles.inputSmall, fieldErrors.name && styles.inputError]}
                 placeholder="Tu nombre"
                 placeholderTextColor={Colors.textAltFaint}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(value) => {
+                  setName(value);
+                  if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                }}
                 maxLength={NAME_MAX_LENGTH}
                 editable={!loading}
+                accessibilityLabel="Tu nombre"
+                autoComplete="name"
+                returnKeyType="next"
+                onSubmitEditing={() => requestRef.current?.focus()}
               />
+              {fieldErrors.name && (
+                <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                  {fieldErrors.name}
+                </Text>
+              )}
             </View>
 
             <View style={styles.field}>
               <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Petición</Text>
               <TextInput
+                ref={requestRef}
                 style={[
                   styles.input,
                   styles.textarea,
                   isSmallScreen && styles.textareaSmall,
+                  fieldErrors.request && styles.inputError,
                 ]}
                 placeholder="Escribe tu petición de oración..."
                 placeholderTextColor={Colors.textAltFaint}
                 value={request}
-                onChangeText={setRequest}
+                onChangeText={(value) => {
+                  setRequest(value);
+                  if (fieldErrors.request) setFieldErrors((prev) => ({ ...prev, request: undefined }));
+                }}
                 multiline
                 numberOfLines={isSmallScreen ? 3 : 4}
                 textAlignVertical="top"
                 maxLength={REQUEST_MAX_LENGTH}
                 editable={!loading}
+                accessibilityLabel="Tu petición de oración"
               />
+              {fieldErrors.request && (
+                <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                  {fieldErrors.request}
+                </Text>
+              )}
               <Text style={styles.charCounter}>
                 {request.length}/{REQUEST_MAX_LENGTH}
               </Text>
@@ -202,9 +277,15 @@ export default function PrayerScreen() {
             </View>
 
             <TouchableOpacity
-              onPress={() => setAcceptsDataTreatment(prev => !prev)}
+              onPress={() => {
+                setAcceptsDataTreatment((prev) => !prev);
+                if (fieldErrors.consent) setFieldErrors((prev) => ({ ...prev, consent: undefined }));
+              }}
               style={styles.consentRow}
               activeOpacity={0.8}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: acceptsDataTreatment }}
+              accessibilityLabel="Acepto la Política de Tratamiento de Datos Personales"
             >
               <Ionicons
                 name={acceptsDataTreatment ? 'checkmark-circle' : 'ellipse-outline'}
@@ -225,12 +306,21 @@ export default function PrayerScreen() {
                 y autorizo el tratamiento de mis datos para gestionar esta petición de oración.
               </Text>
             </TouchableOpacity>
+            {fieldErrors.consent && (
+              <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                {fieldErrors.consent}
+              </Text>
+            )}
 
             <TouchableOpacity
               onPress={handleSubmit}
               disabled={loading}
               style={[styles.submitBtn, loading && styles.submitBtnDisabled, isSmallScreen && styles.submitBtnSmall]}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={loading ? 'Enviando petición' : 'Enviar petición'}
+              accessibilityState={{ disabled: loading, busy: loading }}
+              accessibilityHint="Envía tu petición al equipo de intercesión"
             >
               {loading ? (
                 <ActivityIndicator size="small" color={Colors.textBright} />
@@ -279,12 +369,23 @@ const styles = StyleSheet.create({
     borderColor: Colors.surfaceBorder,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    minHeight: 48,
     color: Colors.textSoft,
     fontSize: 14,
   },
   inputSmall: {
     paddingVertical: 10,
+    minHeight: 44,
     fontSize: 13,
+  },
+  inputError: {
+    borderColor: Colors.danger,
+  },
+  errorText: {
+    color: Colors.danger,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
   },
   charCounter: {
     color: Colors.textAltFaint,

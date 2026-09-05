@@ -14,8 +14,7 @@ import Animated, {
 import { useEffect, useState } from 'react';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { Colors } from '@/constants/theme';
-
-const TAB_HEIGHT_BASE = 56;
+import { TAB_BAR_BASE } from '@/lib/responsive';
 
 function LiveDot() {
   const progress = useSharedValue(0);
@@ -60,7 +59,7 @@ export default function TabLayout() {
   const { liveUrl } = useFacebookLive();
   const insets = useSafeAreaInsets();
 
-  const TAB_HEIGHT = TAB_HEIGHT_BASE + insets.bottom;
+  const TAB_HEIGHT = TAB_BAR_BASE + insets.bottom;
 
   const handleTabPress = () => {
     Haptics.selectionAsync().catch(() => {});

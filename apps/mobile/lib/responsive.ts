@@ -20,6 +20,9 @@ export const hp = (percentage: number) => {
 
 export const isTablet = SCREEN_WIDTH >= 768;
 
+export const TAB_BAR_BASE = 56;
+
+/** @deprecated Use TAB_BAR_BASE + insets.bottom instead (see app/(tabs)/_layout.tsx). */
 export const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
 export const GLASS_TAB_HEIGHT = 72;
 export const BOTTOM_ISLAND_PADDING = 16;

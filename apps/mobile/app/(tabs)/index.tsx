@@ -15,7 +15,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import Animated, { FadeIn, Easing } from 'react-native-reanimated';
 import { ShimmerBox } from '@/components/ui/Shimmer';
 import { DialVivo } from '@/components/player/DialVivo';
@@ -52,6 +51,7 @@ import {
 } from '@/hooks/useFavoriteNotify';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { TAB_BAR_BASE } from '@/lib/responsive';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
 
@@ -60,7 +60,7 @@ const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 23
 
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
+  const tabBarHeight = TAB_BAR_BASE + insets.bottom;
 
   const [appActive, setAppActive] = useState(true);
   useEffect(() => {
@@ -302,8 +302,6 @@ export default function PlayerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.topSection, { paddingTop: insets.top + Spacing.sm }]}>
-          <ConnectionBanner reconnectAttempt={reconnectAttempt} error={audioError} />
-
           <PlayerTopBar
             notifyEnabled={notifyEnabled}
             sleepTimerActive={sleepTimer.isActive}
@@ -333,6 +331,9 @@ export default function PlayerScreen() {
                 setShowBible(true);
               }}
               activeOpacity={0.8}
+              accessibilityLabel="Abrir Biblia"
+              accessibilityRole="button"
+              accessibilityHint="Lee y busca pasajes sin detener la emisora"
             >
               <Ionicons name="book" size={18} color="#fff" />
               <Text style={styles.bibleButtonText}>Biblia</Text>
@@ -363,6 +364,13 @@ export default function PlayerScreen() {
           {data?.playing_next && <NextUpCard song={data.playing_next.song} active={isFocused} />}
         </View>
       </ScrollView>
+
+      <View
+        style={[styles.bannerOverlay, { top: insets.top + Spacing.sm }]}
+        pointerEvents="box-none"
+      >
+        <ConnectionBanner reconnectAttempt={reconnectAttempt} error={audioError} />
+      </View>
 
       <View
         style={[styles.bottomSection, { paddingBottom: tabBarHeight + Spacing.md }]}
@@ -471,13 +479,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xs,
   },
+  bannerOverlay: {
+    position: 'absolute',
+    left: Spacing.lg,
+    right: Spacing.lg,
+    zIndex: 10,
+  },
   bibleButton: {
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'transparent',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm + 4,
+    minHeight: 44,
     borderRadius: Radii.full,
     gap: Spacing.xs,
     marginBottom: Spacing.sm,

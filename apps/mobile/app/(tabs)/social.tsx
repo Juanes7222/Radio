@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { useFacebookLive } from '../../hooks/useFacebookLive';
 
-import { scale, TAB_BAR_HEIGHT } from '../../lib/responsive';
+import { scale, TAB_BAR_BASE } from '../../lib/responsive';
 
 const SOCIAL_LINKS = [
   {
@@ -69,7 +69,7 @@ export default function SocialScreen() {
           styles.content,
           {
             paddingTop: insets.top + Spacing.xl,
-            paddingBottom: insets.bottom + TAB_BAR_HEIGHT + Spacing.lg,
+            paddingBottom: TAB_BAR_BASE + insets.bottom + Spacing.lg,
           },
         ]}
       >

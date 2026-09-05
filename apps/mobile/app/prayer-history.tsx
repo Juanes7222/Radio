@@ -19,7 +19,6 @@ import {
   getTimeAgo,
   type PrayerItem,
 } from '@/lib/prayer';
-import { TAB_BAR_HEIGHT } from '../lib/responsive';
 
 const ACCENT_TINT = 'rgba(99,102,241,0.08)';
 
@@ -127,7 +126,7 @@ export default function PrayerHistoryScreen() {
           )}
           contentContainerStyle={[
             styles.list,
-            { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 16 },
+            { paddingBottom: insets.bottom + 16 },
           ]}
           showsVerticalScrollIndicator={false}
           refreshing={refreshing}
