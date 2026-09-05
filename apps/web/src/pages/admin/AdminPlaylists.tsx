@@ -65,8 +65,8 @@ function timeToMinutes(value: string): number | null {
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 px-3 py-2.5">
-      <span className="text-xs shrink-0 text-slate-400 pt-0.5">{label}</span>
-      <div className="text-xs text-right text-slate-200 min-w-0">{value}</div>
+      <span className="text-xs shrink-0 text-faint pt-0.5">{label}</span>
+      <div className="text-xs text-right text-foreground min-w-0">{value}</div>
     </div>
   );
 }
@@ -86,7 +86,7 @@ function PlaylistDetailDialog({
           <DialogDescription>Configuración completa de la playlist.</DialogDescription>
         </DialogHeader>
         {playlist && (
-          <div className="rounded-lg border border-slate-700 bg-slate-900 divide-y divide-slate-700/60">
+          <div className="rounded-lg border border-border bg-card divide-y divide-border/60">
             <DetailRow
               label="Estado"
               value={
@@ -321,7 +321,7 @@ function PlaylistContentDialog({
         </DialogHeader>
 
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-faint">
             {canReorder
               ? 'Usa las flechas para reordenar. Los cambios se guardan al instante.'
               : 'Esta playlist no es secuencial, por lo que no se puede reordenar desde aquí.'}
@@ -341,28 +341,28 @@ function PlaylistContentDialog({
         {error && <p className="text-xs text-destructive">{error}</p>}
 
         {showAdd && (
-          <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-3">
+          <div className="rounded-lg border border-border bg-card p-3 space-y-3">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
               <Input
                 placeholder="Buscar en la biblioteca por título, artista o ruta..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                className="bg-slate-950 border-slate-600 pl-9"
+                className="bg-sunken border-input pl-9"
               />
             </div>
             {libraryLoading ? (
-              <p className="text-xs text-slate-400 animate-pulse">Cargando biblioteca...</p>
+              <p className="text-xs text-faint animate-pulse">Cargando biblioteca...</p>
             ) : (
               <div className="max-h-56 overflow-y-auto space-y-1">
                 {filteredResults.slice(0, 30).map((file) => (
                   <div
                     key={file.unique_id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-800"
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate">{file.title || file.path}</p>
-                      <p className="text-[11px] text-slate-500 truncate">
+                      <p className="text-[11px] text-faint truncate">
                         {file.artist || '—'} · {formatDuration(file.length)}
                       </p>
                     </div>
@@ -385,7 +385,7 @@ function PlaylistContentDialog({
                   </div>
                 ))}
                 {filteredResults.length === 0 && (
-                  <p className="text-xs text-slate-500 text-center py-4">
+                  <p className="text-xs text-faint text-center py-4">
                     No hay audios que coincidan con la búsqueda.
                   </p>
                 )}
@@ -397,22 +397,22 @@ function PlaylistContentDialog({
         {loading ? (
           <div className="space-y-2">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-12 rounded-lg animate-pulse bg-slate-800" />
+              <div key={i} className="h-12 rounded-lg animate-pulse bg-muted" />
             ))}
           </div>
         ) : media.length === 0 ? (
-          <div className="rounded-lg border border-slate-700 bg-slate-900 py-8 text-center space-y-2">
-            <Music2 className="w-8 h-8 mx-auto text-slate-500" />
-            <p className="text-sm text-slate-400">Esta playlist no tiene audios.</p>
+          <div className="rounded-lg border border-border bg-card py-8 text-center space-y-2">
+            <Music2 className="w-8 h-8 mx-auto text-faint" />
+            <p className="text-sm text-faint">Esta playlist no tiene audios.</p>
           </div>
         ) : (
-          <div className="rounded-lg border border-slate-700 divide-y divide-slate-700/60 overflow-hidden">
+          <div className="rounded-lg border border-border divide-y divide-border/60 overflow-hidden">
             {media.map((row, index) => (
-              <div key={`${row.media.unique_id}-${row.id}`} className="flex items-center gap-2 px-3 py-2 bg-slate-900">
-                <span className="w-6 text-center text-xs text-slate-500 shrink-0">{index + 1}</span>
+              <div key={`${row.media.unique_id}-${row.id}`} className="flex items-center gap-2 px-3 py-2 bg-card">
+                <span className="w-6 text-center text-xs text-faint shrink-0">{index + 1}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm truncate">{row.media.title || row.media.path}</p>
-                  <p className="text-[11px] text-slate-500 truncate">
+                  <p className="text-[11px] text-faint truncate">
                     {row.media.artist || '—'} · {formatDuration(row.media.length)}
                   </p>
                 </div>
@@ -422,7 +422,7 @@ function PlaylistContentDialog({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-slate-400 hover:text-white"
+                        className="h-7 w-7 text-faint hover:text-foreground"
                         disabled={index === 0 || reordering}
                         onClick={() => void move(index, -1)}
                         title="Subir"
@@ -432,7 +432,7 @@ function PlaylistContentDialog({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-slate-400 hover:text-white"
+                        className="h-7 w-7 text-faint hover:text-foreground"
                         disabled={index === media.length - 1 || reordering}
                         onClick={() => void move(index, 1)}
                         title="Bajar"
@@ -547,11 +547,11 @@ function PlaylistScheduleDialog({
         {loading ? (
           <div className="space-y-2">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-12 rounded-lg animate-pulse bg-slate-800" />
+              <div key={i} className="h-12 rounded-lg animate-pulse bg-muted" />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <p className="text-sm text-slate-400 rounded-lg border border-slate-700 bg-slate-900 py-6 text-center">
+          <p className="text-sm text-faint rounded-lg border border-border bg-card py-6 text-center">
             Esta playlist no tiene horario configurado.
           </p>
         ) : (
@@ -559,14 +559,14 @@ function PlaylistScheduleDialog({
             {items.map((item, index) => (
               <div
                 key={`${item.id ?? index}-${item.start_time}`}
-                className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5"
+                className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5"
               >
                 <Clock className="w-4 h-4 text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">
                     {minutesToTime(item.start_time)} → {minutesToTime(item.end_time)}
                   </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p className="text-[11px] text-faint mt-0.5">
                     {item.days
                       .slice()
                       .sort((a, b) => a - b)
@@ -591,8 +591,8 @@ function PlaylistScheduleDialog({
           </div>
         )}
 
-        <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-3">
-          <p className="text-xs font-medium text-slate-300">Nuevo bloque</p>
+        <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+          <p className="text-xs font-medium text-muted-foreground">Nuevo bloque</p>
           <div className="flex flex-wrap gap-1.5">
             {DAY_FULL.map((dayLabel, index) => {
               const day = index + 1;
@@ -605,7 +605,7 @@ function PlaylistScheduleDialog({
                   className={`h-8 px-2.5 rounded-lg text-xs font-medium transition-colors ${
                     selected
                       ? 'bg-primary text-primary-foreground'
-                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                      : 'bg-muted text-faint hover:text-foreground'
                   }`}
                   title={dayLabel}
                 >
@@ -615,9 +615,9 @@ function PlaylistScheduleDialog({
             })}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-32 bg-slate-950 border-slate-600" />
-            <span className="text-slate-500">→</span>
-            <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-32 bg-slate-950 border-slate-600" />
+            <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-32 bg-sunken border-input" />
+            <span className="text-faint">→</span>
+            <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-32 bg-sunken border-input" />
             <Button variant="outline" size="sm" className="gap-1.5" onClick={addItem}>
               <Plus className="w-3.5 h-3.5" />
               Agregar bloque
@@ -728,7 +728,7 @@ export default function AdminPlaylists() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Playlists</h1>
-          <p className="text-sm mt-0.5 text-slate-400">
+          <p className="text-sm mt-0.5 text-faint">
             {playlists.length} playlist{playlists.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -747,7 +747,7 @@ export default function AdminPlaylists() {
       {/* Formulario crear playlist */}
       {showCreateForm && (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="border-primary/40 bg-slate-800/60">
+          <Card className="border-primary/40 bg-muted/60">
             <CardHeader>
               <CardTitle className="text-base">Nueva playlist</CardTitle>
             </CardHeader>
@@ -760,7 +760,7 @@ export default function AdminPlaylists() {
                       placeholder="Ej: Música cristiana"
                       value={createForm.name}
                       onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
-                      className="bg-slate-900 border-slate-600"
+                      className="bg-card border-input"
                     />
                   </div>
                   <div className="space-y-1">
@@ -769,7 +769,7 @@ export default function AdminPlaylists() {
                       value={createForm.type}
                       onValueChange={(v) => setCreateForm((f) => ({ ...f, type: v }))}
                     >
-                      <SelectTrigger className="w-full bg-slate-900 border-slate-600">
+                      <SelectTrigger className="w-full bg-card border-input">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -785,7 +785,7 @@ export default function AdminPlaylists() {
                       value={createForm.order}
                       onValueChange={(v) => setCreateForm((f) => ({ ...f, order: v }))}
                     >
-                      <SelectTrigger className="w-full bg-slate-900 border-slate-600">
+                      <SelectTrigger className="w-full bg-card border-input">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -832,19 +832,19 @@ export default function AdminPlaylists() {
       {loading && playlists.length === 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <Card key={i} className="animate-pulse border-slate-700 bg-slate-800/60">
+            <Card key={i} className="animate-pulse border-border bg-muted/60">
               <CardContent className="pt-6 space-y-3">
-                <div className="h-4 rounded bg-slate-700" />
-                <div className="h-3 w-2/3 rounded bg-slate-700" />
+                <div className="h-4 rounded bg-muted" />
+                <div className="h-3 w-2/3 rounded bg-muted" />
               </CardContent>
             </Card>
           ))}
         </div>
       ) : playlists.length === 0 ? (
-        <Card className="border-slate-700 bg-slate-800/60">
+        <Card className="border-border bg-muted/60">
           <CardContent className="pt-10 pb-10 text-center space-y-3">
-            <ListMusic className="w-10 h-10 mx-auto text-slate-400" />
-            <p className="text-slate-400">
+            <ListMusic className="w-10 h-10 mx-auto text-faint" />
+            <p className="text-faint">
               No hay playlists configuradas.
             </p>
             <a href={`${AZURACAST_URL}/station/1/playlists`} target="_blank" rel="noopener noreferrer">
@@ -867,7 +867,7 @@ export default function AdminPlaylists() {
               <Card
                 className={`h-full transition-opacity ${
                   !pl.is_enabled ? 'opacity-50' : ''
-                } border-slate-700 bg-slate-800/60`}
+                } border-border bg-muted/60`}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
@@ -884,7 +884,7 @@ export default function AdminPlaylists() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex flex-wrap gap-2 text-xs text-slate-400">
+                  <div className="flex flex-wrap gap-2 text-xs text-faint">
                     <span>{PLAYLIST_TYPES[pl.type] ?? pl.type}</span>
                     <span>·</span>
                     <span>{pl.num_songs} canciones</span>
@@ -938,7 +938,7 @@ export default function AdminPlaylists() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-slate-400 hover:text-white"
+                      className="h-7 w-7 text-faint hover:text-foreground"
                       disabled={actionId === pl.id}
                       onClick={() => setSelectedPlaylist(pl)}
                       title="Ver detalles"

@@ -1,18 +1,12 @@
 import { ExternalLink } from "lucide-react";
 import { resolveNoticeMediaSrc, resolveVideoPosterSrc } from "@/lib/noticeMedia";
+import { VARIANT_CFG } from "@/components/admin/notices/noticeConfig";
 import type { NoticeVariant, NoticeDisplayMode } from "@radio/types";
 
 /**
  * Visual preview of how a notice will appear to listeners.
  * Supports both display modes (toast/modal) and media types (image/video).
  */
-
-const VARIANT_CFG: Record<NoticeVariant, { label: string; dot: string; border: string; badge: string }> = {
-  info: { label: "Informativo", dot: "bg-info", border: "border-l-info", badge: "bg-info/10 text-info border-info/20" },
-  event: { label: "Evento", dot: "bg-primary", border: "border-l-primary", badge: "bg-primary/10 text-primary border-primary/20" },
-  warning: { label: "Urgente", dot: "bg-warning", border: "border-l-warning", badge: "bg-warning/10 text-warning border-warning/20" },
-  prayer: { label: "Oración", dot: "bg-success", border: "border-l-success", badge: "bg-success/10 text-success border-success/20" },
-};
 
 interface Props {
   title: string;
@@ -141,10 +135,7 @@ export function NoticePreviewCard({ title, body, imageUrl, videoUrl, gallery, ct
       {toastMediaNode}
       <div className="p-4">
         <span className={`inline-flex rounded-full border px-2 py-0.5 font-mono text-[11px] ${cfg.badge}`}>{cfg.label}</span>
-        <h4
-          className="mt-2 font-[700] leading-tight text-card-foreground"
-          style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: "18px" }}
-        >
+        <h4 className="mt-2 font-display text-lg font-bold leading-tight text-card-foreground">
           {title || "Título del aviso"}
         </h4>
         <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">

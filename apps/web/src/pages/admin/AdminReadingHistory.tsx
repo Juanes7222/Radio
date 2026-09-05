@@ -74,24 +74,24 @@ function DaySummaryCard({
   entry: BibleReadingHistoryEntry | undefined;
 }) {
   return (
-    <Card className="border-slate-700 bg-slate-800/60">
+    <Card className="border-border bg-muted/60">
       <CardContent className="p-5">
         <div className="flex items-center gap-2 mb-2">
           <CalendarDays className="w-4 h-4 text-primary" />
-          <p className="text-xs font-medium text-slate-400">{title}</p>
+          <p className="text-xs font-medium text-faint">{title}</p>
         </div>
         {entry ? (
           <>
             <p className="text-sm font-semibold leading-snug">{formatChapters(entry.chapters)}</p>
-            <p className="text-xs text-slate-400 mt-1">{entry.rotationName}</p>
+            <p className="text-xs text-faint mt-1">{entry.rotationName}</p>
             {entry.status !== 'success' && (
-              <p className="text-[11px] text-amber-400/90 mt-1">
+              <p className="text-[11px] text-warning mt-1">
                 Ejecución {STATUS_LABELS[entry.status]?.toLowerCase()}: {entry.itemsPlaced}/{entry.itemsPicked} colocados
               </p>
             )}
           </>
         ) : (
-          <p className="text-sm text-slate-500">Sin registro para este día.</p>
+          <p className="text-sm text-faint">Sin registro para este día.</p>
         )}
       </CardContent>
     </Card>
@@ -145,7 +145,7 @@ export default function AdminReadingHistory() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Lectura bíblica</h1>
-          <p className="text-sm mt-0.5 text-slate-400">
+          <p className="text-sm mt-0.5 text-faint">
             Capítulos emitidos cada día por las rotaciones bíblicas.
           </p>
         </div>
@@ -160,14 +160,14 @@ export default function AdminReadingHistory() {
         <DaySummaryCard title="Ayer" entry={yesterdayEntry} />
       </div>
 
-      <Card className="border-slate-700 bg-slate-800/60">
+      <Card className="border-border bg-muted/60">
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-primary" />
               <CardTitle className="text-base">Historial por día</CardTitle>
             </div>
-            <div className="flex gap-1 p-1 rounded-lg bg-slate-900 border border-slate-700 w-fit">
+            <div className="flex gap-1 p-1 rounded-lg bg-card border border-border w-fit">
               {RANGE_OPTIONS.map((option) => (
                 <button
                   key={option.value}
@@ -176,7 +176,7 @@ export default function AdminReadingHistory() {
                   className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                     range === option.value
                       ? 'bg-primary text-primary-foreground'
-                      : 'text-slate-400 hover:text-white'
+                      : 'text-faint hover:text-foreground'
                   }`}
                 >
                   {option.label}
@@ -189,11 +189,11 @@ export default function AdminReadingHistory() {
           {loading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-11 rounded-lg animate-pulse bg-slate-700" />
+                <div key={i} className="h-11 rounded-lg animate-pulse bg-muted" />
               ))}
             </div>
           ) : filtered.length === 0 ? (
-            <p className="py-10 text-center text-sm text-slate-400">
+            <p className="py-10 text-center text-sm text-faint">
               No hay lecturas registradas en este período. Ejecuta una rotación bíblica para ver el historial.
             </p>
           ) : (
@@ -210,7 +210,7 @@ export default function AdminReadingHistory() {
               <TableBody>
                 {filtered.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell className="text-slate-300 whitespace-nowrap">
+                    <TableCell className="text-muted-foreground whitespace-nowrap">
                       <span className="flex items-center gap-2">
                         {formatDateKey(entry.dateKey)}
                         {entry.dateKey === todayKey && (
@@ -221,16 +221,16 @@ export default function AdminReadingHistory() {
                         )}
                       </span>
                     </TableCell>
-                    <TableCell className="text-slate-400">{entry.rotationName}</TableCell>
+                    <TableCell className="text-faint">{entry.rotationName}</TableCell>
                     <TableCell className="max-w-md">
-                      <p className="text-sm text-slate-200 whitespace-normal break-words">
+                      <p className="text-sm text-foreground whitespace-normal break-words">
                         {formatChapters(entry.chapters)}
                       </p>
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={entry.status} />
                     </TableCell>
-                    <TableCell className="text-right text-slate-400">
+                    <TableCell className="text-right text-faint">
                       {entry.itemsPlaced}/{entry.itemsPicked}
                     </TableCell>
                   </TableRow>

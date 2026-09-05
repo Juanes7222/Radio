@@ -49,21 +49,21 @@ import type { WorkerJob, WorkerNodeInfo } from '@radio/types';
 
 const JOB_STATUS_COLORS: Record<string, string> = {
   PENDING: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-  ASSIGNED: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+  ASSIGNED: 'bg-info/10 text-info border-info/20',
   RETRYING: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
-  ERROR: 'bg-red-500/10 text-red-500 border-red-500/20',
-  ABANDONED: 'bg-red-500/10 text-red-500 border-red-500/20',
-  DONE: 'bg-green-500/10 text-green-500 border-green-500/20',
+  ERROR: 'bg-destructive/10 text-destructive border-destructive/20',
+  ABANDONED: 'bg-destructive/10 text-destructive border-destructive/20',
+  DONE: 'bg-success/10 text-success border-success/20',
 };
 
 const WORKER_STATUS_COLORS: Record<string, string> = {
-  ONLINE: 'bg-green-500/10 text-green-500 border-green-500/20',
-  OFFLINE: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+  ONLINE: 'bg-success/10 text-success border-success/20',
+  OFFLINE: 'bg-faint/10 text-faint border-faint/20',
 };
 
 function statusBadge(value: string, colors: Record<string, string>) {
   return (
-    <Badge variant="outline" className={`text-xs border ${colors[value] ?? 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
+    <Badge variant="outline" className={`text-xs border ${colors[value] ?? 'bg-faint/10 text-faint border-faint/20'}`}>
       {value}
     </Badge>
   );
@@ -72,8 +72,8 @@ function statusBadge(value: string, colors: Record<string, string>) {
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 px-3 py-2.5">
-      <span className="text-xs shrink-0 text-slate-400 pt-0.5">{label}</span>
-      <div className="text-xs text-right text-slate-200 min-w-0">{value}</div>
+      <span className="text-xs shrink-0 text-faint pt-0.5">{label}</span>
+      <div className="text-xs text-right text-foreground min-w-0">{value}</div>
     </div>
   );
 }
@@ -108,7 +108,7 @@ function JobDetailDialog({
         {job && (
           <div className="space-y-4">
             <div>
-              <p className="text-sm font-medium text-slate-200 break-words">{job.video.title}</p>
+              <p className="text-sm font-medium text-foreground break-words">{job.video.title}</p>
               <a
                 href={`https://www.youtube.com/watch?v=${job.video.videoId}`}
                 target="_blank"
@@ -119,7 +119,7 @@ function JobDetailDialog({
                 youtube.com/watch?v={job.video.videoId}
               </a>
             </div>
-            <div className="rounded-lg border border-slate-700 bg-slate-900 divide-y divide-slate-700/60">
+            <div className="rounded-lg border border-border bg-card divide-y divide-border/60">
               <DetailRow label="Estado" value={statusBadge(job.status, JOB_STATUS_COLORS)} />
               <DetailRow label="ID del job" value={<span className="font-mono break-all">{job.id}</span>} />
               <DetailRow label="Intentos" value={String(job.attempts)} />
@@ -131,8 +131,8 @@ function JobDetailDialog({
             </div>
             {job.lastError && (
               <div>
-                <p className="text-xs font-medium text-slate-400 mb-1">Último error</p>
-                <p className="text-xs text-red-300 break-words whitespace-pre-wrap bg-slate-900 border border-slate-700 rounded-lg p-3">
+                <p className="text-xs font-medium text-faint mb-1">Último error</p>
+                <p className="text-xs text-destructive break-words whitespace-pre-wrap bg-card border border-border rounded-lg p-3">
                   {job.lastError}
                 </p>
               </div>
@@ -312,7 +312,7 @@ export default function AdminYouTube() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">YouTube y workers</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-faint mt-1">
             Workers de procesamiento conectados y estado de los videos recibidos.
           </p>
         </div>
@@ -324,7 +324,7 @@ export default function AdminYouTube() {
 
       {error && (
         <div className="py-4 text-center">
-          <p className="text-sm text-slate-400">{error}</p>
+          <p className="text-sm text-faint">{error}</p>
           <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-2 gap-2">
             <RefreshCw className="w-3 h-3" />
             Reintentar
@@ -332,10 +332,10 @@ export default function AdminYouTube() {
         </div>
       )}
 
-      <Card className="border-slate-700 bg-slate-800/60">
+      <Card className="border-border bg-muted/60">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Server className="w-4 h-4 text-blue-500" />
+            <Server className="w-4 h-4 text-info" />
             Workers conectados
           </CardTitle>
         </CardHeader>
@@ -343,11 +343,11 @@ export default function AdminYouTube() {
           {loading && workers.length === 0 ? (
             <div className="space-y-3">
               {[...Array(2)].map((_, i) => (
-                <div key={i} className="h-12 rounded-lg animate-pulse bg-slate-700" />
+                <div key={i} className="h-12 rounded-lg animate-pulse bg-muted" />
               ))}
             </div>
           ) : workers.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">No hay workers registrados.</p>
+            <p className="py-6 text-center text-sm text-faint">No hay workers registrados.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -363,12 +363,12 @@ export default function AdminYouTube() {
               <TableBody>
                 {workers.map((worker) => (
                   <TableRow key={worker.workerId}>
-                    <TableCell className="text-slate-300">{worker.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{worker.name}</TableCell>
                     <TableCell>{statusBadge(worker.status, WORKER_STATUS_COLORS)}</TableCell>
-                    <TableCell className="font-mono text-xs text-slate-400">{worker.version ?? '—'}</TableCell>
-                    <TableCell className="text-slate-400">{Array.isArray(worker.currentJobs) ? worker.currentJobs.length : worker.currentJobs}</TableCell>
-                    <TableCell className="text-slate-400">{worker.maxConcurrentJobs}</TableCell>
-                    <TableCell className="text-slate-400">{timeAgoShort(worker.lastSeenAt)}</TableCell>
+                    <TableCell className="font-mono text-xs text-faint">{worker.version ?? '—'}</TableCell>
+                    <TableCell className="text-faint">{Array.isArray(worker.currentJobs) ? worker.currentJobs.length : worker.currentJobs}</TableCell>
+                    <TableCell className="text-faint">{worker.maxConcurrentJobs}</TableCell>
+                    <TableCell className="text-faint">{timeAgoShort(worker.lastSeenAt)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -652,15 +652,15 @@ export default function AdminYouTube() {
         </div>
       </div>
 
-      <Card className="border-slate-700 bg-slate-800/60">
+      <Card className="border-border bg-muted/60">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Film className="w-4 h-4 text-red-500" />
+              <Film className="w-4 h-4 text-destructive" />
               Jobs de procesamiento
             </CardTitle>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-44 bg-slate-900 border-slate-600">
+              <SelectTrigger className="w-44 bg-card border-input">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -678,11 +678,11 @@ export default function AdminYouTube() {
           {loading && jobs.length === 0 ? (
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-12 rounded-lg animate-pulse bg-slate-700" />
+                <div key={i} className="h-12 rounded-lg animate-pulse bg-muted" />
               ))}
             </div>
           ) : visibleJobs.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">No hay jobs en este estado.</p>
+            <p className="py-6 text-center text-sm text-faint">No hay jobs en este estado.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -708,19 +708,19 @@ export default function AdminYouTube() {
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-2 text-sm text-slate-300 hover:text-white max-w-72 truncate"
+                          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground max-w-72 truncate"
                         >
-                          <ExternalLink className="w-3 h-3 shrink-0 text-slate-500" />
+                          <ExternalLink className="w-3 h-3 shrink-0 text-faint" />
                           <span className="truncate" title={job.video.title}>
                             {job.video.title}
                           </span>
                         </a>
                       </TableCell>
                       <TableCell>{statusBadge(job.status, JOB_STATUS_COLORS)}</TableCell>
-                      <TableCell className="text-slate-400">{job.attempts}</TableCell>
-                      <TableCell className="text-slate-400">{formatDateTime(job.deadlineAt)}</TableCell>
-                      <TableCell className="text-slate-400">{formatDateTime(job.nextRetryAt)}</TableCell>
-                      <TableCell className="text-red-400/80 max-w-56 truncate" title={job.lastError ?? undefined}>
+                      <TableCell className="text-faint">{job.attempts}</TableCell>
+                      <TableCell className="text-faint">{formatDateTime(job.deadlineAt)}</TableCell>
+                      <TableCell className="text-faint">{formatDateTime(job.nextRetryAt)}</TableCell>
+                      <TableCell className="text-destructive/80 max-w-56 truncate" title={job.lastError ?? undefined}>
                         {job.lastError ?? '—'}
                       </TableCell>
                       <TableCell>

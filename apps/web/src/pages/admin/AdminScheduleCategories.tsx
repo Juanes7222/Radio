@@ -168,7 +168,7 @@ export default function AdminScheduleCategories() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">Tipos de programa</h1>
-          <p className="text-sm mt-0.5 text-slate-400">
+          <p className="text-sm mt-0.5 text-faint">
             {categories.length} categoría{categories.length !== 1 ? 's' : ''} · Se asignan
             automáticamente según el título del programa
           </p>
@@ -187,7 +187,7 @@ export default function AdminScheduleCategories() {
 
       {showForm && (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="border-primary/40 bg-slate-800/60">
+          <Card className="border-primary/40 bg-muted/60">
             <CardHeader>
               <CardTitle className="text-base">
                 {editing ? `Editar: ${editing.name}` : 'Nueva categoría'}
@@ -202,9 +202,9 @@ export default function AdminScheduleCategories() {
                       placeholder="Ej: PREDICAS DOMINICAL"
                       value={form.name}
                       onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                      className="bg-slate-900 border-slate-600"
+                      className="bg-card border-input"
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-faint">
                       Debe coincidir con el nombre del programa en AzuraCast para visualizarse igual en el público.
                     </p>
                   </div>
@@ -214,7 +214,7 @@ export default function AdminScheduleCategories() {
                       placeholder="Ej: Predicación grabada de la convención"
                       value={form.description}
                       onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                      className="bg-slate-900 border-slate-600"
+                      className="bg-card border-input"
                     />
                   </div>
                   <div className="space-y-1">
@@ -223,16 +223,16 @@ export default function AdminScheduleCategories() {
                       placeholder="Ej: PREDICAS,REV JOSE SOTO,CONVENCION"
                       value={form.keywords}
                       onChange={(e) => setForm((f) => ({ ...f, keywords: e.target.value }))}
-                      className="bg-slate-900 border-slate-600"
+                      className="bg-card border-input"
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-faint">
                       Se buscan dentro del título del programa. Sin acentos ni tildes.
                     </p>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium">Icono</label>
                     <Select value={form.icon} onValueChange={(v) => setForm((f) => ({ ...f, icon: v }))}>
-                      <SelectTrigger className="w-full bg-slate-900 border-slate-600">
+                      <SelectTrigger className="w-full bg-card border-input">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -256,7 +256,7 @@ export default function AdminScheduleCategories() {
                       <Input
                         value={form.color}
                         onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-                        className="font-mono bg-slate-900 border-slate-600"
+                        className="font-mono bg-card border-input"
                       />
                     </div>
                     <div className="flex items-center gap-1.5 pt-1">
@@ -281,7 +281,7 @@ export default function AdminScheduleCategories() {
                       min={0}
                       value={form.sortOrder}
                       onChange={(e) => setForm((f) => ({ ...f, sortOrder: Number(e.target.value) }))}
-                      className="bg-slate-900 border-slate-600"
+                      className="bg-card border-input"
                     />
                   </div>
                   <div className="flex items-end gap-3 pb-1">
@@ -315,14 +315,14 @@ export default function AdminScheduleCategories() {
       {loading && categories.length === 0 ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-14 rounded-lg animate-pulse bg-slate-700" />
+            <div key={i} className="h-14 rounded-lg animate-pulse bg-muted" />
           ))}
         </div>
       ) : categories.length === 0 ? (
-        <Card className="border-slate-700 bg-slate-800/60">
+        <Card className="border-border bg-muted/60">
           <CardContent className="pt-10 pb-10 text-center space-y-3">
-            <Tags className="w-10 h-10 mx-auto text-slate-400" />
-            <p className="text-slate-400">
+            <Tags className="w-10 h-10 mx-auto text-faint" />
+            <p className="text-faint">
               No hay categorías configuradas. Crea la primera para clasificar la programación.
             </p>
           </CardContent>
@@ -337,7 +337,7 @@ export default function AdminScheduleCategories() {
               transition={{ delay: i * 0.03 }}
             >
               <Card
-                className={`transition-opacity ${!category.isVisible ? 'opacity-60' : ''} border-slate-700 bg-slate-800/60`}
+                className={`transition-opacity ${!category.isVisible ? 'opacity-60' : ''} border-border bg-muted/60`}
               >
                 <CardContent className="pt-4 pb-4 flex items-center gap-4">
                   <div
@@ -355,7 +355,7 @@ export default function AdminScheduleCategories() {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs truncate text-slate-400">
+                    <p className="text-xs truncate text-faint">
                       {category.description || 'Sin descripción'}
                       {category.keywords ? ` · Claves: ${category.keywords}` : ''}
                     </p>

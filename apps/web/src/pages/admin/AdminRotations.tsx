@@ -112,10 +112,10 @@ function FolderBrowserDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-lg border border-slate-700 bg-slate-900 divide-y divide-slate-700/60">
+        <div className="rounded-lg border border-border bg-card divide-y divide-border/60">
           <div className="flex items-center gap-2 px-3 py-2.5">
             <FolderOpen className="w-4 h-4 text-primary shrink-0" />
-            <p className="flex-1 min-w-0 text-xs text-slate-300 truncate" title={currentDir}>
+            <p className="flex-1 min-w-0 text-xs text-muted-foreground truncate" title={currentDir}>
               {currentDir || '(raíz de la biblioteca)'}
             </p>
             {currentDir && (
@@ -127,21 +127,21 @@ function FolderBrowserDialog({
           </div>
           <div className="px-3 py-2.5 max-h-64 overflow-y-auto space-y-1">
             {loading ? (
-              <p className="text-xs text-slate-400 animate-pulse">Cargando carpetas...</p>
+              <p className="text-xs text-faint animate-pulse">Cargando carpetas...</p>
             ) : rows.length === 0 ? (
-              <p className="text-xs text-slate-500 py-3 text-center">
+              <p className="text-xs text-faint py-3 text-center">
                 Esta carpeta no tiene subcarpetas.
               </p>
             ) : (
               rows.map((row) => (
-                <div key={row.path} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-slate-800">
+                <div key={row.path} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent">
                   <button
                     type="button"
                     className="flex items-center gap-2 flex-1 min-w-0 text-left"
                     onClick={() => openFolder(row.path)}
                     title={row.path}
                   >
-                    <Folder className="w-4 h-4 text-slate-400 shrink-0" />
+                    <Folder className="w-4 h-4 text-faint shrink-0" />
                     <span className="text-sm truncate">{row.name}</span>
                   </button>
                   <Button
@@ -162,7 +162,7 @@ function FolderBrowserDialog({
         {error && <p className="text-xs text-destructive">{error}</p>}
 
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[11px] text-slate-500 truncate">
+          <p className="text-[11px] text-faint truncate">
             {currentDir ? `Ruta: ${currentDir}` : 'Raíz de la biblioteca'}
           </p>
           <Button
@@ -298,7 +298,7 @@ function RotationFormDialog({
               placeholder="Ej: Lectura bíblica diaria"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="bg-slate-900 border-slate-600"
+              className="bg-card border-input"
             />
           </div>
 
@@ -309,7 +309,7 @@ function RotationFormDialog({
                 value={form.sourceType}
                 onValueChange={(v) => setForm((f) => ({ ...f, sourceType: v as 'playlist' | 'folder' }))}
               >
-                <SelectTrigger className="w-full bg-slate-900 border-slate-600"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full bg-card border-input"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="playlist">Playlist de AzuraCast</SelectItem>
                   <SelectItem value="folder">Carpeta de la biblioteca</SelectItem>
@@ -324,7 +324,7 @@ function RotationFormDialog({
                     placeholder="Ej: Biblia/Capítulos"
                     value={form.sourceFolder}
                     onChange={(e) => setForm((f) => ({ ...f, sourceFolder: e.target.value }))}
-                    className="flex-1 bg-slate-900 border-slate-600"
+                    className="flex-1 bg-card border-input"
                   />
                   <Button
                     type="button"
@@ -336,7 +336,7 @@ function RotationFormDialog({
                     <FolderOpen className="w-4 h-4" />
                   </Button>
                 </div>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-faint">
                   Los audios de la carpeta (y sus subcarpetas) se toman en orden alfabético.
                 </p>
               </div>
@@ -347,7 +347,7 @@ function RotationFormDialog({
                   value={form.sourcePlaylistId}
                   onValueChange={(v) => setForm((f) => ({ ...f, sourcePlaylistId: v }))}
                 >
-                  <SelectTrigger className="w-full bg-slate-900 border-slate-600"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full bg-card border-input"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {playlists.map((pl) => (
                       <SelectItem key={pl.id} value={String(pl.id)}>{pl.name}</SelectItem>
@@ -362,7 +362,7 @@ function RotationFormDialog({
                 value={form.targetPlaylistId}
                 onValueChange={(v) => setForm((f) => ({ ...f, targetPlaylistId: v }))}
               >
-                <SelectTrigger className="w-full bg-slate-900 border-slate-600"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full bg-card border-input"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {playlists.map((pl) => (
                     <SelectItem key={pl.id} value={String(pl.id)}>{pl.name}</SelectItem>
@@ -378,7 +378,7 @@ function RotationFormDialog({
                 max={100}
                 value={form.itemsPerDay}
                 onChange={(e) => setForm((f) => ({ ...f, itemsPerDay: e.target.value }))}
-                className="bg-slate-900 border-slate-600"
+                className="bg-card border-input"
               />
             </div>
             <div className="space-y-1">
@@ -389,7 +389,7 @@ function RotationFormDialog({
                 value={form.bibleStartOrdinal}
                 disabled={!form.bibleMode}
                 onChange={(e) => setForm((f) => ({ ...f, bibleStartOrdinal: e.target.value }))}
-                className="bg-slate-900 border-slate-600"
+                className="bg-card border-input"
               />
             </div>
           </div>
@@ -436,14 +436,14 @@ function RotationFormDialog({
           </div>
 
           {form.bibleMode && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-slate-700 bg-slate-900 p-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-border bg-card p-3">
               <div className="space-y-1">
                 <label className="text-xs font-medium">Traducción</label>
                 <Select
                   value={form.translation}
                   onValueChange={(v) => setForm((f) => ({ ...f, translation: v }))}
                 >
-                  <SelectTrigger className="w-full bg-slate-950 border-slate-600"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full bg-sunken border-input"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {translations.map((t) => (
                       <SelectItem key={t.abbreviation} value={t.abbreviation}>{t.name}</SelectItem>
@@ -458,7 +458,7 @@ function RotationFormDialog({
                   value={form.notifyProgram}
                   disabled={!form.notifyEnabled}
                   onChange={(e) => setForm((f) => ({ ...f, notifyProgram: e.target.value }))}
-                  className="bg-slate-950 border-slate-600"
+                  className="bg-sunken border-input"
                 />
               </div>
             </div>
@@ -526,11 +526,11 @@ function RotationHistoryDialog({
         {loading ? (
           <div className="space-y-2">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-14 rounded-lg animate-pulse bg-slate-800" />
+              <div key={i} className="h-14 rounded-lg animate-pulse bg-muted" />
             ))}
           </div>
         ) : runs.length === 0 ? (
-          <p className="text-sm text-slate-400 rounded-lg border border-slate-700 bg-slate-900 py-6 text-center">
+          <p className="text-sm text-faint rounded-lg border border-border bg-card py-6 text-center">
             Aún no hay ejecuciones registradas.
           </p>
         ) : (
@@ -538,7 +538,7 @@ function RotationHistoryDialog({
             {runs.map((run) => {
               const details = parseRunDetails(run);
               return (
-                <div key={run.id} className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-1.5">
+                <div key={run.id} className="rounded-lg border border-border bg-card p-3 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium">
                       {new Date(run.runDate).toLocaleString('es-CO', {
@@ -552,11 +552,11 @@ function RotationHistoryDialog({
                       {STATUS_LABELS[run.status] ?? run.status}
                     </Badge>
                   </div>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-faint">
                     {run.itemsPlaced} de {run.itemsPicked} audios colocados
                   </p>
                   {details.chapters && details.chapters.length > 0 && (
-                    <p className="text-xs text-slate-300 flex items-center gap-1.5">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                       <BookOpen className="w-3 h-3 text-primary shrink-0" />
                       {formatChapters(details.chapters)}
                     </p>
@@ -643,7 +643,7 @@ export default function AdminRotations() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Rotaciones</h1>
-          <p className="text-sm mt-0.5 text-slate-400">
+          <p className="text-sm mt-0.5 text-faint">
             Playlists que se reconstruyen solas cada día con los siguientes audios de una playlist fuente.
           </p>
         </div>
@@ -660,7 +660,7 @@ export default function AdminRotations() {
       </div>
 
       {runMessage && (
-        <p className="text-xs text-slate-300 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2">
+        <p className="text-xs text-muted-foreground rounded-lg border border-border bg-card px-3 py-2">
           {runMessage}
         </p>
       )}
@@ -668,19 +668,19 @@ export default function AdminRotations() {
       {loading && rotations.length === 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[...Array(4)].map((_, i) => (
-            <Card key={i} className="animate-pulse border-slate-700 bg-slate-800/60">
+            <Card key={i} className="animate-pulse border-border bg-muted/60">
               <CardContent className="pt-6 space-y-3">
-                <div className="h-4 rounded bg-slate-700" />
-                <div className="h-3 w-2/3 rounded bg-slate-700" />
+                <div className="h-4 rounded bg-muted" />
+                <div className="h-3 w-2/3 rounded bg-muted" />
               </CardContent>
             </Card>
           ))}
         </div>
       ) : rotations.length === 0 ? (
-        <Card className="border-slate-700 bg-slate-800/60">
+        <Card className="border-border bg-muted/60">
           <CardContent className="pt-10 pb-10 text-center space-y-3">
-            <Repeat className="w-10 h-10 mx-auto text-slate-400" />
-            <p className="text-slate-400">
+            <Repeat className="w-10 h-10 mx-auto text-faint" />
+            <p className="text-faint">
               No hay rotaciones configuradas. Crea una para automatizar la lectura bíblica u otra rotación diaria.
             </p>
           </CardContent>
@@ -694,7 +694,7 @@ export default function AdminRotations() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04 }}
             >
-              <Card className={`h-full border-slate-700 bg-slate-800/60 ${!rotation.active ? 'opacity-50' : ''}`}>
+              <Card className={`h-full border-border bg-muted/60 ${!rotation.active ? 'opacity-50' : ''}`}>
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
@@ -719,8 +719,8 @@ export default function AdminRotations() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                    <FolderOpen className="w-3 h-3 text-slate-500 shrink-0" />
+                  <p className="text-xs text-faint flex items-center gap-1.5">
+                    <FolderOpen className="w-3 h-3 text-faint shrink-0" />
                     {rotation.sourceType === 'folder' ? (
                       <span className="truncate" title={rotation.sourceFolder ?? ''}>
                         {rotation.sourceFolder ?? 'Carpeta sin definir'}
@@ -735,7 +735,7 @@ export default function AdminRotations() {
                       {playlists.find((p) => p.id === rotation.targetPlaylistId)?.name ?? `#${rotation.targetPlaylistId}`}
                     </span>
                   </p>
-                  <div className="flex flex-wrap gap-2 text-xs text-slate-400">
+                  <div className="flex flex-wrap gap-2 text-xs text-faint">
                     <span>{rotation.itemsPerDay} audios/día</span>
                     <span>·</span>
                     <span>posición {rotation.cursor}</span>
@@ -746,7 +746,7 @@ export default function AdminRotations() {
                     </span>
                   </div>
                   {rotation.runs && rotation.runs[0] && (
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-faint">
                       Última ejecución:{' '}
                       <Badge
                         variant={rotation.runs[0].status === 'success' ? 'default' : rotation.runs[0].status === 'partial' ? 'secondary' : 'destructive'}

@@ -88,7 +88,7 @@ const SOURCE_HEX: Record<string, string> = {
 const LEVEL_CFG: Record<LogLevel, { label: string; cls: string; dot: string }> = {
   debug: { label: "DEBUG", cls: "border-border bg-sunken text-faint", dot: "bg-faint" },
   info: { label: "INFO", cls: "border-info/20 bg-info/10 text-info", dot: "bg-info" },
-  warn: { label: "WARN", cls: "border-amber-500/20 bg-amber-500/10 text-amber-300", dot: "bg-amber-500" },
+  warn: { label: "WARN", cls: "border-warning/20 bg-warning/10 text-warning", dot: "bg-warning" },
   error: { label: "ERROR", cls: "border-tally/25 bg-tally/10 text-tally", dot: "bg-tally" },
   fatal: { label: "FATAL", cls: "border-tally/30 bg-tally/15 text-white ring-1 ring-tally/20", dot: "bg-tally" },
 };
@@ -114,7 +114,7 @@ function timeAgo(iso: string | null): string {
 
 function levelDot(level: string | null): string {
   if (level === "error" || level === "fatal") return "bg-tally animate-tally";
-  if (level === "warn") return "bg-amber-500";
+  if (level === "warn") return "bg-warning";
   if (level === "info") return "bg-info";
   return "bg-faint";
 }
@@ -354,8 +354,8 @@ export default function AdminLogs() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${live ? "border-amber-500/25 bg-amber-500/10 text-amber-300" : "border-border bg-sunken text-faint"}`}>
-                <span className={`h-2 w-2 rounded-full ${live ? "bg-amber-500 animate-tally" : "bg-faint"}`} aria-hidden />
+              <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${live ? "border-warning/25 bg-warning/10 text-warning" : "border-border bg-sunken text-faint"}`}>
+                <span className={`h-2 w-2 rounded-full ${live ? "bg-warning animate-tally" : "bg-faint"}`} aria-hidden />
                 {live ? "SIGUIENDO" : "PAUSADO"}
               </span>
               <Badge variant="outline" className="rounded-full border-border bg-sunken font-mono text-xs tabular-nums">
@@ -439,7 +439,7 @@ export default function AdminLogs() {
               <p className="font-mono text-[11px] uppercase tracking-widest text-faint">Leyenda</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-info/20 bg-info/10 px-2 py-0.5 text-xs text-info"><span className="h-1.5 w-1.5 rounded-full bg-info" />info</span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-300"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" />warn</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/20 bg-warning/10 px-2 py-0.5 text-xs text-warning"><span className="h-1.5 w-1.5 rounded-full bg-warning" />warn</span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-tally/20 bg-tally/10 px-2 py-0.5 text-xs text-tally"><span className="h-1.5 w-1.5 rounded-full bg-tally" />error</span>
               </div>
               <p className="mt-2 font-mono text-[11px] leading-relaxed text-faint">Tally rojo solo para error/fatal. Ámbar es señal, no adorno.</p>
@@ -584,7 +584,7 @@ export default function AdminLogs() {
                 {/* left sprocket rail */}
                 <div
                   aria-hidden
-                  className="pointer-events-none sticky left-0 top-0 z-[1] hidden h-full w-6 shrink-0 border-r border-white/5 bg-[radial-gradient(ellipse_8px_10px_at_50%_14px,_rgba(255,255,255,0.16)_0_40%,_transparent_41%),linear-gradient(to_bottom,transparent,transparent)] sm:block"
+                  className="pointer-events-none sticky left-0 top-0 z-[1] hidden h-full w-6 shrink-0 border-r border-border bg-[radial-gradient(ellipse_8px_10px_at_50%_14px,_rgba(255,255,255,0.16)_0_40%,_transparent_41%),linear-gradient(to_bottom,transparent,transparent)] sm:block"
                   style={{
                     backgroundRepeat: "repeat-y",
                     backgroundSize: "100% 28px",
@@ -601,7 +601,7 @@ export default function AdminLogs() {
                   {loading ? (
                     <div className="space-y-1 p-3">
                       {Array.from({ length: 10 }).map((_, i) => (
-                        <div key={i} className="h-5 animate-pulse rounded bg-white/[0.04]" style={{ opacity: 1 - i * 0.07 }} />
+                        <div key={i} className="h-5 animate-pulse rounded bg-muted" style={{ opacity: 1 - i * 0.07 }} />
                       ))}
                     </div>
                   ) : rows.length === 0 ? (
@@ -609,12 +609,12 @@ export default function AdminLogs() {
                       <Terminal className="h-8 w-8 text-faint/40" />
                       <p className="font-mono text-sm text-faint">Sin líneas para este filtro.</p>
                       <p className="max-w-sm font-mono text-xs leading-relaxed text-faint/70">Prueba con otra severidad, otra fuente o limpia la búsqueda. La cinta sigue girando aunque no haya coincidencias.</p>
-                      <Button variant="outline" size="sm" onClick={() => { setSearch(""); setSearchInput(""); setLevel("all"); }} className="mt-1 rounded-full border-white/10 bg-white/[0.04] text-faint hover:bg-white/10 hover:text-foreground">
+                      <Button variant="outline" size="sm" onClick={() => { setSearch(""); setSearchInput(""); setLevel("all"); }} className="mt-1 rounded-full border-border bg-muted text-faint hover:bg-accent hover:text-foreground">
                         Limpiar filtros
                       </Button>
                     </div>
                   ) : (
-                    <ul className="divide-y divide-white/[0.04]">
+                    <ul className="divide-y divide-border/60">
                       <AnimatePresence initial={false}>
                         {rows.map((row, idx) => {
                           const cfg = LEVEL_CFG[row.level] ?? LEVEL_CFG.info;
@@ -628,29 +628,29 @@ export default function AdminLogs() {
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0 }}
                               transition={shouldReduceMotion ? { duration: 0.08 } : { duration: 0.18, delay: Math.min(idx * 0.004, 0.06) }}
-                              className={`group flex gap-0 border-l-2 bg-transparent text-left transition-colors hover:bg-white/[0.04] focus-within:bg-white/[0.04] ${row.level === "error" || row.level === "fatal" ? "border-l-tally/60 hover:border-l-tally" : row.level === "warn" ? "border-l-amber-500/50" : "border-l-transparent"}`}
+                              className={`group flex gap-0 border-l-2 bg-transparent text-left transition-colors hover:bg-accent focus-within:bg-accent ${row.level === "error" || row.level === "fatal" ? "border-l-tally/60 hover:border-l-tally" : row.level === "warn" ? "border-l-warning/50" : "border-l-transparent"}`}
                             >
                               <button
                                 onClick={() => setSelected((s) => (s?.id === row.id ? null : row))}
                                 className="flex min-w-0 flex-1 items-start gap-2 px-2 py-1.5 text-left focus-visible:outline-none sm:gap-3 sm:px-3"
                               >
-                                <span className="hidden shrink-0 tabular-nums text-[11px] text-white/35 sm:inline" style={{ minWidth: "92px" }}>
+                                <span className="hidden shrink-0 tabular-nums text-[11px] text-faint sm:inline" style={{ minWidth: "92px" }}>
                                   {formatTime(row.ts)}
                                 </span>
-                                <span className="shrink-0 sm:hidden tabular-nums text-[11px] text-white/35" style={{ minWidth: "58px" }}>
+                                <span className="shrink-0 sm:hidden tabular-nums text-[11px] text-faint" style={{ minWidth: "58px" }}>
                                   {new Date(row.ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
                                 </span>
                                 <span className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0 text-[10px] font-medium leading-none tracking-wide ${cfg.cls}`}>
                                   <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} aria-hidden />
                                   {cfg.label}
                                 </span>
-                                <span className="hidden shrink-0 rounded border border-white/10 bg-white/5 px-1.5 py-0 font-mono text-[10px] leading-[18px] tracking-wide text-white/60 sm:inline-flex">
+                                <span className="hidden shrink-0 rounded border border-border bg-muted px-1.5 py-0 font-mono text-[10px] leading-[18px] tracking-wide text-muted-foreground sm:inline-flex">
                                   {row.source.toUpperCase()}
                                 </span>
-                                <span className="min-w-0 flex-1 break-all text-left text-[12px] leading-5 text-white/85 group-hover:text-white">
+                                <span className="min-w-0 flex-1 break-all text-left text-[12px] leading-5 text-foreground">
                                   {row.msg}
                                   {row.meta && (
-                                    <span className="ml-2 font-mono text-[11px] text-white/35">
+                                    <span className="ml-2 font-mono text-[11px] text-faint">
                                       {row.meta.reqId ? `· ${String(row.meta.reqId).slice(0, 14)}` : ""}
                                       {row.meta.durMs ? ` · ${String(row.meta.durMs)}ms` : ""}
                                     </span>
@@ -660,7 +660,7 @@ export default function AdminLogs() {
                               <span className="hidden shrink-0 items-center gap-1 pr-2 pt-1.5 sm:flex">
                                 <button
                                   onClick={() => handleCopy(`${row.ts} [${row.level}] ${row.source} ${row.msg}`, row.id)}
-                                  className="grid h-6 w-6 place-items-center rounded-md border border-transparent bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  className="grid h-6 w-6 place-items-center rounded-md border border-transparent bg-muted text-faint hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                   title="Copiar línea"
                                   aria-label="Copiar"
                                 >
