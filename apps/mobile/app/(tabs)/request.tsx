@@ -59,10 +59,7 @@ const SongRow = memo(function SongRow({
   );
 
   return (
-    <Animated.View
-      entering={FadeInDown.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
-      style={styles.row}
-    >
+    <View style={styles.row}>
       {item.song.art ? (
         <Image
           source={{ uri: item.song.art }}
@@ -101,7 +98,7 @@ const SongRow = memo(function SongRow({
           <Text style={styles.btnText}>Pedir</Text>
         )}
       </TouchableOpacity>
-    </Animated.View>
+    </View>
   );
 });
 

@@ -10,7 +10,6 @@ import Animated, {
   cancelAnimation,
   Easing,
   interpolate,
-  FadeIn,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, RadialGradient, LinearGradient, Stop } from 'react-native-svg';
 import { Colors, Shadows } from '@/constants/theme';
@@ -209,10 +208,7 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size }: DialVivoP
           <Circle cx={radius} cy={radius} r={radius} fill="url(#glossVivo)" />
         </Svg>
 
-        <Animated.View
-          key={artworkUri ?? 'default-art'}
-          entering={FadeIn.duration(360).easing(Easing.bezier(0.16, 1, 0.3, 1))}
-        >
+        <View>
           <View
             style={{
               position: 'absolute',
@@ -237,7 +233,7 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size }: DialVivoP
             />
             <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.12)' }]} />
           </View>
-        </Animated.View>
+        </View>
 
         <View
           style={{

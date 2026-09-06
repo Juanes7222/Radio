@@ -72,8 +72,13 @@ export default function RootLayout() {
         markStartupStage('fonts_loaded');
         await initTrackPlayer();
         markStartupStage('trackplayer_ready');
-        await registerDevice();
-        markStartupStage('device_registered');
+        // Device registration is not required for first frame or audio.
+        // It runs in the background so slow networks or missing push
+        // services never delay the splash. Failures retry on next cold
+        // start and on push-token updates.
+        registerDevice()
+          .then(() => markStartupStage('device_registered'))
+          .catch((e) => console.warn('[Device] background registration failed:', e));
       } catch (e) {
         console.warn('Error durante la inicializacion:', e);
       } finally {

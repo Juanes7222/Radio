@@ -198,7 +198,6 @@ function ProgramRow({
   program,
   accent,
   onPress,
-  index = 0,
 }: {
   program: ScheduleItem;
   accent: { dot: string; glow: string };
@@ -212,7 +211,6 @@ function ProgramRow({
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(Math.min(index * 32, 160)).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
       layout={LinearTransition.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
     >
       <TouchableOpacity
@@ -310,7 +308,6 @@ function TimelineRow({
   program,
   isLast,
   onPress,
-  index = 0,
 }: {
   program: ScheduleItem;
   isLast: boolean;
@@ -325,7 +322,6 @@ function TimelineRow({
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(Math.min(index * 28, 140)).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
       layout={LinearTransition.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
       style={styles.timelineRow}
     >
