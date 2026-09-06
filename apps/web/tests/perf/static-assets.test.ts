@@ -8,11 +8,12 @@ const publicDir = join(webRoot, "public");
 const assetsDir = join(webRoot, "dist", "assets");
 
 // Baselines from Sep 2026: largest public file is the 512px icon (~438 KB),
-// favicon.svg is ~214 KB unoptimized, bundled fonts total ~507 KB.
-// Budgets pass today and fail on unbounded growth.
+// favicon.svg is ~214 KB unoptimized. Bundled fonts dropped from ~507 KB to
+// ~287 KB by importing Mono/Serif latin-only subsets; the variable Sans keeps
+// all subsets on disk but browsers fetch only latin via unicode-range.
 const MAX_PUBLIC_FILE_BYTES = 500_000;
 const MAX_FAVICON_SVG_BYTES = 250_000;
-const MAX_BUNDLED_FONTS_BYTES = 550_000;
+const MAX_BUNDLED_FONTS_BYTES = 350_000;
 const MAX_LOGO_VARIANTS_PER_BASE = 3;
 const MAX_PNG_FALLBACK_BYTES = 60_000;
 
