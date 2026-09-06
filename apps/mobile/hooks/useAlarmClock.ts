@@ -186,6 +186,8 @@ export function useAlarmClock(): UseAlarmClockReturn {
       const now = Date.now();
       let changed = false;
       const keep: RadioAlarm[] = [];
+      const rearmed: RadioAlarm[] = [];
+      const expired: RadioAlarm[] = [];
 
       for (const alarm of stored) {
         if (
@@ -196,16 +198,27 @@ export function useAlarmClock(): UseAlarmClockReturn {
         ) {
           // Fired one-time alarm: keep it in the list but turn it off.
           keep.push({ ...alarm, enabled: false });
-          await cancelAlarm(alarm);
+          expired.push(alarm);
           changed = true;
           continue;
         }
         keep.push(alarm);
-        await cancelAlarm(alarm);
-        if (alarm.enabled) {
-          await scheduleAlarm(alarm);
-        }
+        rearmed.push(alarm);
       }
+
+      // Each alarm owns distinct notification identifiers, so cancel and
+      // schedule calls are independent across alarms. Running them
+      // concurrently avoids stacking native bridge round-trips on every
+      // foreground return. Per-alarm order (cancel before schedule) is kept.
+      await Promise.all([
+        ...expired.map((alarm) => cancelAlarm(alarm)),
+        ...rearmed.map(async (alarm) => {
+          await cancelAlarm(alarm);
+          if (alarm.enabled) {
+            await scheduleAlarm(alarm);
+          }
+        }),
+      ]);
 
       setAlarms(keep);
       if (changed) {

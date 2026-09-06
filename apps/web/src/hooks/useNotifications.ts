@@ -98,7 +98,7 @@ export function useNotifications(): UseNotificationsReturn {
     
     navigator.serviceWorker.ready.then(registration => {
       registration.showNotification(title, {
-        icon: '/icon-192x192.png',
+        icon: '/android-icon-192x192.png',
         badge: '/badge-72x72.png',
         ...options,
       });

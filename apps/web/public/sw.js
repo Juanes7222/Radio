@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lavozverdad-v7';
+const CACHE_NAME = 'lavozverdad-v8';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -9,15 +9,7 @@ const STATIC_ASSETS = [
   '/favicon-32x32.png',
   '/favicon-96x96.png',
 
-  // Apple Touch Icons
-  '/apple-icon-57x57.png',
-  '/apple-icon-60x60.png',
-  '/apple-icon-72x72.png',
-  '/apple-icon-76x76.png',
-  '/apple-icon-114x114.png',
-  '/apple-icon-120x120.png',
-  '/apple-icon-144x144.png',
-  '/apple-icon-152x152.png',
+  // Apple Touch Icon (single 180px entry point)
   '/apple-icon-180x180.png',
 
   // Android / PWA Icons
@@ -28,11 +20,8 @@ const STATIC_ASSETS = [
   '/android-icon-144x144.png',
   '/android-icon-192x192.png',
 
-  // Windows
-  '/ms-icon-144x144.png',
-
   // PWA general
-  '/icon-512x512.png',
+  '/web-app-manifest-512x512.png',
 ];
 // Instalación: cachear assets estáticos de forma individual
 // para que un solo asset que falte no rompa toda la instalación.
@@ -160,7 +149,7 @@ self.addEventListener('push', (event) => {
   const data = event.data.json();
   const options = {
     body: data.body,
-    icon: '/icon-192x192.png',
+    icon: '/android-icon-192x192.png',
     badge: '/badge-72x72.png',
     tag: data.tag || 'default',
     requireInteraction: true,

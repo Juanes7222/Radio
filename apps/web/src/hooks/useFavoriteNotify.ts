@@ -83,8 +83,8 @@ export function useFavoriteNotify(
     try {
       const notification = new Notification('🎵 Canción favorita en emisión', {
         body: `${currentSong.title} — ${currentSong.artist}`,
-        icon: currentSong.art || '/icon-192x192.png',
-        badge: '/icon-192x192.png',
+        icon: currentSong.art || '/android-icon-192x192.png',
+        badge: '/android-icon-192x192.png',
         tag: 'favorite-song',
         silent: false,
       });

@@ -65,6 +65,12 @@ export default defineConfig(({ command, mode }) => {
             if (pkg === 'react' || pkg === 'react-dom' || pkg === 'scheduler') return 'vendor-react'
             if (pkg === 'axios') return 'vendor-http'
             if (pkg === 'date-fns') return 'vendor-date'
+            // Admin-only heavy deps: Firebase is only used by the admin login,
+            // recharts only by the admin dashboard chart. Isolating them keeps
+            // them out of the generic vendor chunk that the public entry
+            // preloads, so they load only when an admin route is visited.
+            if (pkg === 'firebase' || pkg.startsWith('@firebase/')) return 'vendor-firebase'
+            if (pkg === 'recharts') return 'vendor-charts'
             return 'vendor'
           },
         },

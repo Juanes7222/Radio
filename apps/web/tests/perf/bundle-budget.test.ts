@@ -8,12 +8,13 @@ const webRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const assetsDir = join(webRoot, "dist", "assets");
 const distRoot = join(webRoot, "dist");
 
-// Budgets derived from the Sep 2026 baseline (dist ~3.9 MB):
-// vendor ~590 KB raw / ~165 KB gzip, react ~193 KB, motion ~128 KB,
-// index JS ~103 KB, CSS ~147 KB. Budgets sit slightly above baseline to
-// catch regressions without failing on normal variance.
-const MAX_SINGLE_JS_RAW_BYTES = 650_000;
-const MAX_INITIAL_JS_GZIP_BYTES = 410_000;
+// Budgets (Sep 2026): after isolating firebase (~99 KB) and recharts
+// (~242 KB) into lazy admin-only chunks, the generic vendor dropped from
+// ~591 KB raw / ~170 KB gzip to ~250 KB raw / ~83 KB gzip. The single-file
+// ceiling is set so that re-merging those deps into the generic vendor
+// (~590 KB) fails. The gzip budget covers the preloaded initial chunks.
+const MAX_SINGLE_JS_RAW_BYTES = 400_000;
+const MAX_INITIAL_JS_GZIP_BYTES = 340_000;
 const MAX_INITIAL_JS_RAW_BYTES = 240_000;
 const MAX_CSS_RAW_BYTES = 190_000;
 const MAX_TOTAL_DIST_BYTES = 5_500_000;
@@ -47,6 +48,11 @@ function measureDirTotalBytes(dir: string): number {
 }
 
 function isInitialJsChunk(name: string): boolean {
+  // Admin-only vendor splits load on demand with their lazy routes,
+  // never with the public first paint (see the test below).
+  if (name.startsWith("vendor-firebase") || name.startsWith("vendor-charts")) {
+    return false;
+  }
   return (
     name.startsWith("vendor-") ||
     name.startsWith("index-") ||
@@ -109,6 +115,26 @@ describe("bundle budget", () => {
     expect(adminChunks.length).toBeGreaterThan(5);
     for (const name of adminChunks) {
       expect(isInitialJsChunk(name)).toBe(false);
+    }
+  });
+
+  it("keeps admin-only vendor chunks out of the first paint", () => {
+    const names = listFiles(assetsDir, ".js");
+    const adminVendor = names.filter(
+      (name) =>
+        name.startsWith("vendor-firebase") || name.startsWith("vendor-charts"),
+    );
+    // Both splits must exist: firebase serves the admin login only,
+    // recharts serves the admin dashboard chart only.
+    expect(adminVendor.length).toBeGreaterThanOrEqual(2);
+    const indexHtml = readFileSync(join(webRoot, "dist", "index.html"), "utf8");
+    for (const chunk of adminVendor) {
+      // Strip only the trailing Vite content hash (last dash segment).
+      const base = chunk.replace(/-[^-]{6,}\.js$/, "");
+      expect(
+        indexHtml.includes(base),
+        `${chunk} must not be preloaded by dist/index.html`,
+      ).toBe(false);
     }
   });
 
