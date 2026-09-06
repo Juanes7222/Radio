@@ -53,7 +53,8 @@ import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { TAB_BAR_BASE } from '@/lib/responsive';
 import { formatMediaTitle } from '@/lib/formatMedia';
-import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2.png';
+import { incrementPlayerRenders, markNowPlayingEvent } from '@/lib/perf';
+import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2-opt.png';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 232);
@@ -92,6 +93,16 @@ export default function PlayerScreen() {
     enabled: realtimeEnabled,
   });
 
+  useEffect(() => {
+    incrementPlayerRenders();
+  });
+
+  useEffect(() => {
+    if (data) {
+      markNowPlayingEvent();
+    }
+  }, [data]);
+
   const song = data?.now_playing?.song;
   const { title, artist, isPreaching } = formatMediaTitle(
     song?.title ?? '',
@@ -124,9 +135,16 @@ export default function PlayerScreen() {
   }, [liveUrl, pause]);
 
   const [showBible, setShowBible] = useState(false);
+  const [hasOpenedBible, setHasOpenedBible] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [showNotifyMenu, setShowNotifyMenu] = useState(false);
   const [showAlarmMenu, setShowAlarmMenu] = useState(false);
+
+  useEffect(() => {
+    if (showBible) {
+      setHasOpenedBible(true);
+    }
+  }, [showBible]);
 
   const { alarms, saveAlarm, updateAlarm, removeAlarm, toggleAlarm } = useAlarmClock();
 
@@ -426,7 +444,9 @@ export default function PlayerScreen() {
         exactAlarmGranted={exactAlarmGranted}
       />
 
-      <BiblePanel isOpen={showBible} onClose={() => setShowBible(false)} />
+      {hasOpenedBible && (
+        <BiblePanel isOpen={showBible} onClose={() => setShowBible(false)} />
+      )}
     </View>
   );
 }

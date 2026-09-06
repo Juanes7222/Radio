@@ -21,6 +21,8 @@ import { FacebookLiveProvider } from '@/hooks/useFacebookLive';
 import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
 import { registerDevice, updateFCMToken } from '@/lib/device';
 import { NoticeOverlay } from '@/components/NoticeOverlay';
+import { PerfOverlay } from '@/components/PerfOverlay';
+import { initPerf, markStartupStage } from '@/lib/perf';
 import EventSource from 'react-native-sse';
 
 // Polyfill global EventSource para useAzuraCast (packages/api usa EventSource global)
@@ -33,6 +35,7 @@ if (typeof globalThis.EventSource === 'undefined') {
 }
 
 SplashScreen.preventAutoHideAsync();
+initPerf();
 
 // registerPlaybackService debe ejecutarse una sola vez en toda la vida del proceso.
 // Fast Refresh re-ejecuta este módulo y sin guard provocaría
@@ -66,13 +69,17 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepareApp() {
       try {
+        markStartupStage('fonts_loaded');
         await initTrackPlayer();
+        markStartupStage('trackplayer_ready');
         await registerDevice();
+        markStartupStage('device_registered');
       } catch (e) {
         console.warn('Error durante la inicializacion:', e);
       } finally {
         setAppIsReady(true);
         await SplashScreen.hideAsync();
+        markStartupStage('splash_hidden');
       }
     }
     if (fontsLoaded) {
@@ -104,6 +111,7 @@ export default function RootLayout() {
             </Stack>
             <NoticeOverlay />
           </FacebookLiveProvider>
+          <PerfOverlay />
           <StatusBar style="light" />
         </SafeAreaProvider>
       </BottomSheetModalProvider>
