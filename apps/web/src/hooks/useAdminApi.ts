@@ -641,6 +641,39 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Jobs del sistema ─────────────────────────────────────────
+  const getSystemJobs = useCallback(
+    () =>
+      request<{
+        jobs: {
+          key: string;
+          label: string;
+          description: string;
+          schedule: string;
+          requiresConfirm: boolean;
+          state: {
+            status: string;
+            running: boolean;
+            startedAt: string | null;
+            finishedAt: string | null;
+            lastError: string | null;
+            triggeredBy: string | null;
+          };
+        }[];
+      }>({ url: '/admin-api/jobs' }),
+    [request]
+  );
+
+  const runSystemJob = useCallback(
+    (key: string) =>
+      request<{ ok: boolean; key: string; status: string }>({
+        method: 'POST',
+        url: `/admin-api/jobs/${encodeURIComponent(key)}/run`,
+        timeout: 30000,
+      }),
+    [request]
+  );
+
   return {
     getStatus,
     getListeners,
@@ -721,6 +754,8 @@ export function useAdminApi() {
     restartStation,
     getLiveStatus,
     clearLiveStatus,
+    getSystemJobs,
+    runSystemJob,
     stationId,
   };
 }

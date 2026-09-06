@@ -45,61 +45,69 @@ async function generateHourAudio(hour24: number) {
   }
 }
 
+export async function runHourlyCheck(): Promise<void> {
+  const nextHour = (new Date().getHours() + 1) % 24;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  logger.info("HourlyCheck", "Checking audio for next hour", { nextHour });
+
+  try {
+    const existing = await prisma.audioSchedule.findFirst({
+      where: {
+        scheduledDate: today,
+        scheduledHour: nextHour,
+        enabled: true,
+      },
+      include: {
+        audio: true,
+      },
+    });
+
+    if (existing && existing.audio && existing.audio.status === "ready") {
+      logger.info("HourlyCheck", "Audio ready for next hour", {
+        nextHour,
+        audioId: existing.audioId,
+      });
+      return;
+    }
+
+    // Check if it's safe to insert an announcement.
+    // If the schedule analyzer cannot reach AzuraCast or reports
+    // no safe hours, we still attempt to generate the audio so the
+    // radio can announce the time. Announcements are injected into
+    // the play queue and do not require empty time blocks.
+    const safeHours = await filterSafeHours([nextHour]);
+    if (safeHours.length === 0) {
+      logger.info("HourlyCheck", "Schedule analyzer reports no safe hours, proceeding anyway", {
+        nextHour,
+      });
+    }
+
+    // If missing or not ready, generate it
+    logger.warn("HourlyCheck", "Missing or invalid audio for next hour, regenerating", {
+      nextHour,
+      existingStatus: existing?.audio?.status || "none",
+    });
+
+    await generateHourAudio(nextHour);
+  } catch (err) {
+    logger.error("HourlyCheck", "Error during hourly check", {
+      nextHour,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 export function registerHourlyJob() {
   cron.schedule(
     "45 * * * *",
-    async () => {
-      const nextHour = (new Date().getHours() + 1) % 24;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      logger.info("HourlyCheck", "Checking audio for next hour", { nextHour });
-
-      try {
-        const existing = await prisma.audioSchedule.findFirst({
-          where: {
-            scheduledDate: today,
-            scheduledHour: nextHour,
-            enabled: true,
-          },
-          include: {
-            audio: true,
-          },
-        });
-
-        if (existing && existing.audio && existing.audio.status === "ready") {
-          logger.info("HourlyCheck", "Audio ready for next hour", {
-            nextHour,
-            audioId: existing.audioId,
-          });
-          return;
-        }
-
-        // Check if it's safe to insert an announcement.
-        // If the schedule analyzer cannot reach AzuraCast or reports
-        // no safe hours, we still attempt to generate the audio so the
-        // radio can announce the time. Announcements are injected into
-        // the play queue and do not require empty time blocks.
-        const safeHours = await filterSafeHours([nextHour]);
-        if (safeHours.length === 0) {
-          logger.info("HourlyCheck", "Schedule analyzer reports no safe hours, proceeding anyway", {
-            nextHour,
-          });
-        }
-
-        // If missing or not ready, generate it
-        logger.warn("HourlyCheck", "Missing or invalid audio for next hour, regenerating", {
-          nextHour,
-          existingStatus: existing?.audio?.status || "none",
-        });
-
-        await generateHourAudio(nextHour);
-      } catch (err) {
-        logger.error("HourlyCheck", "Error during hourly check", {
-          nextHour,
+    () => {
+      runHourlyCheck().catch((err) => {
+        logger.error("HourlyCheck", "Scheduled run failed", {
           error: err instanceof Error ? err.message : String(err),
         });
-      }
+      });
     },
     { timezone: config.locutor.timezone }
   );

@@ -29,6 +29,7 @@ import noticesAdminRouter from "./modules/notices/admin.routes";
 import noticeImagesRouter from "./modules/notices/noticeImages.routes";
 import noticeVideosRouter from "./modules/notices/noticeVideos.routes";
 import logsRouter from "./modules/systemLogs/logs.routes";
+import systemJobsRouter from "./modules/systemJobs/systemJobs.routes";
 import swaggerFile from "./swagger-output.json";
 import { NOTICE_IMAGES_DIR, NOTICE_VIDEOS_DIR } from "./modules/notices/media/media.storage";
 
@@ -99,6 +100,7 @@ export function createApp(): Express {
   app.use("/admin-api/notices", noticeImagesRouter);
   app.use("/admin-api/notices", noticeVideosRouter);
   app.use("/admin-api/logs", logsRouter);
+  app.use("/admin-api/jobs", systemJobsRouter);
 
   // Reusable optimized images - serve with immutable cache
   app.use(

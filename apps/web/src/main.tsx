@@ -41,6 +41,7 @@ const AdminDevices = lazy(() => import('./pages/admin/AdminDevices.tsx'))
 const AdminNotices = lazy(() => import('./pages/admin/AdminNotices.tsx'))
 const AdminYouTube = lazy(() => import('./pages/admin/AdminYouTube.tsx'))
 const AdminLogs = lazy(() => import('./pages/admin/AdminLogs.tsx'))
+const AdminJobs = lazy(() => import('./pages/admin/AdminJobs.tsx'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -84,6 +85,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="notices" element={<AdminNotices />} />
                   <Route path="youtube" element={<AdminYouTube />} />
                   <Route path="logs" element={<AdminLogs />} />
+                  <Route path="jobs" element={<AdminJobs />} />
                 </Route>
 
                 {/* Fallback */}

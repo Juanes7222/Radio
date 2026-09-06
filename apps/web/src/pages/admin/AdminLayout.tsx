@@ -21,6 +21,7 @@ import {
   Repeat,
   BookOpen,
   Terminal,
+  Cog,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -76,7 +77,10 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Sistema',
-    items: [{ to: '/admin/logs', label: 'Bitácora', icon: Terminal }],
+    items: [
+      { to: '/admin/logs', label: 'Bitácora', icon: Terminal },
+      { to: '/admin/jobs', label: 'Jobs', icon: Cog },
+    ],
   },
 ];
 
