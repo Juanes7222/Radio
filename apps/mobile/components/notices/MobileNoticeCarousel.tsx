@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View, ScrollView, Pressable, StyleSheet, Dimensions, Text, Modal, Linking } from "react-native";
+import { View, ScrollView, Pressable, StyleSheet, Dimensions, Text, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "react-native";
 import Animated, { LinearTransition, Easing } from "react-native-reanimated";
@@ -33,14 +33,30 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
   const width = Dimensions.get("window").width - 32; // modal padding
 
   useEffect(() => {
-    if (items.length <= 1) return;
+    if (items.length <= 1 || lightboxUri) return;
     const id = setInterval(() => {
       const next = (index + 1) % items.length;
       scrollRef.current?.scrollTo({ x: next * width, animated: true });
       setIndex(next);
     }, autoPlayMs);
     return () => clearInterval(id);
-  }, [index, items.length, autoPlayMs, width]);
+  }, [index, items.length, autoPlayMs, width, lightboxUri]);
+
+  // Only the visible slide keeps a native player. Off-screen videos
+  // unmount their player to avoid decoding several streams at once.
+  // Stale refs are dropped so lightbox close never resumes a released player.
+  useEffect(() => {
+    for (const [key, player] of previewPlayers.current) {
+      if (key !== index && key !== openedIndexRef.current) {
+        try {
+          player.pause();
+        } catch {
+          // Player already released on unmount; just drop the ref.
+        }
+        previewPlayers.current.delete(key);
+      }
+    }
+  }, [index]);
 
   const handleScroll = (event: { nativeEvent: { contentOffset: { x: number } } }) => {
     const offset = event.nativeEvent.contentOffset.x;
@@ -58,6 +74,19 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
     const next = (index + 1) % items.length;
     scrollRef.current?.scrollTo({ x: next * width, animated: true });
     setIndex(next);
+  };
+
+  const closeLightbox = () => {
+    const idx = openedIndexRef.current;
+    openedIndexRef.current = null;
+    if (idx != null) {
+      try {
+        previewPlayers.current.get(idx)?.play();
+      } catch {
+        // Player already released; nothing to resume.
+      }
+    }
+    setLightboxUri(null);
   };
 
   return (
@@ -83,10 +112,12 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
         {items.map((item, idx) => {
           const uri = resolveNoticeMediaUri(item.url);
           const posterUri = item.posterUrl ? resolveNoticeMediaUri(item.posterUrl) : null;
+          const isVisible = idx === index;
           return (
             <View key={`${item.url}-${idx}`} style={{ width, minHeight: 200, maxHeight: 360, backgroundColor: "#0F172A", justifyContent: "center" }}>
               {item.type === "video" ? (
-                <Pressable onPress={() => { if (uri) { const p = previewPlayers.current.get(idx); const t = p?.currentTime ?? 0; setResumeTime(t); openedIndexRef.current = idx; try { p?.pause(); } catch {} setLightboxUri(uri); setLightboxType("video"); } }}>
+                isVisible ? (
+                <Pressable onPress={() => { if (uri) { const p = previewPlayers.current.get(idx); const t = p?.currentTime ?? 0; setResumeTime(t); openedIndexRef.current = idx; try { p?.pause(); } catch { /* already paused */ } setLightboxUri(uri); setLightboxType("video"); } }}>
                   <View pointerEvents="none">
                     <InlineVideo uri={uri ?? ""} posterUri={posterUri} aspectRatio={16 / 9} onPlayerReady={(p) => previewPlayers.current.set(idx, p)} />
                   </View>
@@ -95,6 +126,20 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
                     <Text style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}>Ampliar</Text>
                   </View>
                 </Pressable>
+                ) : (
+                <Pressable onPress={() => { scrollRef.current?.scrollTo({ x: idx * width, animated: true }); setIndex(idx); }} style={{ width: "100%", height: "100%", justifyContent: "center", alignItems: "center" }}>
+                  {posterUri ? (
+                    <Image source={{ uri: posterUri }} style={{ width: "100%", height: 220, maxHeight: 360 }} resizeMode="cover" />
+                  ) : (
+                    <View style={{ width: "100%", height: 220, alignItems: "center", justifyContent: "center" }}>
+                      <Ionicons name="play-circle-outline" size={44} color="#64748B" />
+                    </View>
+                  )}
+                  <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999, width: 28, height: 28, alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name="play" size={14} color="#fff" />
+                  </View>
+                </Pressable>
+                )
               ) : (
                 <Pressable onPress={() => { if (uri) { setLightboxUri(uri); setLightboxType("image"); } }} style={{ width: "100%", height: "100%", justifyContent: "center", alignItems: "center" }}>
                   <Image source={{ uri: uri ?? undefined }} style={{ width: "100%", height: 220, maxHeight: 360 }} resizeMode="contain" />
@@ -137,9 +182,9 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
       )}
 
       {lightboxUri && (
-        <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => { const idx = openedIndexRef.current; if (idx != null) try { previewPlayers.current.get(idx)?.play(); } catch {} setLightboxUri(null); }}>
-          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center", alignItems: "center", padding: 16 }} onPress={() => { const idx = openedIndexRef.current; if (idx != null) try { previewPlayers.current.get(idx)?.play(); } catch {} setLightboxUri(null); }}>
-            <Pressable style={{ position: "absolute", top: 50, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }} onPress={() => { const idx = openedIndexRef.current; if (idx != null) try { previewPlayers.current.get(idx)?.play(); } catch {} setLightboxUri(null); }}>
+        <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={closeLightbox}>
+          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center", alignItems: "center", padding: 16 }} onPress={closeLightbox}>
+            <Pressable style={{ position: "absolute", top: 50, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }} onPress={closeLightbox}>
               <Ionicons name="close" size={20} color="#fff" />
             </Pressable>
             {lightboxType === "video" ? (
