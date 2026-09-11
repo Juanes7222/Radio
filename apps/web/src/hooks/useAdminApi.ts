@@ -31,6 +31,7 @@ import type {
   AppNoticeList,
   AppNotice,
   AppNoticeInput,
+  BackupOverview,
   NoticeImage,
   NoticeImageList,
   NoticeVideo,
@@ -676,6 +677,28 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Respaldos (solo superadmin) ─────────────────────────────
+  const getBackups = useCallback(
+    () => request<BackupOverview>({ url: '/admin-api/backups' }),
+    [request]
+  );
+
+  const getBackupLog = useCallback(
+    (lines = 200) =>
+      request<{ lines: string[] }>({ url: '/admin-api/backups/log', params: { lines } }),
+    [request]
+  );
+
+  const runBackup = useCallback(
+    () =>
+      request<{ ok: boolean; status: string }>({
+        method: 'POST',
+        url: '/admin-api/backups/run',
+        timeout: 30000,
+      }),
+    [request]
+  );
+
   // ── Usuarios del panel (solo superadmin) ────────────────────
   const getAdminUsers = useCallback(
     () => request<{ rows: ManagedAdminUser[]; total: number }>({ url: '/admin-api/users' }),
@@ -787,6 +810,9 @@ export function useAdminApi() {
     clearLiveStatus,
     getSystemJobs,
     runSystemJob,
+    getBackups,
+    getBackupLog,
+    runBackup,
     getAdminUsers,
     createAdminUser,
     updateAdminUser,

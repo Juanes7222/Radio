@@ -94,7 +94,7 @@ export function requirePermission(...permissions: AdminPermission[]) {
 
 export function requireSuperAdmin(req: Request, res: Response, next: NextFunction): void {
   if (req.session?.role !== "SUPERADMIN") {
-    res.status(403).json({ error: "Solo el superadmin puede gestionar usuarios" });
+    res.status(403).json({ error: "Solo el superadmin puede acceder a esta sección" });
     return;
   }
   next();

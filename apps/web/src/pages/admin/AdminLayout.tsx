@@ -22,6 +22,7 @@ import {
   BookOpen,
   Terminal,
   Cog,
+  DatabaseBackup,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -37,11 +38,18 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   permission: AdminPermission;
+  /** Visible only for SUPERADMIN, regardless of the permission model. */
+  superAdminOnly?: boolean;
 }
 
 interface NavSection {
   title: string;
   items: NavItem[];
+}
+
+function canAccessItem(user: AdminUser, item: NavItem): boolean {
+  if (item.superAdminOnly && user.role !== 'SUPERADMIN') return false;
+  return hasAdminPermission(user.role, user.permissions, item.permission);
 }
 
 /**
@@ -83,6 +91,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/admin/logs', label: 'Bitácora', icon: Terminal, permission: 'logs' },
       { to: '/admin/jobs', label: 'Jobs', icon: Cog, permission: 'jobs' },
+      { to: '/admin/backups', label: 'Respaldos', icon: DatabaseBackup, permission: 'jobs', superAdminOnly: true },
       { to: '/admin/users', label: 'Usuarios', icon: Users, permission: 'users' },
     ],
   },
@@ -126,9 +135,7 @@ const ROLE_LABELS: Record<string, string> = {
 function AdminSidebar({ user, onCloseMobile, onLogout }: AdminSidebarProps) {
   const visibleSections = NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) =>
-      hasAdminPermission(user.role, user.permissions, item.permission)
-    ),
+    items: section.items.filter((item) => canAccessItem(user, item)),
   })).filter((section) => section.items.length > 0);
 
   return (
@@ -239,10 +246,8 @@ export default function AdminLayout() {
   };
 
   const canAccessCurrent =
-    !currentPage || hasAdminPermission(user.role, user.permissions, currentPage.permission);
-  const firstAllowed = ALL_NAV_ITEMS.find((item) =>
-    hasAdminPermission(user.role, user.permissions, item.permission)
-  );
+    !currentPage || (user && canAccessItem(user, currentPage));
+  const firstAllowed = ALL_NAV_ITEMS.find((item) => user && canAccessItem(user, item));
 
   if (!canAccessCurrent) {
     if (firstAllowed && location.pathname !== firstAllowed.to) {

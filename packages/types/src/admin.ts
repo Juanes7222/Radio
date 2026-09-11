@@ -674,7 +674,6 @@ export interface WorkerNodeInfo {
   currentJobId: string | null;
   lastSeenAt: string | null;
 }
-
 /** YouTube processing job with its video summary */
 export interface WorkerJob {
   id: string;
@@ -688,4 +687,38 @@ export interface WorkerJob {
   nextRetryAt: string | null;
   createdAt: string;
   video: { title: string; videoId: string };
+}
+
+/** Retained backup bundle listed by the superadmin backups panel */
+export interface BackupBundle {
+  name: string;
+  scope: 'daily' | 'weekly';
+  size: number;
+  mtime: string;
+  hasSha256: boolean;
+}
+
+/** Last completed backup run parsed from last-backup.status */
+export interface BackupStatus {
+  status: 'OK' | 'FAILED';
+  time: string;
+  archive: string | null;
+  bytes: number | null;
+  weekly: boolean;
+  error: string | null;
+}
+
+/** In-memory state of a manually triggered backup run */
+export interface BackupRunState {
+  running: boolean;
+  startedAt: string | null;
+  finishedAt: string | null;
+  lastError: string | null;
+  triggeredBy: string | null;
+}
+
+export interface BackupOverview {
+  status: BackupStatus | null;
+  run: BackupRunState;
+  backups: BackupBundle[];
 }

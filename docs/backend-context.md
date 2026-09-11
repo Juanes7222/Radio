@@ -66,6 +66,11 @@ node dist/index.js   # then curl http://localhost:18888/health
 - Server config lives in `/etc/radio/backup.env` (mode 600), see
   `scripts/radio-backup.env.example`. Status of the last run is in
   `/var/backups/radio/last-backup.status`, logs in `/var/log/radio-backup.log`.
+- Superadmin panel: `src/modules/backups/` exposes `GET /admin-api/backups`
+  (status + retained bundles), `GET /admin-api/backups/log` and
+  `POST /admin-api/backups/run` (spawns the script in background, 409 when
+  busy). Guarded by `requireAuth` + `requireSuperAdmin`; paths come from
+  `src/config/backups.config.ts`, never from user input.
 
 ## Suggested expectations for the agent
 
