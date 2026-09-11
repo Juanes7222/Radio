@@ -4,7 +4,11 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import type {
   AdminDeviceList,
   DeviceZoneList,
+  DjAssignment,
+  DjStreamer,
   ListenerHistoryResponse,
+  LiveRelayStatus,
+  LiveSlot,
   LocutorAudio,
   LocutorStatus,
   LocutorTemplate,
@@ -728,6 +732,58 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── DJs y transmisión en vivo ────────────────────────────
+  const getDjs = useCallback(
+    () =>
+      request<{ streamers: DjStreamer[]; assignments: DjAssignment[] }>({
+        url: '/admin-api/djs',
+      }),
+    [request]
+  );
+
+  const createDjAssignment = useCallback(
+    (data: { streamerUsername: string; email: string; slots: LiveSlot[] }) =>
+      request<{ assignment: DjAssignment }>({
+        method: 'POST',
+        url: '/admin-api/djs/assignments',
+        data,
+      }),
+    [request]
+  );
+
+  const updateDjAssignment = useCallback(
+    (id: string, data: { slots?: LiveSlot[]; isActive?: boolean }) =>
+      request<{ assignment: DjAssignment }>({
+        method: 'PATCH',
+        url: `/admin-api/djs/assignments/${id}`,
+        data,
+      }),
+    [request]
+  );
+
+  const deleteDjAssignment = useCallback(
+    (id: string) => request<{ ok: boolean }>({ method: 'DELETE', url: `/admin-api/djs/assignments/${id}` }),
+    [request]
+  );
+
+  const getMyLive = useCallback(
+    () =>
+      request<{ now: { dow: number; minutes: number }; rows: DjAssignment[] }>({
+        url: '/admin-api/djs/mine',
+      }),
+    [request]
+  );
+
+  const getRelayStatus = useCallback(
+    () => request<{ relay: LiveRelayStatus }>({ url: '/admin-api/djs/relay/status' }),
+    [request]
+  );
+
+  const stopRelay = useCallback(
+    () => request<{ relay: LiveRelayStatus }>({ method: 'POST', url: '/admin-api/djs/relay/stop' }),
+    [request]
+  );
+
   return {
     getStatus,
     getListeners,
@@ -818,6 +874,13 @@ export function useAdminApi() {
     updateAdminUser,
     revokeAdminUserSessions,
     deleteAdminUser,
+    getDjs,
+    createDjAssignment,
+    updateDjAssignment,
+    deleteDjAssignment,
+    getMyLive,
+    getRelayStatus,
+    stopRelay,
     stationId,
   };
 }

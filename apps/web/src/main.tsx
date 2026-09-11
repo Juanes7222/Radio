@@ -42,8 +42,9 @@ const AdminNotices = lazy(() => import('./pages/admin/AdminNotices.tsx'))
 const AdminYouTube = lazy(() => import('./pages/admin/AdminYouTube.tsx'))
 const AdminLogs = lazy(() => import('./pages/admin/AdminLogs.tsx'))
 const AdminJobs = lazy(() => import('./pages/admin/AdminJobs.tsx'))
-const AdminBackups = lazy(() => import('./pages/admin/AdminBackups.tsx'))
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers.tsx'))
+const AdminBackups = lazy(() => import('./pages/admin/AdminBackups.tsx'))
+const AdminLive = lazy(() => import('./pages/admin/AdminLive.tsx'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -79,6 +80,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="requests" element={<AdminRequests />} />
                   <Route path="prayer" element={<AdminPrayerRequests />} />
                   <Route path="streaming" element={<AdminStreaming />} />
+                  <Route path="live" element={<AdminLive />} />
                   <Route path="schedule" element={<AdminSchedule />} />
                   <Route path="schedule/categories" element={<AdminScheduleCategories />} />
                   <Route path="upload" element={<AdminUpload />} />

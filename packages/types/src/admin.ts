@@ -7,6 +7,7 @@ export type AdminPermission =
   | "schedule"
   | "schedule.categories"
   | "streaming"
+  | "live"
   | "upload"
   | "playlists"
   | "rotations"
@@ -26,6 +27,7 @@ export const ADMIN_PERMISSIONS: AdminPermission[] = [
   "schedule",
   "schedule.categories",
   "streaming",
+  "live",
   "upload",
   "playlists",
   "rotations",
@@ -52,6 +54,7 @@ export const ADMIN_PERMISSION_LABELS: Record<AdminPermission, string> = {
   schedule: "Programación",
   "schedule.categories": "Tipos de programa",
   streaming: "Streaming / DJs",
+  live: "Transmitir en vivo",
   upload: "Subir archivo",
   playlists: "Playlists",
   rotations: "Rotaciones",
@@ -113,6 +116,45 @@ export interface ManagedAdminUserInput {
   role: AdminRole;
   permissions?: AdminPermission[];
   isActive?: boolean;
+}
+
+/** Weekly live slot in America/Bogota: dow 1-7 (1 = Monday), HH:MM same-day. */
+export interface LiveSlot {
+  dow: number;
+  start: string;
+  end: string;
+}
+
+export interface DjStreamer {
+  id: number;
+  username: string;
+  displayName: string;
+  isActive: boolean;
+  enforceSchedule: boolean;
+}
+
+export interface DjAssignment {
+  id: string;
+  streamerUsername: string;
+  adminUserId: string;
+  email: string;
+  name: string;
+  userActive: boolean;
+  slots: LiveSlot[];
+  isActive: boolean;
+  inSlot: boolean;
+  slotEndsAt: string | null;
+  assignedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LiveRelayStatus {
+  active: boolean;
+  streamerUsername: string | null;
+  adminEmail: string | null;
+  startedAt: string | null;
+  bytesReceived: number;
 }
 
 export interface AdminStationStatus {

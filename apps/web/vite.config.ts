@@ -44,6 +44,11 @@ export default defineConfig(({ command, mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        '/live-relay': {
+          target: backendTarget,
+          changeOrigin: true,
+          ws: true,
+        },
       },
     },
     build: {

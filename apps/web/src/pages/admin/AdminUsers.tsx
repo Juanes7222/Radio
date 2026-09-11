@@ -50,7 +50,7 @@ const ROLE_BADGE: Record<AdminRole, string> = {
 };
 
 const PERMISSION_GROUPS: { title: string; items: AdminPermission[] }[] = [
-  { title: 'Emisión', items: ['dashboard', 'schedule', 'schedule.categories', 'streaming'] },
+  { title: 'Emisión', items: ['dashboard', 'schedule', 'schedule.categories', 'streaming', 'live'] },
   {
     title: 'Contenido',
     items: ['upload', 'playlists', 'rotations', 'reading.history', 'locutor', 'youtube'],

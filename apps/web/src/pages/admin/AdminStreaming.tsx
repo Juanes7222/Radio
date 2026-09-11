@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
+import { DjAssignments } from '@/components/admin/DjAssignments';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import type { Streamer } from '@radio/types';
@@ -350,6 +351,9 @@ export default function AdminStreaming() {
           ))}
         </div>
       )}
+
+      {/* Asignación de DJs a usuarios del panel */}
+      <DjAssignments streamers={streamers} />
 
       <ConfirmDialog
         open={pendingDelete !== null}

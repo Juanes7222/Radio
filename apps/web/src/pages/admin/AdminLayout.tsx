@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Heart,
   Mic2,
+  Mic,
   Megaphone,
   CalendarDays,
   Tags,
@@ -64,6 +65,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/admin/schedule', label: 'Programación', icon: CalendarDays, permission: 'schedule' },
       { to: '/admin/schedule/categories', label: 'Tipos de programa', icon: Tags, permission: 'schedule.categories' },
       { to: '/admin/streaming', label: 'Streaming / DJs', icon: Mic2, permission: 'streaming' },
+      { to: '/admin/live', label: 'Transmitir', icon: Mic, permission: 'live' },
     ],
   },
   {

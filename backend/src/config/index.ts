@@ -7,6 +7,7 @@ import { locutorConfig } from "./locutor.config";
 import { notificationsConfig } from "./notifications.config";
 import { backupsConfig } from "./backups.config";
 import { logsConfig } from "./logs.config";
+import { liveConfig } from "./live.config";
 import { processingConfig } from "./processing.config";
 import { webhookConfig } from "./webhook.config";
 import { workersConfig } from "./workers.config";
@@ -24,5 +25,6 @@ export const config = {
   notifications: notificationsConfig,
   webhook: webhookConfig,
   logs: logsConfig,
+  live: liveConfig,
   backups: backupsConfig,
 };

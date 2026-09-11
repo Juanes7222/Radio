@@ -492,7 +492,31 @@ model AdminUser {
   lastLoginAt  DateTime? @map("last_login_at")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
+  djAssignments DjAssignment[]
 
   @@map("admin_users")
   @@index([isActive])
+}
+
+// Asignacion de cuentas DJ (streamers de AzuraCast) a usuarios del panel.
+// Un streamer puede asignarse a varios usuarios y un usuario puede tener
+// varios streamers. `slots` es un JSON array de franjas semanales en hora
+// de Bogota: [{ dow: 1-7 (1=lunes), start: "18:00", end: "20:00" }].
+// Las credenciales del streamer viven en AzuraCast; aqui solo se guarda
+// el mapeo y el horario permitido para salir en vivo desde el navegador.
+model DjAssignment {
+  id              String    @id @default(uuid())
+  streamerUsername String   @map("streamer_username")
+  adminUserId     String    @map("admin_user_id")
+  adminUser       AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  slots           String    @default("[]")
+  isActive        Boolean   @default(true) @map("is_active")
+  assignedBy      String?   @map("assigned_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([streamerUsername, adminUserId])
+  @@map("dj_assignments")
+  @@index([adminUserId])
+  @@index([streamerUsername])
 }
