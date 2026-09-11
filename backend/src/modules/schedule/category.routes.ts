@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { prisma } from "../../infrastructure/database/prisma";
 import { asyncHandler } from "../../shared/errors/async-handler";
 import { AppError } from "../../shared/errors/app-error";
@@ -52,6 +52,7 @@ function validateCategoryInput(body: unknown): ScheduleCategoryInput | null {
 router.get(
   "/",
   requireAuth,
+  requirePermission("schedule.categories"),
   asyncHandler(async (_req, res) => {
     const categories = await prisma.scheduleCategory.findMany({
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -63,6 +64,7 @@ router.get(
 router.post(
   "/",
   requireAuth,
+  requirePermission("schedule.categories"),
   asyncHandler(async (req, res) => {
     const input = validateCategoryInput(req.body);
     if (!input || !input.name) {
@@ -87,6 +89,7 @@ router.post(
 router.put(
   "/:id",
   requireAuth,
+  requirePermission("schedule.categories"),
   asyncHandler(async (req, res) => {
     const input = validateCategoryInput(req.body);
     if (!input) {
@@ -113,6 +116,7 @@ router.put(
 router.delete(
   "/:id",
   requireAuth,
+  requirePermission("schedule.categories"),
   asyncHandler(async (req, res) => {
     const categoryId = String(req.params.id);
     await prisma.scheduleCategory.delete({

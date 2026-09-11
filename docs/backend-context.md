@@ -49,6 +49,24 @@ $env:WORKER_AUTH_SECRET = "x"; $env:PORT = "18888"; $env:WS_PORT = "18889"
 node dist/index.js   # then curl http://localhost:18888/health
 ```
 
+## Backups (SQLite -> Cloudflare R2)
+
+- `scripts/radio-backup.sh` — daily automatic backup via systemd timer
+  (`scripts/radio-backup.timer`, 05:00 server time). Uses the SQLite backup
+  API (safe in WAL mode while the backend runs), bundles `prisma/dev.db`
+  with `data/worker-releases` and `storage/notice-{images,videos}`, uploads
+  to R2 with size verification, and prunes old bundles locally and in R2.
+- Retention: `BACKUP_KEEP_DAILY` (default 7) daily bundles plus
+  `BACKUP_KEEP_WEEKLY` (default 4) Sunday bundles. Without R2 credentials
+  the script still completes in local-only mode under `/var/backups/radio`.
+- `scripts/radio-restore.sh` — restore with sha256 + `integrity_check`
+  verification, a safety copy under `/var/backups/radio/pre-restore-*`,
+  backend stop/start and health check. Dry usage:
+  `sudo bash scripts/radio-restore.sh --from r2 --date 20260911`.
+- Server config lives in `/etc/radio/backup.env` (mode 600), see
+  `scripts/radio-backup.env.example`. Status of the last run is in
+  `/var/backups/radio/last-backup.status`, logs in `/var/log/radio-backup.log`.
+
 ## Suggested expectations for the agent
 
 - Identify the exact route, service, and Prisma files involved.

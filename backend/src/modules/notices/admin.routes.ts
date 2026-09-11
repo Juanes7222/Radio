@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { logger } from "../../shared/logger/logger";
 import { previewPushCampaign } from "../devices/push.service";
 
@@ -76,7 +76,7 @@ function mapNoticeWithGallery(row: any) {
   };
 }
 
-router.get("/", requireAuth, async (req: Request, res: Response) => {
+router.get("/", requireAuth, requirePermission("notices"), async (req: Request, res: Response) => {
   const prisma = getPrisma();
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
@@ -103,7 +103,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/", requireAuth, async (req: Request, res: Response) => {
+router.post("/", requireAuth, requirePermission("notices"), async (req: Request, res: Response) => {
   const prisma = getPrisma();
   const body = (req.body ?? {}) as Record<string, unknown>;
   const v = validate(body);
@@ -163,7 +163,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.put("/:id", requireAuth, async (req: Request, res: Response) => {
+router.put("/:id", requireAuth, requirePermission("notices"), async (req: Request, res: Response) => {
   const prisma = getPrisma();
   const { id } = req.params;
   const body = (req.body ?? {}) as Record<string, unknown>;
@@ -241,7 +241,7 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
+router.delete("/:id", requireAuth, requirePermission("notices"), async (req: Request, res: Response) => {
   const prisma = getPrisma();
   try {
     await prisma.appNotice.delete({ where: { id: req.params.id } });
@@ -255,7 +255,7 @@ router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/preview", requireAuth, async (req: Request, res: Response) => {
+router.post("/preview", requireAuth, requirePermission("notices"), async (req: Request, res: Response) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
   const audience = String(body.audience ?? "all") as never;
   try {

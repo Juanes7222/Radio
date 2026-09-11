@@ -15,3 +15,4 @@ export { default as AdminDevices } from './AdminDevices';
 export { default as AdminYouTube } from './AdminYouTube';
 export { default as AdminLogs } from './AdminLogs';
 export { default as AdminJobs } from './AdminJobs';
+export { default as AdminUsers } from './AdminUsers';

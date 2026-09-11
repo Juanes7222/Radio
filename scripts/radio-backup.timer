@@ -1,0 +1,15 @@
+[Unit]
+Description=Radio - Daily R2 backup (timer)
+Documentation=https://github.com/Juanes7222/Radio
+
+[Timer]
+# Daily at 05:00 server time, after the night jobs (nightly 2:30,
+# rotations 3:30, media cleanup 4:15). Change the hour with:
+#   sudo systemctl edit radio-backup.timer
+OnCalendar=*-*-* 05:00:00
+RandomizedDelaySec=600
+Persistent=true
+Unit=radio-backup.service
+
+[Install]
+WantedBy=timers.target

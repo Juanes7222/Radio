@@ -8,7 +8,7 @@ import { prisma } from "../../infrastructure/database/prisma";
 import { uploadMp3ToAzuracast } from "../azuracast/upload-mp3.service";
 import { logger } from "../../shared/logger/logger";
 import { config } from "../../config";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 
 const router = Router();
 
@@ -28,7 +28,7 @@ function validateWorkerAuth(req: Request, res: Response): boolean {
   return true;
 }
 
-router.get("/workers", requireAuth, (_req: Request, res: Response) => {
+router.get("/workers", requireAuth, requirePermission("youtube"), (_req: Request, res: Response) => {
   const workers = getAllWorkers().map((w) => ({
     workerId: w.workerId,
     name: w.name,
@@ -42,7 +42,7 @@ router.get("/workers", requireAuth, (_req: Request, res: Response) => {
   res.json(workers);
 });
 
-router.get("/jobs", requireAuth, async (_req: Request, res: Response) => {
+router.get("/jobs", requireAuth, requirePermission("youtube"), async (_req: Request, res: Response) => {
   const jobs = await prisma.processingJob.findMany({
     orderBy: { createdAt: "desc" },
     take: 50,
@@ -51,7 +51,7 @@ router.get("/jobs", requireAuth, async (_req: Request, res: Response) => {
   res.json(jobs);
 });
 
-router.post("/jobs/:id/retry", requireAuth, async (req: Request, res: Response) => {
+router.post("/jobs/:id/retry", requireAuth, requirePermission("youtube"), async (req: Request, res: Response) => {
   const id = req.params.id as string;
   const job = await prisma.processingJob.findUnique({ where: { id } });
   if (!job) {

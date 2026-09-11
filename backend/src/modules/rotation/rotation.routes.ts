@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../../infrastructure/database/prisma";
 import { asyncHandler } from "../../shared/errors/async-handler";
 import { AppError } from "../../shared/errors/app-error";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { runRotation, type ChapterRef } from "./rotation.service";
 import { BOGOTA_TIME_ZONE } from "../../shared/utils/date";
 
@@ -109,6 +109,7 @@ function formatDateKey(date: Date): string {
 
 router.get(
   "/",
+  requirePermission("rotations"),
   asyncHandler(async (_req, res) => {
     const rotations = await prisma.playlistRotation.findMany({
       orderBy: { createdAt: "desc" },
@@ -127,6 +128,7 @@ router.get(
 // reciente al más antiguo. Usado por la página de historial del panel.
 router.get(
   "/history",
+  requirePermission("reading.history"),
   asyncHandler(async (req, res) => {
     const requested = Number(req.query.limit ?? 90);
     const limit = Number.isInteger(requested) ? Math.min(requested, 200) : 90;
@@ -165,6 +167,7 @@ router.get(
 
 router.post(
   "/",
+  requirePermission("rotations"),
   asyncHandler(async (req, res) => {
     const input = parseRotationInput(req.body as Record<string, unknown>);
     const rotation = await prisma.playlistRotation.create({ data: input });
@@ -174,6 +177,7 @@ router.post(
 
 router.get(
   "/:id",
+  requirePermission("rotations"),
   asyncHandler(async (req, res) => {
     const rotation = await prisma.playlistRotation.findUnique({
       where: { id: String(req.params.id) },
@@ -188,6 +192,7 @@ router.get(
 
 router.put(
   "/:id",
+  requirePermission("rotations"),
   asyncHandler(async (req, res) => {
     const existing = await prisma.playlistRotation.findUnique({
       where: { id: String(req.params.id) },
@@ -208,6 +213,7 @@ router.put(
 
 router.delete(
   "/:id",
+  requirePermission("rotations"),
   asyncHandler(async (req, res) => {
     await prisma.playlistRotation.delete({ where: { id: String(req.params.id) } });
     res.json({ message: "Rotación eliminada" });
@@ -216,6 +222,7 @@ router.delete(
 
 router.post(
   "/:id/run",
+  requirePermission("rotations"),
   asyncHandler(async (req, res) => {
     const existing = await prisma.playlistRotation.findUnique({
       where: { id: String(req.params.id) },
@@ -230,6 +237,7 @@ router.post(
 
 router.get(
   "/:id/runs",
+  requirePermission("rotations"),
   asyncHandler(async (req, res) => {
     const limit = Math.min(Number(req.query.limit ?? 50), 200);
     const runs = await prisma.rotationRunLog.findMany({

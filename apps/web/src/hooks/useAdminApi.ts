@@ -9,6 +9,8 @@ import type {
   LocutorStatus,
   LocutorTemplate,
   LocutorTemplateInput,
+  ManagedAdminUser,
+  ManagedAdminUserInput,
   MediaFile,
   BibleReadingHistoryEntry,
   NotificationStats,
@@ -674,6 +676,35 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Usuarios del panel (solo superadmin) ────────────────────
+  const getAdminUsers = useCallback(
+    () => request<{ rows: ManagedAdminUser[]; total: number }>({ url: '/admin-api/users' }),
+    [request]
+  );
+
+  const createAdminUser = useCallback(
+    (data: ManagedAdminUserInput) =>
+      request<{ user: ManagedAdminUser }>({ method: 'POST', url: '/admin-api/users', data }),
+    [request]
+  );
+
+  const updateAdminUser = useCallback(
+    (id: string, data: Partial<ManagedAdminUserInput & { isActive: boolean }>) =>
+      request<{ user: ManagedAdminUser }>({ method: 'PATCH', url: `/admin-api/users/${id}`, data }),
+    [request]
+  );
+
+  const revokeAdminUserSessions = useCallback(
+    (id: string) =>
+      request<{ user: ManagedAdminUser }>({ method: 'POST', url: `/admin-api/users/${id}/revoke` }),
+    [request]
+  );
+
+  const deleteAdminUser = useCallback(
+    (id: string) => request<{ ok: boolean }>({ method: 'DELETE', url: `/admin-api/users/${id}` }),
+    [request]
+  );
+
   return {
     getStatus,
     getListeners,
@@ -756,6 +787,11 @@ export function useAdminApi() {
     clearLiveStatus,
     getSystemJobs,
     runSystemJob,
+    getAdminUsers,
+    createAdminUser,
+    updateAdminUser,
+    revokeAdminUserSessions,
+    deleteAdminUser,
     stationId,
   };
 }

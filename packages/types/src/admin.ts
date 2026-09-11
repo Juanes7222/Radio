@@ -1,5 +1,83 @@
 // Tipos para el panel de administración
 
+export type AdminRole = "SUPERADMIN" | "ADMIN" | "USER";
+
+export type AdminPermission =
+  | "dashboard"
+  | "schedule"
+  | "schedule.categories"
+  | "streaming"
+  | "upload"
+  | "playlists"
+  | "rotations"
+  | "reading.history"
+  | "locutor"
+  | "youtube"
+  | "requests"
+  | "prayer"
+  | "devices"
+  | "notices"
+  | "logs"
+  | "jobs"
+  | "users";
+
+export const ADMIN_PERMISSIONS: AdminPermission[] = [
+  "dashboard",
+  "schedule",
+  "schedule.categories",
+  "streaming",
+  "upload",
+  "playlists",
+  "rotations",
+  "reading.history",
+  "locutor",
+  "youtube",
+  "requests",
+  "prayer",
+  "devices",
+  "notices",
+  "logs",
+  "jobs",
+  "users",
+];
+
+export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
+  SUPERADMIN: "Superadmin",
+  ADMIN: "Admin",
+  USER: "Usuario",
+};
+
+export const ADMIN_PERMISSION_LABELS: Record<AdminPermission, string> = {
+  dashboard: "Dashboard",
+  schedule: "Programación",
+  "schedule.categories": "Tipos de programa",
+  streaming: "Streaming / DJs",
+  upload: "Subir archivo",
+  playlists: "Playlists",
+  rotations: "Rotaciones",
+  "reading.history": "Historial de lectura",
+  locutor: "Locutor",
+  youtube: "YouTube",
+  requests: "Solicitudes",
+  prayer: "Oración",
+  devices: "Dispositivos",
+  notices: "Avisos",
+  logs: "Bitácora",
+  jobs: "Jobs",
+  users: "Usuarios",
+};
+
+export function hasAdminPermission(
+  role: AdminRole | undefined,
+  permissions: AdminPermission[] | undefined,
+  permission: AdminPermission
+): boolean {
+  if (role === "SUPERADMIN") return true;
+  if (role === "ADMIN") return permission !== "users";
+  if (!permissions) return false;
+  return permissions.includes(permission);
+}
+
 export interface AdminUser {
   /** Correo de Google del administrador */
   email: string;
@@ -12,6 +90,29 @@ export interface AdminUser {
   stationName?: string;
   /** JWT de sesión emitido por nuestro backend */
   token: string;
+  role: AdminRole;
+  permissions: AdminPermission[];
+}
+
+export interface ManagedAdminUser {
+  id: string;
+  email: string;
+  name: string;
+  picture: string;
+  role: AdminRole;
+  permissions: AdminPermission[];
+  isActive: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ManagedAdminUserInput {
+  email: string;
+  name?: string;
+  role: AdminRole;
+  permissions?: AdminPermission[];
+  isActive?: boolean;
 }
 
 export interface AdminStationStatus {

@@ -5,6 +5,7 @@ import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
 import { errorHandler } from "./shared/errors/error-handler";
 import authRouter from "./modules/auth/auth.routes";
+import usersRouter from "./modules/auth/users.routes";
 import proxyRouter from "./modules/azuracast/proxy.routes";
 import publicRouter from "./modules/azuracast/public.routes";
 import uploadRouter from "./modules/azuracast/upload.routes";
@@ -78,6 +79,7 @@ export function createApp(): Express {
 
   app.use("/api", publicRouter);
   app.use("/admin-api/auth", authRouter);
+  app.use("/admin-api/users", usersRouter);
   app.use("/admin-api", proxyRouter);
   app.use("/admin-api/upload", uploadRouter);
   app.use("/webhook", webhookRouter);

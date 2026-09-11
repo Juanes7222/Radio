@@ -22,18 +22,21 @@ import {
   BookOpen,
   Terminal,
   Cog,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { OnAirStrip } from '@/components/admin/OnAirStrip';
 import { StationStatusProvider } from '@/hooks/useStationStatus';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import type { AdminUser } from '@radio/types';
+import type { AdminPermission, AdminUser } from '@radio/types';
+import { hasAdminPermission } from '@radio/types';
 
 interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
+  permission: AdminPermission;
 }
 
 interface NavSection {
@@ -49,37 +52,38 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Emisión',
     items: [
-      { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { to: '/admin/schedule', label: 'Programación', icon: CalendarDays },
-      { to: '/admin/schedule/categories', label: 'Tipos de programa', icon: Tags },
-      { to: '/admin/streaming', label: 'Streaming / DJs', icon: Mic2 },
+      { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard' },
+      { to: '/admin/schedule', label: 'Programación', icon: CalendarDays, permission: 'schedule' },
+      { to: '/admin/schedule/categories', label: 'Tipos de programa', icon: Tags, permission: 'schedule.categories' },
+      { to: '/admin/streaming', label: 'Streaming / DJs', icon: Mic2, permission: 'streaming' },
     ],
   },
   {
     title: 'Contenido',
     items: [
-      { to: '/admin/upload', label: 'Subir archivo', icon: UploadCloud },
-      { to: '/admin/playlists', label: 'Playlists', icon: ListMusic },
-      { to: '/admin/rotations', label: 'Rotaciones', icon: Repeat },
-      { to: '/admin/reading-history', label: 'Historial de lectura', icon: BookOpen },
-      { to: '/admin/locutor', label: 'Locutor', icon: AudioLines },
-      { to: '/admin/youtube', label: 'YouTube', icon: Youtube },
+      { to: '/admin/upload', label: 'Subir archivo', icon: UploadCloud, permission: 'upload' },
+      { to: '/admin/playlists', label: 'Playlists', icon: ListMusic, permission: 'playlists' },
+      { to: '/admin/rotations', label: 'Rotaciones', icon: Repeat, permission: 'rotations' },
+      { to: '/admin/reading-history', label: 'Historial de lectura', icon: BookOpen, permission: 'reading.history' },
+      { to: '/admin/locutor', label: 'Locutor', icon: AudioLines, permission: 'locutor' },
+      { to: '/admin/youtube', label: 'YouTube', icon: Youtube, permission: 'youtube' },
     ],
   },
   {
     title: 'Audiencia',
     items: [
-      { to: '/admin/requests', label: 'Solicitudes', icon: MessageSquare },
-      { to: '/admin/prayer', label: 'Oración', icon: Heart },
-      { to: '/admin/devices', label: 'Dispositivos', icon: Smartphone },
-      { to: '/admin/notices', label: 'Avisos', icon: Megaphone },
+      { to: '/admin/requests', label: 'Solicitudes', icon: MessageSquare, permission: 'requests' },
+      { to: '/admin/prayer', label: 'Oración', icon: Heart, permission: 'prayer' },
+      { to: '/admin/devices', label: 'Dispositivos', icon: Smartphone, permission: 'devices' },
+      { to: '/admin/notices', label: 'Avisos', icon: Megaphone, permission: 'notices' },
     ],
   },
   {
     title: 'Sistema',
     items: [
-      { to: '/admin/logs', label: 'Bitácora', icon: Terminal },
-      { to: '/admin/jobs', label: 'Jobs', icon: Cog },
+      { to: '/admin/logs', label: 'Bitácora', icon: Terminal, permission: 'logs' },
+      { to: '/admin/jobs', label: 'Jobs', icon: Cog, permission: 'jobs' },
+      { to: '/admin/users', label: 'Usuarios', icon: Users, permission: 'users' },
     ],
   },
 ];
@@ -107,7 +111,26 @@ interface AdminSidebarProps {
   onLogout: () => void;
 }
 
+const ROLE_BADGE_STYLES: Record<string, string> = {
+  SUPERADMIN: 'bg-primary/15 text-primary border-primary/25',
+  ADMIN: 'bg-info/10 text-info border-info/25',
+  USER: 'bg-accent text-muted-foreground border-border',
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  SUPERADMIN: 'Superadmin',
+  ADMIN: 'Admin',
+  USER: 'Usuario',
+};
+
 function AdminSidebar({ user, onCloseMobile, onLogout }: AdminSidebarProps) {
+  const visibleSections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) =>
+      hasAdminPermission(user.role, user.permissions, item.permission)
+    ),
+  })).filter((section) => section.items.length > 0);
+
   return (
     <div className="flex h-full flex-col border-r border-border bg-background">
       {/* Logo */}
@@ -116,16 +139,24 @@ function AdminSidebar({ user, onCloseMobile, onLogout }: AdminSidebarProps) {
           <div className="rounded-lg bg-primary/10 p-2">
             <Radio className="h-5 w-5 text-primary" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{user.stationName || 'Radio'}</p>
             <p className="truncate text-xs text-muted-foreground">{user.name || user.email}</p>
           </div>
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <span
+            className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.12em] ${ROLE_BADGE_STYLES[user.role] ?? ROLE_BADGE_STYLES.USER}`}
+          >
+            {ROLE_LABELS[user.role] ?? user.role}
+          </span>
+          <span className="truncate font-mono text-[10px] text-faint">{user.email}</span>
         </div>
       </div>
 
       {/* Navegación */}
       <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Panel de administración">
-        {NAV_SECTIONS.map((section) => (
+        {visibleSections.map((section) => (
           <div key={section.title}>
             <p className="px-3 pb-1 pt-4 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-faint">
               {section.title}
@@ -206,6 +237,32 @@ export default function AdminLayout() {
     logout();
     navigate('/admin/login');
   };
+
+  const canAccessCurrent =
+    !currentPage || hasAdminPermission(user.role, user.permissions, currentPage.permission);
+  const firstAllowed = ALL_NAV_ITEMS.find((item) =>
+    hasAdminPermission(user.role, user.permissions, item.permission)
+  );
+
+  if (!canAccessCurrent) {
+    if (firstAllowed && location.pathname !== firstAllowed.to) {
+      return <Navigate to={firstAllowed.to} replace />;
+    }
+    return (
+      <div className="admin-theme flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
+        <div className="max-w-sm text-center">
+          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-faint">Sin acceso</p>
+          <h1 className="mt-2 text-lg font-semibold">Tu cuenta no tiene secciones asignadas</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Pide al superadmin que te asigne permisos o revisa tu correo de acceso.
+          </p>
+          <Button className="mt-4" variant="outline" onClick={handleLogout}>
+            Cerrar sesión
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <StationStatusProvider>

@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import { randomUUID } from "crypto";
 import fs from "fs";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { logger } from "../../shared/logger/logger";
 import {
   NOTICE_VIDEOS_DIR,
@@ -37,7 +37,7 @@ const upload = multer({
  * POST /admin-api/notices/videos - upload and optimize a video for notices.
  * Optimizes to 720p H.264 with faststart and generates a poster thumbnail for slow networks.
  */
-router.post("/videos", requireAuth, upload.single("video"), async (req: Request, res: Response) => {
+router.post("/videos", requireAuth, requirePermission("notices"), upload.single("video"), async (req: Request, res: Response) => {
   const file = (req as unknown as { file?: Express.Multer.File }).file;
   if (!file) {
     res.status(400).json({ error: "Archivo requerido" });
@@ -143,7 +143,7 @@ router.post("/videos", requireAuth, upload.single("video"), async (req: Request,
  * GET /admin-api/notices/videos - reusable video library with pagination.
  * Returns posterUrl for efficient thumbnail loading on slow networks.
  */
-router.get("/videos", requireAuth, async (req: Request, res: Response) => {
+router.get("/videos", requireAuth, requirePermission("notices"), async (req: Request, res: Response) => {
   const prisma = getPrisma();
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
@@ -180,7 +180,7 @@ router.get("/videos", requireAuth, async (req: Request, res: Response) => {
 /**
  * DELETE /admin-api/notices/videos/:id - remove video and poster from DB and disk
  */
-router.delete("/videos/:id", requireAuth, async (req: Request, res: Response) => {
+router.delete("/videos/:id", requireAuth, requirePermission("notices"), async (req: Request, res: Response) => {
   const prisma = getPrisma();
   try {
     const row = await prisma.noticeVideo.findUnique({ where: { id: req.params.id } });

@@ -5,7 +5,7 @@ import { PRAYER_STATUS, type PrayerStatus } from "@radio/types";
 import { prisma } from "../../infrastructure/database/prisma";
 import { config } from "../../config";
 import { sendEmail } from "../../infrastructure/email/email.service";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { sendPrayerResponseNotification } from "./notification.service";
 import {
   broadcastPrayerCreated,
@@ -59,8 +59,14 @@ function isAdminAuthenticated(req: Request): boolean {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) return false;
   try {
-    jwt.verify(header.slice(7), config.jwt.secret);
-    return true;
+    const payload = jwt.verify(header.slice(7), config.jwt.secret) as {
+      sub?: string;
+      role?: string;
+      permissions?: string[];
+    };
+    if (!payload.sub) return false;
+    if (payload.role === "SUPERADMIN" || payload.role === "ADMIN") return true;
+    return Array.isArray(payload.permissions) && payload.permissions.includes("prayer");
   } catch {
     return false;
   }
@@ -147,7 +153,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/", requireAuth, async (req: Request, res: Response) => {
+router.get("/", requireAuth, requirePermission("prayer"), async (req: Request, res: Response) => {
   try {
     const { limit, skip } = validatePagination(req.query as Record<string, unknown>);
     const estado =
@@ -204,7 +210,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
 
 // Bulk operations must be registered before "/:id" style routes so that
 // "bulk" is never captured as an :id or :deviceId parameter.
-router.post("/bulk/read", requireAuth, async (req: Request, res: Response) => {
+router.post("/bulk/read", requireAuth, requirePermission("prayer"), async (req: Request, res: Response) => {
   const ids = parseBulkIds(req.body);
   if (!ids) {
     res.status(400).json({ error: "Lista de ids invalida" });
@@ -225,7 +231,7 @@ router.post("/bulk/read", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/bulk/status", requireAuth, async (req: Request, res: Response) => {
+router.post("/bulk/status", requireAuth, requirePermission("prayer"), async (req: Request, res: Response) => {
   const ids = parseBulkIds(req.body);
   if (!ids) {
     res.status(400).json({ error: "Lista de ids invalida" });
@@ -291,7 +297,7 @@ router.post("/bulk/status", requireAuth, async (req: Request, res: Response) => 
   }
 });
 
-router.post("/bulk/delete", requireAuth, async (req: Request, res: Response) => {
+router.post("/bulk/delete", requireAuth, requirePermission("prayer"), async (req: Request, res: Response) => {
   const ids = parseBulkIds(req.body);
   if (!ids) {
     res.status(400).json({ error: "Lista de ids invalida" });
@@ -314,7 +320,7 @@ router.post("/bulk/delete", requireAuth, async (req: Request, res: Response) => 
 // Live feed for the admin panel: a short-lived ticket (issued to an
 // authenticated session) authorizes the EventSource connection, since
 // EventSource cannot send an Authorization header.
-router.post("/events/ticket", requireAuth, (_req: Request, res: Response) => {
+router.post("/events/ticket", requireAuth, requirePermission("prayer"), (_req: Request, res: Response) => {
   res.json(issueStreamTicket());
 });
 
@@ -386,7 +392,7 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.put("/:id", requireAuth, async (req: Request, res: Response) => {
+router.put("/:id", requireAuth, requirePermission("prayer"), async (req: Request, res: Response) => {
   const { id } = req.params;
   const { estado, respuesta, name, request } = req.body;
 
@@ -498,7 +504,7 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
+router.delete("/:id", requireAuth, requirePermission("prayer"), async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {

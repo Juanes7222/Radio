@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { getCurrentLiveUrl, notifyLiveEnd } from "./sse.service";
 
 const router = Router();
 
 // All admin live routes require authentication
-router.use(requireAuth);
+router.use(requireAuth, requirePermission("streaming"));
 
 router.get("/status", (_req, res) => {
   const url = getCurrentLiveUrl();

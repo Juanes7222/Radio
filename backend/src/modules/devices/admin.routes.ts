@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { prisma } from "../../infrastructure/database/prisma";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { normalizeSearch } from "../../shared/utils/sanitize";
 import { parseSubscriptions } from "../../shared/utils/subscriptions";
 import { logger } from "../../shared/logger/logger";
@@ -60,7 +60,7 @@ function toDeviceSummary(device: DeviceRow) {
   };
 }
 
-router.get("/", requireAuth, async (req: Request, res: Response) => {
+router.get("/", requireAuth, requirePermission("devices"), async (req: Request, res: Response) => {
   const { page, limit, skip } = validatePagination(req.query as Record<string, unknown>);
   const program = typeof req.query.program === "string" ? req.query.program.trim() : "";
   const zone = typeof req.query.zone === "string" ? req.query.zone.trim() : "";
@@ -190,7 +190,7 @@ function validatePushCampaignInput(body: unknown): { ok: true; input: PushCampai
   };
 }
 
-router.get("/zones", requireAuth, async (_req: Request, res: Response) => {
+router.get("/zones", requireAuth, requirePermission("devices"), async (_req: Request, res: Response) => {
   try {
     const devices = await prisma.device.findMany({
       where: { zoneId: { not: null } },
@@ -210,7 +210,7 @@ router.get("/zones", requireAuth, async (_req: Request, res: Response) => {
   }
 });
 
-router.get("/recalc-stats", requireAuth, async (_req: Request, res: Response) => {
+router.get("/recalc-stats", requireAuth, requirePermission("devices"), async (_req: Request, res: Response) => {
   try {
     const stats = await getZoneRecalcStats();
     res.json(stats);
@@ -222,7 +222,7 @@ router.get("/recalc-stats", requireAuth, async (_req: Request, res: Response) =>
   }
 });
 
-router.post("/recalc-zones", requireAuth, async (req: Request, res: Response) => {
+router.post("/recalc-zones", requireAuth, requirePermission("devices"), async (req: Request, res: Response) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
   const scopeRaw = typeof body.scope === "string" ? body.scope.trim() : "auto";
   const allowedScopes: ZoneRecalcScope[] = ["missing", "auto", "all"];
@@ -247,7 +247,7 @@ router.post("/recalc-zones", requireAuth, async (req: Request, res: Response) =>
   }
 });
 
-router.put("/:deviceId/zone", requireAuth, async (req: Request, res: Response) => {
+router.put("/:deviceId/zone", requireAuth, requirePermission("devices"), async (req: Request, res: Response) => {
   const { deviceId } = req.params;
   if (!deviceId || typeof deviceId !== "string") {
     res.status(400).json({ error: "deviceId es obligatorio" });
@@ -288,7 +288,7 @@ router.put("/:deviceId/zone", requireAuth, async (req: Request, res: Response) =
   }
 });
 
-router.post("/send-notification", requireAuth, async (req: Request, res: Response) => {
+router.post("/send-notification", requireAuth, requirePermission("devices"), async (req: Request, res: Response) => {
   const validation = validatePushCampaignInput(req.body);
   if (!validation.ok) {
     res.status(400).json({ error: validation.error });
@@ -326,7 +326,7 @@ router.post("/send-notification", requireAuth, async (req: Request, res: Respons
   }
 });
 
-router.post("/preview-notification", requireAuth, async (req: Request, res: Response) => {
+router.post("/preview-notification", requireAuth, requirePermission("devices"), async (req: Request, res: Response) => {
   const validation = validatePushCampaignInput(req.body);
   if (!validation.ok) {
     res.status(400).json({ error: validation.error });
@@ -344,7 +344,7 @@ router.post("/preview-notification", requireAuth, async (req: Request, res: Resp
   }
 });
 
-router.get("/notification-logs", requireAuth, async (req: Request, res: Response) => {
+router.get("/notification-logs", requireAuth, requirePermission("devices"), async (req: Request, res: Response) => {
   const { page, limit, skip } = validatePagination(req.query as Record<string, unknown>);
 
   try {
@@ -382,7 +382,7 @@ router.get("/notification-logs", requireAuth, async (req: Request, res: Response
   }
 });
 
-router.get("/notifications-stats", requireAuth, async (_req: Request, res: Response) => {
+router.get("/notifications-stats", requireAuth, requirePermission("devices"), async (_req: Request, res: Response) => {
   try {
     const since = new Date(Date.now() - STATS_WINDOW_DAYS * 86400_000);
     const [totalAll, total7d, byProgram] = await Promise.all([

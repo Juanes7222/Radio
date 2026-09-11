@@ -4,7 +4,7 @@
 #
 # Prepares the server to run the radio stack: installs system packages,
 # Node.js, creates the service user, clones the repo, configures Nginx
-# with SSL, and registers the backend systemd service.
+# with SSL, and registers the systemd services (backend + backup timer).
 #
 # After this script completes, run deploy.sh to build and start the app.
 #
@@ -93,7 +93,8 @@ apt-get install -y \
   curl git nginx apache2-utils ufw fail2ban \
   unattended-upgrades apt-listchanges \
   certbot python3-certbot-nginx \
-  aide mailutils logrotate
+  aide mailutils logrotate \
+  sqlite3 awscli
 
 # ------------------------------------------------------------------------------
 # Step 2 — Node.js and pnpm
@@ -234,6 +235,25 @@ chown "$SERVICE_USER:$SERVICE_USER" "/var/log/$BACKEND_SERVICE"
 
 systemctl daemon-reload
 systemctl enable "$BACKEND_SERVICE"
+
+# Backup timer: daily SQLite + media backup to Cloudflare R2.
+# The service no-ops gracefully until /etc/radio/backup.env holds
+# R2 credentials (see scripts/radio-backup.env.example).
+info "Installing backup timer..."
+mkdir -p /var/backups/radio/daily /var/backups/radio/weekly /etc/radio
+chmod 700 /var/backups/radio
+chmod 755 /etc/radio
+touch /var/log/radio-backup.log && chmod 600 /var/log/radio-backup.log
+if [[ -f "$SCRIPTS_DIR/radio-backup.service" && -f "$SCRIPTS_DIR/radio-backup.timer" ]]; then
+  cp "$SCRIPTS_DIR/radio-backup.service" /etc/systemd/system/radio-backup.service
+  cp "$SCRIPTS_DIR/radio-backup.timer" /etc/systemd/system/radio-backup.timer
+  chmod 755 "$SCRIPTS_DIR/radio-backup.sh" "$SCRIPTS_DIR/radio-restore.sh"
+  systemctl daemon-reload
+  systemctl enable radio-backup.timer
+  info "Backup timer installed. Add R2 credentials to /etc/radio/backup.env to enable uploads."
+else
+  warn "Backup units not found in $SCRIPTS_DIR, skipping backup timer."
+fi
 
 # ------------------------------------------------------------------------------
 # Step 8 — Hand off to deploy

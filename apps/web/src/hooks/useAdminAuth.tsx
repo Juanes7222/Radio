@@ -7,7 +7,8 @@ import {
   type ReactNode,
 } from 'react';
 import axios from 'axios';
-import type { AdminUser } from '@radio/types';
+import type { AdminPermission, AdminRole, AdminUser } from '@radio/types';
+import { hasAdminPermission } from '@radio/types';
 import { apiUrl } from '@/config';
 
 const STORAGE_KEY = 'admin_session';
@@ -21,6 +22,8 @@ interface AdminAuthContextType {
   logout: () => void;
   token: string | null;
   apiKey: string | null;
+  hasPermission: (permission: AdminPermission) => boolean;
+  isSuperAdmin: boolean;
 }
 
 const AdminAuthContext = createContext<AdminAuthContextType | null>(null);
@@ -40,15 +43,23 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   // Validate the persisted session on mount: a stored JWT does not
   // guarantee it is still valid, so check it against the backend once.
-  // Network failures keep the session; only an explicit 401 clears it.
+  // The response carries fresh role/permissions; network failures keep
+  // the session, only an explicit 401 clears it. A 403 (revoked
+  // permission set mid-session) refreshes from cache then forces login.
   useEffect(() => {
     if (!user) return;
 
     let cancelled = false;
     axios
-      .get(apiUrl('/admin-api/auth/me'), {
+      .get<{ user: AdminUser }>(apiUrl('/admin-api/auth/me'), {
         headers: { Authorization: `Bearer ${user.token}` },
         timeout: 10000,
+      })
+      .then((res) => {
+        if (cancelled) return;
+        const fresh: AdminUser = { ...res.data.user, stationId: STATION_ID, token: user.token };
+        setUser(fresh);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
       })
       .catch((err) => {
         if (cancelled) return;
@@ -61,7 +72,9 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+    // Only revalidate when the stored token changes, not on every user refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.token]);
 
   const login = useCallback(async (idToken: string): Promise<boolean> => {
     setIsLoading(true);
@@ -69,7 +82,14 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await axios.post<{
         token: string;
-        user: { email: string; name: string; picture: string; stationName: string };
+        user: {
+          email: string;
+          name: string;
+          picture: string;
+          stationName: string;
+          role: AdminRole;
+          permissions: AdminPermission[];
+        };
       }>(apiUrl('/admin-api/auth/google'), { credential: idToken }, { timeout: 10000 });
 
       const adminUser: AdminUser = {
@@ -104,6 +124,12 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     axios.post(apiUrl('/admin-api/auth/logout')).catch(() => {});
   }, []);
 
+  const hasPermission = useCallback(
+    (permission: AdminPermission) =>
+      hasAdminPermission(user?.role, user?.permissions, permission),
+    [user?.role, user?.permissions]
+  );
+
   return (
     <AdminAuthContext.Provider
       value={{
@@ -114,6 +140,8 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         logout,
         token: user?.token ?? null,
         apiKey: user?.token ?? null,
+        hasPermission,
+        isSuperAdmin: user?.role === 'SUPERADMIN',
       }}
     >
       {children}

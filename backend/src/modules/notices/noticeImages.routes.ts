@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
 import sharp from "sharp";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { logger } from "../../shared/logger/logger";
 import { NOTICE_IMAGES_DIR, ensureDir, getMediaFilePath, deleteMediaFileIfExists } from "./media/media.storage";
 import { ALLOWED_IMAGE_MIMES, NOTICE_IMAGE_MAX_BYTES, NOTICE_IMAGE_URL_PREFIX } from "./media/media.config";
@@ -31,7 +31,7 @@ const upload = multer({
  * POST /admin-api/notices/images - upload and optimize an image for notices.
  * Optimization: resize to max 1280x900, convert to WebP quality 82, strip metadata.
  */
-router.post("/images", requireAuth, upload.single("image"), async (req: Request, res: Response) => {
+router.post("/images", requireAuth, requirePermission("notices"), upload.single("image"), async (req: Request, res: Response) => {
   const file = (req as unknown as { file?: Express.Multer.File }).file;
   if (!file) {
     res.status(400).json({ error: "Archivo requerido" });
@@ -93,7 +93,7 @@ router.post("/images", requireAuth, upload.single("image"), async (req: Request,
 /**
  * GET /admin-api/notices/images - reusable library with pagination
  */
-router.get("/images", requireAuth, async (req: Request, res: Response) => {
+router.get("/images", requireAuth, requirePermission("notices"), async (req: Request, res: Response) => {
   const prisma = getPrisma();
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
@@ -128,7 +128,7 @@ router.get("/images", requireAuth, async (req: Request, res: Response) => {
 /**
  * DELETE /admin-api/notices/images/:id - remove from DB and disk
  */
-router.delete("/images/:id", requireAuth, async (req: Request, res: Response) => {
+router.delete("/images/:id", requireAuth, requirePermission("notices"), async (req: Request, res: Response) => {
   const prisma = getPrisma();
   try {
     const row = await prisma.noticeImage.findUnique({ where: { id: req.params.id } });

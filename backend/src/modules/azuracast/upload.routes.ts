@@ -5,7 +5,7 @@ import { asyncHandler } from "../../shared/errors/async-handler";
 import { AppError } from "../../shared/errors/app-error";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, ALLOWED_AUDIO_MIME_TYPES } from "../../shared/constants";
 import { sanitizeFilename, sanitizeRelativePath } from "../../shared/utils/sanitize";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import {
   deleteStationFile,
   getRecentFiles,
@@ -37,6 +37,7 @@ const upload = multer({
 router.post(
   "/",
   requireAuth,
+  requirePermission("upload"),
   upload.single("file"),
   asyncHandler(async (req, res) => {
     if (!req.file) {
@@ -63,6 +64,7 @@ router.post(
 router.get(
   "/recent",
   requireAuth,
+  requirePermission("upload"),
   asyncHandler(async (_req, res) => {
     const data = await getRecentFiles();
     res.json(data);
@@ -76,6 +78,7 @@ router.get(
 router.post(
   "/rescan",
   requireAuth,
+  requirePermission("upload"),
   asyncHandler(async (_req, res) => {
     try {
       await triggerMediaRescan();
@@ -103,6 +106,7 @@ router.post(
 router.delete(
   "/:id",
   requireAuth,
+  requirePermission("upload"),
   asyncHandler(async (req, res) => {
     try {
       await deleteStationFile(String(req.params.id));

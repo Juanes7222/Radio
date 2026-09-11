@@ -1,33 +1,46 @@
 import { Router } from "express";
-import { config } from "../../config";
 import { asyncHandler } from "../../shared/errors/async-handler";
 import { AppError } from "../../shared/errors/app-error";
 import { requireAuth } from "./auth.middleware";
-import { createAdminSession, fetchStationName, verifyFirebaseCredential } from "./auth.service";
+import { authenticateGoogleCredential } from "./auth.service";
 
 const router = Router();
 
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 30;
+const loginAttempts = new Map<string, number[]>();
+
+function isLoginRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const hits = (loginAttempts.get(ip) ?? []).filter((t) => now - t < LOGIN_WINDOW_MS);
+  hits.push(now);
+  loginAttempts.set(ip, hits);
+  if (loginAttempts.size > 1000) {
+    const oldest = [...loginAttempts.keys()][0];
+    loginAttempts.delete(oldest);
+  }
+  return hits.length > LOGIN_MAX_ATTEMPTS;
+}
+
 /**
  * POST /admin-api/auth/google
- * Verifies a Firebase ID token, checks the admin whitelist and
+ * Verifies a Firebase ID token, checks the AdminUser table and
  * returns a session JWT for the admin panel.
  */
 router.post(
   "/google",
   asyncHandler(async (req, res) => {
+    const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
+    if (isLoginRateLimited(ip)) {
+      throw new AppError(429, "Demasiados intentos, espera unos minutos");
+    }
+
     const { credential } = req.body as { credential?: string };
-    if (!credential) {
+    if (!credential || typeof credential !== "string") {
       throw new AppError(400, "Falta el token de Firebase");
     }
 
-    const profile = await verifyFirebaseCredential(credential);
-
-    if (!config.whitelist.includes(profile.email.toLowerCase())) {
-      throw new AppError(403, "Tu cuenta no tiene acceso al panel de administracion.");
-    }
-
-    const stationName = await fetchStationName();
-    const session = createAdminSession(profile, stationName);
+    const session = await authenticateGoogleCredential(credential);
     res.json({ token: session.token, user: session.user });
   })
 );

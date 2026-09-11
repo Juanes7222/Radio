@@ -3,7 +3,7 @@ import multer from "multer";
 import os from "os";
 import fs from "fs";
 import { config } from "../../config";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import * as releasesService from "./releases.service";
 import { broadcastUpdateAvailable } from "./workerServer";
 
@@ -14,6 +14,7 @@ const router = Router();
 router.post(
   ["/admin/worker-releases", "/admin-api/worker-releases"],
   requireAuth,
+  requirePermission("jobs"),
   upload.single("file"),
   async (req: Request, res: Response) => {
     try {
@@ -45,7 +46,7 @@ router.post(
   }
 );
 
-router.get(["/admin/worker-releases", "/admin-api/worker-releases"], requireAuth, async (_req: Request, res: Response) => {
+router.get(["/admin/worker-releases", "/admin-api/worker-releases"], requireAuth, requirePermission("jobs"), async (_req: Request, res: Response) => {
   const { prisma } = await import("../../infrastructure/database/prisma");
   const list = await prisma.workerRelease.findMany({ orderBy: { createdAt: "desc" } });
   res.json(list);

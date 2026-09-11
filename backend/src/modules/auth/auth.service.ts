@@ -1,16 +1,31 @@
 import axios from "axios";
 import jwt from "jsonwebtoken";
+import type { AdminPermission, AdminRole } from "@radio/types";
 import { config } from "../../config";
 import { AppError } from "../../shared/errors/app-error";
 import { getFirebaseAdmin } from "../../infrastructure/firebase/firebase-admin";
 import { logger } from "../../shared/logger/logger";
 import { AZURACAST_BASE_URL_TIMEOUTS } from "../../shared/constants";
+import {
+  effectivePermissions,
+  normalizeEmail,
+} from "./permissions";
+import {
+  ensureBootstrapAdmins,
+  getAdminUserByEmail,
+  recordLogin,
+  type AdminUserRecord,
+} from "./adminUsers.service";
 
 export interface SessionPayload {
+  sub: string;
   email: string;
   name: string;
   picture: string;
   stationName: string;
+  role: AdminRole;
+  permissions: AdminPermission[];
+  tv: number;
 }
 
 interface FirebaseProfile {
@@ -23,7 +38,9 @@ const DEFAULT_STATION_NAME = "Radio";
 
 /**
  * Verifies a Firebase ID token and returns the profile it represents.
- * Throws a 500 when Firebase is not configured, 401 when the token is invalid.
+ * Requires a Google sign-in with verified email. Throws 500 when Firebase
+ * is not configured, 401 when the token is invalid, 403 when the Google
+ * account itself is not verified.
  */
 export async function verifyFirebaseCredential(credential: string): Promise<FirebaseProfile> {
   const admin = getFirebaseAdmin();
@@ -33,10 +50,19 @@ export async function verifyFirebaseCredential(credential: string): Promise<Fire
 
   try {
     const decoded = await admin.auth().verifyIdToken(credential);
-    const email = decoded.email ?? "";
+    const email = normalizeEmail(decoded.email ?? "");
 
     if (!email) {
       throw new AppError(401, "Token de Firebase invalido");
+    }
+
+    const provider = decoded.firebase?.sign_in_provider ?? "";
+    if (provider && provider !== "google.com") {
+      throw new AppError(403, "Solo se permite el ingreso con cuentas de Google.");
+    }
+
+    if (decoded.email_verified === false) {
+      throw new AppError(403, "Tu cuenta de Google no esta verificada.");
     }
 
     return {
@@ -75,12 +101,19 @@ export async function fetchStationName(): Promise<string> {
 /**
  * Builds a session token for an authorized admin user.
  */
-export function createAdminSession(profile: FirebaseProfile, stationName: string): { token: string; user: SessionPayload } {
+export function createAdminSession(
+  record: AdminUserRecord,
+  stationName: string
+): { token: string; user: SessionPayload } {
   const sessionPayload: SessionPayload = {
-    email: profile.email,
-    name: profile.name,
-    picture: profile.picture,
+    sub: record.id,
+    email: record.email,
+    name: record.name || record.email,
+    picture: record.picture,
     stationName,
+    role: record.role,
+    permissions: effectivePermissions(record.role, record.permissions),
+    tv: record.tokenVersion,
   };
 
   const token = jwt.sign(sessionPayload, config.jwt.secret, {
@@ -88,4 +121,31 @@ export function createAdminSession(profile: FirebaseProfile, stationName: string
   });
 
   return { token, user: sessionPayload };
+}
+
+/**
+ * Full Google login: verifies Firebase, resolves the DB user and issues
+ * a session JWT. Unknown or inactive emails get a generic 403 so the
+ * endpoint does not reveal which accounts exist.
+ */
+export async function authenticateGoogleCredential(
+  credential: string
+): Promise<{ token: string; user: SessionPayload }> {
+  const profile = await verifyFirebaseCredential(credential);
+  await ensureBootstrapAdmins();
+
+  const record = await getAdminUserByEmail(profile.email);
+  if (!record || !record.isActive) {
+    logger.warn("AuthService", "Login rechazado", { email: profile.email });
+    throw new AppError(403, "Tu cuenta no tiene acceso al panel de administracion.");
+  }
+
+  await recordLogin(record.id, profile.name, profile.picture);
+  const stationName = await fetchStationName();
+  const fresh: AdminUserRecord = {
+    ...record,
+    name: profile.name || record.name,
+    picture: profile.picture || record.picture,
+  };
+  return createAdminSession(fresh, stationName);
 }

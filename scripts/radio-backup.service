@@ -1,0 +1,16 @@
+[Unit]
+Description=Radio - Backup to Cloudflare R2
+Documentation=https://github.com/Juanes7222/Radio
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/var/www/radio
+EnvironmentFile=-/etc/radio/backup.env
+ExecStart=/var/www/radio/scripts/radio-backup.sh
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=true
+PrivateTmp=true

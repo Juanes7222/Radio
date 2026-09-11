@@ -1,12 +1,12 @@
 import { Router, type Request, type Response } from "express";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { getLogSources, getLogs, getLogsTail } from "./logs.service";
 import { logger } from "../../shared/logger/logger";
 
 const router = Router();
 
 // All log endpoints require admin auth
-router.use(requireAuth);
+router.use(requireAuth, requirePermission("logs"));
 
 const VALID_SOURCES = new Set(["server", "azuracast", "nginx", "postgres", "worker", "locutor", "all"]);
 const VALID_LEVELS = new Set(["all", "debug", "info", "warn", "error", "fatal"]);

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { asyncHandler } from "../../shared/errors/async-handler";
 import { AppError } from "../../shared/errors/app-error";
 import { isSystemJobKey } from "./systemJobs.registry";
@@ -7,7 +7,7 @@ import { isJobRunning, listSystemJobs, triggerSystemJob } from "./systemJobs.ser
 
 const router = Router();
 
-router.use(requireAuth);
+router.use(requireAuth, requirePermission("jobs"));
 
 router.get(
   "/",
