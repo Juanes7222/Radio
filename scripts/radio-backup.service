@@ -7,9 +7,12 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=root
-WorkingDirectory=/var/www/radio
+WorkingDirectory=/var/www/radio/backend
+# Secrets (including R2 credentials) come from Infisical via dist/run-backup.js.
+# INFISICAL_* bootstrap values are read from the backend .env.
+# EnvironmentFile is only a fallback for values missing in Infisical.
 EnvironmentFile=-/etc/radio/backup.env
-ExecStart=/var/www/radio/scripts/radio-backup.sh
+ExecStart=/usr/bin/node /var/www/radio/backend/dist/run-backup.js
 StandardOutput=journal
 StandardError=journal
 NoNewPrivileges=true

@@ -63,9 +63,13 @@ node dist/index.js   # then curl http://localhost:18888/health
   verification, a safety copy under `/var/backups/radio/pre-restore-*`,
   backend stop/start and health check. Dry usage:
   `sudo bash scripts/radio-restore.sh --from r2 --date 20260911`.
-- Server config lives in `/etc/radio/backup.env` (mode 600), see
-  `scripts/radio-backup.env.example`. Status of the last run is in
-  `/var/backups/radio/last-backup.status`, logs in `/var/log/radio-backup.log`.
+- Server config lives in Infisical (R2 keys, retention knobs), see
+  `scripts/radio-backup.env.example` for the full list. The timer runs
+  `backend/dist/run-backup.js`, which loads Infisical and then executes the
+  backup script; `/etc/radio/backup.env` (mode 600) remains only as a
+  fallback for values missing from the environment. Status of the last run
+  is in `/var/backups/radio/last-backup.status`, logs in
+  `/var/log/radio-backup.log`.
 - Superadmin panel: `src/modules/backups/` exposes `GET /admin-api/backups`
   (status + retained bundles), `GET /admin-api/backups/log` and
   `POST /admin-api/backups/run` (spawns the script in background, 409 when

@@ -11,7 +11,11 @@
 #   sudo bash radio-backup.sh
 #
 # CONFIG:
-#   Environment variables, normally from /etc/radio/backup.env
+#   Environment variables. The primary source is Infisical: the systemd timer
+#   runs backend/dist/run-backup.js, which loads Infisical into the environment
+#   before executing this script, and the backend does the same on boot for
+#   manual runs from the superadmin panel. /etc/radio/backup.env below is only
+#   a fallback for values missing from the environment.
 #   (see scripts/radio-backup.env.example). When R2 credentials are missing
 #   the script still completes in local-only mode and prunes old files.
 #

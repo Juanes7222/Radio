@@ -237,8 +237,8 @@ systemctl daemon-reload
 systemctl enable "$BACKEND_SERVICE"
 
 # Backup timer: daily SQLite + media backup to Cloudflare R2.
-# The service no-ops gracefully until /etc/radio/backup.env holds
-# R2 credentials (see scripts/radio-backup.env.example).
+# Secrets come from Infisical (backend/dist/run-backup.js loads them before
+# running the backup script); /etc/radio/backup.env is only a fallback.
 info "Installing backup timer..."
 mkdir -p /var/backups/radio/daily /var/backups/radio/weekly /etc/radio
 chmod 700 /var/backups/radio
@@ -250,7 +250,7 @@ if [[ -f "$SCRIPTS_DIR/radio-backup.service" && -f "$SCRIPTS_DIR/radio-backup.ti
   chmod 755 "$SCRIPTS_DIR/radio-backup.sh" "$SCRIPTS_DIR/radio-restore.sh"
   systemctl daemon-reload
   systemctl enable radio-backup.timer
-  info "Backup timer installed. Add R2 credentials to /etc/radio/backup.env to enable uploads."
+  info "Backup timer installed. Add the R2 keys to Infisical to enable uploads."
 else
   warn "Backup units not found in $SCRIPTS_DIR, skipping backup timer."
 fi
