@@ -247,9 +247,26 @@ else
     info "Dependency files changed — running pnpm audit..."
     AUDIT_FILE="$(mktemp)"
     "$PNPM_BIN" audit --json >"$AUDIT_FILE" 2>/dev/null || true
+    export DEPLOY_BACKEND DEPLOY_FRONTEND
     if ! node -e '
       const fs = require("fs");
       const allowed = new Set((process.env.DEPLOY_AUDIT_ALLOWLIST || "").split(",").filter(Boolean));
+      const deployBackend = process.env.DEPLOY_BACKEND === "true";
+      const deployFrontend = process.env.DEPLOY_FRONTEND === "true";
+      // This script only deploys backend (backend/) and frontend (apps/web/).
+      // Mobile (apps/mobile, e.g. expo/@xmldom) is never deployed from here,
+      // so its advisories must not block a backend/frontend deploy.
+      // A finding path looks like "backend>express>qs" or "apps__web>vitest".
+      function isRelevantPath(p) {
+        if (p.startsWith("apps__mobile>") || p === "apps__mobile") return false;
+        if (deployBackend && !deployFrontend) {
+          return !p.startsWith("apps__web>") && p !== "apps__web";
+        }
+        if (deployFrontend && !deployBackend) {
+          return !p.startsWith("backend>") && p !== "backend";
+        }
+        return true;
+      }
       let data;
       try {
         data = JSON.parse(fs.readFileSync(process.argv[process.argv.length - 1], "utf8"));
@@ -258,9 +275,12 @@ else
         process.exit(2);
       }
       const advisories = data.advisories ? Object.values(data.advisories) : [];
-      const blocking = advisories.filter(
-        (a) => !allowed.has(a.github_advisory_id) && (a.severity === "high" || a.severity === "critical")
-      );
+      const blocking = advisories.filter((a) => {
+        if (allowed.has(a.github_advisory_id)) return false;
+        if (a.severity !== "high" && a.severity !== "critical") return false;
+        const paths = (a.findings || []).flatMap((f) => f.paths || []);
+        return paths.some(isRelevantPath);
+      });
       if (blocking.length > 0) {
         console.error(
           "Blocking advisories: " +
