@@ -247,7 +247,7 @@ touch /var/log/radio-backup.log && chmod 600 /var/log/radio-backup.log
 if [[ -f "$SCRIPTS_DIR/radio-backup.service" && -f "$SCRIPTS_DIR/radio-backup.timer" ]]; then
   cp "$SCRIPTS_DIR/radio-backup.service" /etc/systemd/system/radio-backup.service
   cp "$SCRIPTS_DIR/radio-backup.timer" /etc/systemd/system/radio-backup.timer
-  chmod 755 "$SCRIPTS_DIR/radio-backup.sh" "$SCRIPTS_DIR/radio-restore.sh"
+  chmod 755 "$SCRIPTS_DIR/radio-backup.sh" "$SCRIPTS_DIR/radio-restore.sh" "$SCRIPTS_DIR/radio-backup-now.sh"
   systemctl daemon-reload
   systemctl enable radio-backup.timer
   info "Backup timer installed. Add the R2 keys to Infisical to enable uploads."
