@@ -21,10 +21,10 @@ import { toast } from 'sonner';
 import type { LocutorAudio } from '@radio/types';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  ready: { label: 'Listo', color: 'bg-green-500/10 text-green-500 border-green-500/20' },
-  pending: { label: 'Pendiente', color: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' },
-  error: { label: 'Error', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
-  expired: { label: 'Expirado', color: 'bg-slate-500/10 text-slate-400 border-slate-500/20' },
+  ready: { label: 'Listo', color: 'bg-success/10 text-success border-success/20' },
+  pending: { label: 'Pendiente', color: 'bg-warning/10 text-warning border-warning/20' },
+  error: { label: 'Error', color: 'bg-destructive/10 text-destructive border-destructive/20' },
+  expired: { label: 'Expirado', color: 'bg-faint/10 text-faint border-faint/20' },
 };
 
 function formatBytes(bytes: number | null): string {
@@ -103,18 +103,18 @@ export default function AudioBank() {
   };
 
   return (
-    <Card className="border-slate-700 bg-slate-800/60">
+    <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Banco de Audios</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => void loadAudios()} disabled={loading} className="gap-2 text-slate-400">
+          <Button variant="ghost" size="sm" onClick={() => void loadAudios()} disabled={loading} className="gap-2 text-muted-foreground">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-        {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
+        {error && <p className="text-sm text-destructive mb-4">{error}</p>}
 
         <Table>
           <TableHeader>
@@ -132,33 +132,33 @@ export default function AudioBank() {
               [...Array(3)].map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={6}>
-                    <div className="h-6 rounded animate-pulse bg-slate-700" />
+                    <div className="h-6 rounded animate-pulse bg-sunken" />
                   </TableCell>
                 </TableRow>
               ))
             ) : audios.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-10">
-                  <FileAudio className="w-8 h-8 mx-auto mb-2 text-slate-500 opacity-50" />
-                  <p className="text-sm text-slate-400">No hay audios generados</p>
+                  <FileAudio className="w-8 h-8 mx-auto mb-2 text-faint opacity-50" />
+                  <p className="text-sm text-muted-foreground">No hay audios generados</p>
                 </TableCell>
               </TableRow>
             ) : (
               audios.map((audio) => {
-                const status = STATUS_CONFIG[audio.status] ?? { label: audio.status, color: 'bg-slate-500/10 text-slate-400 border-slate-500/20' };
+                const status = STATUS_CONFIG[audio.status] ?? { label: audio.status, color: 'bg-faint/10 text-faint border-faint/20' };
                 return (
                   <TableRow key={audio.id}>
-                    <TableCell className="text-slate-300 max-w-48">
+                    <TableCell className="text-foreground max-w-48">
                       <p className="truncate" title={audio.filename}>{audio.filename}</p>
-                      <p className="text-xs text-slate-500">{timeAgo(audio.generatedAt)}</p>
+                      <p className="text-xs text-faint">{timeAgo(audio.generatedAt)}</p>
                     </TableCell>
-                    <TableCell className="text-slate-400 max-w-xs truncate" title={audio.textRendered}>
+                    <TableCell className="text-muted-foreground max-w-xs truncate" title={audio.textRendered}>
                       {audio.textRendered || '—'}
                     </TableCell>
-                    <TableCell className="text-slate-400">{audio.voice}</TableCell>
-                    <TableCell className="text-slate-400">
+                    <TableCell className="text-muted-foreground">{audio.voice}</TableCell>
+                    <TableCell className="text-muted-foreground">
                       <span className="whitespace-nowrap">{formatClock((audio.durationMs ?? 0) / 1000)}</span>
-                      <span className="text-xs text-slate-500"> · {formatBytes(audio.fileSizeBytes)}</span>
+                      <span className="text-xs text-faint"> · {formatBytes(audio.fileSizeBytes)}</span>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`text-xs border ${status.color}`}>

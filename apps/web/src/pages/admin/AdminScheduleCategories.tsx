@@ -37,7 +37,8 @@ const COLOR_PRESETS = [
   '#6daa45',
   '#dd6974',
   '#e8af34',
-  '#8b92a5',
+  // Neutral gray kept in sync with the admin faint token (hsl 218 12% 57%).
+  '#848e9f',
 ];
 
 const emptyForm = {

@@ -63,7 +63,10 @@ function getErrorMessage(err: unknown): string {
 }
 
 export function DjAssignments({ streamers }: { streamers: Streamer[] }) {
-  const api = useAdminApi();
+  // Destructure stable callbacks: the hook returns a new object identity on
+  // every render, so depending on the whole object would refire effects
+  // endlessly and flood the backend (429).
+  const { getDjs, createDjAssignment, updateDjAssignment, deleteDjAssignment } = useAdminApi();
   const [rows, setRows] = useState<DjAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -77,12 +80,11 @@ export function DjAssignments({ streamers }: { streamers: Streamer[] }) {
 
   const load = useCallback(() => {
     setLoading(true);
-    api
-      .getDjs()
+    getDjs()
       .then((res) => setRows(res.assignments))
       .catch(() => undefined)
       .finally(() => setLoading(false));
-  }, [api]);
+  }, [getDjs]);
 
   useEffect(() => {
     load();
@@ -123,8 +125,8 @@ export function DjAssignments({ streamers }: { streamers: Streamer[] }) {
     }
     setSaving(true);
     const request = editing
-      ? api.updateDjAssignment(editing.id, { slots })
-      : api.createDjAssignment({
+      ? updateDjAssignment(editing.id, { slots })
+      : createDjAssignment({
           streamerUsername,
           email: email.trim().toLowerCase(),
           slots,
@@ -142,8 +144,7 @@ export function DjAssignments({ streamers }: { streamers: Streamer[] }) {
   const handleDelete = () => {
     if (!pendingDelete) return;
     setDeleting(true);
-    api
-      .deleteDjAssignment(pendingDelete.id)
+    deleteDjAssignment(pendingDelete.id)
       .then(() => {
         toast.success('Asignación eliminada.');
         setPendingDelete(null);

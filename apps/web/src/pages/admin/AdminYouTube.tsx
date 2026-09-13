@@ -48,9 +48,9 @@ import { formatDateTime, formatDateTimeFull, timeAgoShort } from '@/lib/format';
 import type { WorkerJob, WorkerNodeInfo } from '@radio/types';
 
 const JOB_STATUS_COLORS: Record<string, string> = {
-  PENDING: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
+  PENDING: 'bg-warning/10 text-warning border-warning/20',
   ASSIGNED: 'bg-info/10 text-info border-info/20',
-  RETRYING: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
+  RETRYING: 'bg-warning/10 text-warning border-warning/20',
   ERROR: 'bg-destructive/10 text-destructive border-destructive/20',
   ABANDONED: 'bg-destructive/10 text-destructive border-destructive/20',
   DONE: 'bg-success/10 text-success border-success/20',

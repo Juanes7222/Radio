@@ -33,7 +33,7 @@ function statusBadge(job: SystemJob) {
     return <Badge className="border-success/25 bg-success/10 text-success">Última: éxito</Badge>;
   }
   if (job.state.status === "error") {
-    return <Badge className="border-tally/25 bg-tally/10 text-tally">Última: error</Badge>;
+    return <Badge className="border-destructive/25 bg-destructive/10 text-destructive">Última: error</Badge>;
   }
   return (
     <Badge variant="outline" className="border-border bg-sunken text-faint">
@@ -211,7 +211,7 @@ export default function AdminJobs() {
                     {job.state.triggeredBy && <span>Por: {job.state.triggeredBy}</span>}
                   </div>
                   {job.state.lastError && (
-                    <p className="rounded-xl border border-tally/20 bg-tally/10 px-3 py-2 font-mono text-xs text-tally">
+                    <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-xs text-destructive">
                       {job.state.lastError}
                     </p>
                   )}

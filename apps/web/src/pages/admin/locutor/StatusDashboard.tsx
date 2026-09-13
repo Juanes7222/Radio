@@ -6,10 +6,10 @@ import { useAdminApi } from '@/hooks/useAdminApi';
 import type { LocutorStatus } from '@radio/types';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  success: { label: 'Exitoso', color: 'bg-green-500/10 text-green-500 border-green-500/20' },
-  partial: { label: 'Parcial', color: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' },
-  running: { label: 'En ejecución', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
-  error: { label: 'Error', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
+  success: { label: 'Exitoso', color: 'bg-success/10 text-success border-success/20' },
+  partial: { label: 'Parcial', color: 'bg-warning/10 text-warning border-warning/20' },
+  running: { label: 'En ejecución', color: 'bg-info/10 text-info border-info/20' },
+  error: { label: 'Error', color: 'bg-destructive/10 text-destructive border-destructive/20' },
 };
 
 interface StatusCardProps {
@@ -20,13 +20,13 @@ interface StatusCardProps {
 
 function StatusCard({ title, icon: Icon, children }: StatusCardProps) {
   return (
-    <Card className="border-slate-700 bg-slate-800/60">
+    <Card>
       <CardContent className="pt-5 pb-5">
-        <p className="flex items-center gap-2 text-xs font-medium text-slate-400">
+        <p className="flex items-center gap-2 text-xs font-medium text-faint">
           <Icon className="w-4 h-4" />
           {title}
         </p>
-        <div className="mt-2 text-sm text-slate-200">{children}</div>
+        <div className="mt-2 text-sm text-foreground">{children}</div>
       </CardContent>
     </Card>
   );
@@ -62,25 +62,25 @@ export default function StatusDashboard() {
 
   if (error) {
     return (
-      <Card className="border-slate-700 bg-slate-800/60">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Estado del Sistema TTS</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-red-400">{error}</p>
+          <p className="text-sm text-destructive">{error}</p>
         </CardContent>
       </Card>
     );
   }
 
   if (!status) {
-    return <div className="text-sm text-slate-400">Cargando estado del sistema...</div>;
+    return <div className="text-sm text-muted-foreground">Cargando estado del sistema...</div>;
   }
 
   const lastJobConfig = status.last_job ? STATUS_LABELS[status.last_job.status] : null;
 
   return (
-    <Card className="border-slate-700 bg-slate-800/60">
+    <Card>
       <CardHeader>
         <CardTitle className="text-base">Estado del Sistema TTS</CardTitle>
       </CardHeader>
@@ -90,24 +90,24 @@ export default function StatusDashboard() {
             <Badge
               variant="outline"
               className={`text-xs border ${status.kokoro.healthy
-                ? 'bg-green-500/10 text-green-500 border-green-500/20'
-                : 'bg-red-500/10 text-red-500 border-red-500/20'}`}
+                ? 'bg-success/10 text-success border-success/20'
+                : 'bg-destructive/10 text-destructive border-destructive/20'}`}
             >
               {status.kokoro.healthy ? 'En línea' : 'Inactivo'}
             </Badge>
           </StatusCard>
 
           <StatusCard title="Audios en banco" icon={AudioLines}>
-            <span className="text-slate-200">
+            <span>
               {status.bank.ready} listos, {status.bank.pending} pendientes
             </span>
             {status.bank.error > 0 && (
-              <span className="text-red-400">, {status.bank.error} con error</span>
+              <span className="text-destructive">, {status.bank.error} con error</span>
             )}
           </StatusCard>
 
           <StatusCard title="Último job nocturno" icon={CalendarClock}>
-            <p className="text-slate-200">
+            <p>
               {status.last_job ? new Date(status.last_job.startedAt).toLocaleString() : 'Nunca'}
             </p>
             {status.last_job && lastJobConfig && (

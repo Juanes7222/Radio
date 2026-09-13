@@ -63,7 +63,10 @@ function formatSlots(rows: DjAssignment | undefined): string {
 }
 
 export default function AdminLive() {
-  const api = useAdminApi();
+  // Destructure stable callbacks: the hook returns a new object identity on
+  // every render, so depending on the whole object would refire effects
+  // endlessly and flood the backend (429).
+  const { getMyLive, getRelayStatus } = useAdminApi();
   const { user, token, hasPermission } = useAdminAuth();
   const canTransmit = hasPermission('live');
   const canOverride =
@@ -93,17 +96,15 @@ export default function AdminLive() {
   const liveSinceRef = useRef<number>(0);
 
   const refreshStatus = useCallback(() => {
-    api
-      .getRelayStatus()
+    getRelayStatus()
       .then((res) => setRelay(res.relay))
       .catch(() => undefined);
-  }, [api]);
+  }, [getRelayStatus]);
 
   useEffect(() => {
     if (!canTransmit) return;
     setLoading(true);
-    api
-      .getMyLive()
+    getMyLive()
       .then((res) => {
         setAssignments(res.rows);
         const firstInSlot = res.rows.find((r) => r.inSlot) ?? res.rows[0];
@@ -114,7 +115,7 @@ export default function AdminLive() {
     refreshStatus();
     const poll = setInterval(refreshStatus, STATUS_POLL_MS);
     return () => clearInterval(poll);
-  }, [api, canTransmit, refreshStatus]);
+  }, [getMyLive, canTransmit, refreshStatus]);
 
   useEffect(() => {
     if (!canTransmit) return;

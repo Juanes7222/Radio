@@ -49,6 +49,10 @@ import { API_BASE_URL } from '@/config';
 const STATION_ID = import.meta.env.VITE_STATION_ID || 'la_voz_de_la_verdad';
 
 export function useAdminApi() {
+  // Each callback below is memoized and stable while the token is unchanged,
+  // but the returned object itself is a new identity on every render.
+  // Consumers must destructure the callbacks they need instead of depending
+  // on the whole object, otherwise effects refire endlessly (request flood).
   const { token, user } = useAdminAuth();
   const stationId = user?.stationId ?? STATION_ID;
 

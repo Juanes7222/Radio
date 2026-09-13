@@ -239,8 +239,8 @@ export default function AdminUpload() {
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-sunken px-3 py-1 font-mono text-xs tabular-nums"><HardDrive className="h-3 w-3 text-faint" />{qStats.total} en cola</span>
               {qStats.pending > 0 && <Badge variant="outline" className="rounded-full border-border bg-card font-mono text-xs">{qStats.pending} pendientes</Badge>}
-              {qStats.uploading > 0 && <Badge className="rounded-full bg-info px-2.5 py-0 font-mono text-xs text-white">{qStats.uploading} subiendo</Badge>}
-              {qStats.done > 0 && <Badge className="rounded-full bg-success px-2.5 py-0 font-mono text-xs text-white">{qStats.done} listos</Badge>}
+              {qStats.uploading > 0 && <Badge variant="outline" className="rounded-full border-info/25 bg-info/10 py-0 font-mono text-xs text-info">{qStats.uploading} subiendo</Badge>}
+              {qStats.done > 0 && <Badge variant="outline" className="rounded-full border-success/25 bg-success/10 py-0 font-mono text-xs text-success">{qStats.done} listos</Badge>}
               {qStats.error > 0 && <Badge variant="destructive" className="rounded-full px-2.5 py-0 font-mono text-xs">{qStats.error} errores</Badge>}
             </div>
           )}

@@ -95,15 +95,37 @@ router.delete(
 router.get(
   "/audios",
   asyncHandler(async (_req, res) => {
-    const audios = await prisma.generatedAudio.findMany({
-      orderBy: { generatedAt: "desc" },
-      take: 100,
-      include: {
-        template: { select: { name: true, type: true } },
-        schedules: { take: 5, orderBy: { scheduledDate: "desc" } },
-      },
-    });
-    res.json(audios);
+    try {
+      // Select only the fields the LocutorAudio contract needs. The schedules
+      // relation is intentionally not loaded: no consumer reads it and joining
+      // it fails when that table lags behind the code in production.
+      const audios = await prisma.generatedAudio.findMany({
+        orderBy: { generatedAt: "desc" },
+        take: 100,
+        select: {
+          id: true,
+          filename: true,
+          filepath: true,
+          textRendered: true,
+          durationMs: true,
+          fileSizeBytes: true,
+          voice: true,
+          azuracastMediaId: true,
+          generatedAt: true,
+          status: true,
+          hourValue: true,
+          timeSlotGroup: true,
+          useCount: true,
+          template: { select: { name: true, type: true } },
+        },
+      });
+      res.json(audios);
+    } catch (err) {
+      logger.error("LocutorRoutes", "GET /audios failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
   })
 );
 

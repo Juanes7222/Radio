@@ -6,8 +6,8 @@ export default function LocutorAdminPanel() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Panel de Locutores Virtuales</h1>
-        <p className="text-sm mt-0.5 text-slate-400">
+        <h1 className="text-2xl font-bold tracking-tight">Panel de Locutores Virtuales</h1>
+        <p className="text-sm mt-0.5 text-muted-foreground">
           Anuncios generados por voz sintetizada y su estado de generación
         </p>
       </div>

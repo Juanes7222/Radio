@@ -76,21 +76,21 @@ const SOURCE_ICONS: Record<string, LucideIcon> = {
   all: Layers,
 };
 
-const SOURCE_HEX: Record<string, string> = {
-  server: "#f59e0b",
-  azuracast: "#0ea5e9",
-  nginx: "#10b981",
-  postgres: "#6366f1",
-  worker: "#a78bfa",
-  locutor: "#f43f5e",
+const SOURCE_DOT: Record<string, string> = {
+  server: "bg-primary",
+  azuracast: "bg-info",
+  nginx: "bg-success",
+  postgres: "bg-warning",
+  worker: "bg-faint",
+  locutor: "bg-destructive",
 };
 
 const LEVEL_CFG: Record<LogLevel, { label: string; cls: string; dot: string }> = {
   debug: { label: "DEBUG", cls: "border-border bg-sunken text-faint", dot: "bg-faint" },
   info: { label: "INFO", cls: "border-info/20 bg-info/10 text-info", dot: "bg-info" },
   warn: { label: "WARN", cls: "border-warning/20 bg-warning/10 text-warning", dot: "bg-warning" },
-  error: { label: "ERROR", cls: "border-tally/25 bg-tally/10 text-tally", dot: "bg-tally" },
-  fatal: { label: "FATAL", cls: "border-tally/30 bg-tally/15 text-white ring-1 ring-tally/20", dot: "bg-tally" },
+  error: { label: "ERROR", cls: "border-destructive/25 bg-destructive/10 text-destructive", dot: "bg-destructive" },
+  fatal: { label: "FATAL", cls: "border-destructive/40 bg-destructive text-destructive-foreground ring-1 ring-destructive/30", dot: "bg-destructive-foreground" },
 };
 
 const LEVEL_ORDER: (LogLevel | "all")[] = ["all", "debug", "info", "warn", "error", "fatal"];
@@ -113,7 +113,7 @@ function timeAgo(iso: string | null): string {
 }
 
 function levelDot(level: string | null): string {
-  if (level === "error" || level === "fatal") return "bg-tally animate-tally";
+  if (level === "error" || level === "fatal") return "bg-destructive";
   if (level === "warn") return "bg-warning";
   if (level === "info") return "bg-info";
   return "bg-faint";
@@ -390,7 +390,7 @@ export default function AdminLogs() {
             </div>
             <div className="flex items-center gap-2">
               <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${live ? "border-warning/25 bg-warning/10 text-warning" : "border-border bg-sunken text-faint"}`}>
-                <span className={`h-2 w-2 rounded-full ${live ? "bg-warning animate-tally" : "bg-faint"}`} aria-hidden />
+                <span className={`h-2 w-2 rounded-full ${live ? "bg-warning animate-pulse" : "bg-faint"}`} aria-hidden />
                 {live ? "SIGUIENDO" : "PAUSADO"}
               </span>
               <Badge variant="outline" className="rounded-full border-border bg-sunken font-mono text-xs tabular-nums">
@@ -459,7 +459,7 @@ export default function AdminLogs() {
                     </span>
                     <span className="flex flex-col items-end gap-1">
                       {errors > 0 ? (
-                        <span className="rounded-full bg-tally/15 px-1.5 py-0.5 font-mono text-[11px] font-medium leading-none text-tally ring-1 ring-tally/15">{errors}</span>
+                        <span className="rounded-full bg-destructive/15 px-1.5 py-0.5 font-mono text-[11px] font-medium leading-none text-destructive ring-1 ring-destructive/15">{errors}</span>
                       ) : (
                         <span className="h-2 w-2 rounded-full bg-success/70" aria-hidden />
                       )}
@@ -475,9 +475,9 @@ export default function AdminLogs() {
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-info/20 bg-info/10 px-2 py-0.5 text-xs text-info"><span className="h-1.5 w-1.5 rounded-full bg-info" />info</span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/20 bg-warning/10 px-2 py-0.5 text-xs text-warning"><span className="h-1.5 w-1.5 rounded-full bg-warning" />warn</span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-tally/20 bg-tally/10 px-2 py-0.5 text-xs text-tally"><span className="h-1.5 w-1.5 rounded-full bg-tally" />error</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-xs text-destructive"><span className="h-1.5 w-1.5 rounded-full bg-destructive" />error</span>
               </div>
-              <p className="mt-2 font-mono text-[11px] leading-relaxed text-faint">Tally rojo solo para error/fatal. Ámbar es señal, no adorno.</p>
+              <p className="mt-2 font-mono text-[11px] leading-relaxed text-faint">Rojo solo para error/fatal. Tally queda reservado al vivo.</p>
             </div>
           </CardContent>
         </Card>
@@ -548,7 +548,7 @@ export default function AdminLogs() {
                 </div>
                 <span className="hidden h-4 w-px bg-border sm:block" aria-hidden />
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-sunken px-2.5 py-1 font-mono text-xs">
-                  <span className="h-2 w-2 rounded-full" style={{ background: SOURCE_HEX[activeSource] ?? "hsl(var(--primary))" }} aria-hidden />
+                  <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[activeSource] ?? "bg-primary"}`} aria-hidden />
                   {activeMeta ? activeMeta.label : activeSource === "all" ? "Todas las fuentes" : activeSource}
                 </span>
                 {(search || level !== "all") && (
@@ -578,7 +578,7 @@ export default function AdminLogs() {
                           title={`${tsLabel} · ${h.count} líneas · ${h.errors} errores`}
                         />
                         {errPct > 0 && (
-                          <div className="absolute inset-x-0 bottom-0 rounded-sm bg-tally/80" style={{ height: `${Math.max(3, errPct * 0.6)}%` }} aria-hidden />
+                          <div className="absolute inset-x-0 bottom-0 rounded-sm bg-destructive/80" style={{ height: `${Math.max(3, errPct * 0.6)}%` }} aria-hidden />
                         )}
                         {/* subtle tick every 10m */}
                         {i % 10 === 0 && <span className="absolute -bottom-px left-0 h-px w-full bg-border/50" aria-hidden />}
@@ -663,7 +663,7 @@ export default function AdminLogs() {
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0 }}
                               transition={shouldReduceMotion ? { duration: 0.08 } : { duration: 0.18, delay: Math.min(idx * 0.004, 0.06) }}
-                              className={`group flex gap-0 border-l-2 bg-transparent text-left transition-colors hover:bg-accent focus-within:bg-accent ${row.level === "error" || row.level === "fatal" ? "border-l-tally/60 hover:border-l-tally" : row.level === "warn" ? "border-l-warning/50" : "border-l-transparent"}`}
+                              className={`group flex gap-0 border-l-2 bg-transparent text-left transition-colors hover:bg-accent focus-within:bg-accent ${row.level === "error" || row.level === "fatal" ? "border-l-destructive/60 hover:border-l-destructive" : row.level === "warn" ? "border-l-warning/50" : "border-l-transparent"}`}
                             >
                               <button
                                 onClick={() => setSelected((s) => (s?.id === row.id ? null : row))}

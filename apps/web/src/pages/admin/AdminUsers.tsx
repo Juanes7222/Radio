@@ -118,7 +118,11 @@ function PermissionChips({ permissions, role }: { permissions: AdminPermission[]
 }
 
 export default function AdminUsers() {
-  const api = useAdminApi();
+  // Destructure stable callbacks: the hook returns a new object identity on
+  // every render, so depending on the whole object would refire effects
+  // endlessly and flood the backend (429).
+  const { getAdminUsers, createAdminUser, updateAdminUser, revokeAdminUserSessions, deleteAdminUser } =
+    useAdminApi();
   const { user: currentUser, isSuperAdmin } = useAdminAuth();
   const [rows, setRows] = useState<ManagedAdminUser[]>([]);
   const [state, setState] = useState<LoadState>('loading');
@@ -137,8 +141,7 @@ export default function AdminUsers() {
 
   const load = useCallback(() => {
     setState('loading');
-    api
-      .getAdminUsers()
+    getAdminUsers()
       .then((res) => {
         setRows(res.rows);
         setState('ready');
@@ -146,7 +149,7 @@ export default function AdminUsers() {
       .catch(() => {
         setState('error');
       });
-  }, [api]);
+  }, [getAdminUsers]);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -212,13 +215,13 @@ export default function AdminUsers() {
     setSaving(true);
     const permissions = form.role === 'USER' ? form.permissions : [];
     const request = editing
-      ? api.updateAdminUser(editing.id, {
+      ? updateAdminUser(editing.id, {
           name: form.name.trim(),
           role: form.role,
           permissions,
           isActive: form.isActive,
         })
-      : api.createAdminUser({
+      : createAdminUser({
           email: form.email.trim().toLowerCase(),
           name: form.name.trim(),
           role: form.role,
@@ -245,10 +248,10 @@ export default function AdminUsers() {
     const { kind, target } = confirm;
     const request =
       kind === 'delete'
-        ? api.deleteAdminUser(target.id).then(() => undefined)
+        ? deleteAdminUser(target.id).then(() => undefined)
         : kind === 'revoke'
-          ? api.revokeAdminUserSessions(target.id).then(() => undefined)
-          : api.updateAdminUser(target.id, { isActive: !target.isActive }).then(() => undefined);
+          ? revokeAdminUserSessions(target.id).then(() => undefined)
+          : updateAdminUser(target.id, { isActive: !target.isActive }).then(() => undefined);
 
     request
       .then(() => {
