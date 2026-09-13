@@ -41,7 +41,9 @@ const ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:4173"];
 export function createApp(): Express {
   const app = express();
 
-  app.use(morgan("dev"));
+  // "tiny" instead of "dev": same concise line without ANSI colors,
+  // which pollute PM2 files and break the admin log viewer.
+  app.use(morgan("tiny"));
   app.use(
     helmet({
       crossOriginResourcePolicy: false,

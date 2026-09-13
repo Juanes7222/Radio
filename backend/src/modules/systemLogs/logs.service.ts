@@ -121,6 +121,12 @@ function hashString(s: string): string {
   return h.toString(36);
 }
 
+const ANSI_ESCAPE_PATTERN = /\[[0-9;]*[A-Za-z]/g;
+
+function stripAnsi(value: string): string {
+  return value.replace(ANSI_ESCAPE_PATTERN, "");
+}
+
 function makeId(source: SourceId, ts: string, msg: string, idx: number): string {
   return `${source}-${ts}-${hashString(msg).slice(0, 6)}-${idx}`;
 }
