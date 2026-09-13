@@ -121,7 +121,7 @@ function hashString(s: string): string {
   return h.toString(36);
 }
 
-const ANSI_ESCAPE_PATTERN = /\[[0-9;]*[A-Za-z]/g;
+const ANSI_ESCAPE_PATTERN = /\u001B\[[0-9;]*[A-Za-z]/g;
 
 function stripAnsi(value: string): string {
   return value.replace(ANSI_ESCAPE_PATTERN, "");
@@ -254,8 +254,9 @@ async function readDockerLogs(container: string, tail: number, since?: string): 
 // ── Parsers ─────────────────────────────────────────────────────────────────
 
 function parsePm2Line(raw: string): { ts: string; level: LogLevel; msg: string; meta?: Record<string, unknown>; context?: string } | null {
-  if (isPm2CliNoise(raw)) return null;
-  const line = raw.trim();
+  const cleanRaw = stripAnsi(raw);
+  if (isPm2CliNoise(cleanRaw)) return null;
+  const line = cleanRaw.trim();
   if (!line) return null;
 
   // Strip PM2 date prefix: "2026-08-30 10:00:00: {...}" or "2026/08/30 10:00:00 [...]"
@@ -325,7 +326,7 @@ function parsePm2Line(raw: string): { ts: string; level: LogLevel; msg: string; 
 }
 
 function parseNginxAccessLine(raw: string): { ts: string; level: LogLevel; msg: string; meta: Record<string, unknown> } | null {
-  const line = raw.trim();
+  const line = stripAnsi(raw).trim();
   if (!line) return null;
   // Combined: 127.0.0.1 - - [30/Aug/2026:10:00:00 -0500] "GET /health HTTP/1.1" 200 15 "-" "curl/8.0"
   const re = /^(\S+) \S+ \S+ \[([^\]]+)\] "([^"]*)" (\d{3}) (\d+|-) "([^"]*)" "([^"]*)"/;
@@ -351,7 +352,7 @@ function parseNginxAccessLine(raw: string): { ts: string; level: LogLevel; msg: 
 }
 
 function parseNginxErrorLine(raw: string): { ts: string; level: LogLevel; msg: string; meta: Record<string, unknown> } | null {
-  const line = raw.trim();
+  const line = stripAnsi(raw).trim();
   if (!line) return null;
   // 2026/08/30 10:00:00 [error] 123#0: *1 open() "/var/..." failed (2: No such file), client: 1.2.3.4, server: lavozverdad.com, request: "GET / HTTP/1.1", host: "lavozverdad.com"
   const re = /^(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}) \[(\w+)\] (.+)$/;
@@ -368,7 +369,7 @@ function parseNginxErrorLine(raw: string): { ts: string; level: LogLevel; msg: s
 }
 
 function parseDockerLine(raw: string, source: SourceId): { ts: string; level: LogLevel; msg: string } | null {
-  const line = raw.trim();
+  const line = stripAnsi(raw).trim();
   if (!line) return null;
   // Docker --timestamps prefix: "2026-08-30T15:00:00.123456789Z message"
   const m = line.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s+(.*)$/);
@@ -407,6 +408,32 @@ function inferVirtualSource(context: string | undefined, msg: string): SourceId 
   return null;
 }
 
+// Paths whose successful hits are observability noise, not signal.
+// The admin log viewer polls these endpoints, so without filtering every
+// poll writes the line the viewer then displays (self-amplifying loop).
+const SELF_NOISE_PATHS = ["/admin-api/logs", "/admin-api/health", "/health", "/live-status"];
+
+function containsSelfNoisePath(value: string): boolean {
+  return SELF_NOISE_PATHS.some((p) => value.includes(p));
+}
+
+function containsClientOrServerError(value: string): boolean {
+  // Morgan tiny embeds the status: "GET /x 200 12 - 1.2 ms".
+  // Keep 4xx/5xx hits so real failures of these endpoints stay visible.
+  return /\s[45]\d\d(\s|"|$)/.test(value);
+}
+
+// Morgan/nginx success lines for the viewer own polling and healthchecks.
+function isSelfNoiseServerMsg(msg: string): boolean {
+  if (!containsSelfNoisePath(msg)) return false;
+  return !containsClientOrServerError(msg);
+}
+
+function isSelfNoiseNginxHit(request: string, status: number): boolean {
+  if (status >= 400) return false;
+  return containsSelfNoisePath(request);
+}
+
 // ── Core loaders per source ──────────────────────────────────────────────────
 
 async function loadRawServerEntries(tail: number): Promise<LogRow[]> {
@@ -420,6 +447,7 @@ async function loadRawServerEntries(tail: number): Promise<LogRow[]> {
   all.forEach((raw, idx) => {
     const parsed = parsePm2Line(raw);
     if (!parsed) return;
+    if (isSelfNoiseServerMsg(parsed.msg)) return;
     const source: SourceId = "server";
     rows.push({
       id: makeId(source, parsed.ts, parsed.msg, idx),
@@ -450,18 +478,22 @@ async function loadNginxEntries(tail: number): Promise<LogRow[]> {
   const rows: LogRow[] = [];
   let idx = 0;
   for (const raw of accessLines) {
+    if (containsSelfNoisePath(raw) && !containsClientOrServerError(raw)) continue;
     const p = parseNginxAccessLine(raw);
     if (!p) {
       // fallback as info
-      rows.push({ id: makeId("nginx", new Date().toISOString(), raw, idx++), ts: new Date().toISOString(), level: "info", source: "nginx", msg: raw });
+      const clean = stripAnsi(raw);
+      rows.push({ id: makeId("nginx", new Date().toISOString(), clean, idx++), ts: new Date().toISOString(), level: "info", source: "nginx", msg: clean });
       continue;
     }
+    if (isSelfNoiseNginxHit(String(p.meta.request ?? ""), Number(p.meta.status ?? 200))) continue;
     rows.push({ id: makeId("nginx", p.ts, p.msg, idx++), ts: p.ts, level: p.level, source: "nginx", msg: p.msg, meta: p.meta });
   }
   for (const raw of errorLines) {
     const p = parseNginxErrorLine(raw);
     if (!p) {
-      rows.push({ id: makeId("nginx", new Date().toISOString(), raw, idx++), ts: new Date().toISOString(), level: "info", source: "nginx", msg: raw });
+      const clean = stripAnsi(raw);
+      rows.push({ id: makeId("nginx", new Date().toISOString(), clean, idx++), ts: new Date().toISOString(), level: "info", source: "nginx", msg: clean });
       continue;
     }
     rows.push({ id: makeId("nginx", p.ts, p.msg, idx++), ts: p.ts, level: p.level, source: "nginx", msg: p.msg, meta: p.meta });

@@ -24,10 +24,30 @@ source "$SCRIPT_DIR/lib.sh"
 
 ENV_FILE="${BACKUP_ENV_FILE:-/etc/radio/backup.env}"
 if [[ -f "$ENV_FILE" ]]; then
+  # Same precedence as radio-backup.sh: the environment (Infisical) wins,
+  # the file only fills keys missing or empty in the environment.
+  _fallback_keys=(
+    R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET
+    R2_ENDPOINT R2_PREFIX
+    BACKUP_DIR BACKUP_BACKEND_DIR HEALTH_URL
+  )
+  declare -A _env_snapshot=()
+  for _k in "${_fallback_keys[@]}"; do
+    if [[ -n "${!_k:-}" ]]; then
+      _env_snapshot["$_k"]="${!_k}"
+    fi
+  done
   set -a
   # shellcheck disable=SC1090
   source "$ENV_FILE"
   set +a
+  if ((${#_env_snapshot[@]} > 0)); then
+    for _k in "${!_env_snapshot[@]}"; do
+      printf -v "$_k" '%s' "${_env_snapshot[$_k]}"
+      export "$_k"
+    done
+  fi
+  unset _k _fallback_keys _env_snapshot
 fi
 
 BACKEND_DIR="${BACKUP_BACKEND_DIR:-$BACKEND_DIR}"
@@ -86,7 +106,7 @@ pick_r2() {
   command -v aws >/dev/null || { echo "aws CLI not found (sudo apt install awscli)" >&2; exit 1; }
   [[ -n "${R2_ACCOUNT_ID:-}" && -n "${R2_ACCESS_KEY_ID:-}" \
     && -n "${R2_SECRET_ACCESS_KEY:-}" && -n "${R2_BUCKET:-}" ]] \
-    || { echo "R2 credentials missing in $ENV_FILE" >&2; exit 1; }
+    || { echo "R2 credentials missing (checked environment/Infisical and $ENV_FILE)" >&2; exit 1; }
   R2_ENDPOINT="${R2_ENDPOINT:-https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com}"
   export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
   export AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"

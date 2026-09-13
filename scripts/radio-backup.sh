@@ -33,10 +33,33 @@ source "$SCRIPT_DIR/lib.sh"
 
 ENV_FILE="${BACKUP_ENV_FILE:-/etc/radio/backup.env}"
 if [[ -f "$ENV_FILE" ]]; then
+  # The environment (Infisical via run-backup.js or the backend) is the
+  # primary source. This file only fills keys missing or empty in the
+  # environment: a plain `source` would overwrite Infisical values with
+  # the empty placeholders copied from radio-backup.env.example.
+  _fallback_keys=(
+    R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET
+    R2_ENDPOINT R2_PREFIX
+    BACKUP_DIR BACKUP_KEEP_DAILY BACKUP_KEEP_WEEKLY BACKUP_UPLOAD_ENABLED
+    BACKUP_BACKEND_DIR BACKUP_LOG_FILE
+  )
+  declare -A _env_snapshot=()
+  for _k in "${_fallback_keys[@]}"; do
+    if [[ -n "${!_k:-}" ]]; then
+      _env_snapshot["$_k"]="${!_k}"
+    fi
+  done
   set -a
   # shellcheck disable=SC1090
   source "$ENV_FILE"
   set +a
+  if ((${#_env_snapshot[@]} > 0)); then
+    for _k in "${!_env_snapshot[@]}"; do
+      printf -v "$_k" '%s' "${_env_snapshot[$_k]}"
+      export "$_k"
+    done
+  fi
+  unset _k _fallback_keys _env_snapshot
 fi
 
 BACKEND_DIR="${BACKUP_BACKEND_DIR:-$BACKEND_DIR}"
@@ -199,7 +222,7 @@ if [[ "$UPLOAD_ENABLED" == "true" ]]; then
     prune_r2_prefix "${R2_PREFIX}/daily" "$KEEP_DAILY"
     prune_r2_prefix "${R2_PREFIX}/weekly" "$KEEP_WEEKLY"
   else
-    log "WARN: R2 credentials missing in $ENV_FILE — local-only backup, no upload"
+    log "WARN: R2 credentials missing (checked environment/Infisical and $ENV_FILE) — local-only backup, no upload"
   fi
 else
   log "WARN: upload disabled (BACKUP_UPLOAD_ENABLED=false) — local-only backup"

@@ -145,6 +145,18 @@ export default function AdminLogs() {
   const followRef = useRef(live && order === "desc");
   followRef.current = live && order === "desc";
 
+  // Newest timestamp seen for the current filter set. It drives `since` in
+  // live polling/SSE so the live effect never depends on `rows`: depending
+  // on rows recreated the interval on every batch, amplifying requests.
+  const latestTsRef = useRef<string | null>(null);
+  const tailInflightRef = useRef(false);
+
+  // Reset the live cursor when filters change; loadLogs sets it again
+  // from the fresh page once it arrives.
+  useEffect(() => {
+    latestTsRef.current = null;
+  }, [activeSource, level, search, order]);
+
   const activeMeta = useMemo(() => sources.find((s) => s.id === activeSource) ?? null, [sources, activeSource]);
 
   const loadSources = useCallback(async () => {
@@ -170,7 +182,13 @@ export default function AdminLogs() {
           cursor: opts.cursor,
           order,
         });
-        setRows((prev) => (opts.append ? [...prev, ...(res.rows as LogRow[])] : (res.rows as LogRow[])));
+        const incoming = res.rows as LogRow[];
+        setRows((prev) => (opts.append ? [...prev, ...incoming] : incoming));
+        // Appends only add older rows, so the live cursor only moves on replace.
+        if (!opts.append) {
+          const newest = order === "desc" ? incoming[0] : incoming[incoming.length - 1];
+          latestTsRef.current = newest?.ts ?? null;
+        }
         setHist(res.histogram as HistogramPoint[]);
         setNextCursor(res.nextCursor);
         if (!opts.append && followRef.current) {
@@ -195,23 +213,29 @@ export default function AdminLogs() {
     void loadLogs();
   }, [loadLogs]);
 
-  // polling for sources health every 15s
+  // polling for sources health every 15s, paused when tab hidden
   useEffect(() => {
-    const id = setInterval(() => void loadSources(), 15_000);
+    const id = setInterval(() => {
+      if (document.hidden) return;
+      void loadSources();
+    }, 15_000);
     return () => clearInterval(id);
   }, [loadSources]);
 
-  // LIVE: SSE streaming para source concreto, polling fallback para "all"
+  // LIVE: SSE streaming para source concreto, polling para "all".
+  // Una sola suscripcion estable por filtro: el cursor vivo esta en
+  // latestTsRef, nunca en `rows`, para no recrear el intervalo con cada lote.
   useEffect(() => {
     if (!live || order !== "desc") return;
 
-    // "all" no tiene SSE (fan-out complejo) -> polling
+    // "all" no tiene SSE (fan-out complejo) -> polling cada 5s
     if (activeSource === "all") {
       let alive = true;
       const tick = async () => {
-        if (!alive) return;
+        if (!alive || document.hidden || tailInflightRef.current) return;
+        tailInflightRef.current = true;
         try {
-          const since = rows[0]?.ts ?? new Date(Date.now() - 30_000).toISOString();
+          const since = latestTsRef.current ?? new Date(Date.now() - 30_000).toISOString();
           const res = await getLogsTail({ source: activeSource, since, limit: 80 });
           const incoming = (res.rows as LogRow[]).filter((r) => {
             if (level !== "all" && r.level !== level) return false;
@@ -225,11 +249,19 @@ export default function AdminLogs() {
               if (uniq.length === 0) return prev;
               return [...uniq.reverse(), ...prev].slice(0, 600);
             });
+            const newest = incoming.reduce((a, b) => (new Date(a.ts).getTime() > new Date(b.ts).getTime() ? a : b));
+            if (!latestTsRef.current || new Date(newest.ts).getTime() > new Date(latestTsRef.current).getTime()) {
+              latestTsRef.current = newest.ts;
+            }
             if (followRef.current && viewportRef.current && viewportRef.current.scrollTop < 40) viewportRef.current.scrollTop = 0;
           }
-        } catch {}
+        } catch {
+          // silent: el siguiente tick reintenta
+        } finally {
+          tailInflightRef.current = false;
+        }
       };
-      const id = setInterval(tick, 2800);
+      const id = setInterval(tick, 5000);
       return () => { alive = false; clearInterval(id); };
     }
 
@@ -242,7 +274,7 @@ export default function AdminLogs() {
     const startSSE = async () => {
       if (!alive || controller.signal.aborted) return;
       try {
-        const since = rows[0]?.ts ?? new Date(Date.now() - 5 * 60_000).toISOString();
+        const since = latestTsRef.current ?? new Date(Date.now() - 5 * 60_000).toISOString();
         const url = `${API_BASE_URL}/admin-api/logs/stream?source=${encodeURIComponent(activeSource)}&since=${encodeURIComponent(since)}&tail=60`;
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}`, Accept: "text/event-stream" },
@@ -276,6 +308,9 @@ export default function AdminLogs() {
                   if (prev.some((p) => p.ts === entry.ts && p.msg === entry.msg)) return prev;
                   return [entry, ...prev].slice(0, 600);
                 });
+                if (!latestTsRef.current || new Date(entry.ts).getTime() > new Date(latestTsRef.current).getTime()) {
+                  latestTsRef.current = entry.ts;
+                }
                 if (followRef.current && viewportRef.current && viewportRef.current.scrollTop < 40) viewportRef.current.scrollTop = 0;
               } catch {}
             }
@@ -296,7 +331,7 @@ export default function AdminLogs() {
       if (retryTimer) clearTimeout(retryTimer);
       controller.abort();
     };
-  }, [live, order, activeSource, level, search, rows, getLogsTail, token]);
+  }, [live, order, activeSource, level, search, getLogsTail, token]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

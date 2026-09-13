@@ -43,7 +43,15 @@ export function createApp(): Express {
 
   // "tiny" instead of "dev": same concise line without ANSI colors,
   // which pollute PM2 files and break the admin log viewer.
-  app.use(morgan("tiny"));
+  // Skip the log-viewer own endpoints and healthchecks: without this,
+  // every poll of the admin panel writes a morgan line into the PM2
+  // file that the panel itself reads, creating self-amplifying noise.
+  const SILENT_LOG_PATHS = ["/admin-api/logs", "/health", "/admin-api/health"];
+  app.use(
+    morgan("tiny", {
+      skip: (req) => SILENT_LOG_PATHS.some((p) => req.originalUrl === p || req.originalUrl.startsWith(`${p}?`) || req.originalUrl.startsWith(`${p}/`)),
+    })
+  );
   app.use(
     helmet({
       crossOriginResourcePolicy: false,
