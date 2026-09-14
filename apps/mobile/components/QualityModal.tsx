@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   },
   optionActive: {
     backgroundColor: Colors.signalMuted,
-    borderColor: 'rgba(255,181,71,0.22)',
+    borderColor: Colors.signalGlow,
   },
   optionText: {
     ...Typography.body,

@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { View, StyleSheet, AppState, AccessibilityInfo } from 'react-native';
 import { Image } from 'expo-image';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedProps,
   withRepeat,
   withTiming,
   withSpring,
@@ -21,16 +22,27 @@ interface DialVivoProps {
   isPlaying: boolean;
   isPreaching?: boolean;
   size: number;
+  /** Fraction (0..1) of the current song elapsed, or null when unknown. */
+  progress?: number | null;
+  /** Identity of the current song; changes reset the ring to zero instantly. */
+  songId?: number | null;
 }
 
 const GROOVE_COUNT = 18;
+const RING_PADDING = 14;
+const RING_STROKE = 3;
+const PROGRESS_EASE_MS = 900;
 
-export function DialVivo({ artworkUri, isPlaying, isPreaching, size }: DialVivoProps) {
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+export function DialVivo({ artworkUri, isPlaying, isPreaching, size, progress, songId }: DialVivoProps) {
   const rotation = useSharedValue(0);
   const haloScale = useSharedValue(1);
   const haloOpacity = useSharedValue(0.32);
   const scale = useSharedValue(isPlaying ? 1 : 0.92);
   const reduceMotion = useSharedValue(false);
+  const ringProgress = useSharedValue(0);
+  const lastSongIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled?.().then((v) => {
@@ -62,6 +74,19 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size }: DialVivoP
     }
     return () => cancelAnimation(rotation);
   }, [isPlaying, rotation, reduceMotion]);
+
+  // Program-clock ring: reset instantly on song change, then ease toward target.
+  useEffect(() => {
+    const id = songId ?? null;
+    const songChanged = lastSongIdRef.current !== id;
+    lastSongIdRef.current = id;
+    if (songChanged) {
+      ringProgress.value = 0;
+      if (progress == null) return;
+    }
+    const clamped = progress == null ? 0 : Math.min(1, Math.max(0, progress));
+    ringProgress.value = withTiming(clamped, { duration: PROGRESS_EASE_MS, easing: Easing.out(Easing.ease) });
+  }, [progress, songId, ringProgress]);
 
   // Halo breathing
   useEffect(() => {
@@ -118,6 +143,25 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size }: DialVivoP
     opacity: haloOpacity.value,
   }));
 
+  // Thin SVG ring animated via strokeDashoffset (reanimated-driven prop).
+  const ringRadius = size / 2 + RING_PADDING;
+  const ringSize = ringRadius * 2 + RING_STROKE;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringAnimatedProps = useAnimatedProps(() => {
+    const dashOffset = ringCircumference * (1 - ringProgress.value);
+    return { strokeDashoffset: dashOffset };
+  });
+  const ringTrack = (
+    <Circle
+      cx={ringRadius + RING_STROKE / 2}
+      cy={ringRadius + RING_STROKE / 2}
+      r={ringRadius}
+      fill="none"
+      stroke="rgba(255,255,255,0.08)"
+      strokeWidth={RING_STROKE}
+    />
+  );
+
   const radius = size / 2;
   const labelSize = size * 0.4;
   const labelRadius = labelSize / 2;
@@ -129,6 +173,24 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size }: DialVivoP
 
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      {/* Program-clock ring — signature: fills as the song plays */}
+      <View pointerEvents="none" style={{ position: 'absolute', width: ringSize, height: ringSize }}>
+        <Svg width={ringSize} height={ringSize}>
+          {ringTrack}
+          <AnimatedCircle
+            cx={ringRadius + RING_STROKE / 2}
+            cy={ringRadius + RING_STROKE / 2}
+            r={ringRadius}
+            fill="none"
+            stroke={Colors.signalLight}
+            strokeWidth={RING_STROKE}
+            strokeLinecap="round"
+            strokeDasharray={ringCircumference}
+            animatedProps={ringAnimatedProps}
+          />
+        </Svg>
+      </View>
+
       {/* Halo ámbar respirando — signature */}
       <Animated.View
         pointerEvents="none"

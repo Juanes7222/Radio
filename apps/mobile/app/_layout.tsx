@@ -27,9 +27,7 @@ import EventSource from 'react-native-sse';
 
 // Polyfill global EventSource para useAzuraCast (packages/api usa EventSource global)
 // En RN no existe por defecto, react-native-sse lo provee
-// @ts-ignore
 if (typeof globalThis.EventSource === 'undefined') {
-  // @ts-ignore
   (globalThis as unknown as { EventSource: typeof EventSource }).EventSource =
     EventSource as unknown as typeof globalThis.EventSource;
 }

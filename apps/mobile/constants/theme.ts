@@ -106,6 +106,8 @@ export const Fonts = {
   mono: 'IBMPlexMono_500Medium',
 } as const;
 
+import type { TextStyle } from 'react-native';
+
 export const Typography = {
   display: { fontFamily: Fonts.displayBold, fontSize: 28, fontWeight: '700' as const, letterSpacing: -0.8, lineHeight: 32 },
   screenTitle: { fontFamily: Fonts.bodyBold, fontSize: 20, fontWeight: '700' as const, letterSpacing: -0.4, lineHeight: 26 },
@@ -119,8 +121,8 @@ export const Typography = {
   eyebrow: { fontFamily: Fonts.bodyBold, fontSize: 11, fontWeight: '700' as const, letterSpacing: 1.4, lineHeight: 14, textTransform: 'uppercase' as const },
   caption: { fontFamily: Fonts.bodyRegular, fontSize: 12, fontWeight: '400' as const, lineHeight: 16 },
   captionStrong: { fontFamily: Fonts.bodySemi, fontSize: 12, fontWeight: '600' as const, lineHeight: 16 },
-  mono: { fontFamily: Fonts.mono, fontSize: 11, fontWeight: '500' as const, letterSpacing: 0.04 * 11, lineHeight: 14, fontVariant: ['tabular-nums'] as unknown as string },
-  monoLarge: { fontFamily: Fonts.mono, fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.02 * 13, lineHeight: 16, fontVariant: ['tabular-nums'] as unknown as string },
+  mono: { fontFamily: Fonts.mono, fontSize: 11, fontWeight: '500' as const, letterSpacing: 0.04 * 11, lineHeight: 14, fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] },
+  monoLarge: { fontFamily: Fonts.mono, fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.02 * 13, lineHeight: 16, fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] },
 } as const;
 
 export const Shadows = {

@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   },
   cancelOption: {
     backgroundColor: Colors.tallyMuted,
-    borderColor: 'rgba(255,59,58,0.18)',
+    borderColor: Colors.tallyGlow,
     marginTop: 4,
   },
 });

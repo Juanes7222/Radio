@@ -1,6 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated';
+import type { StreamQuality } from '@radio/types';
 import { LiveBadge } from '@/components/LiveBadge';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 
@@ -10,9 +11,11 @@ interface PlayerTopBarProps {
   sleepTimerDisplay: string;
   showTooltip: boolean;
   listenersCount: number;
+  quality: StreamQuality | null;
   onOpenNotifications: () => void;
   onOpenSleepTimer: () => void;
   onOpenAlarm: () => void;
+  onOpenQuality: () => void;
 }
 
 export function PlayerTopBar({
@@ -21,9 +24,11 @@ export function PlayerTopBar({
   sleepTimerDisplay,
   showTooltip,
   listenersCount,
+  quality,
   onOpenNotifications,
   onOpenSleepTimer,
   onOpenAlarm,
+  onOpenQuality,
 }: PlayerTopBarProps) {
   return (
     <View style={styles.topBar}>
@@ -57,6 +62,21 @@ export function PlayerTopBar({
       <LiveBadge listenersCount={listenersCount} />
 
       <View style={styles.actionsRight}>
+        <TouchableOpacity
+          onPress={onOpenQuality}
+          style={styles.iconButton}
+          activeOpacity={0.7}
+          accessibilityLabel={quality ? `Calidad de audio, ${quality} kbps` : 'Calidad de audio'}
+          accessibilityRole="button"
+          accessibilityHint="Elige el balance entre consumo de datos y fidelidad"
+        >
+          {quality ? (
+            <Text style={styles.qualityBadge}>{quality}k</Text>
+          ) : (
+            <Ionicons name="speedometer-outline" size={20} color={Colors.textFaint} />
+          )}
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={onOpenAlarm}
           style={styles.iconButton}
@@ -116,9 +136,8 @@ const styles = StyleSheet.create({
   },
   iconButtonActive: { backgroundColor: Colors.signalMuted, borderColor: Colors.signalGlow },
   qualityBadge: {
-    ...Typography.caption,
+    ...Typography.monoLarge,
     color: Colors.textFaint,
-    fontWeight: '600',
   },
   timerBadge: { ...Typography.caption, color: Colors.signal, fontWeight: '700' },
   tooltipContainer: {

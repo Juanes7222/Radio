@@ -2,10 +2,11 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "baseUrl": ".",
+    // "paths" sin "baseUrl": los valores relativos se resuelven contra el
+    // directorio de este tsconfig (TypeScript >= 4.1 y Metro SDK 57 lo soportan).
     "paths": {
       "@/*": [
-        "./*"
+        "././*"
       ],
       "@assets/*": [
         "../../packages/assets/*"

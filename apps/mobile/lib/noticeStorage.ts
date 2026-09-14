@@ -25,13 +25,17 @@ export async function getNoticeState(id: string): Promise<NoticeViewState> {
 export async function bumpNoticeView(id: string): Promise<NoticeViewState> {
   const s = await getNoticeState(id);
   const next: NoticeViewState = { count: s.count + 1, dismissed: s.dismissed, lastShown: Date.now() };
-  try { await AsyncStorage.setItem(key(id), JSON.stringify(next)); } catch {}
+  try { await AsyncStorage.setItem(key(id), JSON.stringify(next)); } catch {
+    // Persisting the counter is best-effort; the notice still shows.
+  }
   return next;
 }
 
 export async function dismissNotice(id: string): Promise<void> {
   const s = await getNoticeState(id);
-  try { await AsyncStorage.setItem(key(id), JSON.stringify({ ...s, dismissed: true })); } catch {}
+  try { await AsyncStorage.setItem(key(id), JSON.stringify({ ...s, dismissed: true })); } catch {
+    // If the dismissal is not persisted the notice may show again; acceptable.
+  }
 }
 
 export async function shouldShowNotice(id: string, maxDisplays: number, dismissible: boolean): Promise<boolean> {

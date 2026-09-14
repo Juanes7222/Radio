@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TextTicker from 'react-native-text-ticker';
 import Animated, { FadeInDown, FadeOut, Easing } from 'react-native-reanimated';
@@ -12,6 +13,14 @@ interface NextUpCardProps {
 }
 
 export function NextUpCard({ song, active = true }: NextUpCardProps) {
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled?.()
+      ?.then((enabled: boolean) => setReduceMotion(!!enabled))
+      .catch(() => {});
+  }, []);
+
   const { artist, title } = formatMediaTitle(song.title, song.artist);
 
   return (
@@ -24,7 +33,7 @@ export function NextUpCard({ song, active = true }: NextUpCardProps) {
       <Text style={styles.nextLabel}>A continuación: </Text>
 
       <View style={styles.nextTickerContainer}>
-        {active ? (
+        {active && !reduceMotion ? (
           <TextTicker
             duration={8000}
             loop
@@ -57,7 +66,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: 'rgba(99,102,241,0.2)',
+    borderColor: Colors.signalGlow,
   },
   nextLabel: {
     ...Typography.caption,

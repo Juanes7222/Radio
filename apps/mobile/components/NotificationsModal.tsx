@@ -165,11 +165,23 @@ export function NotificationsModal({
             <Text style={styles.sectionTitle}>Programas</Text>
             {programs.length > 0 && (
               <View style={styles.bulkActions}>
-                <TouchableOpacity onPress={() => { Haptics.selectionAsync().catch(() => {}); subscribeAll(programs); }}>
+                <TouchableOpacity
+                  onPress={() => { Haptics.selectionAsync().catch(() => {}); subscribeAll(programs); }}
+                  style={styles.bulkAction}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Suscribirse a todos los programas"
+                >
                   <Text style={styles.bulkText}>Todas</Text>
                 </TouchableOpacity>
                 <Text style={styles.bulkSeparator}>·</Text>
-                <TouchableOpacity onPress={() => { Haptics.selectionAsync().catch(() => {}); unsubscribeAll(); }}>
+                <TouchableOpacity
+                  onPress={() => { Haptics.selectionAsync().catch(() => {}); unsubscribeAll(); }}
+                  style={styles.bulkAction}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Desuscribirse de todos los programas"
+                >
                   <Text style={styles.bulkText}>Ninguna</Text>
                 </TouchableOpacity>
               </View>
@@ -256,6 +268,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.xs,
   },
+  bulkAction: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
   bulkText: {
     ...Typography.caption,
     color: Colors.signal,
@@ -315,13 +332,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     gap: Spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255,181,71,0.18)',
+    borderColor: Colors.signalGlow,
   },
   exactAlarmIcon: {
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,181,71,0.14)',
+    backgroundColor: Colors.signalSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },

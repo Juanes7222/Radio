@@ -13,14 +13,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
 import { getDeviceId } from '@/lib/device';
-import { Colors } from '@/constants/theme';
+import { Colors, Radii } from '@/constants/theme';
 import {
   getPrayerStatusConfig,
   getTimeAgo,
   type PrayerItem,
 } from '@/lib/prayer';
-
-const ACCENT_TINT = 'rgba(99,102,241,0.08)';
 
 function PrayerCard({ item, onPress }: { item: PrayerItem; onPress: () => void }) {
   const config = getPrayerStatusConfig(item.estado);
@@ -112,7 +110,20 @@ export default function PrayerHistoryScreen() {
       ) : requests.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="heart-outline" size={48} color={Colors.textAltFaint} />
-          <Text style={styles.emptyText}>No tienes peticiones aún</Text>
+          <Text style={styles.emptyText}>Aún no has enviado peticiones</Text>
+          <Text style={styles.emptyHint}>
+            Cuando envíes una, aquí verás su estado y la respuesta del equipo.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.emptyAction}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Escribir mi primera petición"
+          >
+            <Ionicons name="heart" size={15} color={Colors.textOnSignal} />
+            <Text style={styles.emptyActionText}>Escribir mi primera petición</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -156,6 +167,26 @@ const styles = StyleSheet.create({
   },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   emptyText: { color: Colors.textAltFaint, fontSize: 14 },
+  emptyHint: {
+    color: Colors.textAltFaint,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
+    maxWidth: 260,
+    marginTop: -6,
+  },
+  emptyAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.signal,
+    borderRadius: Radii.full,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    minHeight: 44,
+    marginTop: 8,
+  },
+  emptyActionText: { color: Colors.textOnSignal, fontSize: 13, fontWeight: '700' },
   list: { paddingHorizontal: 16, gap: 12 },
   card: {
     backgroundColor: Colors.surfaceDim,
@@ -179,7 +210,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: ACCENT_TINT,
+    backgroundColor: Colors.signalFaint,
     borderRadius: 8,
     padding: 8,
   },
