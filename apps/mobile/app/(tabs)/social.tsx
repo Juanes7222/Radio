@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useFacebookLive } from '../../hooks/useFacebookLive';
 
 import { scale, TAB_BAR_BASE } from '../../lib/responsive';
@@ -74,8 +75,11 @@ export default function SocialScreen() {
         ]}
       >
         <Animated.View entering={FadeInDown.delay(40).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
-          <Text style={styles.heading}>Redes Sociales</Text>
-          <Text style={styles.subheading}>Conéctate con nuestra comunidad</Text>
+          <ScreenHeader
+            eyebrow="Nuestra comunidad"
+            title="Redes Sociales"
+            subtitle="Conéctate con nuestra comunidad"
+          />
         </Animated.View>
 
         {/* Banner live */}
@@ -146,17 +150,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
 
-  heading: {
-    ...Typography.screenTitle,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  subheading: {
-    ...Typography.body,
-    color: Colors.textMuted,
-    marginBottom: Spacing.xl,
-  },
-
   linkList: { gap: Spacing.sm },
 
   linkCard: {
@@ -187,7 +180,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    backgroundColor: '#dc2626',
+    backgroundColor: Colors.tally,
     borderRadius: Radii.lg,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
@@ -228,7 +221,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#ef4444',
+    backgroundColor: Colors.tally,
     zIndex: 1,
   },
 });

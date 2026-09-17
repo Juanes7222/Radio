@@ -428,10 +428,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.md,
     marginTop: Spacing.xs,
-    backgroundColor: Colors.surfaceGlass,
+    backgroundColor: Colors.signal,
     borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
   },
   addIconWrap: {
     width: 26,
@@ -443,7 +441,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     ...Typography.body,
-    color: Colors.text,
+    color: Colors.textOnSignal,
     fontWeight: '700',
     fontSize: 15,
   },

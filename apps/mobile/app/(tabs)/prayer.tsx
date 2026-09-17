@@ -22,14 +22,13 @@ import Animated, { FadeInDown, FadeIn, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BACKEND_URL, WEB_URL } from '@/constants/api';
 import { Colors } from '@/constants/theme';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { getDeviceId } from '@/lib/device';
 
 import { TAB_BAR_BASE } from '../../lib/responsive';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const ROSE = '#f43f5e';
-const ACCENT_TINT = 'rgba(99,102,241,0.12)';
 const NAME_MAX_LENGTH = 50;
 const REQUEST_MAX_LENGTH = 500;
 const DRAFT_KEY = 'prayer_draft_v1';
@@ -174,13 +173,11 @@ export default function PrayerScreen() {
           entering={FadeInDown.duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
           style={styles.header}
         >
-          <Ionicons name="heart" size={isSmallScreen ? 24 : 32} color={ROSE} />
-          <Text style={[styles.heading, isSmallScreen && styles.headingSmall]}>
-            Petición de oración
-          </Text>
-          <Text style={[styles.subtitle, isSmallScreen && styles.subtitleSmall]}>
-            Comparte tu petición y nuestro equipo intercederá por ti.
-          </Text>
+          <ScreenHeader
+            eyebrow="Estamos contigo"
+            title="Petición de oración"
+            subtitle="Comparte tu petición y nuestro equipo intercederá por ti."
+          />
         </Animated.View>
 
         {!sent && !loading && (
@@ -220,6 +217,7 @@ export default function PrayerScreen() {
                 style={[styles.input, isSmallScreen && styles.inputSmall, fieldErrors.name && styles.inputError]}
                 placeholder="Tu nombre"
                 placeholderTextColor={Colors.textAltFaint}
+                keyboardAppearance="dark"
                 value={name}
                 onChangeText={(value) => {
                   setName(value);
@@ -251,6 +249,7 @@ export default function PrayerScreen() {
                 ]}
                 placeholder="Escribe tu petición de oración..."
                 placeholderTextColor={Colors.textAltFaint}
+                keyboardAppearance="dark"
                 value={request}
                 onChangeText={(value) => {
                   setRequest(value);
@@ -323,10 +322,10 @@ export default function PrayerScreen() {
               accessibilityHint="Envía tu petición al equipo de intercesión"
             >
               {loading ? (
-                <ActivityIndicator size="small" color={Colors.textBright} />
+                <ActivityIndicator size="small" color={Colors.textOnSignal} />
               ) : (
                 <>
-                  <Ionicons name="send" size={isSmallScreen ? 14 : 16} color={Colors.textBright} />
+                  <Ionicons name="send" size={isSmallScreen ? 14 : 16} color={Colors.textOnSignal} />
                   <Text style={[styles.submitBtnText, isSmallScreen && styles.submitBtnTextSmall]}>
                     Enviar petición
                   </Text>
@@ -343,21 +342,7 @@ export default function PrayerScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundAlt },
   scroll: { paddingHorizontal: 20, gap: 20, flexGrow: 1, justifyContent: 'center' },
-  header: { alignItems: 'center', gap: 10, marginBottom: 8 },
-  heading: {
-    color: Colors.text,
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  headingSmall: { fontSize: 18 },
-  subtitle: {
-    color: Colors.textAltFaint,
-    fontSize: 14,
-    textAlign: 'center',
-    maxWidth: 280,
-  },
-  subtitleSmall: { fontSize: 12 },
+  header: { marginBottom: 8 },
   form: { gap: 16 },
   field: { gap: 6 },
   label: { color: Colors.textAlt, fontSize: 13, fontWeight: '600' },
@@ -394,7 +379,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sensitiveWarning: {
-    color: '#fbbf24',
+    color: Colors.warning,
     fontSize: 11,
     lineHeight: 16,
     marginTop: 6,
@@ -426,7 +411,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   submitBtn: {
-    backgroundColor: ROSE,
+    backgroundColor: Colors.signal,
     borderRadius: 12,
     paddingVertical: 14,
     flexDirection: 'row',
@@ -438,7 +423,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText: { color: Colors.textBright, fontSize: 14, fontWeight: '700' },
+  submitBtnText: { color: Colors.textOnSignal, fontSize: 14, fontWeight: '700' },
   submitBtnTextSmall: { fontSize: 13 },
   successCard: {
     backgroundColor: Colors.surfaceDim,
@@ -478,7 +463,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: ACCENT_TINT,
+    backgroundColor: Colors.signalSoft,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 10,

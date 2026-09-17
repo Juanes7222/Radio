@@ -1,14 +1,14 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { View, Text, Image, Pressable, StyleSheet, Linking, Modal, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown, FadeOut, Easing } from "react-native-reanimated";
 import { BACKEND_URL } from "@/constants/api";
+import { Colors } from "@/constants/theme";
 import { getDeviceId } from "@/lib/device";
 import { resolveNoticeMediaUri } from "@/lib/noticeMedia";
 import { InlineVideo } from "./notices/InlineVideo";
 import { MobileNoticeCarousel } from "./notices/MobileNoticeCarousel";
 import { getNoticeState, bumpNoticeView, dismissNotice, shouldShowNotice } from "@/lib/noticeStorage";
-import type { VideoPlayer } from "expo-video";
 
 interface Notice {
   id: string;
@@ -65,7 +65,7 @@ function AutolinkedBody({ text }: { text: string }) {
         p.href ? (
           <Text key={i}>
             <Text
-              style={{ color: "#818CF8", textDecorationLine: "underline", fontWeight: "600" }}
+              style={{ color: Colors.signalLight, textDecorationLine: "underline", fontWeight: "600" }}
               onPress={() => void Linking.openURL(p.href!)}
             >
               {p.text.replace(/^https?:\/\//i, "").slice(0, 44)}
@@ -87,10 +87,6 @@ export function NoticeOverlay() {
   const [viewCount, setViewCount] = useState(0);
   const [modalNotice, setModalNotice] = useState<Notice | null>(null);
   const [modalViewCount, setModalViewCount] = useState(0);
-  const [lightboxUri, setLightboxUri] = useState<string | null>(null);
-  const [lightboxType, setLightboxType] = useState<"image" | "video">("image");
-  const [resumeTime, setResumeTime] = useState(0);
-  const previewPlayerRef = useRef<VideoPlayer | null>(null);
 
   const fetchNotices = useCallback(async () => {
     try {
@@ -248,22 +244,15 @@ export function NoticeOverlay() {
                 {modalNotice.gallery && modalNotice.gallery.length > 0 ? (
                   <MobileNoticeCarousel items={modalNotice.gallery} />
                 ) : videoUri ? (
-                  <Pressable onPress={() => { const t = previewPlayerRef.current?.currentTime ?? 0; setResumeTime(t); try { previewPlayerRef.current?.pause(); } catch {} setLightboxUri(videoUri); setLightboxType("video"); }} style={{ backgroundColor: "#0F172A" }}>
+                  <View style={{ backgroundColor: "#0F172A" }}>
                     <View pointerEvents="none">
-                      <InlineVideo uri={videoUri} aspectRatio={16 / 9} onPlayerReady={(p) => (previewPlayerRef.current = p)} />
+                      <InlineVideo uri={videoUri} aspectRatio={16 / 9} />
                     </View>
-                    <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <Ionicons name="expand-outline" size={12} color="#fff" />
-                      <Text style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}>Ampliar</Text>
-                    </View>
-                  </Pressable>
+                  </View>
                 ) : imageUri ? (
-                  <Pressable onPress={() => { setLightboxUri(imageUri); setLightboxType("image"); }}>
-                    <Image source={{ uri: imageUri }} style={[mStyles.image, { resizeMode: "contain" } as any]} resizeMode="contain" />
-                    <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999, width: 30, height: 30, alignItems: "center", justifyContent: "center" }}>
-                      <Ionicons name="expand-outline" size={14} color="#fff" />
-                    </View>
-                  </Pressable>
+                  <View>
+                    <Image source={{ uri: imageUri }} style={mStyles.image} resizeMode="contain" />
+                  </View>
                 ) : null}
 
                 <View style={mStyles.body}>
@@ -370,7 +359,7 @@ export function NoticeOverlay() {
                   {parts.map((p, i) =>
                     p.href ? (
                       <Text key={i}>
-                        <Text style={{ color: "#818CF8", textDecorationLine: "underline", fontWeight: "600" }} onPress={() => void Linking.openURL(p.href!)}>
+                        <Text style={{ color: Colors.signalLight, textDecorationLine: "underline", fontWeight: "600" }} onPress={() => void Linking.openURL(p.href!)}>
                           {p.text.replace(/^https?:\/\//i, "").slice(0, 36)} ↗
                         </Text>
                         {p.trail ? p.trail : ""}
@@ -472,7 +461,7 @@ const mStyles = StyleSheet.create({
   },
   dialText: { color: "#94A3B8", fontSize: 9, letterSpacing: 0.6 },
   dialTick: { width: 1, height: 8, backgroundColor: "#334155" },
-  dialNeedle: { width: 1, height: 12, backgroundColor: "#818CF8", marginHorizontal: 2 },
+  dialNeedle: { width: 1, height: 12, backgroundColor: Colors.signalLight, marginHorizontal: 2 },
   dialFm: { color: "#94A3B8", fontSize: 8, fontWeight: "700", marginLeft: 2 },
   closeBtnDark: {
     width: 28,
@@ -538,12 +527,12 @@ const mStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#6366F1",
+    backgroundColor: Colors.signal,
     paddingHorizontal: 18,
     paddingVertical: 13,
     borderRadius: 999,
   },
-  ctaText: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  ctaText: { color: Colors.textOnSignal, fontSize: 14, fontWeight: "700" },
   secondaryDark: {
     alignItems: "center",
     justifyContent: "center",
@@ -657,13 +646,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#6366F1",
+    backgroundColor: Colors.signal,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
   },
   ctaText: {
-    color: "#fff",
+    color: Colors.textOnSignal,
     fontSize: 14,
     fontWeight: "600",
   },

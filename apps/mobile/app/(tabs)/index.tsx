@@ -87,7 +87,7 @@ export default function PlayerScreen() {
   // metadata). It is suspended when the app is backgrounded and paused.
   const realtimeEnabled = appActive || isPlayingNow;
 
-  const { data, isLoading, error, getStreamUrl } = useAzuraCast({
+  const { data, isLoading, error, getStreamUrl, refresh } = useAzuraCast({
     apiBaseUrl: BACKEND_URL,
     pollInterval: 5000,
     enabled: realtimeEnabled,
@@ -302,6 +302,17 @@ export default function PlayerScreen() {
         </View>
         <Text style={styles.errorText}>{error}</Text>
         <Text style={styles.errorHint}>Reintentamos automáticamente cuando vuelva la señal</Text>
+        <TouchableOpacity
+          onPress={() => void refresh()}
+          style={styles.retryButton}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Reintentar conexión"
+          accessibilityHint="Vuelve a intentar conectarse con la emisora ahora mismo"
+        >
+          <Ionicons name="refresh" size={16} color={Colors.textOnSignal} />
+          <Text style={styles.retryButtonText}>Reintentar ahora</Text>
+        </TouchableOpacity>
       </Animated.View>
     );
   }
@@ -326,12 +337,14 @@ export default function PlayerScreen() {
             sleepTimerDisplay={sleepTimer.display}
             showTooltip={showTooltip}
             listenersCount={listenersCount}
+            quality={quality}
             onOpenNotifications={() => {
               setShowTooltip(false);
               setShowNotifyMenu(true);
             }}
             onOpenSleepTimer={() => setShowSleepMenu(true)}
             onOpenAlarm={() => setShowAlarmMenu(true)}
+            onOpenQuality={() => setShowQualityMenu(true)}
           />
 
           <View>
@@ -369,6 +382,12 @@ export default function PlayerScreen() {
                 isPlaying={(isPlaying || isBuffering) && isFocused}
                 isPreaching={isPreaching}
                 size={VINYL_SIZE}
+                progress={
+                  data && data.now_playing.duration > 0
+                    ? data.now_playing.elapsed / data.now_playing.duration
+                    : null
+                }
+                songId={data?.now_playing.sh_id ?? null}
               />
             )}
           </View>
@@ -493,6 +512,22 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,59,58,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.signal,
+    borderRadius: Radii.full,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm + 2,
+    minHeight: 44,
+    marginTop: Spacing.xs,
+  },
+  retryButtonText: {
+    color: Colors.textOnSignal,
+    fontWeight: '700' as const,
+    fontSize: 14,
   },
 
   topSection: {

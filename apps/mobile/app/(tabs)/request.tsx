@@ -18,10 +18,11 @@ import * as Haptics from 'expo-haptics';
 import { fetchRequestableSongs, requestSong } from '@radio/api';
 import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
-import { Colors } from '@/constants/theme';
+import { Colors, Radii, Spacing } from '@/constants/theme';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import { scale, TAB_BAR_BASE } from '../../lib/responsive';
 import { ShimmerBox } from '@/components/ui/Shimmer';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 
 const PAGE_SIZE = 25;
 const CACHE_KEY = 'requestable_songs_cache_v2';
@@ -29,10 +30,9 @@ const CACHE_TTL_MS = 1000 * 60 * 30;
 const DEBOUNCE_MS = 350;
 
 const PLACEHOLDER = Colors.textFaint;
-const SUCCESS_DARK = Colors.success;
-const ERROR_BG = 'rgba(127, 29, 29, 0.94)';
-const ERROR_BORDER = 'rgba(252, 165, 165, 0.2)';
-const ERROR_TEXT = '#fca5a5';
+const ERROR_BG = Colors.tallyMuted;
+const ERROR_BORDER = Colors.tallyGlow;
+const ERROR_TEXT = Colors.tally;
 
 function dedupeSongs(items: SongRequest[]) {
   const seen = new Map<string, SongRequest>();
@@ -89,10 +89,10 @@ const SongRow = memo(function SongRow({
         activeOpacity={0.8}
       >
         {isRequesting ? (
-          <ActivityIndicator size="small" color={Colors.textBright} />
+          <ActivityIndicator size="small" color={Colors.textOnSignal} />
         ) : isSent ? (
           <Animated.View entering={FadeIn.duration(180).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
-            <Ionicons name="checkmark" size={16} color={Colors.textBright} />
+            <Ionicons name="checkmark" size={16} color={Colors.textOnSignal} />
           </Animated.View>
         ) : (
           <Text style={styles.btnText}>Pedir</Text>
@@ -118,6 +118,7 @@ export default function RequestScreen() {
   const [requesting, setRequesting] = useState<string | null>(null);
   const [sent, setSent] = useState<string[]>([]);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const requestSeq = useRef(0);
@@ -154,6 +155,7 @@ export default function RequestScreen() {
         } else {
           setIsLoadingMore(true);
         }
+        setLoadFailed(false);
 
         const isFirstPageWithoutSearch = pageToLoad === 1 && !search;
 
@@ -205,6 +207,7 @@ export default function RequestScreen() {
       } catch {
         if (seq === requestSeq.current) {
           setHasMore(false);
+          setLoadFailed(true);
         }
       } finally {
         if (seq === requestSeq.current) {
@@ -259,6 +262,14 @@ export default function RequestScreen() {
     }
   }, [normalizedQuery]);
 
+  const handleRetry = useCallback(() => {
+    loadPage({
+      pageToLoad: 1,
+      search: normalizedQuery,
+      reset: true,
+    });
+  }, [loadPage, normalizedQuery]);
+
   const handleRequest = useCallback(
     async (item: SongRequest) => {
       setRequesting(item.request_id);
@@ -294,12 +305,13 @@ export default function RequestScreen() {
         entering={FadeInDown.duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
         style={{ paddingTop: insets.top + 20 }}
       >
-        <Text style={styles.heading}>
-          Solicitar canción
-        </Text>
-        <Text style={styles.subtitle}>
-          Busca entre nuestra discografía y pide la canción que quieras escuchar
-        </Text>
+        <View style={styles.headerWrap}>
+          <ScreenHeader
+            eyebrow="Pide tu música"
+            title="Solicitar canción"
+            subtitle="Busca entre nuestra discografía y pide la canción que quieras escuchar"
+          />
+        </View>
       </Animated.View>
 
       <Animated.View
@@ -311,6 +323,7 @@ export default function RequestScreen() {
           style={styles.search}
           placeholder="Buscar canción o artista…"
               placeholderTextColor={PLACEHOLDER}
+          keyboardAppearance="dark"
           value={query}
           onChangeText={setQuery}
           autoCorrect={false}
@@ -323,6 +336,22 @@ export default function RequestScreen() {
           </TouchableOpacity>
         )}
       </Animated.View>
+
+      {loadFailed && !isInitialLoading && (
+        <View style={styles.loadFailBanner}>
+          <Ionicons name="cloud-offline-outline" size={16} color={ERROR_TEXT} />
+          <Text style={styles.loadFailText}>No pudimos cargar el catálogo.</Text>
+          <TouchableOpacity
+            onPress={handleRetry}
+            style={styles.loadFailRetry}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Reintentar carga del catálogo"
+          >
+            <Text style={styles.loadFailRetryText}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <FlashList style={{ flex: 1 }}
         data={songs}
@@ -348,9 +377,34 @@ export default function RequestScreen() {
               <ActivityIndicator size="small" color={Colors.signalLight} style={{ marginTop: 12 }} />
             </View>
           ) : (
-            <Text style={styles.empty}>
-              {normalizedQuery ? 'No se encontraron coincidencias' : 'No se encontraron canciones'}
-            </Text>
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconWrap}>
+                <Ionicons
+                  name={normalizedQuery ? 'search-outline' : 'musical-notes-outline'}
+                  size={26}
+                  color={Colors.textFaint}
+                />
+              </View>
+              <Text style={styles.emptyTitle}>
+                {normalizedQuery ? 'Sin coincidencias' : 'Aún no hay canciones para pedir'}
+              </Text>
+              <Text style={styles.emptyDesc}>
+                {normalizedQuery
+                  ? `No encontramos nada para “${normalizedQuery}”. Revisa la escritura o prueba con el artista.`
+                  : 'Vuelve a intentarlo en un rato o revisa tu conexión.'}
+              </Text>
+              {normalizedQuery ? (
+                <TouchableOpacity
+                  onPress={() => setQuery('')}
+                  style={styles.emptyAction}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Limpiar búsqueda"
+                >
+                  <Text style={styles.emptyActionText}>Limpiar búsqueda</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           )
         }
         ListFooterComponent={
@@ -386,21 +440,7 @@ export default function RequestScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundAlt },
-  heading: {
-    color: Colors.text,
-    fontSize: 22,
-    fontWeight: '800',
-    paddingHorizontal: 20,
-    marginBottom: 6,
-    letterSpacing: -0.3,
-  },
-  subtitle: {
-    color: Colors.textAltFaint,
-    fontSize: 14,
-    lineHeight: 20,
-    paddingHorizontal: 20,
-    marginBottom: 14,
-  },
+  headerWrap: { paddingHorizontal: 20, marginBottom: 14 },
   searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -415,6 +455,26 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   searchIcon: { flexShrink: 0 },
+  loadFailBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: ERROR_BG,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: ERROR_BORDER,
+  },
+  loadFailText: { color: ERROR_TEXT, fontSize: 13, flex: 1 },
+  loadFailRetry: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  loadFailRetryText: { color: ERROR_TEXT, fontSize: 13, fontWeight: '700' },
   search: {
     flex: 1,
     color: Colors.textSoft,
@@ -422,7 +482,46 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   list: { paddingHorizontal: 16 },
-  empty: { color: Colors.textAltFaint, textAlign: 'center', marginTop: 48, fontSize: 14 },
+  emptyState: {
+    alignItems: 'center',
+    marginTop: 40,
+    marginHorizontal: 20,
+    padding: 32,
+    backgroundColor: Colors.surfaceDim,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.surfaceFaint,
+    gap: 4,
+  },
+  emptyIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: Colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: { color: Colors.textSoft, fontSize: 15, fontWeight: '700' },
+  emptyDesc: {
+    color: Colors.textAltFaint,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  emptyAction: {
+    marginTop: 16,
+    backgroundColor: Colors.signalMuted,
+    borderWidth: 1,
+    borderColor: Colors.signalGlow,
+    borderRadius: Radii.full,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  emptyActionText: { color: Colors.signal, fontSize: 13, fontWeight: '700' },
   loadingIndicator: { marginTop: 48 },
   separator: { height: 1, backgroundColor: Colors.surfaceFaint, marginLeft: 66 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
@@ -447,9 +546,8 @@ const styles = StyleSheet.create({
     minWidth: 60,
     alignItems: 'center',
   },
-  btnSent: { backgroundColor: SUCCESS_DARK },
-  btnText: { color: Colors.textOnSignal, fontSize: 13, fontWeight: '700' },
-  errorBanner: {
+  btnSent: { backgroundColor: Colors.success },
+  btnText: { color: Colors.textOnSignal, fontSize: 13, fontWeight: '700' },  errorBanner: {
     position: 'absolute',
     left: 16,
     right: 16,

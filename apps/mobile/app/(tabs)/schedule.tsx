@@ -13,10 +13,21 @@ import { formatScheduleTime, getBogotaDayOfWeek } from '@/lib/time';
 import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 import { ShimmerBox } from '@/components/ui/Shimmer';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { TAB_BAR_BASE } from '@/lib/responsive';
 
-const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const DAYS_FULL = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+/** Map JS/Bogota day (0=Sun..6=Sat) to strip position (0=Mon..6=Sun). */
+function dayToPosition(day: number): number {
+  return (day + 6) % 7;
+}
+
+/** Map strip position (0=Mon..6=Sun) back to JS/Bogota day (0=Sun..6=Sat). */
+function positionToDay(position: number): number {
+  return (position + 1) % 7;
+}
 
 const CARD_BG = Colors.inkElevated;
 const TEXT_MUTED = Colors.textMuted;
@@ -76,6 +87,9 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewM
         onPress={() => handleChange('categories')}
         activeOpacity={0.8}
         style={[styles.viewToggleSegment, mode === 'categories' && styles.viewToggleSegmentActive]}
+        accessibilityRole="button"
+        accessibilityLabel="Ver por categoría"
+        accessibilityState={{ selected: mode === 'categories' }}
       >
         <Ionicons
           name="grid-outline"
@@ -90,6 +104,9 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewM
         onPress={() => handleChange('chronological')}
         activeOpacity={0.8}
         style={[styles.viewToggleSegment, mode === 'chronological' && styles.viewToggleSegmentActive]}
+        accessibilityRole="button"
+        accessibilityLabel="Ver cronológico"
+        accessibilityState={{ selected: mode === 'chronological' }}
       >
         <Ionicons
           name="time-outline"
@@ -391,7 +408,7 @@ export default function ScheduleScreen() {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
   const currentDay = getBogotaDayOfWeek(new Date());
-  const [selectedDay, setSelectedDay] = useState(currentDay);
+  const [selectedDay, setSelectedDay] = useState(dayToPosition(currentDay));
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -473,14 +490,15 @@ export default function ScheduleScreen() {
     const found = schedule.find((item) => normalizeTitle(item.title) === normalized);
     if (found) {
       handledProgramRef.current = target;
-      setSelectedDay(getBogotaDayOfWeek(found.start_timestamp));
+      setSelectedDay(dayToPosition(getBogotaDayOfWeek(found.start_timestamp)));
       setSelectedProgram(found);
     }
   }, [programTitle, loading, schedule]);
 
   const dayPrograms = React.useMemo(() => {
+    const selectedDayIndex = positionToDay(selectedDay);
     const programsForDay = schedule
-      .filter(item => getBogotaDayOfWeek(item.start_timestamp) === selectedDay)
+      .filter(item => getBogotaDayOfWeek(item.start_timestamp) === selectedDayIndex)
       .sort((a, b) => a.start_timestamp - b.start_timestamp)
       .filter((item, index, self) =>
         index === self.findIndex(i => i.id === item.id && i.start_timestamp === item.start_timestamp)
@@ -629,16 +647,11 @@ export default function ScheduleScreen() {
         }
       >
         {/* Cabecera */}
-        <View style={styles.header}>
-          <View style={styles.eyebrow}>
-            <Ionicons name="radio" size={16} color={CIAN} />
-            <Text style={styles.eyebrowText}>Horarios y Emisiones</Text>
-          </View>
-          <Text style={styles.mainTitle}>Programación</Text>
-          <Text style={styles.subtitle}>
-            Todos nuestros programas, de lunes a domingo. Selecciona un día para ver los detalles.
-          </Text>
-        </View>
+        <ScreenHeader
+          eyebrow="Horarios y Emisiones"
+          title="Programación"
+          subtitle="Todos nuestros programas, de lunes a domingo. Selecciona un día para ver los detalles."
+        />
 
         {/* Selector de Días */}
         <ScrollView
@@ -663,6 +676,10 @@ export default function ScheduleScreen() {
                   styles.dayPill,
                   selectedDay === i && styles.dayPillSelected,
                 ]}
+                accessibilityRole="button"
+                accessibilityLabel={DAYS_FULL[i]}
+                accessibilityState={{ selected: selectedDay === i }}
+                accessibilityHint={currentDay === positionToDay(i) ? 'Hoy' : undefined}
               >
                 <Text style={[
                   styles.dayText,
@@ -670,7 +687,7 @@ export default function ScheduleScreen() {
                 ]}>
                   {day}
                 </Text>
-                {currentDay === i && (
+                {currentDay === positionToDay(i) && (
                   <View style={styles.todayIndicator} />
                 )}
               </TouchableOpacity>
@@ -698,6 +715,11 @@ export default function ScheduleScreen() {
                   : `${totalSlots} horario${totalSlots !== 1 ? 's' : ''} en ${sections.length} tipo${sections.length !== 1 ? 's' : ''}`}
               </Text>
             )}
+            {currentDay === positionToDay(selectedDay) && (
+              <View style={styles.todayBadge}>
+                <Text style={styles.todayBadgeText}>Hoy</Text>
+              </View>
+            )}
             {viewMode === 'categories' && sectionKeys.length > 1 && (
               <TouchableOpacity
                 onPress={handleToggleAllSections}
@@ -715,11 +737,6 @@ export default function ScheduleScreen() {
               </TouchableOpacity>
             )}
           </View>
-          {currentDay === selectedDay && (
-            <View style={styles.todayBadge}>
-              <Text style={styles.todayBadgeText}>Hoy</Text>
-            </View>
-          )}
         </View>
 
         {/* Contenido según la vista */}
@@ -816,30 +833,6 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 24,
   },
-  eyebrow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 6,
-  },
-  eyebrowText: {
-    color: CIAN,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-  },
-  mainTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: Colors.textBright,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: TEXT_MUTED,
-    lineHeight: 20,
-  },
   daysScroll: {
     marginBottom: 12,
   },
@@ -847,6 +840,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dayPill: {
+    minWidth: 48,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
@@ -1205,7 +1202,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   pickerOptionSelected: {
-    backgroundColor: 'rgba(79,152,163,0.12)',
+    backgroundColor: Colors.signalMuted,
   },
   pickerOptionIcon: {
     width: 30,
