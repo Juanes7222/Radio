@@ -44,6 +44,12 @@
 - Shared admin pieces: `StationStatusProvider`/`useStationStatus` (single
   now-playing poll, 20s), `components/admin/OnAirStrip` (tally light +
   progress hairline, mounted in the topbar).
+- Health watchdog UI: `pages/admin/AdminHealth.tsx` (checks grid, open
+  alerts, automatic actions; polls 30s while status != ok) wired through
+  `useAdminApi.getHealthOverview/runHealthCycle` and `@radio/types
+  Health*`. Public degraded banner: `components/layout/
+  StationHealthBanner.tsx` polls `/api/health/public` (60s) and renders
+  only when status is degraded/critical.
 - Sidebar nav is grouped into Emisión / Contenido / Audiencia sections;
   the topbar derives the page title from that same structure.
 - Data loaders use `.then` chains on purpose: react-hooks v7 flags

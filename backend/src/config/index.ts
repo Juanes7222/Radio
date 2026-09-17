@@ -6,6 +6,7 @@ import { geoipConfig } from "./geoip.config";
 import { locutorConfig } from "./locutor.config";
 import { notificationsConfig } from "./notifications.config";
 import { backupsConfig } from "./backups.config";
+import { healthConfig } from "./health.config";
 import { logsConfig } from "./logs.config";
 import { liveConfig } from "./live.config";
 import { processingConfig } from "./processing.config";
@@ -27,4 +28,5 @@ export const config = {
   logs: logsConfig,
   live: liveConfig,
   backups: backupsConfig,
+  health: healthConfig,
 };

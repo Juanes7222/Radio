@@ -36,6 +36,7 @@ import type {
   AppNotice,
   AppNoticeInput,
   BackupOverview,
+  HealthOverview,
   NoticeImage,
   NoticeImageList,
   NoticeVideo,
@@ -685,6 +686,22 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Salud del sistema ─────────────────────────────────────
+  const getHealthOverview = useCallback(
+    () => request<HealthOverview>({ url: '/admin-api/health' }),
+    [request]
+  );
+
+  const runHealthCycle = useCallback(
+    () =>
+      request<HealthOverview>({
+        method: 'POST',
+        url: '/admin-api/health/run',
+        timeout: 30000,
+      }),
+    [request]
+  );
+
   // ── Respaldos (solo superadmin) ─────────────────────────────
   const getBackups = useCallback(
     () => request<BackupOverview>({ url: '/admin-api/backups' }),
@@ -873,6 +890,8 @@ export function useAdminApi() {
     getBackups,
     getBackupLog,
     runBackup,
+    getHealthOverview,
+    runHealthCycle,
     getAdminUsers,
     createAdminUser,
     updateAdminUser,

@@ -764,3 +764,66 @@ export interface BackupOverview {
   run: BackupRunState;
   backups: BackupBundle[];
 }
+
+// ── Health watchdog (centro de salud) ─────────────────────────
+
+export type HealthStatus = 'ok' | 'degraded' | 'critical';
+
+export type HealthCheckKey =
+  | 'azuracast'
+  | 'autodj'
+  | 'workers'
+  | 'youtube_jobs'
+  | 'disk'
+  | 'backup'
+  | 'listener_sampling';
+
+export interface HealthCheckIssue {
+  code: string;
+  message: string;
+  since: string | null;
+}
+
+export interface HealthCheckResult {
+  key: HealthCheckKey;
+  label: string;
+  status: HealthStatus;
+  detail: string;
+  issues: HealthCheckIssue[];
+  checkedAt: string;
+}
+
+/** Automatic remediation executed by the watchdog */
+export interface HealthAction {
+  key: string;
+  label: string;
+  at: string;
+  ok: boolean;
+  detail: string | null;
+}
+
+export interface HealthAlertRecord {
+  key: string;
+  checkKey: HealthCheckKey;
+  message: string;
+  since: string;
+  resolved: boolean;
+  resolvedAt: string | null;
+  notifiedAt: string | null;
+  lastAttemptAt: string | null;
+  attempts: number;
+}
+
+export interface HealthOverview {
+  status: HealthStatus;
+  checkedAt: string | null;
+  checks: HealthCheckResult[];
+  recentActions: HealthAction[];
+  openAlerts: HealthAlertRecord[];
+}
+
+/** Anonymous aggregate status for the public degraded banner */
+export interface PublicHealthSnapshot {
+  status: HealthStatus;
+  checkedAt: string | null;
+}

@@ -25,6 +25,7 @@ import {
   Cog,
   DatabaseBackup,
   Users,
+  HeartPulse,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Emisión',
     items: [
       { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard' },
+      { to: '/admin/health', label: 'Salud', icon: HeartPulse, permission: 'dashboard' },
       { to: '/admin/schedule', label: 'Programación', icon: CalendarDays, permission: 'schedule' },
       { to: '/admin/schedule/categories', label: 'Tipos de programa', icon: Tags, permission: 'schedule.categories' },
       { to: '/admin/streaming', label: 'Streaming / DJs', icon: Mic2, permission: 'streaming' },

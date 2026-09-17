@@ -8,6 +8,7 @@ import { captureListenerSnapshot } from "../azuracast/listenerHistory.service";
 import { runAllActiveRotations } from "../rotation/rotation.service";
 import { updateDbIpDatabase, updateGeoIpDatabase } from "../devices/geoipUpdate.service";
 import { cleanupOrphanNoticeMedia } from "../notices/media/media.cleanup";
+import { runHealthCycle } from "../health/health.service";
 
 export type SystemJobKey =
   | "nightly-generation"
@@ -19,7 +20,8 @@ export type SystemJobKey =
   | "listener-sampling"
   | "rotations"
   | "geoip-update"
-  | "notice-media-cleanup";
+  | "notice-media-cleanup"
+  | "health-watchdog";
 
 export interface SystemJobMeta {
   key: SystemJobKey;
@@ -104,6 +106,13 @@ export const SYSTEM_JOB_CATALOG: SystemJobMeta[] = [
     schedule: "04:15",
     requiresConfirm: false,
   },
+  {
+    key: "health-watchdog",
+    label: "Ciclo de salud",
+    description: "Ejecuta ahora el vigilante de salud: revisa AzuraCast, workers, jobs, disco y respaldos.",
+    schedule: "cada 2 min",
+    requiresConfirm: false,
+  },
 ];
 
 export const SYSTEM_JOB_RUNNERS: Record<SystemJobKey, () => Promise<unknown>> = {
@@ -117,6 +126,7 @@ export const SYSTEM_JOB_RUNNERS: Record<SystemJobKey, () => Promise<unknown>> = 
   rotations: runAllActiveRotations,
   "geoip-update": runGeoIpUpdate,
   "notice-media-cleanup": cleanupOrphanNoticeMedia,
+  "health-watchdog": runHealthCycle,
 };
 
 export function isSystemJobKey(value: string): value is SystemJobKey {
