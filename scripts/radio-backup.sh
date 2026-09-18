@@ -164,7 +164,7 @@ r2_configured() {
 prune_r2_prefix() {
   local prefix="$1" keep="$2"
   local keys
-  keys="$(aws $AWS_ENDPOINT_ARGS s3 ls "s3://${R2_BUCKET}/${prefix}/" 2>/dev/null \
+  keys="$(aws "${AWS_ENDPOINT_ARGS[@]}" s3 ls "s3://${R2_BUCKET}/${prefix}/" 2>/dev/null \
     | awk '$4 ~ /^radio-.*\.tar\.gz$/ {print $4}' | sort || true)"
   [[ -z "$keys" ]] && return 0
   local -a arr=()
@@ -173,8 +173,8 @@ prune_r2_prefix() {
   if (( total > keep )); then
     local drop=$((total - keep))
     for ((i = 0; i < drop; i++)); do
-      aws $AWS_ENDPOINT_ARGS s3 rm "s3://${R2_BUCKET}/${prefix}/${arr[$i]}" >/dev/null
-      aws $AWS_ENDPOINT_ARGS s3 rm "s3://${R2_BUCKET}/${prefix}/${arr[$i]}.sha256" >/dev/null || true
+      aws "${AWS_ENDPOINT_ARGS[@]}" s3 rm "s3://${R2_BUCKET}/${prefix}/${arr[$i]}" >/dev/null
+      aws "${AWS_ENDPOINT_ARGS[@]}" s3 rm "s3://${R2_BUCKET}/${prefix}/${arr[$i]}.sha256" >/dev/null || true
       log "Pruned remote backup: $prefix/${arr[$i]}"
     done
   fi
@@ -184,35 +184,33 @@ if [[ "$UPLOAD_ENABLED" == "true" ]]; then
   if r2_configured; then
     command -v aws >/dev/null || fail "aws CLI not found (install AWS CLI v2 from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)"
     R2_ENDPOINT="${R2_ENDPOINT:-https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com}"
-    AWS_ENDPOINT_ARGS="--endpoint-url $R2_ENDPOINT --region auto"
+    # Must be an array, not a string: the script sets IFS=$'\n\t' (no spaces),
+    # so unquoted string expansion would pass the whole value as ONE argument.
+    # Region comes from the exported AWS_DEFAULT_REGION below.
+    AWS_ENDPOINT_ARGS=(--endpoint-url "$R2_ENDPOINT")
     export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
     export AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
     export AWS_DEFAULT_REGION="auto"
     export AWS_EC2_METADATA_DISABLED="true"
 
-    # shellcheck disable=SC2086
-    aws $AWS_ENDPOINT_ARGS s3 cp "$BACKUP_DIR/daily/$ARCHIVE" \
+    aws "${AWS_ENDPOINT_ARGS[@]}" s3 cp "$BACKUP_DIR/daily/$ARCHIVE" \
       "s3://${R2_BUCKET}/${R2_PREFIX}/daily/$ARCHIVE" --only-show-errors \
       || fail "R2 upload failed: daily/$ARCHIVE"
-    # shellcheck disable=SC2086
-    aws $AWS_ENDPOINT_ARGS s3 cp "$BACKUP_DIR/daily/$ARCHIVE.sha256" \
+    aws "${AWS_ENDPOINT_ARGS[@]}" s3 cp "$BACKUP_DIR/daily/$ARCHIVE.sha256" \
       "s3://${R2_BUCKET}/${R2_PREFIX}/daily/$ARCHIVE.sha256" --only-show-errors \
       || fail "R2 upload failed: daily/$ARCHIVE.sha256"
 
     if [[ "$IS_WEEKLY" == "true" ]]; then
-      # shellcheck disable=SC2086
-      aws $AWS_ENDPOINT_ARGS s3 cp "$BACKUP_DIR/weekly/$ARCHIVE" \
+      aws "${AWS_ENDPOINT_ARGS[@]}" s3 cp "$BACKUP_DIR/weekly/$ARCHIVE" \
         "s3://${R2_BUCKET}/${R2_PREFIX}/weekly/$ARCHIVE" --only-show-errors \
         || fail "R2 upload failed: weekly/$ARCHIVE"
-      # shellcheck disable=SC2086
-      aws $AWS_ENDPOINT_ARGS s3 cp "$BACKUP_DIR/weekly/$ARCHIVE.sha256" \
+      aws "${AWS_ENDPOINT_ARGS[@]}" s3 cp "$BACKUP_DIR/weekly/$ARCHIVE.sha256" \
         "s3://${R2_BUCKET}/${R2_PREFIX}/weekly/$ARCHIVE.sha256" --only-show-errors \
         || fail "R2 upload failed: weekly/$ARCHIVE.sha256"
     fi
 
     # Verify the remote object size matches before pruning anything.
-    # shellcheck disable=SC2086
-    REMOTE_SIZE="$(aws $AWS_ENDPOINT_ARGS s3api head-object \
+    REMOTE_SIZE="$(aws "${AWS_ENDPOINT_ARGS[@]}" s3api head-object \
       --bucket "$R2_BUCKET" --key "${R2_PREFIX}/daily/$ARCHIVE" \
       --query ContentLength --output text 2>/dev/null || echo "")"
     [[ "$REMOTE_SIZE" == "$ARCHIVE_SIZE" ]] \
