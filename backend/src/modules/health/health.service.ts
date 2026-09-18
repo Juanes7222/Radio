@@ -2,7 +2,7 @@ import { sendEmail } from "../../infrastructure/email/email.service";
 import { sendPushToTokens } from "../../infrastructure/firebase/notification.service";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
-import { startAutoDj } from "../azuracast/panel.service";
+import { startAutoDj, getPanelStatus } from "../azuracast/panel.service";
 import { runAllHealthChecks, worstStatus } from "./health.checks";
 import type {
   HealthAction,
@@ -178,6 +178,21 @@ async function syncAlerts(results: HealthCheckResult[]): Promise<void> {
 
 async function attemptAutoDjRestart(reason: string): Promise<void> {
   try {
+    // Re-check right before acting: the alert may have opened while AutoDJ
+    // was down, but a live streamer could have connected in the meantime.
+    // Starting AutoDJ now would kick them off air.
+    const panel = await getPanelStatus();
+    if (panel.isLive) {
+      recordAction(
+        "autodj_restart",
+        "Reinicio de AutoDJ",
+        true,
+        "Cancelado: hay una transmisión en vivo en curso"
+      );
+      logger.info("Health", "AutoDJ restart skipped, live stream active");
+      return;
+    }
+
     logger.warn("Health", "Attempting AutoDJ restart", { reason });
     await startAutoDj();
     recordAction("autodj_restart", "Reinicio de AutoDJ", true, reason);

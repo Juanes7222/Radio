@@ -82,8 +82,22 @@ export async function checkAutoDj(): Promise<HealthCheckResult> {
     const { data: np } = await azuracastApi.get(`/nowplaying/${STATION_ID}`, {
       timeout: 8_000,
     });
-    const isPlaying = Boolean(np?.is_online) && !np?.live?.is_live;
-    const song = np?.now_playing?.song ?? {};
+
+    // A human broadcasting is healthy by definition: never alert and never
+    // let the AutoDJ restart remediation kick the live streamer off air.
+    if (np?.live?.is_live) {
+      const streamer = np.live.streamer_name ?? "streamer";
+      return {
+        key,
+        label: "AutoDJ",
+        status: "ok",
+        detail: `Transmisión en vivo: ${streamer}`,
+        issues: [],
+        checkedAt,
+      };
+    }
+
+    const isPlaying = Boolean(np?.is_online);
     const startedAt: string | null = np?.now_playing?.played_at ?? null;
     const elapsedSeconds = startedAt
       ? Math.floor(Date.now() / 1000) - Number(startedAt)
@@ -106,9 +120,7 @@ export async function checkAutoDj(): Promise<HealthCheckResult> {
         label: "AutoDJ",
         status: "critical",
         detail: "El stream está caído o AutoDJ detenido",
-        issues: [
-          toIssue("autodj_not_playing", "is_online=false o live activo", checkedAt),
-        ],
+        issues: [toIssue("autodj_not_playing", "is_online=false", checkedAt)],
         checkedAt,
       };
     }

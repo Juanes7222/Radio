@@ -45,6 +45,7 @@
 - Push alerts go only to `HEALTH_PUSH_TOKENS`; the `Device` table is shared with the public app, so listener devices are never notified.
 - Config in `src/config/health.config.ts` (thresholds, mount path, email/push toggles). Also registered in `systemJobs.registry.ts` as `health-watchdog` for manual runs from AdminJobs.
 - Remediation policy: only AutoDJ restart is automatic (with backoff). Everything else notifies `EMAIL_RECIPIENTS` with a direct link to the affected panel area (`PANEL_PATH_BY_CHECK`: streaming, youtube, backups, dashboard) and the same URL travels in the push `data.url`. Alerts re-notify up to 3 attempts; recovery clears them.
+- Live-streamer safety: `checkAutoDj` reports OK while `now_playing.live.is_live` is true (no alert, no remediation), and `attemptAutoDjRestart` re-checks `getPanelStatus().isLive` immediately before calling `start-autodj`, so the watchdog can never kick an on-air streamer off the stream.
 
 ## Ports
 
