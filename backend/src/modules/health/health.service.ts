@@ -17,6 +17,21 @@ const MAX_RECENT_ACTIONS = 20;
 const RETRY_BACKOFF_MS = 5 * 60 * 1000;
 const MAX_ALERT_ATTEMPTS = 3;
 
+/**
+ * Panel page where the operator can act on each check. Alerts link straight
+ * to the affected area so a notification never dead-ends in the health center.
+ * Workers are only visible in the YouTube page, where the node list lives.
+ */
+const PANEL_PATH_BY_CHECK: Record<HealthCheckKey, string> = {
+  azuracast: "/admin/streaming",
+  autodj: "/admin/streaming",
+  workers: "/admin/youtube",
+  youtube_jobs: "/admin/youtube",
+  disk: "/admin/backups",
+  backup: "/admin/backups",
+  listener_sampling: "/admin/dashboard",
+};
+
 interface WatchdogState {
   status: HealthStatus;
   checkedAt: string | null;
@@ -62,12 +77,13 @@ function severityRank(status: HealthStatus): number {
 
 async function notifyAdmins(alert: HealthAlertRecord): Promise<boolean> {
   const title = `Salud del sistema: alerta ${alert.checkKey}`;
+  const alertUrl = `${config.publicUrl}${alert.panelPath}`;
   const html = `
     <p>El vigilante de salud detectó un problema que requiere decisión humana.</p>
     <p><strong>Área:</strong> ${alert.checkKey}<br/>
     <strong>Detalle:</strong> ${alert.message}<br/>
     <strong>Desde:</strong> ${alert.since}</p>
-    <p><a href="${config.publicUrl}/admin/health">Abrir centro de salud</a></p>
+    <p><a href="${alertUrl}">Abrir el área afectada en el panel</a></p>
   `;
 
   let sent = false;
@@ -81,8 +97,7 @@ async function notifyAdmins(alert: HealthAlertRecord): Promise<boolean> {
   if (config.health.pushEnabled && config.health.pushTokens.length > 0) {
     const result = await sendPushToTokens(config.health.pushTokens, {
       title: "Alerta de salud",
-      body: alert.message.slice(0, 180),
-      data: { type: "health_alert", check: alert.checkKey },
+      body: alert.message.slice(0, 180),        data: { type: "health_alert", check: alert.checkKey, url: alertUrl },
     });
     sent = sent || result.sent > 0;
   }
@@ -113,6 +128,7 @@ async function syncAlerts(results: HealthCheckResult[]): Promise<void> {
         key,
         checkKey: result.key,
         message: issue.message,
+        panelPath: PANEL_PATH_BY_CHECK[result.key],
         since: issue.since ?? now,
         resolved: false,
         resolvedAt: null,

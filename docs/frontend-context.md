@@ -49,7 +49,10 @@
   `useAdminApi.getHealthOverview/runHealthCycle` and `@radio/types
   Health*`. Public degraded banner: `components/layout/
   StationHealthBanner.tsx` polls `/api/health/public` (60s) and renders
-  only when status is degraded/critical.
+  only when status is degraded/critical; when the stream is down it mounts
+  `components/layout/StreamDownHelp.tsx`, which shows the next programs
+  (`@radio/api` `fetchSchedule` + `mergeConsecutiveScheduleItems`) and the
+  Bible reading of the day (`/api/bible/reading/today`).
 - Sidebar nav is grouped into Emisión / Contenido / Audiencia sections;
   the topbar derives the page title from that same structure.
 - Data loaders use `.then` chains on purpose: react-hooks v7 flags

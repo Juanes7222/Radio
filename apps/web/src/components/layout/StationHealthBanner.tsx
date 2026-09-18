@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, RadioTower } from 'lucide-react';
 import { API_BASE_URL } from '@/config';
+import { StreamDownHelp } from './StreamDownHelp';
 import type { HealthStatus, PublicHealthSnapshot } from '@radio/types';
 
 const POLL_MS = 60_000;
@@ -15,7 +16,7 @@ const BANNER_BY_STATUS: Partial<
     Icon: AlertTriangle,
   },
   critical: {
-    text: 'La transmisión está temporalmente interrumpida. Estamos trabajando en restablecerla; mientras tanto puedes consultar la programación y el versículo del día.',
+    text: 'La transmisión está temporalmente interrumpida. Estamos trabajando en restablecerla; mientras tanto puedes consultar la programación y la lectura bíblica de hoy.',
     className: 'border-tally/30 bg-tally/10 text-tally',
     Icon: AlertTriangle,
   },
@@ -69,6 +70,14 @@ export function StationHealthBanner() {
           <Icon className="size-4 shrink-0" />
           <p>{text}</p>
         </div>
+        {status === 'critical' && (
+          <div>
+            <div className="mx-auto max-w-5xl border-t border-current opacity-30" />
+            <div className="mt-2">
+              <StreamDownHelp />
+            </div>
+          </div>
+        )}
       </motion.div>
     </AnimatePresence>
   );

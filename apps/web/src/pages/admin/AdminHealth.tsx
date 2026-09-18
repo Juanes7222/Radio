@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router";
 import {
   Activity,
   AlertTriangle,
+  ArrowUpRight,
   CheckCircle2,
   HeartPulse,
   RefreshCw,
@@ -194,7 +196,14 @@ export default function AdminHealth() {
                   <span className="text-muted-foreground">{alert.message}</span>{" "}
                   <span className="font-mono text-[11px] text-faint">
                     desde {formatDateTime(alert.since)}
-                  </span>
+                  </span>{" "}
+                  <Link
+                    to={alert.panelPath}
+                    className="inline-flex items-center gap-0.5 text-tally hover:underline"
+                  >
+                    Abrir área
+                    <ArrowUpRight className="size-3.5" />
+                  </Link>
                 </li>
               ))}
             </ul>

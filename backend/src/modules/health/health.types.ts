@@ -45,6 +45,8 @@ export interface HealthAlertRecord {
   key: string;
   checkKey: HealthCheckKey;
   message: string;
+  /** Panel route where an operator can act on this specific problem. */
+  panelPath: string;
   since: string;
   /** False while the alert is still open; cleared when the check recovers. */
   resolved: boolean;

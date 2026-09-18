@@ -806,6 +806,8 @@ export interface HealthAlertRecord {
   key: string;
   checkKey: HealthCheckKey;
   message: string;
+  /** Ruta del panel donde el operador atiende esta alerta */
+  panelPath: string;
   since: string;
   resolved: boolean;
   resolvedAt: string | null;

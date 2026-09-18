@@ -44,7 +44,7 @@
 - Routes: `GET /admin-api/health/watchdog` and `POST /admin-api/health/watchdog/run` (requireAuth + `dashboard` permission), anonymous `GET /api/health/public` (aggregate `{status, checkedAt}` only, no internals). The watchdog lives under `/watchdog` so it does not shadow the plain liveness `GET /admin-api/health`, which now also reports the aggregate `status`.
 - Push alerts go only to `HEALTH_PUSH_TOKENS`; the `Device` table is shared with the public app, so listener devices are never notified.
 - Config in `src/config/health.config.ts` (thresholds, mount path, email/push toggles). Also registered in `systemJobs.registry.ts` as `health-watchdog` for manual runs from AdminJobs.
-- Remediation policy: only AutoDJ restart is automatic (with backoff). Everything else notifies `EMAIL_RECIPIENTS` and links to `/admin/health`. Alerts re-notify up to 3 attempts; recovery clears them.
+- Remediation policy: only AutoDJ restart is automatic (with backoff). Everything else notifies `EMAIL_RECIPIENTS` with a direct link to the affected panel area (`PANEL_PATH_BY_CHECK`: streaming, youtube, backups, dashboard) and the same URL travels in the push `data.url`. Alerts re-notify up to 3 attempts; recovery clears them.
 
 ## Ports
 
