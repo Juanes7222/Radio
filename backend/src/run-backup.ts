@@ -27,13 +27,40 @@ function resolveScriptPath(): string {
   return candidates[0];
 }
 
+const R2_REQUIRED_KEYS = [
+  "R2_ACCOUNT_ID",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+  "R2_BUCKET",
+] as const;
+
+function logEnvironmentDiagnostics(phase: string): void {
+  const infisicalBootstrap = [
+    "INFISICAL_CLIENT_ID",
+    "INFISICAL_CLIENT_SECRET",
+    "INFISICAL_PROJECT_ID",
+    "INFISICAL_ENVIRONMENT",
+  ];
+  console.log(
+    `[run-backup] ${phase}: cwd=${process.cwd()} ` +
+      `infisical=[${infisicalBootstrap
+        .map((key) => `${key}=${process.env[key] ? "set" : "missing"}`)
+        .join(", ")}] ` +
+      `r2=[${R2_REQUIRED_KEYS.map(
+        (key) => `${key}=${process.env[key] ? "set" : "missing"}`
+      ).join(", ")}]`
+  );
+}
+
 async function main(): Promise<void> {
+  logEnvironmentDiagnostics("env before Infisical");
   const loaded = await initializeInfisicalSecrets();
   console.log(
     loaded
       ? "[run-backup] Infisical secrets loaded"
       : "[run-backup] Infisical not configured, using local environment only"
   );
+  logEnvironmentDiagnostics("env after Infisical");
 
   const script = resolveScriptPath();
   if (!fs.existsSync(script)) {
