@@ -375,15 +375,17 @@ fi
 step "6/8 — Updating Nginx configuration"
 
 NGINX_CHANGED=false
-if git diff --name-only "$BEFORE_HASH" "$AFTER_HASH" | grep -qE "scripts/(radio\.nginx\.conf|radio-global\.conf)"; then
+if git diff --name-only "$BEFORE_HASH" "$AFTER_HASH" | grep -qE "scripts/nginx/"; then
   NGINX_CHANGED=true
 fi
 
 if [[ "$NGINX_CHANGED" == "true" || "$FORCE_DEPLOY" == "true" ]]; then
   cp "$NGINX_CONF" "${NGINX_CONF}.bak"
 
-  [[ -f "$SCRIPTS_DIR/radio-global.conf" ]] && cp "$SCRIPTS_DIR/radio-global.conf" "$NGINX_GLOBAL_CONF"
-  cp "$SCRIPTS_DIR/radio.nginx.conf" "$NGINX_CONF"
+  [[ -f "$SCRIPTS_DIR/nginx/radio-global.conf" ]] && cp "$SCRIPTS_DIR/nginx/radio-global.conf" "$NGINX_GLOBAL_CONF"
+  mkdir -p "$NGINX_RADIO_DIR"
+  cp -r "$SCRIPTS_DIR/nginx/domains" "$SCRIPTS_DIR/nginx/snippets" "$NGINX_RADIO_DIR/"
+  cp "$SCRIPTS_DIR/nginx/radio-site.conf" "$NGINX_CONF"
 
   nginx -t && systemctl reload nginx && NGINX_RELOADED=true || {
     error "Invalid Nginx configuration. Rolling back."

@@ -81,6 +81,7 @@ SCRIPTS_DIR="$DEPLOY_DIR/scripts"
 
 NGINX_CONF="/etc/nginx/sites-available/radio"
 NGINX_GLOBAL_CONF="/etc/nginx/conf.d/radio-global.conf"
+NGINX_RADIO_DIR="/etc/nginx/radio"
 BACKEND_SERVICE="radio-backend"
 SERVICE_FILE="/etc/systemd/system/${BACKEND_SERVICE}.service"
 
@@ -154,13 +155,13 @@ if ! grep -q "server_tokens off" /etc/nginx/nginx.conf; then
   sed -i '/http {/a \\tserver_tokens off;' /etc/nginx/nginx.conf
 fi
 
-cp "$SCRIPTS_DIR/radio-global.conf" "$NGINX_GLOBAL_CONF"
+cp "$SCRIPTS_DIR/nginx/radio-global.conf" "$NGINX_GLOBAL_CONF"
 
 mkdir -p /var/www/html
 cat > "$NGINX_CONF" <<'NGINX'
 server {
     listen 80;
-    server_name lavozverdad.com www.lavozverdad.com panel.lavozverdad.com vozyverdad.com www.vozyverdad.com;
+    server_name lavozverdad.com www.lavozverdad.com panel.lavozverdad.com vozyverdad.com www.vozyverdad.com panel.vozyverdad.com;
 
     location /.well-known/acme-challenge/ {
         root /var/www/html;
@@ -194,9 +195,13 @@ systemctl reload nginx
 HOOK
 chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 
-cp "$SCRIPTS_DIR/radio.nginx.conf" "$NGINX_CONF"
+# Full modular tree lives in /etc/nginx/radio (domains/ + snippets/); the
+# entry point only includes those files. Keep snippet paths in sync with
+# scripts/nginx/.
+mkdir -p "$NGINX_RADIO_DIR"
+cp -r "$SCRIPTS_DIR/nginx/domains" "$SCRIPTS_DIR/nginx/snippets" "$NGINX_RADIO_DIR/"
+cp "$SCRIPTS_DIR/nginx/radio-site.conf" "$NGINX_CONF"
 nginx -t && systemctl reload nginx
-
 # ------------------------------------------------------------------------------
 # Step 7 — systemd service unit
 # ------------------------------------------------------------------------------

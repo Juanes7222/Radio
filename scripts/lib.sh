@@ -10,6 +10,7 @@ SCRIPTS_DIR="$DEPLOY_DIR/scripts"
 
 NGINX_CONF="/etc/nginx/sites-available/radio"
 NGINX_GLOBAL_CONF="/etc/nginx/conf.d/radio-global.conf"
+NGINX_RADIO_DIR="/etc/nginx/radio"
 
 BACKEND_SERVICE="radio-backend"
 SERVICE_USER="${SERVICE_USER:-radio}"
