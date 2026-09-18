@@ -95,7 +95,16 @@ apt-get install -y \
   unattended-upgrades apt-listchanges \
   certbot python3-certbot-nginx \
   aide mailutils logrotate \
-  sqlite3 awscli
+  sqlite3 unzip
+
+# AWS CLI v2: the `awscli` apt package does not exist on Debian, so install
+# from the official AWS distribution instead.
+AWSCLI_ZIP="$(mktemp -u /tmp/awscliv2.XXXXXX.zip)"
+curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "$AWSCLI_ZIP"
+unzip -q "$AWSCLI_ZIP" -d /tmp
+/tmp/aws/install --update --install-dir /usr/local/aws-cli --bin-dir /usr/local/bin
+rm -rf /tmp/aws "$AWSCLI_ZIP"
+info "AWS CLI: $(aws --version 2>&1)"
 
 # ------------------------------------------------------------------------------
 # Step 2 — Node.js and pnpm

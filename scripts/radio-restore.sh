@@ -103,7 +103,7 @@ pick_local() {
 }
 
 pick_r2() {
-  command -v aws >/dev/null || { echo "aws CLI not found (sudo apt install awscli)" >&2; exit 1; }
+  command -v aws >/dev/null || { echo "aws CLI not found (install AWS CLI v2 from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)" >&2; exit 1; }
   [[ -n "${R2_ACCOUNT_ID:-}" && -n "${R2_ACCESS_KEY_ID:-}" \
     && -n "${R2_SECRET_ACCESS_KEY:-}" && -n "${R2_BUCKET:-}" ]] \
     || { echo "R2 credentials missing (checked environment/Infisical and $ENV_FILE)" >&2; exit 1; }

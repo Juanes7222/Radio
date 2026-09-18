@@ -182,7 +182,7 @@ prune_r2_prefix() {
 
 if [[ "$UPLOAD_ENABLED" == "true" ]]; then
   if r2_configured; then
-    command -v aws >/dev/null || fail "aws CLI not found (sudo apt install awscli)"
+    command -v aws >/dev/null || fail "aws CLI not found (install AWS CLI v2 from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)"
     R2_ENDPOINT="${R2_ENDPOINT:-https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com}"
     AWS_ENDPOINT_ARGS="--endpoint-url $R2_ENDPOINT --region auto"
     export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
