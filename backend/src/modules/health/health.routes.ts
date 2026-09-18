@@ -1,18 +1,25 @@
 import { Router, type Request, type Response } from "express";
-import axios from "axios";
 import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { asyncHandler } from "../../shared/errors/async-handler";
-import { runHealthCycle, getHealthOverview, getHealthStatusSnapshot } from "./health.service";
-
-const router = Router();
-
-router.use(requireAuth, requirePermission("dashboard"));
+import {
+  runHealthCycle,
+  getHealthOverview,
+  getHealthStatusSnapshot,
+} from "./health.service";
 
 /**
- * GET /admin-api/health
+ * Admin watchdog API. Mounted at /admin-api/health/watchdog so it never
+ * shadows the plain liveness endpoint at /admin-api/health.
+ */
+export const healthAdminRouter = Router();
+
+healthAdminRouter.use(requireAuth, requirePermission("dashboard"));
+
+/**
+ * GET /admin-api/health/watchdog
  * Full health overview: per-check status, open alerts and recent actions.
  */
-router.get(
+healthAdminRouter.get(
   "/",
   asyncHandler(async (_req: Request, res: Response) => {
     res.json(getHealthOverview());
@@ -20,10 +27,10 @@ router.get(
 );
 
 /**
- * POST /admin-api/health/run
+ * POST /admin-api/health/watchdog/run
  * Forces an immediate watchdog cycle instead of waiting for the cron tick.
  */
-router.post(
+healthAdminRouter.post(
   "/run",
   asyncHandler(async (_req: Request, res: Response) => {
     const overview = await runHealthCycle();
@@ -32,15 +39,15 @@ router.post(
 );
 
 /**
- * GET /public-health (mounted at /api/health)
- * Minimal anonymous snapshot for the public degraded-state banner.
- * No internal error detail is leaked, only the aggregate status.
+ * Anonymous aggregate snapshot for the public degraded-state banner.
+ * Mounted at /api/health, outside any auth middleware because the public
+ * site has no session. Leaks no internal error detail, only the status.
  */
-router.get(
+export const healthPublicRouter = Router();
+
+healthPublicRouter.get(
   "/public",
   asyncHandler(async (_req: Request, res: Response) => {
     res.json(getHealthStatusSnapshot());
   })
 );
-
-export default router;

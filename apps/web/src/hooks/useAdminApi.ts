@@ -688,7 +688,7 @@ export function useAdminApi() {
 
   // ── Salud del sistema ─────────────────────────────────────
   const getHealthOverview = useCallback(
-    () => request<HealthOverview>({ url: '/admin-api/health' }),
+    () => request<HealthOverview>({ url: '/admin-api/health/watchdog' }),
     [request]
   );
 
@@ -696,7 +696,7 @@ export function useAdminApi() {
     () =>
       request<HealthOverview>({
         method: 'POST',
-        url: '/admin-api/health/run',
+        url: '/admin-api/health/watchdog/run',
         timeout: 30000,
       }),
     [request]

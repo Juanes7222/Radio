@@ -41,7 +41,8 @@
 ## Health watchdog (Sep 2026)
 
 - Module `src/modules/health/`: `health.checks.ts` (7 checks: AzuraCast, AutoDJ, workers, YouTube jobs, disk, backup, listener sampling), `health.service.ts` (in-memory state, alert dedup by (check,code), email/push notify with backoff, AutoDJ self-restart with backoff), `health.job.ts` (cron every `HEALTH_CHECK_INTERVAL_SECONDS`, default 120s), `health.routes.ts` (admin + public).
-- Routes: `GET/POST /admin-api/health[/run]` (requireAuth + `dashboard` permission) and anonymous `GET /api/health/public` (aggregate `{status, checkedAt}` only, no internals).
+- Routes: `GET /admin-api/health/watchdog` and `POST /admin-api/health/watchdog/run` (requireAuth + `dashboard` permission), anonymous `GET /api/health/public` (aggregate `{status, checkedAt}` only, no internals). The watchdog lives under `/watchdog` so it does not shadow the plain liveness `GET /admin-api/health`, which now also reports the aggregate `status`.
+- Push alerts go only to `HEALTH_PUSH_TOKENS`; the `Device` table is shared with the public app, so listener devices are never notified.
 - Config in `src/config/health.config.ts` (thresholds, mount path, email/push toggles). Also registered in `systemJobs.registry.ts` as `health-watchdog` for manual runs from AdminJobs.
 - Remediation policy: only AutoDJ restart is automatic (with backoff). Everything else notifies `EMAIL_RECIPIENTS` and links to `/admin/health`. Alerts re-notify up to 3 attempts; recovery clears them.
 

@@ -1,4 +1,4 @@
-import { boolEnvOr, intEnvOr } from "./env";
+import { boolEnvOr, intEnvOr, listEnvOr } from "./env";
 
 function getHealthConfig() {
   return {
@@ -16,6 +16,12 @@ function getHealthConfig() {
     emailEnabled: boolEnvOr("HEALTH_EMAIL_ENABLED", true),
     /** Send admin push notifications on human-action alerts. */
     pushEnabled: boolEnvOr("HEALTH_PUSH_ENABLED", false),
+    /**
+     * FCM tokens of the devices that receive health alerts. Explicit because
+     * the Device table is shared with the public app: there is no way to tell
+     * an operator device apart from a listener device.
+     */
+    pushTokens: listEnvOr("HEALTH_PUSH_TOKENS"),
     /** Hours without a listener snapshot before the snapshot check degrades. */
     snapshotMaxAgeHours: intEnvOr("HEALTH_SNAPSHOT_MAX_AGE_HOURS", 2),
   };
@@ -43,6 +49,9 @@ export const healthConfig = {
   },
   get pushEnabled() {
     return getHealthConfig().pushEnabled;
+  },
+  get pushTokens() {
+    return getHealthConfig().pushTokens;
   },
   get snapshotMaxAgeHours() {
     return getHealthConfig().snapshotMaxAgeHours;

@@ -1,4 +1,3 @@
-import { prisma } from "../../infrastructure/database/prisma";
 import { sendEmail } from "../../infrastructure/email/email.service";
 import { sendPushToTokens } from "../../infrastructure/firebase/notification.service";
 import { config } from "../../config";
@@ -79,23 +78,13 @@ async function notifyAdmins(alert: HealthAlertRecord): Promise<boolean> {
     }
   }
 
-  if (config.health.pushEnabled) {
-    const devices = await prisma.device.findMany({
-      where: { fcmToken: { not: null } },
-      select: { fcmToken: true },
-      take: 500,
+  if (config.health.pushEnabled && config.health.pushTokens.length > 0) {
+    const result = await sendPushToTokens(config.health.pushTokens, {
+      title: "Alerta de salud",
+      body: alert.message.slice(0, 180),
+      data: { type: "health_alert", check: alert.checkKey },
     });
-    const tokens = devices
-      .map((device) => device.fcmToken)
-      .filter((token): token is string => token !== null);
-    if (tokens.length > 0) {
-      const result = await sendPushToTokens(tokens, {
-        title: "Alerta de salud",
-        body: alert.message.slice(0, 180),
-        data: { type: "health_alert", check: alert.checkKey },
-      });
-      sent = sent || result.sent > 0;
-    }
+    sent = sent || result.sent > 0;
   }
 
   return sent;

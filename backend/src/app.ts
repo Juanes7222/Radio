@@ -33,7 +33,8 @@ import noticeVideosRouter from "./modules/notices/noticeVideos.routes";
 import logsRouter from "./modules/systemLogs/logs.routes";
 import systemJobsRouter from "./modules/systemJobs/systemJobs.routes";
 import backupsRouter from "./modules/backups/backups.routes";
-import healthRouter from "./modules/health/health.routes";
+import { healthAdminRouter, healthPublicRouter } from "./modules/health/health.routes";
+import { getHealthStatusSnapshot } from "./modules/health/health.service";
 import swaggerFile from "./swagger-output.json";
 import { NOTICE_IMAGES_DIR, NOTICE_VIDEOS_DIR } from "./modules/notices/media/media.storage";
 
@@ -47,7 +48,12 @@ export function createApp(): Express {
   // Skip the log-viewer own endpoints and healthchecks: without this,
   // every poll of the admin panel writes a morgan line into the PM2
   // file that the panel itself reads, creating self-amplifying noise.
-  const SILENT_LOG_PATHS = ["/admin-api/logs", "/health", "/admin-api/health"];
+  const SILENT_LOG_PATHS = [
+    "/admin-api/logs",
+    "/health",
+    "/admin-api/health",
+    "/api/health/public",
+  ];
   app.use(
     morgan("tiny", {
       skip: (req) => SILENT_LOG_PATHS.some((p) => req.originalUrl === p || req.originalUrl.startsWith(`${p}?`) || req.originalUrl.startsWith(`${p}/`)),
@@ -118,7 +124,7 @@ export function createApp(): Express {
   app.use("/admin-api/logs", logsRouter);
   app.use("/admin-api/jobs", systemJobsRouter);
   app.use("/admin-api/backups", backupsRouter);
-  app.use("/admin-api/health", healthRouter);
+  app.use("/admin-api/health/watchdog", healthAdminRouter);
 
   // Reusable optimized images - serve with immutable cache
   app.use(
@@ -165,7 +171,7 @@ export function createApp(): Express {
     })
   );
   app.use("/api/prayer", prayerRouter);
-  app.use("/api/health", healthRouter);
+  app.use("/api/health", healthPublicRouter);
 
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
@@ -174,7 +180,11 @@ export function createApp(): Express {
   });
 
   app.get("/admin-api/health", (_req, res) => {
-    res.json({ ok: true, time: new Date().toISOString() });
+    res.json({
+      ok: true,
+      time: new Date().toISOString(),
+      status: getHealthStatusSnapshot().status,
+    });
   });
 
   app.use(errorHandler);
