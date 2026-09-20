@@ -5,11 +5,11 @@
   "main": "dist/index.js",
   "scripts": {
     "swagger": "ts-node src/swagger.ts",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:migrate:status": "prisma migrate status",
-    "prisma:migrate:resolve": "prisma migrate resolve",
+    "prisma:generate": "prisma generate --schema prisma/schema",
+    "prisma:migrate": "prisma migrate dev --schema prisma/schema",
+    "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema",
+    "prisma:migrate:status": "prisma migrate status --schema prisma/schema",
+    "prisma:migrate:resolve": "prisma migrate resolve --schema prisma/schema",
     "dev": "pnpm run swagger && ts-node-dev --respawn --transpile-only --exit-child src/index.ts",
     "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && pnpm run prisma:generate && pnpm run swagger && tsc"
   },

@@ -1,0 +1,82 @@
+// In-app notice for web and mobile — not a push notification, queried and
+// displayed inside the UI with time window and per-user limits.
+model AppNotice {
+  id                  String   @id @default(uuid())
+  title               String
+  body                String
+  imageUrl            String?  @map("image_url") // deprecated: use galleryItems
+  videoUrl            String?  @map("video_url") // deprecated: use galleryItems
+  ctaLabel            String?  @map("cta_label")
+  ctaUrl              String?  @map("cta_url")
+  variant             String   @default("info") // info | event | warning | prayer
+  audience            String   @default("all") // all | zone | platform | program | devices
+  audienceZoneId      String?  @map("audience_zone_id")
+  audiencePlatform    String?  @map("audience_platform")
+  audienceProgram     String?  @map("audience_program")
+  audienceDeviceIds   String?  @map("audience_device_ids") // JSON array when audience=devices
+  displayMode         String   @default("toast") @map("display_mode") // toast | modal
+  startsAt            DateTime @map("starts_at")
+  endsAt              DateTime @map("ends_at")
+  maxDisplaysPerUser  Int      @default(3) @map("max_displays_per_user") // 0 = unlimited
+  dismissible         Boolean  @default(true)
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  galleryItems        NoticeGalleryItem[]
+
+  @@map("app_notices")
+  @@index([isActive])
+  @@index([startsAt])
+  @@index([endsAt])
+  @@index([audience])
+}
+
+// Reusable image library for notices — optimized with sharp
+model NoticeImage {
+  id           String   @id @default(uuid())
+  filename     String   @unique // uuid.webp on disk
+  originalName String   @map("original_name")
+  url          String   // /media/notices/<filename>
+  mimeType     String   @map("mime_type")
+  size         Int      // optimized bytes
+  width        Int?
+  height       Int?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("notice_images")
+  @@index([createdAt])
+}
+
+// Reusable video library for notices — optimized to 720p H.264 with poster thumbnail
+model NoticeVideo {
+  id           String   @id @default(uuid())
+  filename     String   @unique // uuid.<ext> on disk
+  originalName String   @map("original_name")
+  url          String   // /media/notice-videos/<filename>
+  posterUrl    String?  @map("poster_url") // /media/notice-videos/<poster>.webp
+  mimeType     String   @map("mime_type")
+  size         Int      // bytes after optimization
+  width        Int?
+  height       Int?
+  durationMs   Int?     @map("duration_ms")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("notice_videos")
+  @@index([createdAt])
+}
+
+// Carousel items for full-screen notices — supports multiple images/videos with ordering
+model NoticeGalleryItem {
+  id        String   @id @default(uuid())
+  noticeId  String   @map("notice_id")
+  notice    AppNotice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  type      String   // image | video
+  url       String
+  posterUrl String?  @map("poster_url")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("notice_gallery_items")
+  @@index([noticeId])
+  @@index([sortOrder])
+}

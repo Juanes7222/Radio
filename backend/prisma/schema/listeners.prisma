@@ -1,0 +1,15 @@
+// Periodic listener sampling for the admin dashboard chart.
+// The sampling job stores one point every 5 minutes.
+model ListenerSnapshot {
+  id         String   @id @default(uuid())
+  // Listeners connected at sampling time
+  current    Int      @default(0)
+  // Unique listeners (24h window reported by AzuraCast)
+  unique     Int      @default(0)
+  // Total listeners (window reported by AzuraCast)
+  total      Int      @default(0)
+  recordedAt DateTime @default(now())
+
+  @@map("listener_snapshots")
+  @@index([recordedAt])
+}

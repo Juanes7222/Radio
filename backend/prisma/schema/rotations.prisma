@@ -1,0 +1,57 @@
+// Automatic playlist rotation: copies the next N audios of a source playlist
+// (in order) into a target playlist played sequentially each day. It powers
+// scheduled Bible reading and general rotations.
+model PlaylistRotation {
+  id               String   @id @default(uuid())
+  name             String
+  // Ordered material source: 'playlist' (AzuraCast playlist) or 'folder' (library folder)
+  sourceType       String   @default("playlist") @map("source_type")
+  // AzuraCast playlist holding the ordered material (only when sourceType = 'playlist')
+  sourcePlaylistId Int      @map("source_playlist_id")
+  // AzuraCast library folder (only when sourceType = 'folder')
+  sourceFolder     String?  @map("source_folder")
+  // AzuraCast playlist rebuilt every day with the picked audios
+  targetPlaylistId Int      @map("target_playlist_id")
+  // How many audios are placed on each run (e.g. 7 chapters)
+  itemsPerDay      Int      @default(7) @map("items_per_day")
+  // 0-based position in the source playlist where the next block starts
+  cursor           Int      @default(0)
+  // When false, the rotation stops at the end of the source
+  loop             Boolean  @default(true)
+  active           Boolean  @default(true)
+  // Bible mode: the source is ordered by chapters, to publish the daily reading
+  // and notify subscribers of the program
+  bibleMode        Boolean  @default(false) @map("bible_mode")
+  translation      String? // e.g. "RVR1960"
+  // Ordinal of the first chapter in the source (allows starting elsewhere)
+  bibleStartOrdinal Int     @default(1) @map("bible_start_ordinal")
+  // Push notifications to devices subscribed to the program
+  notifyEnabled    Boolean  @default(false) @map("notify_enabled")
+  notifyProgram    String?  @map("notify_program")
+  lastRunAt        DateTime? @map("last_run_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  runs RotationRunLog[]
+
+  @@map("playlist_rotations")
+  @@index([active])
+}
+
+// History of each rotation run.
+model RotationRunLog {
+  id          String           @id @default(uuid())
+  rotationId  String           @map("rotation_id")
+  rotation    PlaylistRotation @relation(fields: [rotationId], references: [id], onDelete: Cascade)
+  runDate     DateTime         @default(now()) @map("run_date")
+  status      String // 'success', 'partial', 'error'
+  itemsPicked Int              @default(0) @map("items_picked")
+  itemsPlaced Int              @default(0) @map("items_placed")
+  // JSON with the placed titles and, in bible mode, the chapters of the day
+  details     String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@map("rotation_run_logs")
+  @@index([rotationId])
+  @@index([runDate])
+}

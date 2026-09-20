@@ -1,0 +1,69 @@
+model Device {
+  id            String    @id @default(uuid())
+  deviceId      String    @unique
+  fcmToken      String?
+  platform      String?
+  appVersion    String?
+  subscriptions String? // JSON array of subscribed program titles
+  // True when the app schedules program reminders locally (exact alarms). The
+  // server push is a fallback for devices that cannot, so they are skipped to
+  // avoid showing the same reminder twice. NULL means "unknown" (legacy app).
+  localRemindersEnabled Boolean? @map("local_reminders_enabled")
+  // Administrative zone assigned to this device (e.g. a city or region).
+  // Used to segment push notifications without requesting device location.
+  zoneId        String?
+  // Provenance of the zone: MANUAL when set by admin/user, otherwise the
+  // GeoIP provider that auto-assigned it (MAXMIND, IPWHOIS, IPAPI_CO, etc.).
+  // Null means unknown/legacy records created before this field existed.
+  zoneSource    String?   @map("zone_source")
+  zoneAssignedAt DateTime? @map("zone_assigned_at")
+  // Optional diagnostic fields populated on auto-assign (city -> zoneId).
+  zoneRegion    String?   @map("zone_region")
+  zoneCountry   String?   @map("zone_country")
+  // Last public IP observed for this device. Stored to allow bulk zone
+  // recalculation from the admin panel without requiring a new request
+  // from each device. Only the IP string is stored, not geodata.
+  lastIp        String?   @map("last_ip")
+  lastIpAt      DateTime? @map("last_ip_at")
+  lastSeen      DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+
+  prayerRequests PrayerRequest[]
+
+  @@map("devices")
+  @@index([deviceId])
+  @@index([fcmToken])
+  @@index([zoneId])
+  @@index([zoneSource])
+  @@index([lastIp])
+}
+
+// History of custom push notifications sent from the admin panel.
+model PushNotificationLog {
+  id            String   @id @default(uuid())
+  title         String
+  body          String
+  // Audience kind used to pick recipients: all, devices, zone, platform, program, active
+  audience      String
+  // JSON-encoded filters that were applied to select the recipients
+  filters       String?
+  targetedCount Int      @default(0)
+  sentCount     Int      @default(0)
+  failedCount   Int      @default(0)
+  invalidTokens Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@map("push_notification_logs")
+  @@index([createdAt])
+}
+
+model ProgramNotification {
+  id             String   @id @default(uuid())
+  programId      String   @map("program_id")
+  startTimestamp DateTime @map("start_timestamp")
+  notifiedAt     DateTime @default(now()) @map("notified_at")
+
+  @@unique([programId, startTimestamp])
+  @@map("program_notifications")
+  @@index([startTimestamp])
+}

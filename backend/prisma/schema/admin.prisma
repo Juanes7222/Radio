@@ -1,0 +1,46 @@
+// Admin users with role-based access to the admin panel.
+// Roles: SUPERADMIN (everything + user management), ADMIN (everything but users),
+// USER (dynamic permissions in `permissions` as a JSON array).
+// Login is always via Google (Firebase) and the JWT includes tokenVersion
+// to revoke sessions when deactivating a user or changing permissions.
+model AdminUser {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String    @default("")
+  picture      String    @default("")
+  role         String    @default("USER")
+  permissions  String    @default("[]")
+  isActive     Boolean   @default(true) @map("is_active")
+  tokenVersion Int       @default(0) @map("token_version")
+  createdBy    String?   @map("created_by")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  djAssignments DjAssignment[]
+
+  @@map("admin_users")
+  @@index([isActive])
+}
+
+// DJ account (AzuraCast streamer) assignment to admin panel users.
+// A streamer can be assigned to several users and a user can have several
+// streamers. `slots` is a JSON array of weekly slots in Bogota time:
+// [{ dow: 1-7 (1=monday), start: "18:00", end: "20:00" }].
+// Streamer credentials live in AzuraCast; only the mapping and the allowed
+// schedule for going live from the browser are stored here.
+model DjAssignment {
+  id              String    @id @default(uuid())
+  streamerUsername String   @map("streamer_username")
+  adminUserId     String    @map("admin_user_id")
+  adminUser       AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  slots           String    @default("[]")
+  isActive        Boolean   @default(true) @map("is_active")
+  assignedBy      String?   @map("assigned_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([streamerUsername, adminUserId])
+  @@map("dj_assignments")
+  @@index([adminUserId])
+  @@index([streamerUsername])
+}

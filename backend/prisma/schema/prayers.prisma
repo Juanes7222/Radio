@@ -1,0 +1,18 @@
+model PrayerRequest {
+  id         String    @id @default(uuid())
+  deviceId   String?
+  device     Device?   @relation(fields: [deviceId], references: [deviceId])
+  name       String
+  request    String
+  estado     String    @default("PENDIENTE")
+  respuesta  String?
+  answeredAt DateTime?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@map("prayer_requests")
+  @@index([deviceId])
+  @@index([createdAt])
+  @@index([estado])
+}

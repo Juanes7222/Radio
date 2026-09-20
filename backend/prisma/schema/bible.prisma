@@ -1,0 +1,39 @@
+model BibleTranslation {
+  id           String      @id @default(uuid())
+  abbreviation String      @unique // e.g. "RVR60", "NVI"
+  name         String      // e.g. "Reina Valera 1960"
+  books        BibleBook[]
+}
+
+model BibleBook {
+  id            String           @id @default(uuid())
+  translationId String
+  translation   BibleTranslation @relation(fields: [translationId], references: [id])
+  name          String           // "Genesis", "Exodus"
+  abbreviation  String           // "Gen", "Ex"
+  testament     String           // "OT" or "NT"
+  order         Int              // 1 to 66
+  chapters      BibleChapter[]
+
+  @@unique([translationId, name])
+}
+
+model BibleChapter {
+  id     String    @id @default(uuid())
+  bookId String
+  book   BibleBook @relation(fields: [bookId], references: [id])
+  number Int       // 1, 2, 3...
+  verses BibleVerse[]
+
+  @@unique([bookId, number])
+}
+
+model BibleVerse {
+  id        String       @id @default(uuid())
+  chapterId String
+  chapter   BibleChapter @relation(fields: [chapterId], references: [id])
+  number    Int          // 1, 2, 3...
+  text      String
+
+  @@unique([chapterId, number])
+}

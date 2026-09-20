@@ -1,0 +1,14 @@
+// Entry point for the multi-file Prisma schema.
+// Every *.prisma file inside prisma/schema/ is combined by the Prisma CLI
+// (GA since v6.7.0, no preview flag needed). Relations work across files
+// without explicit imports.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  // Relative to this file: prisma/schema/../dev.db
+  url      = "file:../dev.db"
+}
