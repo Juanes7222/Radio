@@ -9,6 +9,7 @@ export { default as AdminPrayerRequests } from './AdminPrayerRequests';
 export { default as AdminStreaming } from './AdminStreaming';
 export { default as AdminSchedule } from './AdminSchedule';
 export { default as AdminScheduleCategories } from './AdminScheduleCategories';
+export { default as AdminNotificationPrograms } from './AdminNotificationPrograms';
 export { default as AdminUpload } from './AdminUpload';
 export { default as AdminLocutor } from './locutor';
 export { default as AdminDevices } from './AdminDevices';

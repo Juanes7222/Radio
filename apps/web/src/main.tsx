@@ -35,6 +35,7 @@ const AdminPrayerRequests = lazy(() => import('./pages/admin/AdminPrayerRequests
 const AdminStreaming = lazy(() => import('./pages/admin/AdminStreaming.tsx'))
 const AdminSchedule = lazy(() => import('./pages/admin/AdminSchedule.tsx'))
 const AdminScheduleCategories = lazy(() => import('./pages/admin/AdminScheduleCategories.tsx'))
+const AdminNotificationPrograms = lazy(() => import('./pages/admin/AdminNotificationPrograms.tsx'))
 const AdminUpload = lazy(() => import('./pages/admin/AdminUpload.tsx'))
 const AdminLocutor = lazy(() => import('./pages/admin/locutor/index.tsx'))
 const AdminDevices = lazy(() => import('./pages/admin/AdminDevices.tsx'))
@@ -84,6 +85,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="live" element={<AdminLive />} />
                   <Route path="schedule" element={<AdminSchedule />} />
                   <Route path="schedule/categories" element={<AdminScheduleCategories />} />
+                  <Route path="notification-programs" element={<AdminNotificationPrograms />} />
                   <Route path="upload" element={<AdminUpload />} />
                   <Route path="locutor" element={<AdminLocutor />} />
                   <Route path="devices" element={<AdminDevices />} />

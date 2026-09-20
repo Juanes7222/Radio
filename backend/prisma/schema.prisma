@@ -233,6 +233,25 @@ model ScheduleCategory {
   @@index([sortOrder])
 }
 
+// Programs the mobile app offers as notification subscriptions.
+// The list is synced from the AzuraCast schedule, and the admin decides which
+// ones are shown to users (notifable) and which come pre-selected (default).
+model NotificationProgram {
+  id        String  @id @default(uuid())
+  // Normalized title (lowercase, no accents): the stable key the app and the
+  // push job match against, so renames with different casing do not fork rows.
+  titleKey  String  @unique @map("title_key")
+  // Title as it appears in the AzuraCast schedule.
+  title     String
+  notifiable Boolean @default(false)
+  isDefault Boolean @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("notification_programs")
+  @@index([notifiable])
+}
+
 model Device {
   id            String    @id @default(uuid())
   deviceId      String    @unique

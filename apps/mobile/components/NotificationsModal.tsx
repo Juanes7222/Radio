@@ -13,24 +13,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import type { ScheduleItem } from '@radio/types';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { useProgramSubscriptions } from '@/hooks/useProgramSubscriptions';
 import { ensureNotificationPermission } from '@/lib/device';
 import { openExactAlarmSettings } from '@/modules/exact-alarms';
 import { formatMediaTitle, normalizeTitle } from '@/lib/formatMedia';
-import { loadScheduleWithCache } from '@/lib/scheduleCache';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
-
-const FILLER_TITLE_KEYWORDS = ['contenido variado', 'musica', 'jingles', 'jingle'];
-
-/** Program titles offered as subscriptions, without the filler playlists. */
-function extractPrograms(schedule: ScheduleItem[]): string[] {
-  return Array.from(new Set(schedule.map((item) => item.title))).filter((title) => {
-    const normalized = normalizeTitle(title);
-    return !FILLER_TITLE_KEYWORDS.some((keyword) => normalized.includes(keyword));
-  });
-}
 
 interface NotificationsModalProps {
   visible: boolean;
@@ -50,14 +38,15 @@ export function NotificationsModal({
   exactAlarmGranted,
 }: NotificationsModalProps) {
   const { 
-    subscribedPrograms, 
+    subscribedPrograms,
+    notifiablePrograms,
     toggleSubscription, 
     subscribeAll, 
     unsubscribeAll 
   } = useProgramSubscriptions();
   
   const [programs, setPrograms] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const loading = notifiablePrograms.length === 0;
 
   // Program reminders are shown by the OS, so the display permission is
   // required: subscribing without it stores the program server-side but the
@@ -76,28 +65,11 @@ export function NotificationsModal({
     );
   }, []);
 
+  // The notifiable list comes from the admin-configured catalog, not from the
+  // schedule: the admin decides what is offered even before the next sync.
   useEffect(() => {
-    if (!visible) return;
-
-    let cancelled = false;
-    setLoading(true);
-
-    (async () => {
-      try {
-        const schedule = await loadScheduleWithCache();
-        if (cancelled || !schedule) return;
-        setPrograms(extractPrograms(schedule));
-      } catch (err) {
-        console.error('Error fetching schedule for notifications:', err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [visible]);
+    setPrograms(notifiablePrograms);
+  }, [notifiablePrograms]);
 
   return (
     <AppBottomSheet visible={visible} onClose={onClose} snapPoints={['72%', '85%']}>

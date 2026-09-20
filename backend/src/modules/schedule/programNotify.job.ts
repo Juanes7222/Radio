@@ -6,6 +6,7 @@ import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
 import { parseSubscriptions } from "../../shared/utils/subscriptions";
 import { describeError } from "../../shared/utils/errors";
+import { syncProgramsFromSchedule } from "../notifications/programCatalog.service";
 
 /**
  * FCM sees a traffic peak in the minutes around :00, :15, :30 and :45. A
@@ -112,6 +113,20 @@ function formatStartTime(startTimestamp: number): string {
   });
 }
 
+/**
+ * Feeds the admin-configurable notification program catalog with the raw
+ * schedule. Best effort: a failure here must never stop the reminders.
+ */
+async function syncProgramCatalog(schedule: unknown[]): Promise<void> {
+  try {
+    await syncProgramsFromSchedule(schedule);
+  } catch (err) {
+    logger.warn("ProgramNotify", "Program catalog sync failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 async function fetchUpcomingPrograms(): Promise<UpcomingProgram[]> {
   const now = new Date();
   const windowEnd = new Date(
@@ -128,6 +143,7 @@ async function fetchUpcomingPrograms(): Promise<UpcomingProgram[]> {
 
   const items = Array.isArray(data) ? data : [];
   warnOnUnexpectedPayload(items);
+  await syncProgramCatalog(items);
   return extractUpcomingPrograms(items);
 }
 

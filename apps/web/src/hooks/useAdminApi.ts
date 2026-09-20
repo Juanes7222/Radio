@@ -30,6 +30,7 @@ import type {
   RotationRunLog,
   RotationRunResult,
   ScheduleCategory,
+  NotificationProgram,
   WorkerJob,
   WorkerNodeInfo,
   AppNoticeList,
@@ -417,6 +418,32 @@ export function useAdminApi() {
       request({
         method: 'DELETE',
         url: `/admin-api/schedule-categories/${id}`,
+      }),
+    [request]
+  );
+
+  // ── Programas notificables (app móvil) ─────────────────────
+  const getNotificationPrograms = useCallback(
+    () => request<NotificationProgram[]>({ url: '/admin-api/notification-programs' }),
+    [request]
+  );
+
+  const syncNotificationPrograms = useCallback(
+    () =>
+      request<{ ok: boolean; titles: number }>({
+        method: 'POST',
+        url: '/admin-api/notification-programs/sync',
+        timeout: 30000,
+      }),
+    [request]
+  );
+
+  const updateNotificationProgram = useCallback(
+    (id: string, data: { notifiable?: boolean; isDefault?: boolean }) =>
+      request<NotificationProgram>({
+        method: 'PUT',
+        url: `/admin-api/notification-programs/${id}`,
+        data,
       }),
     [request]
   );
@@ -849,6 +876,9 @@ export function useAdminApi() {
     createScheduleCategory,
     updateScheduleCategory,
     deleteScheduleCategory,
+    getNotificationPrograms,
+    syncNotificationPrograms,
+    updateNotificationProgram,
     getLocutorStatus,
     getLocutorTemplates,
     saveLocutorTemplate,

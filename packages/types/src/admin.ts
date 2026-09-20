@@ -247,6 +247,18 @@ export interface ScheduleCategory {
 }
 
 /** Public summary of a schedule category sent to listeners */
+/** Program offered by the mobile app as a notification subscription */
+export interface NotificationProgram {
+  id: string;
+  titleKey: string;
+  title: string;
+  notifiable: boolean;
+  isDefault: boolean;
+  /** False for station filler (music, jingles), which cannot be notifiable. */
+  isProgram: boolean;
+}
+
+/** Public summary of a schedule category sent to listeners */
 export interface ScheduleCategorySummary {
   id: string;
   name: string;

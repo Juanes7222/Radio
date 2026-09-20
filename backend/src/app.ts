@@ -23,6 +23,8 @@ import prayerRouter from "./modules/prayer/prayer.routes";
 import devicesRouter from "./modules/devices/devices.routes";
 import internalTestRouter from "./modules/internal/internalTest.routes";
 import scheduleCategoriesRouter from "./modules/schedule/category.routes";
+import programCatalogAdminRouter from "./modules/notifications/programCatalog.routes";
+import programCatalogPublicRouter from "./modules/notifications/public.routes";
 import devicesAdminRouter from "./modules/devices/admin.routes";
 import listenerHistoryRouter from "./modules/azuracast/listenerHistory.routes";
 import rotationRouter from "./modules/rotation/rotation.routes";
@@ -113,6 +115,8 @@ export function createApp(): Express {
   app.use(releasesRouter);
   app.use("/internal", internalTestRouter);
   app.use("/admin-api/schedule-categories", scheduleCategoriesRouter);
+  app.use("/admin-api/notification-programs", programCatalogAdminRouter);
+  app.use("/api/notification-programs", programCatalogPublicRouter);
   app.use("/api/devices", devicesRouter);
   app.use("/admin-api/devices", devicesAdminRouter);
   app.use("/admin-api/listeners", listenerHistoryRouter);

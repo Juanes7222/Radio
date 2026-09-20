@@ -10,21 +10,80 @@ export const SUBSCRIPTIONS_KEY = 'radio-program-subscriptions';
 export const SUBSCRIPTIONS_EVENT = 'onSubscriptionsUpdated';
 export const LOCAL_REMINDERS_KEY = 'radio-local-reminders-enabled';
 
-export const DEFAULT_SUBSCRIPTIONS: string[] = [
-  "Rev Javier Carrascal",
-  "Rev Humberto Henao",
-  "Rev José Soto",
-  "Noticias de Israel",
-  "Lectura Bíblica"
-];
+/** Cached server catalog: which programs are notifiable and which are default. */
+export interface ProgramCatalog {
+  notifiable: string[];
+  defaults: string[];
+}
+
+const CATALOG_CACHE_KEY = 'radio-program-catalog';
+const CATALOG_CACHE_TIMESTAMP_KEY = 'radio-program-catalog-timestamp';
+const CATALOG_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 
 function parseStoredSubscriptions(raw: string | null): string[] {
-  if (!raw) return DEFAULT_SUBSCRIPTIONS;
+  if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : DEFAULT_SUBSCRIPTIONS;
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return DEFAULT_SUBSCRIPTIONS;
+    return [];
+  }
+}
+
+async function readStoredCatalog(): Promise<ProgramCatalog | null> {
+  try {
+    const raw = await AsyncStorage.getItem(CATALOG_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ProgramCatalog;
+    if (!Array.isArray(parsed.notifiable)) return null;
+    return { notifiable: parsed.notifiable, defaults: parsed.defaults ?? [] };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetches the admin-configured program catalog from the server. Stored
+ * subscriptions that the admin removed are pruned: what the server already
+ * pruned stays pruned here, so a disabled program cannot resurface.
+ */
+export async function loadProgramCatalog(): Promise<ProgramCatalog> {
+  const cachedTimestamp = Number(
+    await AsyncStorage.getItem(CATALOG_CACHE_TIMESTAMP_KEY)
+  );
+  const cached = await readStoredCatalog();
+  const cachedIsFresh =
+    cached !== null &&
+    Number.isFinite(cachedTimestamp) &&
+    Date.now() - cachedTimestamp < CATALOG_CACHE_TTL_MS;
+
+  if (cached && cachedIsFresh) {
+    return cached;
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/notification-programs`);
+    if (!response.ok) throw new Error(String(response.status));
+    const data = (await response.json()) as ProgramCatalog;
+
+    await AsyncStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(data));
+    await AsyncStorage.setItem(CATALOG_CACHE_TIMESTAMP_KEY, String(Date.now()));
+
+    // A disabled program was pruned from the device lists server-side; mirror
+    // that here so it cannot resurface as a selectable program.
+    const notifiableKeys = new Set(data.notifiable.map(normalizeTitle));
+    const storedRaw = await AsyncStorage.getItem(SUBSCRIPTIONS_KEY);
+    const stored = parseStoredSubscriptions(storedRaw);
+    const pruned = stored.filter((title) => notifiableKeys.has(normalizeTitle(title)));
+    if (pruned.length !== stored.length) {
+      await AsyncStorage.setItem(SUBSCRIPTIONS_KEY, JSON.stringify(pruned));
+    }
+
+    return data;
+  } catch {
+    // Offline or backend down: keep the last good catalog when there is one,
+    // or an empty list. Subscriptions stay untouched until the server answers.
+    return cached ?? { notifiable: [], defaults: [] };
   }
 }
 
@@ -79,27 +138,40 @@ async function syncSubscriptionsToServer(subscriptions: string[]): Promise<void>
 }
 
 export function useProgramSubscriptions() {
-  const [subscribedPrograms, setSubscribedPrograms] = useState<string[]>(DEFAULT_SUBSCRIPTIONS);
+  const [subscribedPrograms, setSubscribedPrograms] = useState<string[]>([]);
+  const [notifiablePrograms, setNotifiablePrograms] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
-  // Load persisted subscriptions on mount.
+  // Load persisted subscriptions and the server catalog on mount. The catalog
+  // decides which programs are selectable; the stored subscriptions seed the
+  // list so a fresh install can apply the admin defaults.
   useEffect(() => {
     let mounted = true;
 
     (async () => {
-      const stored = await AsyncStorage.getItem(SUBSCRIPTIONS_KEY);
-      const restored = parseStoredSubscriptions(stored);
-      if (!stored) {
+      const catalog = await loadProgramCatalog();
+      const storedRaw = await AsyncStorage.getItem(SUBSCRIPTIONS_KEY);
+      if (!mounted) return;
+
+      // The catalog load already pruned stored subscriptions against the
+      // server list, so what remains here is both user chosen and notifiable.
+      const stored = parseStoredSubscriptions(await AsyncStorage.getItem(SUBSCRIPTIONS_KEY));
+      const hasStoredSubscriptions = storedRaw !== null;
+      const defaults = catalog.defaults.filter(
+        (title) => !stored.some((item) => normalizeTitle(item) === normalizeTitle(title))
+      );
+
+      const restored = hasStoredSubscriptions && stored.length > 0 ? stored : defaults;
+      if (!hasStoredSubscriptions) {
         await AsyncStorage.setItem(SUBSCRIPTIONS_KEY, JSON.stringify(restored));
       }
-      if (!mounted) return;
-      // A fresh array changes the reference even when the content still is the
-      // default list, so the effect below always syncs once after hydration.
-      setSubscribedPrograms([...restored]);
+
+      setNotifiablePrograms([...catalog.notifiable]);
+      setSubscribedPrograms(restored);
       setHydrated(true);
     })().catch(() => {
-      // Storage unavailable: keep the in-memory defaults and let the server
-      // mirror the next change the user makes.
+      // Storage unavailable: keep an empty list and let the next load retry.
+      if (mounted) setHydrated(true);
     });
 
     return () => {
@@ -138,10 +210,11 @@ export function useProgramSubscriptions() {
     setSubscribedPrograms([]);
   }, []);
 
-  return { 
-    subscribedPrograms, 
-    toggleSubscription, 
-    subscribeAll, 
-    unsubscribeAll 
+  return {
+    subscribedPrograms,
+    notifiablePrograms,
+    toggleSubscription,
+    subscribeAll,
+    unsubscribeAll
   };
 }
