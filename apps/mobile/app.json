@@ -70,6 +70,7 @@
         {
           "icon": "./assets/icon.png",
           "color": "#8D86F4",
+          "defaultChannel": "radio-announcements",
           "sounds": [
             "./assets/audio/ring.wav"
           ]

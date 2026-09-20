@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,19 +7,30 @@ import {
   ScrollView,
   Switch,
   ActivityIndicator,
+  Alert,
+  Linking,
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { fetchSchedule, fetchScheduleCategories } from '@radio/api';
 import type { ScheduleItem } from '@radio/types';
-import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { useProgramSubscriptions } from '@/hooks/useProgramSubscriptions';
+import { ensureNotificationPermission } from '@/lib/device';
 import { openExactAlarmSettings } from '@/modules/exact-alarms';
 import { formatMediaTitle, normalizeTitle } from '@/lib/formatMedia';
-import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
+import { loadScheduleWithCache } from '@/lib/scheduleCache';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
+
+const FILLER_TITLE_KEYWORDS = ['contenido variado', 'musica', 'jingles', 'jingle'];
+
+/** Program titles offered as subscriptions, without the filler playlists. */
+function extractPrograms(schedule: ScheduleItem[]): string[] {
+  return Array.from(new Set(schedule.map((item) => item.title))).filter((title) => {
+    const normalized = normalizeTitle(title);
+    return !FILLER_TITLE_KEYWORDS.some((keyword) => normalized.includes(keyword));
+  });
+}
 
 interface NotificationsModalProps {
   visible: boolean;
@@ -48,50 +59,34 @@ export function NotificationsModal({
   const [programs, setPrograms] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Program reminders are shown by the OS, so the display permission is
+  // required: subscribing without it stores the program server-side but the
+  // reminder never becomes visible, either scheduled locally or pushed.
+  const requestNotificationAccess = useCallback(async () => {
+    const granted = await ensureNotificationPermission();
+    if (granted) return;
+
+    Alert.alert(
+      'Notificaciones desactivadas',
+      'Para recibir el recordatorio de tus programas activa las notificaciones de la app.',
+      [
+        { text: 'Ahora no', style: 'cancel' },
+        { text: 'Abrir ajustes', onPress: () => { void Linking.openSettings(); } },
+      ]
+    );
+  }, []);
+
   useEffect(() => {
     if (!visible) return;
 
     let cancelled = false;
     setLoading(true);
 
-    const extractPrograms = (schedule: ScheduleItem[]) => {
-      const uniquePrograms = Array.from(
-        new Set(schedule.map((item) => item.title))
-      ).filter(title => {
-        const normalized = title.toLowerCase();
-        return !['contenido variado', 'musica', 'jingles', 'jingle'].some(ex => normalized.includes(ex));
-      });
-      if (!cancelled) setPrograms(uniquePrograms);
-    };
-
     (async () => {
-      const cached = await readScheduleCache();
-      if (cancelled) return;
-
-      if (cached) {
-        extractPrograms(cached.schedule);
-        if (Date.now() - cached.timestamp < SCHEDULE_CACHE_TTL_MS) {
-          setLoading(false);
-          return;
-        }
-      }
-
       try {
-        const [schedule, categories] = await Promise.all([
-          fetchSchedule(BACKEND_URL),
-          fetchScheduleCategories(BACKEND_URL),
-        ]);
-        if (cancelled) return;
-        if (schedule) {
-          extractPrograms(schedule);
-          if (categories) {
-            await writeScheduleCache({
-              schedule,
-              categories,
-              timestamp: Date.now(),
-            });
-          }
-        }
+        const schedule = await loadScheduleWithCache();
+        if (cancelled || !schedule) return;
+        setPrograms(extractPrograms(schedule));
       } catch (err) {
         console.error('Error fetching schedule for notifications:', err);
       } finally {
@@ -166,7 +161,11 @@ export function NotificationsModal({
             {programs.length > 0 && (
               <View style={styles.bulkActions}>
                 <TouchableOpacity
-                  onPress={() => { Haptics.selectionAsync().catch(() => {}); subscribeAll(programs); }}
+                  onPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    void requestNotificationAccess();
+                    subscribeAll(programs);
+                  }}
                   style={styles.bulkAction}
                   activeOpacity={0.7}
                   accessibilityRole="button"
@@ -209,6 +208,7 @@ export function NotificationsModal({
                       value={isSubscribed}
                       onValueChange={() => {
                         Haptics.selectionAsync().catch(() => {});
+                        if (!isSubscribed) void requestNotificationAccess();
                         toggleSubscription(program);
                       }}
                       trackColor={{ false: Colors.borderGlass, true: Colors.signal }}

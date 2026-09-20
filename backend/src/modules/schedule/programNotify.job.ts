@@ -7,7 +7,12 @@ import { logger } from "../../shared/logger/logger";
 import { parseSubscriptions } from "../../shared/utils/subscriptions";
 import { describeError } from "../../shared/utils/errors";
 
-const CRON_SCHEDULE = "*/5 * * * *";
+/**
+ * FCM sees a traffic peak in the minutes around :00, :15, :30 and :45. A
+ * 5-minute grid cannot dodge every window, but starting at :01 avoids the
+ * exact peaks.
+ */
+const CRON_SCHEDULE = "1-56/5 * * * *";
 const LOOK_AHEAD_SECONDS = 10 * 60;
 /** Margin added to the requested window to absorb clock drift. */
 const REQUEST_MARGIN_SECONDS = 30 * 60;
@@ -24,6 +29,16 @@ interface UpcomingProgram {
   id: number;
   startTimestamp: number;
   title: string;
+}
+
+type DeliveryOutcome = "delivered" | "no_subscribers" | "delivery_failed";
+
+/** Counters of one run, logged and returned to the admin job runner. */
+export interface ProgramNotifySummary {
+  programs: number;
+  notified: number;
+  skipped: number;
+  failed: number;
 }
 
 function normalizeTitle(title: string): string {
@@ -116,9 +131,16 @@ async function fetchUpcomingPrograms(): Promise<UpcomingProgram[]> {
   return extractUpcomingPrograms(items);
 }
 
-async function notifySubscribedDevices(program: UpcomingProgram): Promise<void> {
+async function notifySubscribedDevices(program: UpcomingProgram): Promise<DeliveryOutcome> {
   const devices = await prisma.device.findMany({
-    where: { subscriptions: { not: null }, fcmToken: { not: null } },
+    where: {
+      subscriptions: { not: null },
+      fcmToken: { not: null },
+      // Devices that schedule the reminder locally are skipped: pushing them
+      // too would show the same reminder twice. Devices created before the
+      // column existed stay NULL and keep receiving the server push.
+      OR: [{ localRemindersEnabled: null }, { localRemindersEnabled: false }],
+    },
     select: { fcmToken: true, subscriptions: true },
   });
 
@@ -134,7 +156,15 @@ async function notifySubscribedDevices(program: UpcomingProgram): Promise<void> 
     }
   }
 
-  if (tokens.length === 0) return;
+  // Distinguishing "nobody subscribed" from "delivery failed" is what makes a
+  // silent reminder explainable: the first is normal, the second is a bug.
+  if (tokens.length === 0) {
+    logger.info("ProgramNotify", "No subscribed device for program", {
+      program: program.title,
+      candidateDevices: devices.length,
+    });
+    return "no_subscribers";
+  }
 
   const startTime = formatStartTime(program.startTimestamp);
   const result = await sendPushToTokens(tokens, {
@@ -157,48 +187,91 @@ async function notifySubscribedDevices(program: UpcomingProgram): Promise<void> 
     });
   }
 
+  // Firebase disabled or a batch-level error reports zero attempts with at
+  // least one token, which is never a successful delivery.
+  if (result.sent === 0) {
+    logger.error("ProgramNotify", "Program push not delivered", {
+      program: program.title,
+      tokens: tokens.length,
+      failed: result.failed,
+    });
+    return "delivery_failed";
+  }
+
   logger.info("ProgramNotify", "Program notification sent", {
     program: program.title,
     sent: result.sent,
     failed: result.failed,
   });
+  return "delivered";
 }
 
 /**
  * Notifies subscribed devices via FCM when a subscribed program is about to
- * start. Runs every 5 minutes and covers a 10-minute look-ahead window.
- * Deduplication is guaranteed by the unique (programId, startTimestamp)
- * constraint on ProgramNotification.
+ * start. The app schedules these reminders locally whenever it can, so this
+ * push is the fallback for devices that cannot (no display permission, app not
+ * opened for days), which is why devices reporting local reminders are skipped.
+ * Runs every 5 minutes and covers a 10-minute look-ahead window. Deduplication
+ * is guaranteed by the unique (programId, startTimestamp) constraint on
+ * ProgramNotification. The row is released again when the push was not
+ * delivered, so a temporary FCM failure does not swallow the reminder.
  */
-export async function runProgramNotify(): Promise<void> {
+export async function runProgramNotify(): Promise<ProgramNotifySummary> {
+  const summary: ProgramNotifySummary = {
+    programs: 0,
+    notified: 0,
+    skipped: 0,
+    failed: 0,
+  };
+
   try {
     const programs = await fetchUpcomingPrograms();
+    summary.programs = programs.length;
+
     if (programs.length === 0) {
       await prisma.programNotification.deleteMany({
         where: { startTimestamp: { lt: new Date(Date.now() - RETENTION_DAYS * 86400_000) } },
       });
-      return;
+      return summary;
     }
 
     for (const program of programs) {
+      const startTimestamp = new Date(program.startTimestamp * 1000);
+
       try {
         await prisma.programNotification.create({
           data: {
             programId: String(program.id),
-            startTimestamp: new Date(program.startTimestamp * 1000),
+            startTimestamp,
           },
         });
       } catch (err) {
         const code = (err as { code?: string }).code;
-        if (code === "P2002") continue;
+        if (code === "P2002") {
+          summary.skipped += 1;
+          continue;
+        }
         throw err;
       }
 
-      await notifySubscribedDevices(program);
+      const outcome = await notifySubscribedDevices(program);
+      if (outcome !== "delivery_failed") {
+        summary.notified += 1;
+        continue;
+      }
+
+      summary.failed += 1;
+      await prisma.programNotification.deleteMany({
+        where: { programId: String(program.id), startTimestamp },
+      });
     }
+
+    logger.info("ProgramNotify", "Run finished", { ...summary });
   } catch (err) {
     logger.error("ProgramNotify", "Run failed", describeError(err));
   }
+
+  return summary;
 }
 
 export function registerProgramNotifyJob(): void {

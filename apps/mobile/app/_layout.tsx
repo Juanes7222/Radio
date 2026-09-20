@@ -19,7 +19,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { initTrackPlayer, PlaybackService } from '../service';
 import { FacebookLiveProvider } from '@/hooks/useFacebookLive';
 import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
-import { registerDevice, updateFCMToken } from '@/lib/device';
+import { ensureNotificationChannels, registerDevice, updateFCMToken } from '@/lib/device';
 import { NoticeOverlay } from '@/components/NoticeOverlay';
 import { PerfOverlay } from '@/components/PerfOverlay';
 import { initPerf, markStartupStage } from '@/lib/perf';
@@ -70,6 +70,9 @@ export default function RootLayout() {
         markStartupStage('fonts_loaded');
         await initTrackPlayer();
         markStartupStage('trackplayer_ready');
+        // Android needs the channel before the push token is fetched and before
+        // the permission prompt can appear.
+        await ensureNotificationChannels();
         // Device registration is not required for first frame or audio.
         // It runs in the background so slow networks or missing push
         // services never delay the splash. Failures retry on next cold

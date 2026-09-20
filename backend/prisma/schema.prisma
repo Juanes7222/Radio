@@ -240,6 +240,10 @@ model Device {
   platform      String?
   appVersion    String?
   subscriptions String? // JSON array of subscribed program titles
+  // True when the app schedules program reminders locally (exact alarms). The
+  // server push is a fallback for devices that cannot, so they are skipped to
+  // avoid showing the same reminder twice. NULL means "unknown" (legacy app).
+  localRemindersEnabled Boolean? @map("local_reminders_enabled")
   // Administrative zone assigned to this device (e.g. a city or region).
   // Used to segment push notifications without requesting device location.
   zoneId        String?

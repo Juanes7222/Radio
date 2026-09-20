@@ -9,10 +9,7 @@ function resolveTargetRoute(data: NotificationData): Href {
     return '/';
   }
 
-  if (data?.isProgramNotify) {
-    return '/';
-  }
-
+  // Program reminders, local or server sent, open the program in the schedule.
   if (data?.type === 'program_start') {
     const programTitle = data?.programTitle;
     if (programTitle) {

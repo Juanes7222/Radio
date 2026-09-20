@@ -7,6 +7,15 @@ import { BACKEND_URL } from '@/constants/api';
 const DEVICE_ID_KEY = '@radio/deviceId';
 const FCM_TOKEN_KEY = '@radio/fcmToken';
 
+/**
+ * Android channel every visible notification uses, local and server sent. It
+ * must match `ANDROID_NOTIFICATION_CHANNEL_ID` on the backend and the
+ * `defaultChannel` of the expo-notifications plugin in app.json. The alarm
+ * feature keeps its own channel because it plays a different sound.
+ */
+export const NOTIFICATION_CHANNEL_ID = 'radio-announcements';
+const NOTIFICATION_CHANNEL_NAME = 'Avisos de la emisora';
+
 function generateUUID(): string {
   const hex = '0123456789abcdef';
   let uuid = '';
@@ -39,14 +48,53 @@ export async function getDeviceId(): Promise<string> {
 }
 
 // The push token does not require display notification permission (the token
-// itself is granted by the OS), so this never prompts the user. Local alarms
-// request the display permission themselves, when the user arms one.
+// itself is granted by the OS), so this never prompts the user. Features that
+// rely on a visible notification request the permission when the user opts in
+// to them, through ensureNotificationPermission().
 export async function getFCMToken(): Promise<string | null> {
   try {
     const tokenData = await Notifications.getDevicePushTokenAsync();
     return tokenData.data;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Creates the Android channel shared by program reminders and server pushes.
+ * Android 13+ does not show the permission prompt until a channel exists, and
+ * FCM needs it to keep messages out of its own fallback channel, which the
+ * user cannot configure.
+ */
+export async function ensureNotificationChannels(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNEL_ID, {
+      name: NOTIFICATION_CHANNEL_NAME,
+      importance: Notifications.AndroidImportance.HIGH,
+      sound: 'default',
+      vibrationPattern: [0, 250, 250, 250],
+    });
+  } catch {
+    // The channel is created again on the next start if this fails.
+  }
+}
+
+/**
+ * Requests the OS display permission needed to show push notifications in the
+ * tray (Android 13+ and iOS). Fetching the push token does not request it, so
+ * without this the FCM reminders are delivered but never displayed.
+ */
+export async function ensureNotificationPermission(): Promise<boolean> {
+  try {
+    const current = await Notifications.getPermissionsAsync();
+    if (current.status === 'granted') return true;
+    if (!current.canAskAgain) return false;
+
+    const requested = await Notifications.requestPermissionsAsync();
+    return requested.status === 'granted';
+  } catch {
+    return false;
   }
 }
 

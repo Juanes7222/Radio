@@ -213,6 +213,16 @@ router.put("/:deviceId/subscriptions", async (req, res) => {
     return;
   }
 
+  // Optional: the app reports whether it schedules program reminders locally.
+  // Absent means "leave it as it is", so older builds keep the previous value.
+  const rawLocalReminders: unknown = req.body?.localRemindersEnabled;
+  if (rawLocalReminders !== undefined && typeof rawLocalReminders !== "boolean") {
+    res.status(400).json({ error: "localRemindersEnabled debe ser booleano" });
+    return;
+  }
+  const localReminders =
+    typeof rawLocalReminders === "boolean" ? { localRemindersEnabled: rawLocalReminders } : {};
+
   const trimmedDeviceId = deviceId.trim();
   const clientIp = getClientIp(req);
 
@@ -224,23 +234,27 @@ router.put("/:deviceId/subscriptions", async (req, res) => {
         subscriptions: JSON.stringify(subscriptions),
         lastIp: clientIp,
         lastIpAt: clientIp ? new Date() : null,
+        ...localReminders,
       },
       update: {
         subscriptions: JSON.stringify(subscriptions),
         lastSeen: new Date(),
         ...(clientIp ? { lastIp: clientIp, lastIpAt: new Date() } : {}),
+        ...localReminders,
       },
     });
 
     logger.info("Devices", "Subscriptions updated", {
       deviceId: trimmedDeviceId,
       count: subscriptions.length,
+      ...localReminders,
     });
     void assignZoneIfMissing(trimmedDeviceId, clientIp, getTrustedProxyCity(req));
     if (clientIp) void persistLastIp(trimmedDeviceId, clientIp);
     res.json({
       deviceId: device.deviceId,
       subscriptions,
+      localRemindersEnabled: device.localRemindersEnabled,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
