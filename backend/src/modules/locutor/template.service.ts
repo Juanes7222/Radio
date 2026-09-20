@@ -1,5 +1,6 @@
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { getStationTime } from "../../shared/utils/date";
 
 const SPANISH_NUMBERS: Record<number, string> = {
   0: "cero",
@@ -118,18 +119,16 @@ const PERIOD_WORDS: Record<number, string> = {
   23: "de la noche",
 };
 
-function getPeriod(): string {
-  const hour = new Date().getHours();
+function getPeriod(hour: number): string {
   return PERIOD_WORDS[hour] ?? "";
 }
 
-function getDayName(): string {
+function getDayName(dayIndex: number): string {
   const days = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
-  return days[new Date().getDay()];
+  return days[dayIndex] ?? "";
 }
 
-function getFormattedDate(): string {
-  const date = new Date();
+function getFormattedDate(day: number, month: number): string {
   const months = [
     "enero",
     "febrero",
@@ -144,11 +143,10 @@ function getFormattedDate(): string {
     "noviembre",
     "diciembre",
   ];
-  return `${date.getDate()} de ${months[date.getMonth()]}`;
+  return `${day} de ${months[month - 1] ?? ""}`;
 }
 
-function getPeriodGreeting(): string {
-  const hour = new Date().getHours();
+function getPeriodGreeting(hour: number): string {
   if (hour < 12) return "días";
   if (hour < 19) return "tardes";
   return "noches";
@@ -176,20 +174,20 @@ function getTimeText(hour24: number, minutes: number): string {
 }
 
 export function renderTemplate(template: string, variables: Record<string, string> = {}): string {
-  const now = new Date();
-  const currentHour = now.getHours();
-  const currentMinutes = now.getMinutes();
+  const stationTime = getStationTime();
+  const currentHour = stationTime.hour;
+  const currentMinutes = stationTime.minute;
   const currentHour12 = currentHour % 12 || 12;
 
   const computedDefaults: Record<string, string | number> = {
     hour: currentHour12,
     hour24: currentHour,
     hour_text: HOUR_WORDS[currentHour12] ?? String(currentHour12),
-    period: getPeriod(),
-    period_greeting: getPeriodGreeting(),
+    period: getPeriod(currentHour),
+    period_greeting: getPeriodGreeting(currentHour),
     station_name: config.locutor.stationName,
-    day: getDayName(),
-    date: getFormattedDate(),
+    day: getDayName(stationTime.dayIndex),
+    date: getFormattedDate(stationTime.day, stationTime.month),
     minutes: String(currentMinutes).padStart(2, "0"),
     minutes_text: numberToSpanishMinutes(currentMinutes),
     time_text: getTimeText(currentHour, currentMinutes),

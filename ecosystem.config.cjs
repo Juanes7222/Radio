@@ -11,6 +11,10 @@ module.exports = {
       max_memory_restart: "300M",
       env: {
         NODE_ENV: "production",
+        // El sistema de avisos razona sobre la hora de la emisora: el proceso
+        // debe compartir la zona horaria de TIMEZONE para que la hora local
+        // coincida con los cron y con las fechas que guarda en la base.
+        TZ: process.env.TZ ?? "America/Bogota",
       },
       env_file: "/var/www/radio/backend/.env",
       error_file: "/var/log/pm2/radio-backend-error.log",

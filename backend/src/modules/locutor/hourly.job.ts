@@ -1,15 +1,14 @@
 import cron from "node-cron";
 import { prisma } from "../../infrastructure/database/prisma";
 import { generateOrReuseAudio, scheduleAudioForDate } from "./audioGeneration.service";
-import { getPendingHoursForToday } from "./timeSlotPlanner.service";
-import { filterSafeHours } from "../schedule/analyzer.service";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { getStationDayStart, getStationTime } from "../../shared/utils/date";
 
 /**
  * Generates a single hour audio on-demand.
  */
-async function generateHourAudio(hour24: number) {
+async function generateHourAudio(hour24: number, dayStart: Date) {
   const group =
     hour24 >= 6 && hour24 <= 11
       ? "morning"
@@ -25,10 +24,7 @@ async function generateHourAudio(hour24: number) {
       group,
     });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    await scheduleAudioForDate(result.audioId, today, hour24);
+    await scheduleAudioForDate(result.audioId, dayStart, hour24);
 
     logger.info("HourlyCheck", "Generated or reused audio for hour", {
       hour: hour24,
@@ -46,16 +42,18 @@ async function generateHourAudio(hour24: number) {
 }
 
 export async function runHourlyCheck(): Promise<void> {
-  const nextHour = (new Date().getHours() + 1) % 24;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // At :45 the hour that starts in 15 minutes may belong to the next station
+  // day (23:45 -> 00:00), so the hour and its day come from the same instant.
+  const nextHourInstant = new Date(Date.now() + 60 * 60 * 1000);
+  const nextHour = getStationTime(nextHourInstant).hour;
+  const nextHourDay = getStationDayStart(nextHourInstant);
 
   logger.info("HourlyCheck", "Checking audio for next hour", { nextHour });
 
   try {
     const existing = await prisma.audioSchedule.findFirst({
       where: {
-        scheduledDate: today,
+        scheduledDate: nextHourDay,
         scheduledHour: nextHour,
         enabled: true,
       },
@@ -72,25 +70,15 @@ export async function runHourlyCheck(): Promise<void> {
       return;
     }
 
-    // Check if it's safe to insert an announcement.
-    // If the schedule analyzer cannot reach AzuraCast or reports
-    // no safe hours, we still attempt to generate the audio so the
-    // radio can announce the time. Announcements are injected into
-    // the play queue and do not require empty time blocks.
-    const safeHours = await filterSafeHours([nextHour]);
-    if (safeHours.length === 0) {
-      logger.info("HourlyCheck", "Schedule analyzer reports no safe hours, proceeding anyway", {
-        nextHour,
-      });
-    }
-
+    // Announcements are injected into the play queue and do not require empty
+    // time blocks, so a blocked hour is not a reason to skip the generation.
     // If missing or not ready, generate it
     logger.warn("HourlyCheck", "Missing or invalid audio for next hour, regenerating", {
       nextHour,
       existingStatus: existing?.audio?.status || "none",
     });
 
-    await generateHourAudio(nextHour);
+    await generateHourAudio(nextHour, nextHourDay);
   } catch (err) {
     logger.error("HourlyCheck", "Error during hourly check", {
       nextHour,

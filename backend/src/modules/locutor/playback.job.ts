@@ -13,6 +13,7 @@ import {
 } from "../azuracast/playback.service";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { getStationTime } from "../../shared/utils/date";
 
 const TRAILING_SILENCE_SECONDS = 3;
 const MINUTES_IN_HOUR = 60;
@@ -30,10 +31,7 @@ let rescheduleRetryTimer: NodeJS.Timeout | null = null;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function getDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return getStationTime(date).dayKey;
 }
 
 function destroyActiveTasks(): void {
@@ -75,26 +73,25 @@ interface AnnouncementSlot {
 }
 
 /**
- * Builds the announcement slots for the current day: for every safe
- * hour, N random minutes with a minimum separation, skipping any slot
- * that would fire within the scheduling grace period.
+ * Builds the slots still ahead in the station day: for every safe hour, N
+ * random minutes with a minimum separation. Slots already gone are dropped
+ * (cron would push them to the next day, where the stale guard discards them)
+ * and slots inside the grace window are skipped because they could fire in the
+ * middle of re-registering the tasks.
  */
 function buildRandomSlots(
   safeHours: number[],
   perHour: number,
   gapMinutes: number
 ): AnnouncementSlot[] {
-  const now = new Date();
-  const nowTotalMinutes = now.getHours() * MINUTES_IN_HOUR + now.getMinutes();
+  const now = getStationTime();
+  const nowTotalMinutes = now.hour * MINUTES_IN_HOUR + now.minute;
   const slots: AnnouncementSlot[] = [];
 
   for (const hour of safeHours) {
     for (const minute of pickRandomMinutes(perHour, gapMinutes)) {
-      const slotTotal = hour * MINUTES_IN_HOUR + minute;
-      if (
-        slotTotal > nowTotalMinutes &&
-        slotTotal - nowTotalMinutes < SCHEDULING_GRACE_MINUTES
-      ) {
+      const minutesFromNow = hour * MINUTES_IN_HOUR + minute - nowTotalMinutes;
+      if (minutesFromNow <= 0 || minutesFromNow < SCHEDULING_GRACE_MINUTES) {
         continue;
       }
       slots.push({ hour, minute });
@@ -188,9 +185,9 @@ async function playAnnouncement(hour: number): Promise<void> {
  * streams it to the live mount and cleans up the temp files.
  */
 async function generateAndPlayNow(): Promise<boolean> {
-  const now = new Date();
-  const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
+  const now = getStationTime();
+  const currentHour = now.hour;
+  const currentMinute = now.minute;
 
   try {
     const template = await getTemplateForHour(currentHour);

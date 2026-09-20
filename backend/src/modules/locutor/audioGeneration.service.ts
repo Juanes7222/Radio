@@ -5,6 +5,7 @@ import { renderTemplate } from "./template.service";
 import { uploadAudioToAzuraCast } from "../azuracast/playback.service";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { getStationDayStart, getStationTime } from "../../shared/utils/date";
 import type { TimeSlotGroup } from "./timeSlotPlanner.service";
 
 const MEDIA_DIR = config.locutor.mediaDir;
@@ -91,11 +92,13 @@ export interface GenerationRequest {
   stationName?: string;
 }
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+/** Station day of year (1 = January 1st), used to rotate templates. */
 function getDayIndex(): number {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - start.getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
+  const { year, month, day } = getStationTime();
+  const startOfYear = Date.UTC(year, 0, 0);
+  return Math.round((Date.UTC(year, month - 1, day) - startOfYear) / DAY_IN_MS);
 }
 
 /**
@@ -172,8 +175,7 @@ export async function generateOrReuseAudio(request: GenerationRequest): Promise<
  * Finds a reusable audio matching the hour and group criteria.
  */
 async function findReusableAudio(hour: number, group: TimeSlotGroup, templateId: string) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getStationDayStart();
 
   return prisma.generatedAudio.findFirst({
     where: {
@@ -278,14 +280,15 @@ export async function scheduleAudioForDate(
   hour: number,
   azuracastPlaylistId?: string
 ): Promise<void> {
-  const dateOnly = new Date(date);
-  dateOnly.setHours(0, 0, 0, 0);
+  // Normalized here so the (scheduledDate, scheduledHour) key is the same for
+  // every writer and for the reader in playback.service.
+  const dayStart = getStationDayStart(date);
 
   await prisma.generatedAudio.update({
     where: { id: audioId },
     data: {
       lastUsedAt: new Date(),
-      lastUsedDate: dateOnly,
+      lastUsedDate: dayStart,
       useCount: { increment: 1 },
     },
   });
@@ -293,13 +296,13 @@ export async function scheduleAudioForDate(
   await prisma.audioSchedule.upsert({
     where: {
       scheduledDate_scheduledHour: {
-        scheduledDate: date,
+        scheduledDate: dayStart,
         scheduledHour: hour,
       },
     },
     create: {
       audioId,
-      scheduledDate: date,
+      scheduledDate: dayStart,
       scheduledHour: hour,
       azuracastPlaylistId: azuracastPlaylistId || null,
       enabled: true,
@@ -313,7 +316,7 @@ export async function scheduleAudioForDate(
 
   logger.info("AudioGeneration", "Scheduled audio", {
     audioId,
-    date: dateOnly.toISOString().split("T")[0],
+    date: dayStart.toISOString().split("T")[0],
     hour,
   });
 }

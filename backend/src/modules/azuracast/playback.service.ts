@@ -1,6 +1,7 @@
 import { prisma } from "../../infrastructure/database/prisma";
 import { azuracastApi, STATION_ID } from "./azuracast.client";
 import { logger } from "../../shared/logger/logger";
+import { getStationDayStart } from "../../shared/utils/date";
 import { playFileAsLive } from "../locutor/streamer.service";
 import { uploadMp3ToAzuracast } from "./upload-mp3.service";
 
@@ -23,8 +24,7 @@ export async function uploadAudioToAzuraCast(filePath: string, filename: string)
  * Icecast live streamer connection. Returns true if played.
  */
 export async function playScheduledAnnouncementForHour(hour: number): Promise<boolean> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getStationDayStart();
 
   const schedule = await prisma.audioSchedule.findFirst({
     where: {

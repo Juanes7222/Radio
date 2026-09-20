@@ -2,6 +2,7 @@ import { sendEmail } from "../../infrastructure/email/email.service";
 import { sendPushToTokens } from "../../infrastructure/firebase/notification.service";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { describeError } from "../../shared/utils/errors";
 import { startAutoDj, getPanelStatus } from "../azuracast/panel.service";
 import { runAllHealthChecks, worstStatus } from "./health.checks";
 import type {
@@ -86,18 +87,36 @@ async function notifyAdmins(alert: HealthAlertRecord): Promise<boolean> {
     <p><a href="${alertUrl}">Abrir el área afectada en el panel</a></p>
   `;
 
-  let sent = false;
-  if (config.health.emailEnabled) {
-    for (const recipient of config.notifications.email.recipients) {
-      const ok = await sendEmail(recipient, title, html);
-      sent = sent || ok;
-    }
+  const recipients = config.health.emailEnabled ? config.notifications.email.recipients : [];
+  const pushTokens =
+    config.health.pushEnabled && config.health.pushTokens.length > 0
+      ? config.health.pushTokens
+      : [];
+
+  // Without a channel the alert is never delivered, and without this log the
+  // only symptom is an endless "notification failed" warning loop.
+  if (recipients.length === 0 && pushTokens.length === 0) {
+    logger.error("Health", "No alert channel configured, alert not delivered", {
+      alert: alert.key,
+      emailEnabled: config.health.emailEnabled,
+      emailRecipients: config.notifications.email.recipients.length,
+      pushEnabled: config.health.pushEnabled,
+      pushTokens: config.health.pushTokens.length,
+    });
+    return false;
   }
 
-  if (config.health.pushEnabled && config.health.pushTokens.length > 0) {
-    const result = await sendPushToTokens(config.health.pushTokens, {
+  let sent = false;
+  for (const recipient of recipients) {
+    const ok = await sendEmail(recipient, title, html);
+    sent = sent || ok;
+  }
+
+  if (pushTokens.length > 0) {
+    const result = await sendPushToTokens(pushTokens, {
       title: "Alerta de salud",
-      body: alert.message.slice(0, 180),        data: { type: "health_alert", check: alert.checkKey, url: alertUrl },
+      body: alert.message.slice(0, 180),
+      data: { type: "health_alert", check: alert.checkKey, url: alertUrl },
     });
     sent = sent || result.sent > 0;
   }
@@ -107,8 +126,9 @@ async function notifyAdmins(alert: HealthAlertRecord): Promise<boolean> {
 
 /**
  * Alerts are deduplicated by (check, code) and only notify when they open.
- * Recovery clears the record; repeated failures re-notify after backoff up
- * to MAX_ALERT_ATTEMPTS so silence never hides an unresolved problem.
+ * Recovery clears the record; while the problem stays open the alert is
+ * delivered at most MAX_ALERT_ATTEMPTS times, RETRY_BACKOFF_MS apart, so a
+ * dead channel cannot turn the watchdog into an endless warning loop.
  */
 async function syncAlerts(results: HealthCheckResult[]): Promise<void> {
   const now = new Date().toISOString();
@@ -120,11 +140,14 @@ async function syncAlerts(results: HealthCheckResult[]): Promise<void> {
       openKeys.add(key);
       const existing = state.alerts.get(key);
 
-      if (existing && existing.resolved) {
+      if (existing?.resolved) {
         state.alerts.delete(key);
       }
 
-      const alert: HealthAlertRecord = existing ?? {
+      // A resolved record must never be reused as the open alert: it would be
+      // stored back as resolved and silence the notifications of a live issue.
+      const openAlert = existing && !existing.resolved ? existing : undefined;
+      const alert: HealthAlertRecord = openAlert ?? {
         key,
         checkKey: result.key,
         message: issue.message,
@@ -138,11 +161,11 @@ async function syncAlerts(results: HealthCheckResult[]): Promise<void> {
       };
       alert.message = issue.message;
 
-      const shouldNotify =
-        alert.notifiedAt === null ||
-        (alert.attempts < MAX_ALERT_ATTEMPTS &&
-          alert.lastAttemptAt !== null &&
-          Date.now() - new Date(alert.lastAttemptAt).getTime() > RETRY_BACKOFF_MS);
+      const attemptsLeft = alert.attempts < MAX_ALERT_ATTEMPTS;
+      const backoffElapsed =
+        alert.lastAttemptAt !== null &&
+        Date.now() - new Date(alert.lastAttemptAt).getTime() > RETRY_BACKOFF_MS;
+      const shouldNotify = attemptsLeft && (alert.attempts === 0 || backoffElapsed);
 
       if (shouldNotify) {
         const sent = await notifyAdmins(alert);
@@ -159,6 +182,12 @@ async function syncAlerts(results: HealthCheckResult[]): Promise<void> {
             alert: key,
             attempts: alert.attempts,
           });
+          if (alert.attempts >= MAX_ALERT_ATTEMPTS) {
+            logger.error("Health", "Alert notification attempts exhausted, alert stays open", {
+              alert: key,
+              attempts: alert.attempts,
+            });
+          }
         }
       }
 
@@ -199,7 +228,7 @@ async function attemptAutoDjRestart(reason: string): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     recordAction("autodj_restart", "Reinicio de AutoDJ", false, message);
-    logger.error("Health", "AutoDJ restart failed", { error: message });
+    logger.error("Health", "AutoDJ restart failed", describeError(err));
   }
 }
 
@@ -248,9 +277,7 @@ export async function runHealthCycle(): Promise<HealthOverview> {
     await syncAlerts(results);
     planRemediation(results);
   } catch (err) {
-    logger.error("Health", "Health cycle failed", {
-      error: err instanceof Error ? err.message : String(err),
-    });
+    logger.error("Health", "Health cycle failed", describeError(err));
     state.status = worstStatus([state.status, "degraded"]);
   } finally {
     state.cycleRunning = false;

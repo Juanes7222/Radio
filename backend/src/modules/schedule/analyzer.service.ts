@@ -1,6 +1,7 @@
 import axios from "axios";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { getStationDayStart, getStationTime } from "../../shared/utils/date";
 import { STATION_ID } from "../azuracast/azuracast.client";
 
 const azApi = axios.create({
@@ -49,6 +50,7 @@ const BLOCKING_KEYWORDS = [
 ];
 
 const BLOCKING_PLAYLIST_TYPES = ["streamer", "live", "custom"];
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 function isBlockingItem(item: AzuraScheduleItem): boolean {
   if (item.is_streamer || BLOCKING_PLAYLIST_TYPES.includes(item.type)) {
@@ -69,14 +71,13 @@ function isBlockingPlaylist(playlist: AzuraPlaylist): boolean {
 }
 
 /**
- * Fetches the station schedule within the boundaries of the specified target date.
+ * Fetches the station schedule inside the station calendar day that contains
+ * the target date. Boundaries are station time, not host time.
  */
 async function fetchStationScheduleSafe(targetDate: Date): Promise<AzuraScheduleItem[]> {
   try {
-    const start = new Date(targetDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(targetDate);
-    end.setHours(23, 59, 59, 999);
+    const start = getStationDayStart(targetDate);
+    const end = new Date(start.getTime() + DAY_IN_MS - 1);
 
     const { data } = await azApi.get(`/station/${STATION_ID}/schedule`, {
       params: {
@@ -107,10 +108,11 @@ async function fetchPlaylistsSafe(): Promise<AzuraPlaylist[]> {
 }
 
 /**
- * Maps standard JavaScript day index (0-6) to AzuraCast day index (1-7).
+ * Maps the station day index (0-6, Sunday first) to the AzuraCast day
+ * index used by playlist schedules (1-7, Monday first).
  */
 function getAzuraDayOfWeek(date: Date): number {
-  const day = date.getDay();
+  const day = getStationTime(date).dayIndex;
   return day === 0 ? 7 : day;
 }
 
@@ -139,27 +141,27 @@ function calculatePlaylistBlockedHours(startTime: number, endTime: number): numb
 function calculateScheduleBlockedHours(
   start: Date,
   end: Date,
-  targetDateString: string
+  targetDayKey: string
 ): number[] {
+  const startTime = getStationTime(start);
+  const endTime = getStationTime(end);
   const blocked: number[] = [];
-  const startString = start.toDateString();
-  const endString = end.toDateString();
 
-  if (startString === targetDateString) {
-    const isSameDay = endString === targetDateString;
-    let endHour = isSameDay ? end.getHours() : 23;
+  if (startTime.dayKey === targetDayKey) {
+    const isSameDay = endTime.dayKey === targetDayKey;
+    let endHour = isSameDay ? endTime.hour : 23;
 
-    if (isSameDay && end.getMinutes() === 0 && endHour > start.getHours()) {
+    if (isSameDay && endTime.minute === 0 && endHour > startTime.hour) {
       endHour--;
     }
 
-    for (let h = start.getHours(); h <= endHour; h++) {
+    for (let h = startTime.hour; h <= endHour; h++) {
       blocked.push(h);
     }
-  } else if (endString === targetDateString) {
-    let endHour = end.getHours();
+  } else if (endTime.dayKey === targetDayKey) {
+    let endHour = endTime.hour;
 
-    if (end.getMinutes() === 0 && endHour > 0) {
+    if (endTime.minute === 0 && endHour > 0) {
       endHour--;
     }
 
@@ -172,7 +174,7 @@ function calculateScheduleBlockedHours(
 }
 
 export async function analyzeSafeHours(date: Date = new Date()): Promise<number[]> {
-  const targetDateString = date.toDateString();
+  const targetDayKey = getStationTime(date).dayKey;
   const [schedule, playlists] = await Promise.all([
     fetchStationScheduleSafe(date),
     fetchPlaylistsSafe(),
@@ -187,7 +189,7 @@ export async function analyzeSafeHours(date: Date = new Date()): Promise<number[
     const start = new Date(item.start_timestamp * 1000);
     const end = new Date(item.end_timestamp * 1000);
 
-    const blockedInterval = calculateScheduleBlockedHours(start, end, targetDateString);
+    const blockedInterval = calculateScheduleBlockedHours(start, end, targetDayKey);
     blockedInterval.forEach((hour) => blockedHours.add(hour));
   }
 

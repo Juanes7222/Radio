@@ -19,6 +19,16 @@ async function bootstrap(): Promise<void> {
   const { config } = await import("./config");
   const { logger } = await import("./shared/logger/logger");
 
+  // Announcements read the station clock explicitly, but the day keys stored in
+  // the database still come from the process clock: a mismatch shifts them.
+  const processTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (processTimeZone !== config.locutor.timezone) {
+    logger.warn("Bootstrap", "Process time zone differs from station time zone", {
+      processTimeZone,
+      stationTimeZone: config.locutor.timezone,
+    });
+  }
+
   const YOUTUBE_RESUBSCRIBE_INTERVAL_MS = 20 * 60 * 60 * 1000;
   const JOB_DISPATCH_INTERVAL_MS = config.worker.jobDispatchIntervalMs;
 

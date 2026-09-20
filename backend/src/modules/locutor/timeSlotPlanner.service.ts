@@ -1,4 +1,9 @@
 import { prisma } from "../../infrastructure/database/prisma";
+import {
+  getStationDayStart,
+  getStationDayStartWithOffset,
+  getStationTime,
+} from "../../shared/utils/date";
 
 export type TimeSlotGroup = "morning" | "afternoon" | "evening" | "night";
 
@@ -26,21 +31,19 @@ function getGroupForHour(hour: number): TimeSlotGroup {
 
 function getNextDays(count: number): Date[] {
   const days: Date[] = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   for (let i = 1; i <= count; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() + i);
-    days.push(d);
+    days.push(getStationDayStartWithOffset(i));
   }
   return days;
 }
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
 function getDayOfYear(date: Date): number {
-  const start = new Date(date.getFullYear(), 0, 0);
-  const diff = date.getTime() - start.getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
+  const { year, month, day } = getStationTime(date);
+  const startOfYear = Date.UTC(year, 0, 0);
+  return Math.round((Date.UTC(year, month - 1, day) - startOfYear) / DAY_IN_MS);
 }
 
 /**
@@ -185,7 +188,7 @@ export async function getAudioStats(): Promise<{
  * Based on current time, generation should happen between 00:00 and 05:00.
  */
 export function isLowAudienceWindow(): boolean {
-  const hour = new Date().getHours();
+  const hour = getStationTime().hour;
   return hour >= 0 && hour <= 5;
 }
 
@@ -193,11 +196,8 @@ export function isLowAudienceWindow(): boolean {
  * Returns hours for the current day that still need time announcements.
  */
 export async function getPendingHoursForToday(): Promise<number[]> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const now = new Date();
-  const currentHour = now.getHours();
+  const today = getStationDayStart();
+  const currentHour = getStationTime().hour;
 
   const allHours = Array.from({ length: 24 }, (_, i) => i);
   const futureHours = allHours.filter((h) => h > currentHour);

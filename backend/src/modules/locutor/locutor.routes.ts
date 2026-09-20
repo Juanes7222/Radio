@@ -18,6 +18,7 @@ import { asyncHandler } from "../../shared/errors/async-handler";
 import { AppError } from "../../shared/errors/app-error";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { getStationDayStart, getStationTime } from "../../shared/utils/date";
 import { requireAuth, requirePermission } from "../auth/auth.middleware";
 
 const router = Router();
@@ -275,8 +276,8 @@ router.get(
 router.get(
   "/schedules",
   asyncHandler(async (req, res) => {
-    const date = req.query.date ? new Date(String(req.query.date)) : new Date();
-    date.setHours(0, 0, 0, 0);
+    const requested = req.query.date ? new Date(String(req.query.date)) : new Date();
+    const date = getStationDayStart(Number.isNaN(requested.getTime()) ? new Date() : requested);
 
     const schedules = await prisma.audioSchedule.findMany({
       where: {
@@ -315,8 +316,7 @@ router.post(
       group: getGroupForHour(hour),
     });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getStationDayStart();
 
     await scheduleAudioForDate(result.audioId, today, hour);
 
@@ -342,7 +342,7 @@ router.post(
     }
 
     const now = new Date();
-    const minute = now.getMinutes();
+    const minute = getStationTime(now).minute;
 
     const template = await getTemplateForHour(hour);
 
