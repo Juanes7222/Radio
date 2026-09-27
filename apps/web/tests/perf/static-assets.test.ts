@@ -2,10 +2,19 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import {
+  PUBLIC_ROUTES,
+  ROUTE_META,
+  SITE_URL,
+  buildSitemapXml,
+  canonicalUrl,
+} from "../../src/config/seo.config";
 
 const webRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const publicDir = join(webRoot, "public");
 const assetsDir = join(webRoot, "dist", "assets");
+const distDir = join(webRoot, "dist");
+const indexHtmlPath = join(webRoot, "index.html");
 
 // Baselines from Sep 2026: public/ was trimmed from ~1.5 MB to ~0.3 MB by
 // deleting the unreferenced favicon.svg (214 KB base64-raster wrapper),
@@ -17,6 +26,19 @@ const MAX_PUBLIC_SVG_BYTES = 50_000;
 const MAX_BUNDLED_FONTS_BYTES = 350_000;
 const MAX_LOGO_VARIANTS_PER_BASE = 3;
 const MAX_PNG_FALLBACK_BYTES = 60_000;
+// The Open Graph card is a different asset class from the PWA icon set: a
+// 1200x630 social preview with a smooth gradient costs ~215 KB where the
+// largest icon is 75 KB. It is only fetched when someone shares a link, so it
+// gets its own ceiling instead of inflating the one that keeps the icon set
+// lean.
+const OG_IMAGE_FILE = "og-image.png";
+const MAX_OG_IMAGE_BYTES = 260_000;
+const OG_IMAGE_DIMENSIONS = { width: 1200, height: 630 };
+
+/** Paths allowed to exceed MAX_PUBLIC_FILE_BYTES, with their own budgets. */
+const CEILING_EXEMPTIONS: Readonly<Record<string, number>> = {
+  [OG_IMAGE_FILE]: MAX_OG_IMAGE_BYTES,
+};
 
 interface SizedFile {
   name: string;
@@ -90,8 +112,9 @@ describe("static assets", () => {
     const files = sizedFilesIn(publicDir);
     expect(files.length).toBeGreaterThan(0);
     for (const file of files) {
+      const ceiling = CEILING_EXEMPTIONS[file.name] ?? MAX_PUBLIC_FILE_BYTES;
       expect(file.bytes, `${file.name} is ${file.bytes} bytes`).toBeLessThan(
-        MAX_PUBLIC_FILE_BYTES,
+        ceiling,
       );
     }
   });
@@ -181,5 +204,162 @@ describe("static assets", () => {
         }
       }
     }
+  });
+});
+
+/**
+ * The social preview tags in index.html. Reading them here is what the suite
+ * was missing when og:image pointed at /icon-512x512.png, a path that has
+ * never existed: the manifest check only looked at manifest.json, so the dead
+ * reference shipped unnoticed and link previews rendered imageless.
+ */
+const OG_IMAGE_REFERENCE_PATTERN = /<meta[^>]+property="og:image"[^>]+content="([^"]*)"/g;
+const TWITTER_IMAGE_REFERENCE_PATTERN = /<meta[^>]+name="twitter:image"[^>]+content="([^"]*)"/g;
+const CANONICAL_PATTERN = /<link[^>]+rel="canonical"[^>]+href="([^"]*)"/g;
+const TITLE_PATTERN = /<title>([^<]*)<\/title>/g;
+const DESCRIPTION_PATTERN = /<meta[^>]+name="description"[^>]+content="([^"]*)"/g;
+
+function collectMatches(html: string, pattern: RegExp): string[] {
+  const out: string[] = [];
+  for (const match of html.matchAll(pattern)) {
+    const value = match[1];
+    if (value !== undefined) out.push(value);
+  }
+  return out;
+}
+
+function distIndexPathForRoute(route: string): string {
+  return route === "/"
+    ? join(distDir, "index.html")
+    : join(distDir, route.replace(/^\//, ""), "index.html");
+}
+
+describe("seo metadata", () => {
+  it("declares a unique non-empty title and description per public route", () => {
+    const titles = PUBLIC_ROUTES.map((route) => ROUTE_META[route].title);
+    const descriptions = PUBLIC_ROUTES.map((route) => ROUTE_META[route].description);
+
+    // A shared title across every route is exactly the bug this config exists
+    // to prevent: one index.html used to describe all seven URLs.
+    expect(new Set(titles).size).toBe(PUBLIC_ROUTES.length);
+    expect(new Set(descriptions).size).toBe(PUBLIC_ROUTES.length);
+
+    for (const route of PUBLIC_ROUTES) {
+      const meta = ROUTE_META[route];
+      expect(meta.title.length, route).toBeGreaterThan(10);
+      expect(meta.description.length, route).toBeGreaterThan(50);
+      // Google truncates titles past ~60 chars and descriptions past ~160.
+      expect(meta.title.length, route).toBeLessThanOrEqual(70);
+      expect(meta.description.length, route).toBeLessThanOrEqual(200);
+    }
+  });
+
+  it("points every social image at an existing absolute file", () => {
+    const html = readFileSync(indexHtmlPath, "utf8");
+    const references = [
+      ...collectMatches(html, OG_IMAGE_REFERENCE_PATTERN),
+      ...collectMatches(html, TWITTER_IMAGE_REFERENCE_PATTERN),
+    ];
+
+    expect(references.length).toBeGreaterThan(0);
+    for (const reference of references) {
+      expect(reference, "Open Graph requires absolute URLs").toMatch(
+        /^https?:\/\//,
+      );
+      const path = new URL(reference).pathname;
+      expect(path.startsWith("/"), reference).toBe(true);
+      expect(
+        existsSync(join(publicDir, path)),
+        `${reference} -> ${path} is missing from public/`,
+      ).toBe(true);
+    }
+  });
+
+  it("sizes the social image for a link preview", () => {
+    expect(existsSync(join(publicDir, OG_IMAGE_FILE))).toBe(true);
+    const html = readFileSync(indexHtmlPath, "utf8");
+    expect(html).toContain(`property="og:image:width" content="${OG_IMAGE_DIMENSIONS.width}"`);
+    expect(html).toContain(`property="og:image:height" content="${OG_IMAGE_DIMENSIONS.height}"`);
+
+    // PNG header carries the real dimensions, so this catches an export that
+    // does not match the declared tags.
+    const png = readFileSync(join(publicDir, OG_IMAGE_FILE));
+    const width = png.readUInt32BE(16);
+    const height = png.readUInt32BE(20);
+    expect(width).toBe(OG_IMAGE_DIMENSIONS.width);
+    expect(height).toBe(OG_IMAGE_DIMENSIONS.height);
+  });
+
+  it("keeps the static index.html fallbacks aligned with the route config", () => {
+    const html = readFileSync(indexHtmlPath, "utf8");
+    const [title] = collectMatches(html, TITLE_PATTERN);
+    const [description] = collectMatches(html, DESCRIPTION_PATTERN);
+    const [canonical] = collectMatches(html, CANONICAL_PATTERN);
+
+    expect(title).toBe(ROUTE_META["/"].title);
+    expect(description).toBe(ROUTE_META["/"].description);
+    expect(canonical).toBe(canonicalUrl("/"));
+  });
+
+  it("blocks admin and backend paths in robots.txt and names the sitemap", () => {
+    const robots = readFileSync(join(publicDir, "robots.txt"), "utf8");
+    for (const blocked of ["/admin", "/admin-api/", "/internal/", "/panel-api/"]) {
+      expect(robots, `robots.txt must disallow ${blocked}`).toContain(
+        `Disallow: ${blocked}`,
+      );
+    }
+    expect(robots).toContain(`Sitemap: ${SITE_URL}/sitemap.xml`);
+  });
+
+  it("lists every public route in the sitemap", () => {
+    const sitemap = buildSitemapXml(new Date("2026-09-27T00:00:00Z"));
+    for (const route of PUBLIC_ROUTES) {
+      expect(sitemap, `sitemap is missing ${route}`).toContain(
+        `<loc>${canonicalUrl(route)}</loc>`,
+      );
+    }
+    expect(sitemap).toContain("<lastmod>2026-09-27</lastmod>");
+  });
+});
+
+describe("per-route build output", () => {
+  it("emits an HTML file per public route with its own metadata", () => {
+    let missing = false;
+    try {
+      statSync(distDir);
+    } catch {
+      missing = true;
+    }
+    expect(
+      missing,
+      "dist not found. Run pnpm --filter @radio/web build first.",
+    ).toBe(false);
+    if (missing) return;
+
+    for (const route of PUBLIC_ROUTES) {
+      const path = distIndexPathForRoute(route);
+      expect(existsSync(path), `${route} -> ${path} was not emitted`).toBe(true);
+
+      const html = readFileSync(path, "utf8");
+      expect(collectMatches(html, TITLE_PATTERN), route).toEqual([
+        ROUTE_META[route].title,
+      ]);
+      expect(collectMatches(html, CANONICAL_PATTERN), route).toEqual([
+        canonicalUrl(route),
+      ]);
+      expect(collectMatches(html, OG_IMAGE_REFERENCE_PATTERN), route).toHaveLength(1);
+      // The markers are build directives, not content; they must not survive.
+      expect(html, route).not.toContain("seo:head");
+      expect(html, route).not.toContain("seo:social");
+      expect(html, route).not.toContain("seo:jsonld");
+    }
+  });
+
+  it("writes a sitemap that matches the canonical host", () => {
+    const sitemapPath = join(distDir, "sitemap.xml");
+    if (!existsSync(sitemapPath)) return;
+    const sitemap = readFileSync(sitemapPath, "utf8");
+    expect(sitemap).toContain(`<loc>${SITE_URL}/</loc>`);
+    expect(sitemap).not.toContain("vozyverdad.com");
   });
 });
