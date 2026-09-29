@@ -1,0 +1,26 @@
+# La Voz de la Verdad — https://lavozverdad.com
+#
+# The public site is a client-rendered SPA. Everything under /admin and the
+# backend mount points serve the same shell or an API payload, so none of it
+# belongs in an index. The panel subdomain (panel.lavozverdad.com) is already
+# covered server-side by `X-Robots-Tag: noindex, nofollow`.
+
+User-agent: *
+Allow: /
+
+# Admin panel and its auth flow
+Disallow: /admin
+Disallow: /admin-api/
+
+# Backend mount points that are reachable on the public host
+Disallow: /internal/
+Disallow: /workers/
+Disallow: /panel-api/
+Disallow: /webhook/
+Disallow: /live-relay/
+
+# Static fallback page: not part of the public navigation
+Disallow: /maintenance.html
+
+# Generated at build time by vite.config.ts (writeBundle)
+Sitemap: https://lavozverdad.com/sitemap.xml

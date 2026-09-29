@@ -3,10 +3,13 @@ import { AnimatePresence } from 'framer-motion';
 import { MiniPlayer } from '@/components/player/MiniPlayer';
 import { StationHealthBanner } from './StationHealthBanner';
 import { PageTransition } from './PageTransition';
+import { useRouteMeta } from './useRouteMeta';
 
 export function PublicLayout() {
   const location = useLocation();
   const isHome = location.pathname === '/';
+
+  useRouteMeta();
 
   return (
     <div className="flex flex-col min-h-screen">
