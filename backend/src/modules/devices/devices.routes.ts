@@ -1,9 +1,21 @@
 import { Router } from "express";
 import { prisma } from "../../infrastructure/database/prisma";
 import { logger } from "../../shared/logger/logger";
+import {
+  issueCredential,
+  matchesCredential,
+  readBearerCredential,
+} from "../../shared/utils/credentials";
+import { createRateLimiter } from "../../shared/middleware/rate-limit";
 import { getClientIp, getTrustedProxyCity, resolveZoneDetails } from "./geoip.service";
 
 const router = Router();
+
+const deviceLimiter = createRateLimiter({
+  windowMs: 60_000,
+  max: 60,
+  message: "Demasiadas solicitudes, intenta mas tarde",
+});
 
 const MAX_SUBSCRIPTIONS = 100;
 const MAX_SUBSCRIPTION_LENGTH = 200;
@@ -101,7 +113,7 @@ function validateSubscriptions(raw: unknown): string[] | null {
   return subscriptions;
 }
 
-router.post("/", async (req, res) => {
+router.post("/", deviceLimiter, async (req, res) => {
   const { deviceId, fcmToken, platform, appVersion } = req.body;
 
   if (!deviceId || typeof deviceId !== "string" || deviceId.trim().length === 0) {
@@ -114,10 +126,37 @@ router.post("/", async (req, res) => {
   const proxyCity = getTrustedProxyCity(req);
 
   try {
+    const existing = await prisma.device.findUnique({
+      where: { deviceId: trimmedDeviceId },
+      select: { deviceSecretHash: true },
+    });
+
+    let issuedSecret: string | null = null;
+    let nextSecretHash: string | undefined;
+
+    if (!existing || !existing.deviceSecretHash) {
+      // New device, or legacy row created before device secrets existed. The
+      // first registration claims the secret; once a hash exists this path is
+      // closed, so knowing a deviceId alone is never enough to take over a
+      // device.
+      const credential = issueCredential();
+      issuedSecret = credential.token;
+      nextSecretHash = credential.tokenHash;
+    } else if (
+      !matchesCredential(
+        readBearerCredential(req.headers.authorization),
+        existing.deviceSecretHash
+      )
+    ) {
+      res.status(401).json({ error: "Credencial de dispositivo invalida" });
+      return;
+    }
+
     const device = await prisma.device.upsert({
       where: { deviceId: trimmedDeviceId },
       create: {
         deviceId: trimmedDeviceId,
+        deviceSecretHash: nextSecretHash ?? null,
         fcmToken: typeof fcmToken === "string" ? fcmToken : null,
         platform: typeof platform === "string" ? platform : null,
         appVersion: typeof appVersion === "string" ? appVersion : null,
@@ -129,6 +168,7 @@ router.post("/", async (req, res) => {
         platform: typeof platform === "string" ? platform : undefined,
         appVersion: typeof appVersion === "string" ? appVersion : undefined,
         lastSeen: new Date(),
+        ...(nextSecretHash ? { deviceSecretHash: nextSecretHash } : {}),
         ...(clientIp ? { lastIp: clientIp, lastIpAt: new Date() } : {}),
       },
     });
@@ -144,6 +184,8 @@ router.post("/", async (req, res) => {
       platform: device.platform,
       appVersion: device.appVersion,
       lastSeen: device.lastSeen,
+      // Plaintext secret, returned exactly once, only when issued or claimed.
+      ...(issuedSecret ? { deviceSecret: issuedSecret } : {}),
     });
   } catch (err) {
     logger.error("Devices", "Error registering device", {
@@ -153,7 +195,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.put("/:deviceId/token", async (req, res) => {
+router.put("/:deviceId/token", deviceLimiter, async (req, res) => {
   const { deviceId } = req.params;
   const { fcmToken } = req.body;
 
@@ -169,6 +211,21 @@ router.put("/:deviceId/token", async (req, res) => {
 
   const clientIp = getClientIp(req);
   try {
+    const existing = await prisma.device.findUnique({
+      where: { deviceId },
+      select: { deviceSecretHash: true },
+    });
+
+    // Missing device and invalid credential share the same 401: a caller that
+    // only knows deviceId must not learn whether the installation exists.
+    if (
+      !existing ||
+      !matchesCredential(readBearerCredential(req.headers.authorization), existing.deviceSecretHash)
+    ) {
+      res.status(401).json({ error: "Credencial de dispositivo invalida" });
+      return;
+    }
+
     const device = await prisma.device.update({
       where: { deviceId },
       data: {
@@ -187,11 +244,6 @@ router.put("/:deviceId/token", async (req, res) => {
       lastSeen: device.lastSeen,
     });
   } catch (err) {
-    const error = err as { code?: string };
-    if (error.code === "P2025") {
-      res.status(404).json({ error: "Dispositivo no encontrado" });
-      return;
-    }
     logger.error("Devices", "Error updating token", {
       error: err instanceof Error ? err.message : String(err),
     });
@@ -199,7 +251,7 @@ router.put("/:deviceId/token", async (req, res) => {
   }
 });
 
-router.put("/:deviceId/subscriptions", async (req, res) => {
+router.put("/:deviceId/subscriptions", deviceLimiter, async (req, res) => {
   const { deviceId } = req.params;
 
   if (!deviceId || typeof deviceId !== "string" || deviceId.trim().length === 0) {
@@ -227,16 +279,22 @@ router.put("/:deviceId/subscriptions", async (req, res) => {
   const clientIp = getClientIp(req);
 
   try {
-    const device = await prisma.device.upsert({
+    const existing = await prisma.device.findUnique({
       where: { deviceId: trimmedDeviceId },
-      create: {
-        deviceId: trimmedDeviceId,
-        subscriptions: JSON.stringify(subscriptions),
-        lastIp: clientIp,
-        lastIpAt: clientIp ? new Date() : null,
-        ...localReminders,
-      },
-      update: {
+      select: { deviceSecretHash: true },
+    });
+
+    if (
+      !existing ||
+      !matchesCredential(readBearerCredential(req.headers.authorization), existing.deviceSecretHash)
+    ) {
+      res.status(401).json({ error: "Credencial de dispositivo invalida" });
+      return;
+    }
+
+    const device = await prisma.device.update({
+      where: { deviceId: trimmedDeviceId },
+      data: {
         subscriptions: JSON.stringify(subscriptions),
         lastSeen: new Date(),
         ...(clientIp ? { lastIp: clientIp, lastIpAt: new Date() } : {}),
@@ -264,7 +322,7 @@ router.put("/:deviceId/subscriptions", async (req, res) => {
     if (msg.includes("no such column") || msg.includes("Unknown arg") || msg.includes("subscriptions")) {
       logger.error("Devices", "Possible Migrations pending", { error: msg });
     }
-    res.status(500).json({ error: "Error updating subscriptions", details: msg });
+    res.status(500).json({ error: "Error updating subscriptions" });
   }
 });
 

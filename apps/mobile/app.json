@@ -88,7 +88,8 @@
       "./plugins/withGoogleServices.js",
       "./plugins/withCmakeVersion.js",
       "./plugins/withKotlinFix.js",
-      "expo-image"
+      "expo-image",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

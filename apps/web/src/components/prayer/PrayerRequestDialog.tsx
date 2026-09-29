@@ -56,7 +56,7 @@ export const PrayerRequestDialog = memo(function PrayerRequestDialog({
       const res = await fetch(`${apiBaseUrl}/api/prayer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmedName, request: trimmedRequest }),
+        body: JSON.stringify({ name: trimmedName, request: trimmedRequest, consentAccepted: true }),
       });
 
       if (res.ok) {

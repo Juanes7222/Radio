@@ -2,6 +2,15 @@ model PrayerRequest {
   id         String    @id @default(uuid())
   deviceId   String?
   device     Device?   @relation(fields: [deviceId], references: [deviceId])
+  // SHA-256 hash of the per-request bearer token. The plaintext token is
+  // returned once at creation and is the only thing that authorizes reading
+  // or marking this request as read. Null means legacy row without a token.
+  accessTokenHash String? @map("access_token_hash")
+  // Consent evidence: when the sender accepted the data treatment policy and
+  // which policy version they saw. The timestamp is stamped by the server, so
+  // it does not depend on the client clock.
+  consentAcceptedAt DateTime? @map("consent_accepted_at")
+  consentVersion    String?   @map("consent_version")
   name       String
   request    String
   estado     String    @default("PENDIENTE")

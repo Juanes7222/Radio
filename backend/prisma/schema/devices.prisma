@@ -1,6 +1,10 @@
 model Device {
   id            String    @id @default(uuid())
   deviceId      String    @unique
+  // SHA-256 hash of the installation bearer secret. It is issued once at
+  // registration and is the only thing that authorizes writing the FCM token
+  // or the subscriptions. Null means a legacy row created before this field.
+  deviceSecretHash String? @map("device_secret_hash")
   fcmToken      String?
   platform      String?
   appVersion    String?

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors } from '@/constants/theme';
-import { getDeviceId } from '@/lib/device';
+import { forgetPrayerCredential, getPrayerCredential } from '@/lib/prayerCredentials';
 import { getPrayerStatusConfig, type PrayerItem } from '@/lib/prayer';
 
 const RESPONSE_TEXT = '#e0e7ff';
@@ -31,12 +32,14 @@ export default function PrayerDetailScreen() {
   useEffect(() => {
     async function load() {
       try {
-        const deviceId = await getDeviceId().catch(() => null);
-        const url = deviceId
-          ? `${BACKEND_URL}/api/prayer/${id}?deviceId=${encodeURIComponent(deviceId)}`
-          : `${BACKEND_URL}/api/prayer/${id}`;
-        const res = await fetch(url, {
-          headers: deviceId ? { 'x-device-id': deviceId } : undefined,
+        const token = await getPrayerCredential(id);
+        if (!token) {
+          setError('Esta petición no está disponible en este dispositivo.');
+          return;
+        }
+
+        const res = await fetch(`${BACKEND_URL}/api/prayer/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
           const data = await res.json();
@@ -45,12 +48,11 @@ export default function PrayerDetailScreen() {
           if (!data.readAt && data.respuesta) {
             fetch(`${BACKEND_URL}/api/prayer/${id}/read`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', ...(deviceId ? { 'x-device-id': deviceId } : {}) },
-              body: JSON.stringify(deviceId ? { deviceId } : {}),
+              headers: { Authorization: `Bearer ${token}` },
             }).catch(() => {});
           }
-        } else if (res.status === 403) {
-          setError('No autorizado para esta petición');
+        } else if (res.status === 401) {
+          setError('Esta petición no está disponible en este dispositivo.');
         } else {
           setError('Petición no encontrada');
         }
@@ -62,6 +64,34 @@ export default function PrayerDetailScreen() {
     }
     load();
   }, [id]);
+
+  const handleDelete = useCallback(() => {
+    Alert.alert(
+      'Eliminar petición',
+      'Se borrará de este dispositivo y del servidor. Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const token = await getPrayerCredential(id);
+              if (token) {
+                await fetch(`${BACKEND_URL}/api/prayer/${id}/own`, {
+                  method: 'DELETE',
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+              }
+            } finally {
+              await forgetPrayerCredential(id);
+              router.back();
+            }
+          },
+        },
+      ]
+    );
+  }, [id, router]);
 
   if (loading) {
     return (
@@ -108,7 +138,14 @@ export default function PrayerDetailScreen() {
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.heading}>Mi petición</Text>
-        <View style={{ width: 30 }} />
+        <TouchableOpacity
+          onPress={handleDelete}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Eliminar petición"
+        >
+          <Ionicons name="trash-outline" size={20} color={Colors.textAlt} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView

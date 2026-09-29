@@ -1,11 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import * as Crypto from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { BACKEND_URL } from '@/constants/api';
+import { deleteSecretItem, getSecretItem, setSecretItem } from './secureStorage';
 
 const DEVICE_ID_KEY = '@radio/deviceId';
 const FCM_TOKEN_KEY = '@radio/fcmToken';
+const DEVICE_SECRET_KEY = 'device_secret_v1';
 
 /**
  * Android channel every visible notification uses, local and server sent. It
@@ -16,35 +19,41 @@ const FCM_TOKEN_KEY = '@radio/fcmToken';
 export const NOTIFICATION_CHANNEL_ID = 'radio-announcements';
 const NOTIFICATION_CHANNEL_NAME = 'Avisos de la emisora';
 
-function generateUUID(): string {
-  const hex = '0123456789abcdef';
-  let uuid = '';
-  for (let i = 0; i < 36; i++) {
-    if (i === 8 || i === 13 || i === 18 || i === 23) {
-      uuid += '-';
-    } else if (i === 14) {
-      uuid += '4';
-    } else if (i === 19) {
-      uuid += hex[(Math.random() * 4) | 8];
-    } else {
-      uuid += hex[(Math.random() * 16) | 0];
-    }
-  }
-  return uuid;
-}
-
 let cachedDeviceId: string | null = null;
 
+// The deviceId is a technical installation identifier. It is never a
+// credential: device operations are authorized by the deviceSecret below.
 export async function getDeviceId(): Promise<string> {
   if (cachedDeviceId) return cachedDeviceId;
 
   let deviceId = await AsyncStorage.getItem(DEVICE_ID_KEY);
   if (!deviceId) {
-    deviceId = generateUUID();
+    deviceId = Crypto.randomUUID();
     await AsyncStorage.setItem(DEVICE_ID_KEY, deviceId);
   }
   cachedDeviceId = deviceId;
   return deviceId;
+}
+
+export async function getDeviceSecret(): Promise<string | null> {
+  return getSecretItem(DEVICE_SECRET_KEY);
+}
+
+async function clearDeviceSecret(): Promise<void> {
+  await deleteSecretItem(DEVICE_SECRET_KEY);
+}
+
+/**
+ * Ensures this installation has a deviceSecret, registering it on the server
+ * when needed. Returns null when registration could not complete, so callers
+ * can skip the operation instead of falling back to deviceId-only writes.
+ */
+export async function ensureDeviceSecret(): Promise<string | null> {
+  const existing = await getDeviceSecret();
+  if (existing) return existing;
+
+  await registerDevice();
+  return getDeviceSecret();
 }
 
 // The push token does not require display notification permission (the token
@@ -98,39 +107,62 @@ export async function ensureNotificationPermission(): Promise<boolean> {
   }
 }
 
-export async function registerDevice(): Promise<void> {
+async function performRegistration(): Promise<void> {
   try {
     const deviceId = await getDeviceId();
     const fcmToken = await getFCMToken();
-
-    if (!fcmToken) {
-      console.warn('[Device] No FCM token available');
-      return;
-    }
+    const secret = await getDeviceSecret();
 
     const existingToken = await AsyncStorage.getItem(FCM_TOKEN_KEY);
-    if (existingToken === fcmToken) {
+    if (fcmToken && existingToken === fcmToken && secret) {
       return;
     }
 
     const response = await fetch(`${BACKEND_URL}/api/devices`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(secret ? { Authorization: `Bearer ${secret}` } : {}),
+      },
       body: JSON.stringify({
         deviceId,
-        fcmToken,
+        ...(fcmToken ? { fcmToken } : {}),
         platform: Platform.OS === 'android' ? 'ANDROID' : 'IOS',
         appVersion: Constants.expoConfig?.version ?? '1.0.0',
       }),
     });
 
-    if (response.ok) {
-      await AsyncStorage.setItem(FCM_TOKEN_KEY, fcmToken);
-      console.log('[Device] Registered successfully');
+    if (!response.ok) {
+      console.warn('[Device] Registration failed:', response.status);
+      return;
     }
+
+    const data = (await response.json().catch(() => null)) as { deviceSecret?: unknown } | null;
+    if (typeof data?.deviceSecret === 'string') {
+      await setSecretItem(DEVICE_SECRET_KEY, data.deviceSecret);
+    }
+    if (fcmToken) {
+      await AsyncStorage.setItem(FCM_TOKEN_KEY, fcmToken);
+    }
+    console.log('[Device] Registered successfully');
   } catch (err) {
     console.warn('[Device] Registration failed:', err);
   }
+}
+
+let registrationInFlight: Promise<void> | null = null;
+
+/**
+ * Registers the installation, collapsing concurrent calls so a fresh or
+ * legacy device cannot be issued two different secrets at once.
+ */
+export function registerDevice(): Promise<void> {
+  if (registrationInFlight) return registrationInFlight;
+
+  registrationInFlight = performRegistration().finally(() => {
+    registrationInFlight = null;
+  });
+  return registrationInFlight;
 }
 
 // Android can emit several push-token events for the same token (app start,
@@ -147,19 +179,24 @@ export function updateFCMToken(newToken: string): Promise<void> {
     tokenUpdateInFlight = (async () => {
       try {
         const deviceId = await getDeviceId();
+        const secret = await getDeviceSecret();
         const response = await fetch(`${BACKEND_URL}/api/devices/${deviceId}/token`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(secret ? { Authorization: `Bearer ${secret}` } : {}),
+          },
           body: JSON.stringify({ fcmToken: newToken }),
         });
 
         if (response.ok) {
           await AsyncStorage.setItem(FCM_TOKEN_KEY, newToken);
           console.log('[Device] FCM token updated');
-        } else if (response.status === 404) {
-          // Device aún no existe en backend (fresh install o backend reiniciado)
-          // Fallback a registro completo para crear el documento
-          console.warn('[Device] Token update 404 -> fallback to registerDevice');
+        } else if (response.status === 401 || response.status === 404) {
+          // Missing or rejected secret: drop it and re-register so the server
+          // can issue a fresh one (legacy installations claim theirs here).
+          console.warn('[Device] Token update unauthorized -> fallback to registerDevice');
+          await clearDeviceSecret();
           await AsyncStorage.removeItem(FCM_TOKEN_KEY);
           await registerDevice();
         } else {

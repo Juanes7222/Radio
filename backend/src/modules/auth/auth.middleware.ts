@@ -20,18 +20,21 @@ interface TokenPayload {
   tv?: number;
 }
 
+type SessionResult =
+  | { ok: true; session: SessionPayload }
+  | { ok: false; status: number; error: string };
+
 /**
- * Verifies the JWT and reloads the user from the database on every
- * request. Permissions and active flag always come from the DB, so
- * deactivating a user or changing permissions takes effect immediately
- * ( JWT tv mismatch forces re-login ). Old tokens without sub are
- * rejected to force a fresh login after the RBAC migration.
+ * Verifies the JWT and reloads the user from the database. Permissions and
+ * active flag always come from the DB, so deactivating a user or changing
+ * permissions takes effect immediately ( JWT tv mismatch forces re-login ).
+ * Old tokens without sub are rejected to force a fresh login after the RBAC
+ * migration.
  */
-export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+async function loadSession(req: Request): Promise<SessionResult> {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "No autorizado" });
-    return;
+    return { ok: false, status: 401, error: "No autorizado" };
   }
 
   const token = header.slice(7);
@@ -39,41 +42,61 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   try {
     decoded = jwt.verify(token, config.jwt.secret) as TokenPayload;
   } catch {
-    res.status(401).json({ error: "Token inválido o expirado" });
-    return;
+    return { ok: false, status: 401, error: "Token inválido o expirado" };
   }
 
   if (!decoded.sub) {
-    res.status(401).json({ error: "Sesión anterior, vuelve a iniciar sesión" });
-    return;
+    return { ok: false, status: 401, error: "Sesión anterior, vuelve a iniciar sesión" };
   }
 
   try {
     const record = await getAdminUserById(decoded.sub);
     if (!record || !record.isActive) {
-      res.status(401).json({ error: "Cuenta desactivada" });
-      return;
+      return { ok: false, status: 401, error: "Cuenta desactivada" };
     }
     if (decoded.tv !== undefined && decoded.tv !== record.tokenVersion) {
-      res.status(401).json({ error: "Sesión revocada, vuelve a iniciar sesión" });
-      return;
+      return { ok: false, status: 401, error: "Sesión revocada, vuelve a iniciar sesión" };
     }
 
     const permissions = effectivePermissions(record.role, record.permissions);
-    req.session = {
-      sub: record.id,
-      email: record.email,
-      name: record.name || record.email,
-      picture: record.picture,
-      stationName: (decoded as SessionPayload).stationName ?? "Radio",
-      role: record.role,
-      permissions,
-      tv: record.tokenVersion,
+    return {
+      ok: true,
+      session: {
+        sub: record.id,
+        email: record.email,
+        name: record.name || record.email,
+        picture: record.picture,
+        stationName: (decoded as SessionPayload).stationName ?? "Radio",
+        role: record.role,
+        permissions,
+        tv: record.tokenVersion,
+      },
     };
-    next();
   } catch {
-    res.status(500).json({ error: "Error al validar la sesión" });
+    return { ok: false, status: 500, error: "Error al validar la sesión" };
   }
+}
+
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const result = await loadSession(req);
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+  req.session = result.session;
+  next();
+}
+
+/**
+ * Resolves a fully validated admin session without writing a response. Endpoints
+ * that accept either an admin session or an object credential use it for the
+ * admin branch, so a deactivated or revoked admin is treated like any other
+ * caller without a valid credential. Returns null when there is no valid admin
+ * session.
+ */
+export async function resolveAdminSession(req: Request): Promise<SessionPayload | null> {
+  const result = await loadSession(req);
+  return result.ok ? result.session : null;
 }
 
 export function requirePermission(...permissions: AdminPermission[]) {

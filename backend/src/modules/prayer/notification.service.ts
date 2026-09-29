@@ -33,7 +33,8 @@ export async function sendPushNotification(
   } catch (err) {
     const error = err as { code?: string; message?: string };
     if (error.code === "messaging/registration-token-not-registered") {
-      logger.warn("PushNotification", "Token is no longer registered", { token });
+      // The FCM token itself is not logged: it is a delivery credential.
+      logger.warn("PushNotification", "Token is no longer registered");
     } else {
       logger.error("PushNotification", "Failed to send notification", {
         error: error.message ?? String(err),
@@ -45,14 +46,14 @@ export async function sendPushNotification(
 
 export async function sendPrayerResponseNotification(
   fcmToken: string,
-  prayerId: string,
-  responseText: string
+  prayerId: string
 ): Promise<boolean> {
-  const preview = responseText.length > 140 ? `${responseText.slice(0, 140)}...` : responseText;
-
+  // The body stays generic on purpose: push payloads can surface on the lock
+  // screen or in diagnostics, so the sensitive response text is only shown
+  // inside the app, behind the prayer credential.
   return sendPushNotification(fcmToken, {
     title: "Tu peticion de oracion ha sido respondida",
-    body: preview,
+    body: "Abre la app para leer la respuesta completa.",
     data: {
       type: "prayer_response",
       prayerId,

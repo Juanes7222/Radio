@@ -1,11 +1,15 @@
 import { Router, type Request, type Response } from "express";
 import { Prisma } from "@prisma/client";
-import jwt from "jsonwebtoken";
 import { PRAYER_STATUS, type PrayerStatus } from "@radio/types";
 import { prisma } from "../../infrastructure/database/prisma";
 import { config } from "../../config";
 import { sendEmail } from "../../infrastructure/email/email.service";
-import { requireAuth, requirePermission } from "../auth/auth.middleware";
+import {
+  requireAuth,
+  requirePermission,
+  resolveAdminSession,
+} from "../auth/auth.middleware";
+import { hasPermission } from "../auth/permissions";
 import { sendPrayerResponseNotification } from "./notification.service";
 import {
   broadcastPrayerCreated,
@@ -13,12 +17,37 @@ import {
   issueStreamTicket,
   openPrayerStream,
 } from "./prayer-stream.service";
-import { escapeHtml } from "../../shared/utils/escape-html";
 import { logger } from "../../shared/logger/logger";
+import {
+  issueCredential,
+  matchesCredential,
+  readBearerCredential,
+} from "../../shared/utils/credentials";
+import { createRateLimiter } from "../../shared/middleware/rate-limit";
 
 const router = Router();
 
 const PRAYER_STATUSES = Object.values(PRAYER_STATUS);
+const NAME_MAX_LENGTH = 50;
+const REQUEST_MAX_LENGTH = 500;
+
+const createPrayerLimiter = createRateLimiter({
+  windowMs: 60_000,
+  max: 20,
+  message: "Demasiadas solicitudes, intenta mas tarde",
+});
+
+const readPrayerLimiter = createRateLimiter({
+  windowMs: 60_000,
+  max: 60,
+  message: "Demasiadas solicitudes, intenta mas tarde",
+});
+
+const writePrayerLimiter = createRateLimiter({
+  windowMs: 60_000,
+  max: 30,
+  message: "Demasiadas solicitudes, intenta mas tarde",
+});
 
 function isPrayerStatus(value: unknown): value is PrayerStatus {
   return typeof value === "string" && (PRAYER_STATUSES as readonly string[]).includes(value);
@@ -36,12 +65,6 @@ function validatePagination(query: Record<string, unknown>) {
   return { page, limit, skip: (page - 1) * limit };
 }
 
-const DEVICE_ID_PATTERN = /^[A-Za-z0-9._:-]{6,128}$/;
-
-function isValidDeviceId(value: unknown): value is string {
-  return typeof value === "string" && DEVICE_ID_PATTERN.test(value);
-}
-
 const BULK_MAX_IDS = 100;
 
 function parseBulkIds(body: unknown): string[] | null {
@@ -55,33 +78,46 @@ function parseBulkIds(body: unknown): string[] | null {
   return normalized;
 }
 
-function isAdminAuthenticated(req: Request): boolean {
-  const header = req.headers.authorization;
-  if (!header?.startsWith("Bearer ")) return false;
-  try {
-    const payload = jwt.verify(header.slice(7), config.jwt.secret) as {
-      sub?: string;
-      role?: string;
-      permissions?: string[];
-    };
-    if (!payload.sub) return false;
-    if (payload.role === "SUPERADMIN" || payload.role === "ADMIN") return true;
-    return Array.isArray(payload.permissions) && payload.permissions.includes("prayer");
-  } catch {
-    return false;
-  }
+/**
+ * True when the caller presents a fully validated admin session with prayer
+ * access. Unlike a bare JWT claim check, a deactivated or revoked admin is not
+ * treated as an admin here.
+ */
+async function isAdminAuthenticated(req: Request): Promise<boolean> {
+  const session = await resolveAdminSession(req);
+  return session !== null && hasPermission(session.role, session.permissions, "prayer");
 }
 
-router.post("/", async (req: Request, res: Response) => {
-  const { name, request, deviceId } = req.body;
+router.post("/", createPrayerLimiter, async (req: Request, res: Response) => {
+  const { name, request, deviceId, consentAccepted } = req.body;
 
   if (!name || typeof name !== "string" || name.trim().length === 0) {
     res.status(400).json({ error: "El nombre es obligatorio" });
     return;
   }
 
+  if (name.trim().length > NAME_MAX_LENGTH) {
+    res.status(400).json({ error: `El nombre no puede superar ${NAME_MAX_LENGTH} caracteres` });
+    return;
+  }
+
   if (!request || typeof request !== "string" || request.trim().length === 0) {
     res.status(400).json({ error: "La peticion es obligatoria" });
+    return;
+  }
+
+  if (request.trim().length > REQUEST_MAX_LENGTH) {
+    res.status(400).json({ error: `La peticion no puede superar ${REQUEST_MAX_LENGTH} caracteres` });
+    return;
+  }
+
+  // Consent is part of the submission, not a client-only checkbox: the server
+  // records who accepted and which policy version, and refuses to store a
+  // prayer without it.
+  if (consentAccepted !== true) {
+    res.status(400).json({
+      error: "Debes aceptar la Politica de Tratamiento de Datos Personales",
+    });
     return;
   }
 
@@ -101,23 +137,28 @@ router.post("/", async (req: Request, res: Response) => {
       });
     }
 
+    const credential = issueCredential();
+
     const entry = await prisma.prayerRequest.create({
       data: {
         name: trimmedName,
         request: trimmedRequest,
         deviceId: trimmedDeviceId,
         estado: "PENDIENTE",
+        accessTokenHash: credential.tokenHash,
+        consentAcceptedAt: new Date(),
+        consentVersion: config.prayer.consentVersion,
       },
     });
 
     if (config.notifications.prayer.recipients.length > 0) {
       const subject = "Nueva peticion de oracion recibida";
+      // The email only points to the authenticated panel. Full-text copies
+      // would spread sensitive content across mailboxes, logs and backups.
+      const panelUrl = `${config.publicUrl}/admin/prayer`;
       const body = `
-        <p><strong>De:</strong> ${escapeHtml(trimmedName)}</p>
-        <p><strong>Peticion:</strong></p>
-        <blockquote style="border-left: 3px solid #6366f1; padding-left: 12px; margin-left: 0; color: #334155;">
-          ${escapeHtml(trimmedRequest).replace(/\n/g, "<br>")}
-        </blockquote>
+        <p>Se recibio una nueva peticion de oracion.</p>
+        <p><a href="${panelUrl}">Abrir el panel de peticiones</a></p>
         <p style="font-size: 12px; color: #64748b;">Recibida el ${new Date().toLocaleString("es-CO", { timeZone: "America/Bogota" })}</p>
       `;
 
@@ -144,6 +185,8 @@ router.post("/", async (req: Request, res: Response) => {
       readAt: entry.readAt,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
+      // Plaintext credential, returned exactly once. The server keeps only its hash.
+      accessToken: credential.token,
     });
   } catch (err) {
     logger.error("PrayerRoutes", "Error creating prayer request", {
@@ -179,6 +222,7 @@ router.get("/", requireAuth, requirePermission("prayer"), async (req: Request, r
         orderBy: { createdAt: "desc" },
         take: limit,
         skip,
+        omit: { accessTokenHash: true },
       }),
       prisma.prayerRequest.count({ where }),
       prisma.prayerRequest.groupBy({ by: ["estado"], _count: { _all: true } }),
@@ -333,35 +377,21 @@ router.get("/stream", (req: Request, res: Response) => {
   openPrayerStream(req, res);
 });
 
-router.get("/my/:deviceId", async (req: Request, res: Response) => {
-  const { deviceId } = req.params;
+async function findPrayerAccessTokenHash(id: string): Promise<string | null> {
+  const row = await prisma.prayerRequest.findUnique({
+    where: { id },
+    select: { accessTokenHash: true },
+  });
+  return row?.accessTokenHash ?? null;
+}
 
-  if (!isValidDeviceId(deviceId)) {
-    res.status(400).json({ error: "deviceId invalido" });
-    return;
-  }
-
-  try {
-    const rows = await prisma.prayerRequest.findMany({
-      where: { deviceId },
-      orderBy: { createdAt: "desc" },
-    });
-
-    res.json({ rows });
-  } catch (err) {
-    logger.error("PrayerRoutes", "Error fetching my prayer requests", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    res.status(500).json({ error: "Error al obtener las peticiones" });
-  }
-});
-
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", readPrayerLimiter, async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
     const entry = await prisma.prayerRequest.findUnique({
       where: { id: String(id) },
+      omit: { accessTokenHash: true },
     });
 
     if (!entry) {
@@ -369,16 +399,20 @@ router.get("/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    // Admin can fetch any prayer; owner can fetch own prayer.
-    // For backwards compatibility with app versions that don't send deviceId,
-    // allow unauthenticated fetch by id (id is a random UUID capability).
-    // If a deviceId is provided, enforce ownership.
-    if (!isAdminAuthenticated(req)) {
-      const clientDeviceId =
-        (typeof req.query.deviceId === "string" ? req.query.deviceId : null) ||
-        (typeof req.headers["x-device-id"] === "string" ? (req.headers["x-device-id"] as string) : null);
-      if (clientDeviceId && entry.deviceId && clientDeviceId !== entry.deviceId) {
-        res.status(403).json({ error: "No autorizado para esta peticion" });
+    // Admins use their session token; owners use the per-prayer credential.
+    // A missing credential is denied: knowing the id is never proof of
+    // authorization. Wrong credential and nonexistent id return the same 404
+    // so this endpoint is not an existence oracle for sensitive objects.
+    if (!(await isAdminAuthenticated(req))) {
+      const credential = readBearerCredential(req.headers.authorization);
+      if (!credential) {
+        res.status(401).json({ error: "Credencial requerida" });
+        return;
+      }
+
+      const storedHash = await findPrayerAccessTokenHash(String(id));
+      if (!matchesCredential(credential, storedHash)) {
+        res.status(404).json({ error: "Peticion no encontrada" });
         return;
       }
     }
@@ -413,8 +447,16 @@ router.put("/:id", requireAuth, requirePermission("prayer"), async (req: Request
     res.status(400).json({ error: "El nombre no puede quedar vacio" });
     return;
   }
+  if (typeof name === "string" && name.trim().length > NAME_MAX_LENGTH) {
+    res.status(400).json({ error: `El nombre no puede superar ${NAME_MAX_LENGTH} caracteres` });
+    return;
+  }
   if (request !== undefined && (typeof request !== "string" || request.trim().length === 0)) {
     res.status(400).json({ error: "La peticion no puede quedar vacia" });
+    return;
+  }
+  if (typeof request === "string" && request.trim().length > REQUEST_MAX_LENGTH) {
+    res.status(400).json({ error: `La peticion no puede superar ${REQUEST_MAX_LENGTH} caracteres` });
     return;
   }
 
@@ -474,7 +516,7 @@ router.put("/:id", requireAuth, requirePermission("prayer"), async (req: Request
       });
 
       if (device?.fcmToken) {
-        sendPrayerResponseNotification(device.fcmToken, entry.id, nextRespuesta).catch(
+        sendPrayerResponseNotification(device.fcmToken, entry.id).catch(
           (err) => {
             logger.error("PrayerRoutes", "Failed to send push notification", {
               error: err instanceof Error ? err.message : String(err),
@@ -504,6 +546,48 @@ router.put("/:id", requireAuth, requirePermission("prayer"), async (req: Request
   }
 });
 
+// Owner deletion. It is authenticated by the per-prayer credential only: the
+// id never authorizes anything. Registered before "/:id" to keep the two
+// delete routes unambiguous.
+router.delete("/:id/own", writePrayerLimiter, async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const stored = await prisma.prayerRequest.findUnique({
+      where: { id: String(id) },
+      select: { id: true, accessTokenHash: true },
+    });
+
+    if (!stored) {
+      res.status(404).json({ error: "Peticion no encontrada" });
+      return;
+    }
+
+    const credential = readBearerCredential(req.headers.authorization);
+    if (!credential) {
+      res.status(401).json({ error: "Credencial requerida" });
+      return;
+    }
+
+    // Wrong credential and nonexistent id share the same 404 so a caller
+    // without the credential cannot tell whether the request exists.
+    if (!matchesCredential(credential, stored.accessTokenHash)) {
+      res.status(404).json({ error: "Peticion no encontrada" });
+      return;
+    }
+
+    await prisma.prayerRequest.delete({ where: { id: stored.id } });
+    res.status(204).end();
+  } catch (err) {
+    logger.error("PrayerRoutes", "Error deleting own prayer request", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ error: "Error al eliminar la peticion" });
+  }
+});
+
+// Admin deletion keeps the full session check, including deactivation and
+// token-version revocation, since it is destructive.
 router.delete("/:id", requireAuth, requirePermission("prayer"), async (req: Request, res: Response) => {
   const { id } = req.params;
 
@@ -525,45 +609,41 @@ router.delete("/:id", requireAuth, requirePermission("prayer"), async (req: Requ
   }
 });
 
-router.post("/:id/read", async (req: Request, res: Response) => {
+router.post("/:id/read", readPrayerLimiter, async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  // Allow admin or owner (or anyone with the UUID for backwards compat).
-  // If a deviceId is supplied, verify it matches the prayer's deviceId.
-  if (!isAdminAuthenticated(req)) {
-    const clientDeviceId =
-      (typeof req.body?.deviceId === "string" ? req.body.deviceId : null) ||
-      (typeof req.query.deviceId === "string" ? (req.query.deviceId as string) : null) ||
-      (typeof req.headers["x-device-id"] === "string" ? (req.headers["x-device-id"] as string) : null);
-    if (clientDeviceId) {
-      try {
-        const entry = await prisma.prayerRequest.findUnique({
-          where: { id: String(id) },
-          select: { deviceId: true },
-        });
-        if (entry?.deviceId && entry.deviceId !== clientDeviceId) {
-          res.status(403).json({ error: "No autorizado para esta peticion" });
-          return;
-        }
-      } catch {
-        // fall through to update attempt
+  try {
+    const stored = await prisma.prayerRequest.findUnique({
+      where: { id: String(id) },
+      select: { id: true, accessTokenHash: true },
+    });
+
+    if (!stored) {
+      res.status(404).json({ error: "Peticion no encontrada" });
+      return;
+    }
+
+    // Same policy as the detail endpoint: admins use their session token,
+    // owners use the per-prayer credential, and a missing credential is 401.
+    if (!(await isAdminAuthenticated(req))) {
+      const credential = readBearerCredential(req.headers.authorization);
+      if (!credential) {
+        res.status(401).json({ error: "Credencial requerida" });
+        return;
+      }
+      if (!matchesCredential(credential, stored.accessTokenHash)) {
+        res.status(404).json({ error: "Peticion no encontrada" });
+        return;
       }
     }
-  }
 
-  try {
     await prisma.prayerRequest.update({
-      where: { id: String(id) },
+      where: { id: stored.id },
       data: { readAt: new Date() },
     });
 
     res.json({ ok: true });
   } catch (err) {
-    const error = err as { code?: string };
-    if (error.code === "P2025") {
-      res.status(404).json({ error: "Peticion no encontrada" });
-      return;
-    }
     logger.error("PrayerRoutes", "Error marking prayer as read", {
       error: err instanceof Error ? err.message : String(err),
     });

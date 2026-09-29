@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { normalizeTitle } from '@/lib/formatMedia';
-import { getDeviceId } from '@/lib/device';
+import { ensureDeviceSecret, getDeviceId } from '@/lib/device';
 import { BACKEND_URL } from '@/constants/api';
 
 export const SUBSCRIPTIONS_KEY = 'radio-program-subscriptions';
@@ -117,12 +117,23 @@ export async function setLocalRemindersEnabled(enabled: boolean): Promise<void> 
 async function syncSubscriptionsToServer(subscriptions: string[]): Promise<void> {
   try {
     const deviceId = await getDeviceId();
+    // Subscriptions are a device operation: without a deviceSecret the server
+    // denies the write, so the sync is skipped and retried on the next change.
+    const secret = await ensureDeviceSecret();
+    if (!secret) {
+      console.warn('[ProgramSubscriptions] No device credential available yet');
+      return;
+    }
+
     const localRemindersEnabled = await readLocalRemindersEnabled();
     const response = await fetch(
       `${BACKEND_URL}/api/devices/${deviceId}/subscriptions`,
       {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${secret}`,
+        },
         body: JSON.stringify({
           subscriptions,
           ...(localRemindersEnabled === null ? {} : { localRemindersEnabled }),

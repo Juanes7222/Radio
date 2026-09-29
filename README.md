@@ -286,6 +286,9 @@ pnpm dev:mobile    # Expo dev server
 | `TIMEZONE` | Server timezone | `UTC` |
 | `STATION_NAME` | Station display name | — |
 | `SMTP_*` / `BREVO_API_KEY` | Email configuration for prayers | — |
+| `PRAYER_RETENTION_DAYS` | Days a prayer request is kept before the daily purge (0 disables it) | `365` |
+| `PRAYER_PURGE_CRON` | Cron expression for the prayer retention purge | `30 4 * * *` |
+| `PRAYER_CONSENT_VERSION` | Policy version stamped on each accepted consent | `2026-08-18` |
 | `YOUTUBE_CHANNEL_IDS` | YouTube channel subscriptions | — |
 | `INFISICAL_*` | Infisical secret management | — |
 

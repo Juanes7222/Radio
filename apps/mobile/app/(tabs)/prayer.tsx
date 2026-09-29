@@ -24,6 +24,7 @@ import { BACKEND_URL, WEB_URL } from '@/constants/api';
 import { Colors } from '@/constants/theme';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { getDeviceId } from '@/lib/device';
+import { rememberPrayerCredential } from '@/lib/prayerCredentials';
 
 import { TAB_BAR_BASE } from '../../lib/responsive';
 
@@ -112,10 +113,23 @@ export default function PrayerScreen() {
       const res = await fetch(`${BACKEND_URL}/api/prayer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmedName, request: trimmedRequest, deviceId }),
+        body: JSON.stringify({
+          name: trimmedName,
+          request: trimmedRequest,
+          deviceId,
+          consentAccepted: true,
+        }),
       });
 
       if (res.ok) {
+        // The accessToken is returned exactly once. It stays in the keystore
+        // and is the only way to read this request back later.
+        const data = (await res.json().catch(() => null)) as
+          | { id?: unknown; accessToken?: unknown }
+          | null;
+        if (typeof data?.id === 'string' && typeof data.accessToken === 'string') {
+          await rememberPrayerCredential(data.id, data.accessToken);
+        }
         setSent(true);
         setName('');
         setRequest('');

@@ -12,13 +12,49 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
-import { getDeviceId } from '@/lib/device';
+import {
+  forgetPrayerCredential,
+  getPrayerCredential,
+  listPrayerIds,
+} from '@/lib/prayerCredentials';
 import { Colors, Radii } from '@/constants/theme';
 import {
   getPrayerStatusConfig,
   getTimeAgo,
   type PrayerItem,
 } from '@/lib/prayer';
+
+type PrayerLoadResult =
+  | { status: 'ok'; item: PrayerItem }
+  | { status: 'gone' }
+  | { status: 'error' };
+
+/**
+ * Fetches one prayer with its own credential. A 404 means the credential no
+ * longer authorizes anything, so it is pruned locally; a network or server
+ * error is kept so the entry can be retried on the next refresh.
+ */
+async function loadPrayer(id: string): Promise<PrayerLoadResult> {
+  const token = await getPrayerCredential(id);
+  if (!token) {
+    await forgetPrayerCredential(id);
+    return { status: 'gone' };
+  }
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/prayer/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) return { status: 'ok', item: (await res.json()) as PrayerItem };
+    if (res.status === 404) {
+      await forgetPrayerCredential(id);
+      return { status: 'gone' };
+    }
+    return { status: 'error' };
+  } catch {
+    return { status: 'error' };
+  }
+}
 
 function PrayerCard({ item, onPress }: { item: PrayerItem; onPress: () => void }) {
   const config = getPrayerStatusConfig(item.estado);
@@ -55,14 +91,18 @@ export default function PrayerHistoryScreen() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const deviceId = await getDeviceId();
-      const res = await fetch(`${BACKEND_URL}/api/prayer/my/${deviceId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setRequests(data.rows ?? []);
-      } else {
-        setError('Error al cargar');
+      const ids = await listPrayerIds();
+      const items: PrayerItem[] = [];
+      let hadError = false;
+
+      for (const id of ids) {
+        const result = await loadPrayer(id);
+        if (result.status === 'ok') items.push(result.item);
+        if (result.status === 'error') hadError = true;
       }
+
+      setRequests(items);
+      if (hadError && items.length === 0) setError('Error de conexion');
     } catch {
       setError('Error de conexion');
     } finally {
@@ -113,6 +153,9 @@ export default function PrayerHistoryScreen() {
           <Text style={styles.emptyText}>Aún no has enviado peticiones</Text>
           <Text style={styles.emptyHint}>
             Cuando envíes una, aquí verás su estado y la respuesta del equipo.
+          </Text>
+          <Text style={styles.emptyHint}>
+            El historial vive solo en este dispositivo. Si desinstalas la app o borras sus datos, no podrás recuperarlo.
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}
