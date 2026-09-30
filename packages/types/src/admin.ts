@@ -533,6 +533,13 @@ export interface PlaylistDetail {
   schedule_items?: PlaylistScheduleItem[];
 }
 
+/** Capítulo de la Biblia en orden canónico (ordinal 1 = Génesis 1) */
+export interface BibleChapterRef {
+  ordinal: number;
+  book: string;
+  chapter: number;
+}
+
 /** Rotación automática de playlists (lectura bíblica u otras reglas) */
 export interface PlaylistRotation {
   id: string;
@@ -574,10 +581,32 @@ export interface RotationRunResult {
   status: 'success' | 'partial' | 'error';
   itemsPicked: number;
   itemsPlaced: number;
-  chapters: { ordinal: number; book: string; chapter: number }[];
+  chapters: BibleChapterRef[];
   titles: string[];
   errors: string[];
   rotationId?: string;
+}
+
+/**
+ * Estado real de la fuente de una rotación bíblica: qué capitula va en la
+ * posición del cursor y qué se colocaría en la próxima ejecución.
+ */
+export interface RotationSourcePreview {
+  /** Audios encontrados en la fuente, ya ordenados de forma canónica. */
+  total: number;
+  cursor: number;
+  /** Rutas de audios cuyo capítulo no se pudo determinar. */
+  unresolved: string[];
+  /** Capítulo que ocupa la posición actual del cursor. */
+  current: BibleChapterRef | null;
+  upcoming: Array<{ chapter: BibleChapterRef; title: string; path: string }>;
+  /** Capítulos disponibles en la fuente, agrupados por libro. */
+  books: Array<{ name: string; chapters: number[] }>;
+}
+
+/** Respuesta de alinear una rotación bíblica a un capítulo concreto */
+export interface RotationAlignResult extends RotationSourcePreview {
+  run: RotationRunResult;
 }
 
 /** Entrada del historial de capítulos emitidos por las rotaciones bíblicas */
@@ -591,14 +620,14 @@ export interface BibleReadingHistoryEntry {
   status: 'success' | 'partial' | 'error';
   itemsPicked: number;
   itemsPlaced: number;
-  chapters: { ordinal: number; book: string; chapter: number }[];
+  chapters: BibleChapterRef[];
 }
 
 /** Respuesta pública con la lectura bíblica del día */
 export interface BibleReadingToday {
   reading: {
     rotationName: string;
-    chapters: { ordinal: number; book: string; chapter: number }[];
+    chapters: BibleChapterRef[];
   } | null;
 }
 

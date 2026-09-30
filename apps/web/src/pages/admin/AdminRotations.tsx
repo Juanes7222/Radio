@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 import {
   RefreshCw, Plus, Trash2, Play, History, Pencil, Repeat, BookOpen,
-  Bell, ArrowRight, Clock, FolderOpen, Folder, ChevronUp, Check,
+  Bell, ArrowRight, Clock, FolderOpen, Folder, ChevronUp, Check, Target,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,14 @@ import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { apiUrl } from '@/config';
 import { formatChapters } from '@/lib/format';
-import type { BibleTranslation, PlaylistRotation, RotationRunLog, RotationRunResult } from '@radio/types';
+import type {
+  BibleTranslation,
+  PlaylistRotation,
+  RotationAlignResult,
+  RotationRunLog,
+  RotationRunResult,
+  RotationSourcePreview,
+} from '@radio/types';
 
 const STATUS_LABELS: Record<string, string> = {
   success: 'Correcta',
@@ -57,6 +65,14 @@ function formatDateTime(value: string | null): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+/** El backend responde los errores con { error: string }. */
+function errorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError<{ error?: string }>(err) && err.response?.data?.error) {
+    return err.response.data.error;
+  }
+  return fallback;
 }
 
 function FolderBrowserDialog({
@@ -191,7 +207,6 @@ const EMPTY_FORM = {
   active: true,
   bibleMode: false,
   translation: 'RVR1960',
-  bibleStartOrdinal: '1',
   notifyEnabled: false,
   notifyProgram: '',
 };
@@ -209,7 +224,6 @@ function initialForm(rotation: PlaylistRotation | null): typeof EMPTY_FORM {
     active: rotation.active,
     bibleMode: rotation.bibleMode,
     translation: rotation.translation ?? 'RVR1960',
-    bibleStartOrdinal: String(rotation.bibleStartOrdinal),
     notifyEnabled: rotation.notifyEnabled,
     notifyProgram: rotation.notifyProgram ?? '',
   };
@@ -263,7 +277,6 @@ function RotationFormDialog({
         active: form.active,
         bibleMode: form.bibleMode,
         translation: form.bibleMode ? form.translation : null,
-        bibleStartOrdinal: Number(form.bibleStartOrdinal),
         notifyEnabled: form.bibleMode && form.notifyEnabled,
         notifyProgram: form.bibleMode && form.notifyEnabled ? form.notifyProgram : null,
       };
@@ -378,17 +391,6 @@ function RotationFormDialog({
                 max={100}
                 value={form.itemsPerDay}
                 onChange={(e) => setForm((f) => ({ ...f, itemsPerDay: e.target.value }))}
-                className="bg-card border-input"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium">Ordinal inicial (solo bíblico)</label>
-              <Input
-                type="number"
-                min={1}
-                value={form.bibleStartOrdinal}
-                disabled={!form.bibleMode}
-                onChange={(e) => setForm((f) => ({ ...f, bibleStartOrdinal: e.target.value }))}
                 className="bg-card border-input"
               />
             </div>
@@ -578,6 +580,210 @@ function RotationHistoryDialog({
   );
 }
 
+/**
+ * Moves the cursor of a biblical rotation to a given chapter. This is how a
+ * reading that advanced by hand gets handed back to the automation.
+ */
+function AlignRotationDialog({
+  rotation,
+  onClose,
+  onAligned,
+}: {
+  rotation: PlaylistRotation;
+  onClose: () => void;
+  onAligned: (message: string) => void;
+}) {
+  const { getRotationSource, alignRotation } = useAdminApi();
+
+  const [source, setSource] = useState<RotationSourcePreview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [book, setBook] = useState('');
+  const [chapter, setChapter] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState<RotationAlignResult | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getRotationSource(rotation.id)
+      .then((data) => {
+        if (cancelled) return;
+        setSource(data);
+        setBook(data.current?.book ?? data.books[0]?.name ?? '');
+        setChapter(data.current ? String(data.current.chapter) : '');
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(errorMessage(err, 'No se pudo leer la fuente de la rotación.'));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [rotation.id, getRotationSource]);
+
+  const selectedBook = source?.books.find((item) => item.name === book);
+  const chapterNumber = Number(chapter);
+  const isCurrentPosition =
+    source?.current?.book === book && source?.current?.chapter === chapterNumber;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!book) { setError('Selecciona el libro.'); return; }
+    if (!Number.isInteger(chapterNumber) || chapterNumber < 1) {
+      setError('Indica el capítulo por el que continúa la lectura.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const aligned = await alignRotation(rotation.id, book, chapterNumber);
+      setResult(aligned);
+      setSource(aligned);
+      onAligned(
+        `${rotation.name}: lectura reanudada en ${book} ${chapterNumber}` +
+        (aligned.run.chapters.length > 0 ? ` · ${formatChapters(aligned.run.chapters)}` : '')
+      );
+    } catch (err) {
+      setError(errorMessage(err, 'No se pudo alinear la rotación.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Alinear lectura de {rotation.name}</DialogTitle>
+          <DialogDescription>
+            Indica el capítulo por el que debe continuar la lectura. La rotación busca ese audio,
+            mueve la posición y reconstruye la playlist destino al instante.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="space-y-2">
+            <div className="h-12 rounded-lg animate-pulse bg-muted" />
+            <div className="h-12 rounded-lg animate-pulse bg-muted" />
+          </div>
+        ) : !source ? (
+          <p className="text-sm text-destructive">{error}</p>
+        ) : (
+          <form onSubmit={submit} className="space-y-4">
+            <div className="rounded-lg border border-border bg-card px-3 py-2.5 space-y-1">
+              <p className="text-xs text-faint">
+                Posición actual:{' '}
+                <span className="text-foreground font-medium">
+                  {source.current ? `${source.current.book} ${source.current.chapter}` : 'sin capítulo resoluble'}
+                </span>
+                <span className="text-faint"> · {source.total} audios en la fuente</span>
+              </p>
+              {source.upcoming.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  A continuación: {formatChapters(source.upcoming.map((item) => item.chapter))}
+                </p>
+              )}
+            </div>
+
+            {source.unresolved.length > 0 && (
+              <details className="rounded-lg border border-warning/40 bg-warning/5 px-3 py-2">
+                <summary className="text-xs text-warning cursor-pointer">
+                  {source.unresolved.length} audio(s) sin capítulo identificado
+                </summary>
+                <ul className="mt-2 max-h-32 overflow-y-auto text-[11px] text-muted-foreground space-y-0.5">
+                  {source.unresolved.map((path) => (
+                    <li key={path} className="truncate" title={path}>{path}</li>
+                  ))}
+                </ul>
+                <p className="mt-1.5 text-[11px] text-faint">
+                  Se reproducen al final de la lista y no se anuncian como lectura.
+                </p>
+              </details>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Continúa en el libro</label>
+                <Select value={book} onValueChange={(v) => { setBook(v); setChapter(''); }}>
+                  <SelectTrigger className="w-full bg-card border-input"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {source.books.map((item) => (
+                      <SelectItem key={item.name} value={item.name}>{item.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Capítulo</label>
+                {selectedBook ? (
+                  <Select value={chapter} onValueChange={setChapter}>
+                    <SelectTrigger className="w-full bg-card border-input"><SelectValue placeholder="Selecciona" /></SelectTrigger>
+                    <SelectContent>
+                      {selectedBook.chapters.map((number) => (
+                        <SelectItem key={number} value={String(number)}>{number}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    type="number"
+                    min={1}
+                    value={chapter}
+                    onChange={(e) => setChapter(e.target.value)}
+                    className="bg-card border-input"
+                  />
+                )}
+              </div>
+            </div>
+
+            {selectedBook && chapter && !isCurrentPosition && (
+              <p className="text-xs text-muted-foreground">
+                Se alineará en{' '}
+                <span className="text-foreground font-medium">{book} {chapterNumber}</span>.
+              </p>
+            )}
+
+            {result && (
+              <div className="rounded-lg border border-border bg-card px-3 py-2.5 space-y-1">
+                <p className="text-xs text-faint">
+                  Ejecución:{' '}
+                  <Badge
+                    variant={result.run.status === 'success' ? 'default' : result.run.status === 'partial' ? 'secondary' : 'destructive'}
+                    className="text-[10px]"
+                  >
+                    {STATUS_LABELS[result.run.status] ?? result.run.status}
+                  </Badge>{' '}
+                  · {result.run.itemsPlaced}/{result.run.itemsPicked} audios colocados
+                </p>
+                {result.run.chapters.length > 0 && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <BookOpen className="w-3 h-3 text-primary shrink-0" />
+                    {formatChapters(result.run.chapters)}
+                  </p>
+                )}
+                {result.run.errors.map((message) => (
+                  <p key={message} className="text-[11px] text-destructive">{message}</p>
+                ))}
+              </div>
+            )}
+
+            {error && <p className="text-xs text-destructive">{error}</p>}
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cerrar</Button>
+              <Button type="submit" size="sm" disabled={saving || isCurrentPosition}>
+                {saving ? 'Alineando...' : 'Alinear y ejecutar ahora'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AdminRotations() {
   const { getRotations, getPlaylists, deleteRotation, runRotation } = useAdminApi();
 
@@ -590,6 +796,7 @@ export default function AdminRotations() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<PlaylistRotation | null>(null);
   const [historyRotation, setHistoryRotation] = useState<PlaylistRotation | null>(null);
+  const [alignRotationItem, setAlignRotationItem] = useState<PlaylistRotation | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PlaylistRotation | null>(null);
 
   const load = useCallback(async () => {
@@ -740,6 +947,18 @@ export default function AdminRotations() {
                     <span>·</span>
                     <span>posición {rotation.cursor}</span>
                     <span>·</span>
+                    {rotation.bibleMode && (
+                      <>
+                        <button
+                          type="button"
+                          className="underline-offset-2 hover:underline"
+                          onClick={() => setAlignRotationItem(rotation)}
+                        >
+                          ver lectura
+                        </button>
+                        <span>·</span>
+                      </>
+                    )}
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {formatDateTime(rotation.lastRunAt)}
@@ -777,6 +996,17 @@ export default function AdminRotations() {
                       <History className="w-3 h-3" />
                       Historial
                     </Button>
+                    {rotation.bibleMode && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        onClick={() => setAlignRotationItem(rotation)}
+                      >
+                        <Target className="w-3 h-3" />
+                        Alinear lectura
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -819,6 +1049,15 @@ export default function AdminRotations() {
           key={historyRotation.id}
           rotation={historyRotation}
           onClose={() => setHistoryRotation(null)}
+        />
+      )}
+
+      {alignRotationItem && (
+        <AlignRotationDialog
+          key={alignRotationItem.id}
+          rotation={alignRotationItem}
+          onClose={() => setAlignRotationItem(null)}
+          onAligned={(message) => { setRunMessage(message); void load(); }}
         />
       )}
 

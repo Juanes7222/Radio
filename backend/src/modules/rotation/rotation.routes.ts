@@ -3,7 +3,13 @@ import { prisma } from "../../infrastructure/database/prisma";
 import { asyncHandler } from "../../shared/errors/async-handler";
 import { AppError } from "../../shared/errors/app-error";
 import { requireAuth, requirePermission } from "../auth/auth.middleware";
-import { runRotation, type ChapterRef } from "./rotation.service";
+import {
+  alignRotation,
+  previewRotationSource,
+  runRotation,
+  type ChapterRef,
+} from "./rotation.service";
+import { resolveCanonicalBookName } from "./bibleSource.service";
 import { BOGOTA_TIME_ZONE } from "../../shared/utils/date";
 
 const router = Router();
@@ -21,7 +27,6 @@ interface RotationInput {
   active: boolean;
   bibleMode: boolean;
   translation: string | null;
-  bibleStartOrdinal: number;
   notifyEnabled: boolean;
   notifyProgram: string | null;
 }
@@ -66,12 +71,8 @@ function parseRotationInput(body: Record<string, unknown>): RotationInput {
   }
 
   const cursor = Number(body.cursor ?? 0);
-  const bibleStartOrdinal = Number(body.bibleStartOrdinal ?? 1);
   if (!Number.isInteger(cursor) || cursor < 0) {
     throw new AppError(400, "El cursor debe ser un entero no negativo");
-  }
-  if (!Number.isInteger(bibleStartOrdinal) || bibleStartOrdinal < 1) {
-    throw new AppError(400, "El ordinal inicial debe ser un entero mayor que 0");
   }
 
   return {
@@ -89,7 +90,6 @@ function parseRotationInput(body: Record<string, unknown>): RotationInput {
       typeof body.translation === "string" && body.translation.trim() !== ""
         ? body.translation.trim()
         : null,
-    bibleStartOrdinal,
     notifyEnabled: body.notifyEnabled === true,
     notifyProgram:
       typeof body.notifyProgram === "string" && body.notifyProgram.trim() !== ""
@@ -234,6 +234,60 @@ router.post(
     res.json({ ...result, rotationId: existing.id });
   })
 );
+
+// Qué va a reproducir la rotación a partir de su cursor actual, y qué
+// capítulos quedan sin resolver en la fuente. Permite al operador ver la
+// posición real de la lectura en vez de un número de cursor opaco.
+router.get(
+  "/:id/source",
+  requirePermission("rotations"),
+  asyncHandler(async (req, res) => {
+    const rotation = await requireRotation(String(req.params.id));
+    res.json(await previewRotationSource(rotation));
+  })
+);
+
+// Reanuda una lectura que se avanzó a mano: mueve el cursor al audio del
+// capítulo indicado y ejecuta la rotación de inmediato.
+router.post(
+  "/:id/align",
+  requirePermission("rotations"),
+  asyncHandler(async (req, res) => {
+    const rotation = await requireRotation(String(req.params.id));
+
+    if (!rotation.bibleMode || !rotation.translation) {
+      throw new AppError(400, "Solo las rotaciones bíblicas se pueden alinear por capítulo.");
+    }
+
+    const body = req.body as Record<string, unknown>;
+    const book = typeof body.book === "string" ? body.book.trim() : "";
+    const chapter = Number(body.chapter);
+    if (book === "") {
+      throw new AppError(400, "Indica el libro de la lectura.");
+    }
+    if (!Number.isInteger(chapter) || chapter < 1) {
+      throw new AppError(400, "Indica un capítulo válido.");
+    }
+
+    const canonicalBook = await resolveCanonicalBookName(rotation.translation, book);
+    if (!canonicalBook) {
+      throw new AppError(404, `El libro "${book}" no existe en ${rotation.translation}.`);
+    }
+
+    const { preview, source } = await alignRotation(rotation, canonicalBook, chapter);
+    const run = await runRotation(rotation.id, source);
+
+    res.json({ ...preview, run });
+  })
+);
+
+async function requireRotation(id: string) {
+  const rotation = await prisma.playlistRotation.findUnique({ where: { id } });
+  if (!rotation) {
+    throw new AppError(404, "Rotación no encontrada");
+  }
+  return rotation;
+}
 
 router.get(
   "/:id/runs",

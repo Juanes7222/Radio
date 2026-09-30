@@ -1,16 +1,21 @@
 import { prisma } from "../../infrastructure/database/prisma";
 import { logger } from "../../shared/logger/logger";
+import { AppError } from "../../shared/errors/app-error";
 import { sendPushToTokens } from "../../infrastructure/firebase/notification.service";
 import { parseSubscriptions } from "../../shared/utils/subscriptions";
 import { BOGOTA_TIME_ZONE } from "../../shared/utils/date";
 import {
   emptyPlaylist,
   getFileDetail,
-  getPlaylistOrder,
-  listMediaInFolder,
   setFilePlaylists,
-  type PlaylistOrderEntry,
 } from "./azuracastPlaylist.service";
+import {
+  loadRotationSource,
+  type ResolvedChapter,
+  type RotationSource,
+  type RotationSourceConfig,
+  type RotationSourceEntry,
+} from "./bibleSource.service";
 
 export interface ChapterRef {
   ordinal: number;
@@ -27,55 +32,12 @@ export interface RotationRunResult {
   errors: string[];
 }
 
-interface BibleChapterRow {
-  book: string;
-  chapter: number;
-}
-
 function normalizeTitle(title: string): string {
   return title
     .toLowerCase()
     .trim()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
-}
-
-/**
- * Loads all chapters of a translation ordered as they appear in the Bible
- * (1-based ordinal -> book/chapter).
- */
-async function loadChapterOrdinals(translation: string): Promise<BibleChapterRow[]> {
-  const chapters = await prisma.bibleChapter.findMany({
-    where: { book: { translation: { abbreviation: translation } } },
-    orderBy: [{ book: { order: "asc" } }, { number: "asc" }],
-    include: { book: { select: { name: true } } },
-  });
-
-  return chapters.map((chapter) => ({
-    book: chapter.book.name,
-    chapter: chapter.number,
-  }));
-}
-
-/**
- * Maps 1-based chapter ordinals to book/chapter references. Ordinals that
- * exceed the translation length wrap around so a looping rotation never
- * leaves the Bible.
- */
-export async function resolveChapters(
-  translation: string,
-  ordinals: number[]
-): Promise<ChapterRef[]> {
-  if (ordinals.length === 0) return [];
-
-  const rows = await loadChapterOrdinals(translation);
-  if (rows.length === 0) return [];
-
-  return ordinals.map((ordinal) => {
-    const wrapped = ((ordinal - 1) % rows.length + rows.length) % rows.length;
-    const row = rows[wrapped];
-    return { ordinal: wrapped + 1, book: row.book, chapter: row.chapter };
-  });
 }
 
 /** Builds a compact summary like "Génesis 1-7" or "Génesis 1-2, Éxodo 3". */
@@ -154,10 +116,16 @@ async function notifyReading(notifyProgram: string, chapters: ChapterRef[]): Pro
 
 /**
  * Rebuilds the target playlist with the next block of media taken from the
- * source playlist, in order. Records the run in the rotation history and
- * advances the cursor.
+ * source, in order. Records the run in the rotation history and advances the
+ * cursor.
+ *
+ * `preloadedSource` lets a caller reuse a source it already resolved, so the
+ * alignment endpoint does not fetch the whole library twice.
  */
-export async function runRotation(rotationId: string): Promise<RotationRunResult> {
+export async function runRotation(
+  rotationId: string,
+  preloadedSource?: RotationSource
+): Promise<RotationRunResult> {
   const rotation = await prisma.playlistRotation.findUnique({ where: { id: rotationId } });
 
   if (!rotation) {
@@ -174,18 +142,16 @@ export async function runRotation(rotationId: string): Promise<RotationRunResult
   };
 
   try {
-    let source: PlaylistOrderEntry[] = [];
+    let entries: RotationSourceEntry[] = [];
     try {
-      source =
-        rotation.sourceType === "folder" && rotation.sourceFolder
-          ? await listMediaInFolder(rotation.sourceFolder)
-          : await getPlaylistOrder(rotation.sourcePlaylistId);
+      const source = preloadedSource ?? (await loadRotationSource(rotation));
+      entries = source.entries;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       result.errors.push(`No se pudo leer la fuente de audios: ${message}`);
     }
 
-    if (source.length === 0) {
+    if (entries.length === 0) {
       result.status = "error";
       if (result.errors.length === 0) {
         result.errors.push(
@@ -199,17 +165,13 @@ export async function runRotation(rotationId: string): Promise<RotationRunResult
     }
 
     // Pick the next block starting at the cursor, wrapping only when looping.
-    const picked: Array<{ entry: PlaylistOrderEntry; ordinal: number }> = [];
+    const picked: RotationSourceEntry[] = [];
     for (let step = 0; step < rotation.itemsPerDay; step++) {
       const position = rotation.cursor + step;
-      if (position >= source.length) {
+      if (position >= entries.length) {
         if (!rotation.loop) break;
       }
-      const entry = source[position % source.length];
-      picked.push({
-        entry,
-        ordinal: rotation.bibleStartOrdinal + position,
-      });
+      picked.push(entries[position % entries.length]);
     }
 
     result.itemsPicked = picked.length;
@@ -249,20 +211,28 @@ export async function runRotation(rotationId: string): Promise<RotationRunResult
 
     result.status = result.errors.length > 0 ? "partial" : "success";
 
-    // Resolve chapters when running in bible mode.
+    // The announced reading comes from the chapter each audio carries, so it
+    // always matches what is actually played.
     if (rotation.bibleMode && rotation.translation) {
-      result.chapters = await resolveChapters(
-        rotation.translation,
-        picked.map((item) => item.ordinal)
-      );
+      result.chapters = picked
+        .map((item) => item.chapter)
+        .filter((chapter): chapter is ResolvedChapter => chapter !== null);
+
+      const unmatched = picked.length - result.chapters.length;
+      if (unmatched > 0) {
+        logger.warn("Rotation", "Audios without a resolvable chapter", {
+          rotationId,
+          count: unmatched,
+        });
+      }
     }
 
     // Advance the cursor. When not looping and the end is reached, stop.
     const advanced = rotation.cursor + result.itemsPicked;
-    const nextCursor = advanced >= source.length
+    const nextCursor = advanced >= entries.length
       ? rotation.loop
-        ? advanced % source.length
-        : source.length
+        ? advanced % entries.length
+        : entries.length
       : advanced;
 
     await prisma.playlistRotation.update({
@@ -270,7 +240,7 @@ export async function runRotation(rotationId: string): Promise<RotationRunResult
       data: {
         cursor: nextCursor,
         lastRunAt: new Date(),
-        ...(rotation.loop ? {} : { active: nextCursor < source.length }),
+        ...(rotation.loop ? {} : { active: nextCursor < entries.length }),
       },
     });
 
@@ -313,6 +283,106 @@ async function persistRun(rotationId: string, result: RotationRunResult): Promis
       }),
     },
   });
+}
+
+/** Rotation fields needed to resolve its ordered source and current position. */
+type Rotation = RotationSourceConfig & { id: string; cursor: number; itemsPerDay: number };
+
+/** Block of media a rotation would place next, starting at `cursor`. */
+export interface RotationSourcePreview {
+  total: number;
+  cursor: number;
+  unresolved: string[];
+  current: ResolvedChapter | null;
+  upcoming: Array<{ chapter: ResolvedChapter; title: string; path: string }>;
+  /** Chapters available in the source, grouped by book, in canonical order. */
+  books: Array<{ name: string; chapters: number[] }>;
+}
+
+function groupChaptersByBook(entries: RotationSourceEntry[]): Array<{ name: string; chapters: number[] }> {
+  const byBook = new Map<string, number[]>();
+
+  for (const item of entries) {
+    if (item.chapter === null) continue;
+    const chapters = byBook.get(item.chapter.book);
+    if (chapters) {
+      chapters.push(item.chapter.chapter);
+    } else {
+      byBook.set(item.chapter.book, [item.chapter.chapter]);
+    }
+  }
+
+  return [...byBook.entries()].map(([name, chapters]) => ({ name, chapters }));
+}
+
+function buildPreview(
+  source: RotationSource,
+  cursor: number,
+  itemsPerDay: number
+): RotationSourcePreview {
+  const upcoming = source.entries
+    .slice(cursor, cursor + itemsPerDay)
+    .flatMap((item) =>
+      item.chapter === null
+        ? []
+        : [
+            {
+              chapter: item.chapter,
+              title: item.entry.media.title || item.entry.media.path,
+              path: item.entry.media.path,
+            },
+          ]
+    );
+
+  return {
+    total: source.entries.length,
+    cursor,
+    unresolved: source.unresolved,
+    current: source.entries[cursor]?.chapter ?? null,
+    upcoming,
+    books: groupChaptersByBook(source.entries),
+  };
+}
+
+/**
+ * Describes what a rotation is about to play, so the panel can show the real
+ * position of the reading instead of an opaque cursor number.
+ */
+export async function previewRotationSource(rotation: Rotation): Promise<RotationSourcePreview> {
+  const source = await loadRotationSource(rotation);
+  return buildPreview(source, rotation.cursor, rotation.itemsPerDay);
+}
+
+/**
+ * Moves the cursor of a rotation to the audio carrying `book` `chapter`, so a
+ * reading that advanced by hand can be resumed by the automation.
+ *
+ * Returns the resolved chapter and the preview of the block that will be
+ * placed from the new position.
+ */
+export async function alignRotation(
+  rotation: Rotation,
+  book: string,
+  chapter: number
+): Promise<{ preview: RotationSourcePreview; source: RotationSource }> {
+  const source = await loadRotationSource(rotation);
+  const index = source.entries.findIndex(
+    (item) => item.chapter?.book === book && item.chapter?.chapter === chapter
+  );
+
+  if (index === -1) {
+    throw new AppError(
+      404,
+      `No hay ningún audio de ${book} ${chapter} en la fuente de esta rotación.`
+    );
+  }
+
+  await prisma.playlistRotation.update({
+    where: { id: rotation.id },
+    data: { cursor: index },
+  });
+
+  return { preview: buildPreview(source, index, rotation.itemsPerDay), source };
 }
 
 /** Runs all active rotations sequentially. */

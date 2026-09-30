@@ -8,14 +8,16 @@ export interface PlaylistOrderEntry {
   /** Row id of the playlist-media association (used to reorder). */
   id: number;
   weight: number;
-  media: {
-    id: number;
-    unique_id: string;
-    path: string;
-    title: string;
-    artist: string;
-    length: number;
-  };
+    media: {
+      id: number;
+      unique_id: string;
+      path: string;
+      title: string;
+      artist: string;
+      length: number;
+      /** Only present when the source is a library folder. */
+      album?: string | null;
+    };
 }
 
 /** Schedule item embedded in the playlist API object. */
@@ -52,6 +54,7 @@ export interface StationFileRow {
   path: string;
   title: string | null;
   artist: string | null;
+  album: string | null;
   length: number;
 }
 
@@ -103,6 +106,7 @@ export async function listMediaInFolder(folderPath: string): Promise<PlaylistOrd
         path: file.path,
         title: file.title ?? "",
         artist: file.artist ?? "",
+        album: file.album,
         length: file.length,
       },
     }));

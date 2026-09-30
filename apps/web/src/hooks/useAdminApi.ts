@@ -24,6 +24,8 @@ import type {
   PlaylistDetail,
   PlaylistOrderEntry,
   PlaylistRotation,
+  RotationAlignResult,
+  RotationSourcePreview,
   PushCampaignInput,
   PushCampaignResult,
   PushNotificationLogList,
@@ -218,6 +220,22 @@ export function useAdminApi() {
       request<RotationRunLog[]>({
         url: `/admin-api/rotations/${id}/runs`,
         params: { limit },
+      }),
+    [request]
+  );
+
+  const getRotationSource = useCallback(
+    (id: string) =>
+      request<RotationSourcePreview>({ url: `/admin-api/rotations/${id}/source` }),
+    [request]
+  );
+
+  const alignRotation = useCallback(
+    (id: string, book: string, chapter: number) =>
+      request<RotationAlignResult>({
+        method: 'POST',
+        url: `/admin-api/rotations/${id}/align`,
+        data: { book, chapter },
       }),
     [request]
   );
@@ -856,6 +874,8 @@ export function useAdminApi() {
     deleteRotation,
     runRotation,
     getRotationRuns,
+    getRotationSource,
+    alignRotation,
     getReadingHistory,
     getPendingRequests,
     approveRequest,

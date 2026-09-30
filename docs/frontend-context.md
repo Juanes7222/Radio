@@ -53,6 +53,14 @@
   `components/layout/StreamDownHelp.tsx`, which shows the next programs
   (`@radio/api` `fetchSchedule` + `mergeConsecutiveScheduleItems`) and the
   Bible reading of the day (`/api/bible/reading/today`).
+- Bible reading: `pages/admin/AdminRotations.tsx` manages the rotations, and
+  its `AlignRotationDialog` is how a reading that was advanced by hand gets
+  handed back to the automation. It loads `GET /admin-api/rotations/:id/source`
+  (real position, next chapters, files whose chapter could not be resolved) and
+  posts `{ book, chapter }` to `/align`, which moves the cursor and runs the
+  rotation immediately. The book/chapter pickers are built from the chapters
+  the source actually contains, not from a hardcoded list.
+  `pages/admin/AdminReadingHistory.tsx` shows the per-day history.
 - Sidebar nav is grouped into Emisión / Contenido / Audiencia sections;
   the topbar derives the page title from that same structure.
 - Data loaders use `.then` chains on purpose: react-hooks v7 flags
