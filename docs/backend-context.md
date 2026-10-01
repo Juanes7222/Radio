@@ -40,6 +40,7 @@
 - Files whose chapter cannot be resolved are kept at the end of the list in path order, excluded from the announced chapters, and reported through `unresolved` so the panel can show them instead of mis-announcing.
 - Endpoints (all `requireAuth` + permiso `rotations`, salvo `GET /history` que usa `reading.history`): `GET|POST /admin-api/rotations`, `GET|PUT|DELETE /:id`, `POST /:id/run`, `GET /:id/runs`, `GET /:id/source` (posición real + próximos capítulos + `unresolved`), `POST /:id/align` (`{ book, chapter }` mueve el cursor y ejecuta la rotación de inmediato), `GET /admin-api/rotations/history`.
 - `GET /api/bible/reading/today` is public and derives the reading from the last `RotationRunLog` of the current Bogotá day. It returns `null` when no run happened that day.
+- **The source is cached for 10 minutes** (`bibleSource.service.ts`), keyed by source + translation, with in-flight de-duplication. Resolving a source walks the whole station library, which used to take long enough to trip the 10s admin request timeout: `listAllStationFiles` now reads the total from page 1 and fetches the remaining pages concurrently. Uploads and file deletes call `invalidateRotationSourceCache()`. The frontend gives `/source` and `/align` a 120s timeout instead of the default 10s.
 
 ## Worker auto-update (Sep 2026)
 

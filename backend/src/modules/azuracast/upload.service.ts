@@ -1,6 +1,7 @@
 import axios from "axios";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { invalidateRotationSourceCache } from "../rotation/bibleSource.service";
 import {
   AZURACAST_SHORT_TIMEOUT_MS,
   AZURACAST_UPLOAD_TIMEOUT_MS,
@@ -37,6 +38,10 @@ export async function uploadFileToStation(
   );
 
   const fileData = uploadRes.data as UploadedFile;
+
+  // The rotation source is cached for a few minutes, so a fresh file must
+  // invalidate it or the panel keeps offering a stale list of chapters.
+  invalidateRotationSourceCache();
 
   if (playlistId && fileData.id) {
     try {
@@ -89,6 +94,8 @@ export async function triggerMediaRescan(): Promise<void> {
 }
 
 export async function deleteStationFile(fileId: string): Promise<void> {
+  invalidateRotationSourceCache();
+
   await axios.delete(
     `${config.azuracast.url}/api/station/${config.azuracast.stationId}/file/${fileId}`,
     {

@@ -665,6 +665,10 @@ function AlignRotationDialog({
 
         {loading ? (
           <div className="space-y-2">
+            <p className="text-xs text-faint flex items-center gap-1.5">
+              <BookOpen className="w-3 h-3 shrink-0" />
+              Leyendo la biblioteca para ordenar los capítulos...
+            </p>
             <div className="h-12 rounded-lg animate-pulse bg-muted" />
             <div className="h-12 rounded-lg animate-pulse bg-muted" />
           </div>

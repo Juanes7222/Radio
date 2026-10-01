@@ -1,4 +1,5 @@
 import { azuracastApi, STATION_ID } from "../azuracast/azuracast.client";
+import { logger } from "../../shared/logger/logger";
 
 /**
  * One row of a sequential playlist, as returned by
@@ -66,24 +67,49 @@ export interface StationDirectory {
 const FILES_PER_PAGE = 500;
 const MAX_FILE_PAGES = 30;
 
+interface StationFilesPage {
+  rows?: StationFileRow[];
+  total?: number;
+}
+
+async function fetchFilesPage(page: number): Promise<StationFilesPage> {
+  const { data } = await azuracastApi.get<StationFilesPage>(
+    `/station/${STATION_ID}/files`,
+    { params: { per_page: FILES_PER_PAGE, page } }
+  );
+  return data ?? {};
+}
+
 /**
- * Fetches every media file of the station (paginated). Used to build the
- * ordered source when the rotation reads from a library folder.
+ * Fetches every media file of the station. Used to build the ordered source
+ * when the rotation reads from a library folder.
+ *
+ * AzuraCast answers with the total row count, so the remaining pages are known
+ * up front and fetched concurrently instead of one after another. Fetching
+ * them in series over a large library took long enough to trip the admin
+ * panel's request timeout.
  */
 export async function listAllStationFiles(): Promise<StationFileRow[]> {
-  const all: StationFileRow[] = [];
+  const first = await fetchFilesPage(1);
+  const firstRows = first.rows ?? [];
+  const total = first.total ?? firstRows.length;
 
-  for (let page = 1; page <= MAX_FILE_PAGES; page++) {
-    const { data } = await azuracastApi.get<{ rows?: StationFileRow[] }>(
-      `/station/${STATION_ID}/files`,
-      { params: { per_page: FILES_PER_PAGE, page } }
+  const totalPages = Math.min(Math.ceil(total / FILES_PER_PAGE), MAX_FILE_PAGES);
+  if (total > MAX_FILE_PAGES * FILES_PER_PAGE) {
+    logger.warn(
+      "Rotation",
+      "Station library exceeds the page scan limit; the rotation source may be incomplete",
+      { total, scanned: MAX_FILE_PAGES * FILES_PER_PAGE }
     );
-    const rows = Array.isArray(data?.rows) ? data.rows : [];
-    all.push(...rows);
-    if (rows.length < FILES_PER_PAGE) break;
   }
 
-  return all;
+  if (totalPages <= 1) return firstRows;
+
+  const remaining = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, index) => fetchFilesPage(index + 2))
+  );
+
+  return [...firstRows, ...remaining.flatMap((page) => page.rows ?? [])];
 }
 
 /**

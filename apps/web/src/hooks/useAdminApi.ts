@@ -224,9 +224,16 @@ export function useAdminApi() {
     [request]
   );
 
+  // Reading a rotation source walks the station library, which does not fit in
+  // the default request timeout on a large library.
+  const ROTATION_SOURCE_TIMEOUT_MS = 120000;
+
   const getRotationSource = useCallback(
     (id: string) =>
-      request<RotationSourcePreview>({ url: `/admin-api/rotations/${id}/source` }),
+      request<RotationSourcePreview>({
+        url: `/admin-api/rotations/${id}/source`,
+        timeout: ROTATION_SOURCE_TIMEOUT_MS,
+      }),
     [request]
   );
 
@@ -236,6 +243,7 @@ export function useAdminApi() {
         method: 'POST',
         url: `/admin-api/rotations/${id}/align`,
         data: { book, chapter },
+        timeout: ROTATION_SOURCE_TIMEOUT_MS,
       }),
     [request]
   );
