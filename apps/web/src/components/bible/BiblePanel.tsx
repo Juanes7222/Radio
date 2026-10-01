@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,15 @@ import { BibleSearch } from './BibleSearch';
 interface BiblePanelProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+/**
+ * Rendered through a portal: ancestors animate clip-path/filter, which turn
+ * them into the containing block for position:fixed and would clip the panel
+ * to the page content area instead of the viewport.
+ */
+function portalHost(): HTMLElement | null {
+  return typeof document === 'undefined' ? null : document.body;
 }
 
 export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
@@ -35,7 +45,10 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, isNavOpen, isSearchOpen, handlePrev, handleNext]);
 
-  return (
+  const portalTarget = portalHost();
+  if (!portalTarget) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -187,6 +200,7 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    portalTarget
   );
 }

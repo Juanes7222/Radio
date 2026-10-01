@@ -238,9 +238,9 @@ export function StationConsole({
 
         {/* Top meta bar — más baja en mobile */}
         <div className="relative border-b border-border/30 bg-card/20 backdrop-blur-sm">
-          <div className="mx-auto max-w-6xl px-4 md:px-6 h-8 md:h-9 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-3">
-              <span className="hidden sm:inline-flex items-center gap-1.5 font-mono text-[11px] tracking-widest uppercase text-muted-foreground">
+          <div className="mx-auto max-w-6xl px-4 md:px-6 h-8 md:h-9 flex items-center justify-center text-xs">
+            <div className="flex items-center justify-center gap-3">
+              <span className="inline-flex items-center gap-1.5 font-mono text-[11px] tracking-widest uppercase text-muted-foreground">
                 <span className={`w-1.5 h-1.5 rounded-full ${playerState.isPlaying ? 'bg-tally animate-pulse' : 'bg-muted-foreground/40'}`} />
                 {playerState.isPlaying ? 'Al aire' : 'En espera'}
               </span>
@@ -249,12 +249,11 @@ export function StationConsole({
               ) : (
                 <Badge variant="secondary" className="h-5 px-2 text-[10px] tracking-widest uppercase">AutoDJ</Badge>
               )}
-              <span className="hidden md:inline-flex items-center gap-1 text-muted-foreground">
+              <span className="inline-flex items-center gap-1 text-muted-foreground">
                 <Wifi className="w-3 h-3" aria-hidden />
                 <span className="font-mono tabular-nums">{listeners}</span> oyentes
               </span>
             </div>
-            
           </div>
           {/* Signal hairline progress — scaleX for GPU */}
           {currentSong && (
@@ -277,7 +276,7 @@ export function StationConsole({
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
             className="flex justify-center mb-2 md:mb-5"
           >
-            <div className="w-32 md:w-44 opacity-90">
+            <div className="w-44 md:w-64">
               <StationLogo priority className="w-full h-auto" />
             </div>
           </motion.div>

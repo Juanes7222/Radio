@@ -19,6 +19,18 @@ const RETRY_BACKOFF_MS = 5 * 60 * 1000;
 const MAX_ALERT_ATTEMPTS = 3;
 
 /**
+ * Checks that describe the listener-facing stream. The public banner must
+ * only report these: operational checks (disk, backups, YouTube jobs, worker
+ * heartbeats, listener sampling) can stay degraded for long periods without
+ * the transmission being affected, and showing a "stream may cut" warning
+ * for them erodes trust in the message.
+ */
+const STREAM_FACING_CHECKS: ReadonlySet<HealthCheckKey> = new Set<HealthCheckKey>([
+  "azuracast",
+  "autodj",
+]);
+
+/**
  * Panel page where the operator can act on each check. Alerts link straight
  * to the affected area so a notification never dead-ends in the health center.
  * Workers are only visible in the YouTube page, where the node list lives.
@@ -297,6 +309,19 @@ export function getHealthOverview(): HealthOverview {
   };
 }
 
+/**
+ * Aggregate status for the public degraded-state banner: worst status among
+ * the stream-facing checks only. Defaults to "ok" until the watchdog has run
+ * at least once, so a cold start never warns listeners about a stream that
+ * has not been measured yet.
+ */
 export function getHealthStatusSnapshot(): { status: HealthStatus; checkedAt: string | null } {
-  return { status: state.status, checkedAt: state.checkedAt };
+  const streamResults = Array.from(state.checks.values()).filter((result) =>
+    STREAM_FACING_CHECKS.has(result.key)
+  );
+  const status =
+    streamResults.length > 0
+      ? worstStatus(streamResults.map((result) => result.status))
+      : "ok";
+  return { status, checkedAt: state.checkedAt };
 }
