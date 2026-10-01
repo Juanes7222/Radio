@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { motion, AnimatePresence, useInView } from 'framer-motion';
+import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock,
   Radio,
@@ -14,6 +14,10 @@ import {
   User,
   Star,
   MessageSquare,
+  LayoutGrid,
+  Clock3,
+  ChevronDown,
+  ChevronsUpDown,
   type LucideIcon,
 } from 'lucide-react';
 import { useAzuraCast, mergeConsecutiveScheduleItems } from '@/hooks';
@@ -23,7 +27,8 @@ import { apiUrl } from '@/config';
 import { formatChapters } from '@/lib/format';
 import type { BibleReadingToday, ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 
-
+/** Strip order: Monday first, like the mobile app (JS day indexes, 0 = Sun). */
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -64,6 +69,21 @@ function getBogotaDayOfWeek(dateInput: Date | number): number {
   return utcDay;
 }
 
+function formatScheduleTime(timestamp: number): string {
+  return new Date(timestamp * 1000).toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+function getAccent(category: ScheduleCategorySummary | null | undefined) {
+  if (category) {
+    return { dot: category.color, glow: `${category.color}2e` };
+  }
+  return NEUTRAL_ACCENT;
+}
+
 function CategoryIcon({
   category,
   className,
@@ -75,12 +95,74 @@ function CategoryIcon({
   return <Icon className={className} />;
 }
 
+/** Live/now pill shared by both views; text and emphasis follow program state. */
+function LiveBadge({ program }: { program: ScheduleItem }) {
+  const accent = getAccent(program.category);
+  return (
+    <span
+      className="flex-shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+      style={{
+        background: accent.glow,
+        color: accent.dot,
+        border: `1px solid ${accent.dot}40`,
+      }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: accent.dot }} />
+      {program.is_now ? 'Ahora' : 'En vivo'}
+    </span>
+  );
+}
+
 interface ScheduleSection {
   category: ScheduleCategorySummary | null;
   items: ScheduleItem[];
 }
 
-/** Single compact entry inside a section */
+type ViewMode = 'categories' | 'chronological';
+
+/* ------------------------------------------------------------------ */
+/* Toggle entre vistas                                                 */
+/* ------------------------------------------------------------------ */
+
+function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewMode) => void }) {
+  const segments: Array<{ value: ViewMode; label: string; Icon: LucideIcon }> = [
+    { value: 'categories', label: 'Por categoría', Icon: LayoutGrid },
+    { value: 'chronological', label: 'Cronológico', Icon: Clock3 },
+  ];
+
+  return (
+    <div
+      role="tablist"
+      aria-label="Modo de vista"
+      className="flex w-full sm:w-auto sm:self-start p-1 rounded-xl border border-border bg-card mb-4"
+    >
+      {segments.map(({ value, label, Icon }) => {
+        const isSelected = mode === value;
+        return (
+          <button
+            key={value}
+            role="tab"
+            aria-selected={isSelected}
+            onClick={() => onChange(value)}
+            className={`flex-1 sm:flex-none sm:px-5 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              isSelected
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Icon className="w-4 h-4" aria-hidden />
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Vista por categoría                                                 */
+/* ------------------------------------------------------------------ */
+
 function ProgramRow({
   program,
   accent,
@@ -90,16 +172,6 @@ function ProgramRow({
   accent: { dot: string; glow: string };
   onClick: () => void;
 }) {
-  const startTime = new Date(program.start_timestamp * 1000).toLocaleTimeString('es-CO', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-  const endTime = new Date(program.end_timestamp * 1000).toLocaleTimeString('es-CO', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
   const isLive = program.type === 'streamer';
 
   return (
@@ -107,7 +179,8 @@ function ProgramRow({
       whileTap={{ scale: 0.99 }}
       whileHover={{ y: -1 }}
       onClick={onClick}
-      className="w-full flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors duration-150 shadow-sm hover:shadow-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      style={program.is_now ? { borderColor: accent.dot } : undefined}
+      className="w-full flex items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left transition-colors duration-150 shadow-sm hover:shadow-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span
         className="w-2.5 h-2.5 rounded-full flex-shrink-0"
@@ -116,87 +189,159 @@ function ProgramRow({
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm leading-snug truncate">{program.title}</p>
         <p className="text-xs mt-0.5 text-muted-foreground">
-          {startTime} → {endTime}
+          {formatScheduleTime(program.start_timestamp)} → {formatScheduleTime(program.end_timestamp)}
           {program.slots && program.slots > 1 ? ` · ${program.slots} bloques` : ''}
         </p>
       </div>
-      {isLive && (
-        <motion.span
-          animate={{ opacity: [1, 0.4, 1] }}
-          transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-          className="flex-shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
-          style={{
-            background: accent.glow,
-            color: accent.dot,
-            border: `1px solid ${accent.dot}40`,
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: accent.dot }} />
-          En Vivo
-        </motion.span>
-      )}
+      {isLive && <LiveBadge program={program} />}
     </motion.button>
   );
 }
 
 function ScheduleSection({
   section,
-  idx,
+  collapsed,
+  onToggle,
   onSelect,
 }: {
   section: ScheduleSection;
-  idx: number;
+  collapsed: boolean;
+  onToggle: () => void;
   onSelect: (program: ScheduleItem) => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: '-40px' });
-  const accent = section.category
-    ? { dot: section.category.color, glow: `${section.category.color}2e` }
-    : NEUTRAL_ACCENT;
+  const accent = getAccent(section.category);
 
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 14 }}
-      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
-      transition={{ duration: 0.45, delay: idx * 0.07, ease: [0.16, 1, 0.3, 1] }}
-      className="mb-7 last:mb-0"
-    >
-      {/* Section header */}
-      <div className="flex items-center gap-2.5 mb-3">
+    <div className="mb-7 last:mb-0">
+      <button
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        className="w-full flex items-center gap-2.5 mb-3 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
+      >
         <span
-          className="w-8 h-8 rounded-lg flex items-center justify-center"
+          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
           style={{ background: accent.glow, color: accent.dot }}
         >
           <CategoryIcon category={section.category} className="w-4 h-4" />
         </span>
-        <div className="min-w-0">
-          <h3 className="font-semibold text-sm leading-tight truncate">
+        <span className="min-w-0 text-left">
+          <span className="block font-semibold text-sm leading-tight truncate">
             {section.category ? section.category.name : 'Otros programas'}
-          </h3>
-          <p className="text-[11px] text-muted-foreground">
+          </span>
+          <span className="block text-[11px] text-muted-foreground">
             {section.items.length} horario{section.items.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-        <span
-          className="flex-1 h-px mx-1 self-center"
-          style={{ background: `${accent.dot}33` }}
-        />
-      </div>
+          </span>
+        </span>
+        <span className="flex-1 h-px mx-1" style={{ background: `${accent.dot}33` }} />
+        <motion.span
+          animate={{ rotate: collapsed ? 0 : 180 }}
+          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="text-muted-foreground shrink-0"
+        >
+          <ChevronDown className="w-4 h-4" aria-hidden />
+        </motion.span>
+      </button>
 
-      <div className="space-y-2">
-        {section.items.map((program) => (
-          <ProgramRow
-            key={`${program.id}-${program.start_timestamp}`}
-            program={program}
-            accent={accent}
-            onClick={() => onSelect(program)}
-          />
-        ))}
-      </div>
-    </motion.div>
+      <AnimatePresence initial={false}>
+        {!collapsed && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-2"
+          >
+            {section.items.map((program) => (
+              <ProgramRow
+                key={`${program.id}-${program.start_timestamp}`}
+                program={program}
+                accent={accent}
+                onClick={() => onSelect(program)}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Vista cronológica                                                   */
+/* ------------------------------------------------------------------ */
+
+function TimelineRow({
+  program,
+  isLast,
+  onSelect,
+}: {
+  program: ScheduleItem;
+  isLast: boolean;
+  onSelect: (program: ScheduleItem) => void;
+}) {
+  const accent = getAccent(program.category);
+  const isLive = program.type === 'streamer';
+
+  return (
+    <div className="flex gap-3">
+      <span
+        className={`w-20 shrink-0 pt-3 text-right font-mono text-xs font-semibold tabular-nums ${
+          program.is_now ? 'text-primary' : 'text-muted-foreground'
+        }`}
+      >
+        {formatScheduleTime(program.start_timestamp)}
+      </span>
+
+      <div className="relative flex flex-col items-center w-3.5 shrink-0">
+        <span
+          className="z-10 mt-3.5 w-3 h-3 rounded-full border-2 border-background shrink-0"
+          style={{ background: accent.dot }}
+          aria-hidden
+        />
+        {!isLast && (
+          <span
+            className="flex-1 w-0.5 -mt-1 mb-0.5 rounded-full"
+            style={{ background: accent.glow }}
+            aria-hidden
+          />
+        )}
+      </div>
+
+      <motion.button
+        whileTap={{ scale: 0.99 }}
+        whileHover={{ y: -1 }}
+        onClick={() => onSelect(program)}
+        style={program.is_now ? { borderColor: accent.dot } : undefined}
+        className="flex-1 min-w-0 mb-4 rounded-xl border bg-card px-4 py-3 text-left transition-colors duration-150 shadow-sm hover:shadow-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <div className="flex items-center gap-2">
+          <p className="flex-1 min-w-0 font-semibold text-sm leading-snug truncate">
+            {program.title}
+          </p>
+          {isLive && <LiveBadge program={program} />}
+        </div>
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <span
+            className="w-[7px] h-[7px] rounded-full shrink-0"
+            style={{ background: accent.dot }}
+            aria-hidden
+          />
+          <span className="flex-1 min-w-0 truncate text-xs text-muted-foreground">
+            {program.category ? program.category.name : 'Otros programas'}
+          </span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {formatScheduleTime(program.end_timestamp)}
+            {program.slots && program.slots > 1 ? ` · ${program.slots} bloques` : ''}
+          </span>
+        </div>
+      </motion.button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Selector de día                                                     */
+/* ------------------------------------------------------------------ */
 
 function DayPill({
   label,
@@ -228,8 +373,7 @@ function DayPill({
       {label}
       {isToday && (
         <span
-          className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
-          style={{ background: 'hsl(var(--primary))' }}
+          className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary"
           aria-hidden
         />
       )}
@@ -287,14 +431,20 @@ function SkeletonCard() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Página                                                              */
+/* ------------------------------------------------------------------ */
+
 export function ProgramacionPage() {
   const { fetchSchedule, fetchScheduleCategories } = useAzuraCast({});
-  const [schedule, setSchedule]   = useState<ScheduleItem[]>([]);
+  const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [categories, setCategories] = useState<ScheduleCategorySummary[]>([]);
-  const [reading, setReading]     = useState<BibleReadingToday['reading']>(null);
-  const [loading, setLoading]     = useState(true);
+  const [reading, setReading] = useState<BibleReadingToday['reading']>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedProgram, setSelectedProgram] = useState<ScheduleItem | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('categories');
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const currentDay = getBogotaDayOfWeek(new Date());
   const [selectedDay, setSelectedDay] = useState(currentDay);
@@ -321,7 +471,7 @@ export function ProgramacionPage() {
     loadSchedule();
   }, [fetchSchedule, fetchScheduleCategories]);
 
-  const sections = useMemo<ScheduleSection[]>(() => {
+  const dayPrograms = useMemo<ScheduleItem[]>(() => {
     const programsForDay = schedule
       .filter(item => getBogotaDayOfWeek(item.start_timestamp) === selectedDay)
       .sort((a, b) => a.start_timestamp - b.start_timestamp)
@@ -332,10 +482,12 @@ export function ProgramacionPage() {
         selectedCategoryId === null || item.category?.id === selectedCategoryId
       );
 
-    const merged = mergeConsecutiveScheduleItems(programsForDay);
+    return mergeConsecutiveScheduleItems(programsForDay);
+  }, [schedule, selectedDay, selectedCategoryId]);
 
+  const sections = useMemo<ScheduleSection[]>(() => {
     const groups = new Map<string, ScheduleSection>();
-    for (const item of merged) {
+    for (const item of dayPrograms) {
       const key = item.category?.id ?? '__none__';
       const existing = groups.get(key);
       if (existing) {
@@ -353,10 +505,30 @@ export function ProgramacionPage() {
       };
       return indexOf(a.category) - indexOf(b.category);
     });
-  }, [schedule, selectedDay, selectedCategoryId, categories]);
+  }, [dayPrograms, categories]);
 
   const filteredCategory = categories.find(c => c.id === selectedCategoryId) ?? null;
   const totalSlots = sections.reduce((acc, section) => acc + section.items.length, 0);
+
+  const sectionKeys = sections.map((section) => section.category?.id ?? '__none__');
+  const allSectionsCollapsed =
+    sectionKeys.length > 0 && sectionKeys.every((key) => collapsedSections.has(key));
+
+  const toggleSection = (key: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const toggleAllSections = () => {
+    setCollapsedSections(allSectionsCollapsed ? new Set() : new Set(sectionKeys));
+  };
 
   return (
     <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
@@ -417,18 +589,20 @@ export function ProgramacionPage() {
           transition={{ duration: 0.5, delay: 0.15 }}
           aria-label="Seleccionar día"
           role="tablist"
-          className="flex gap-1 p-1.5 rounded-2xl mb-6 overflow-x-auto no-scrollbar bg-muted"
+          className="flex gap-1 p-1.5 rounded-2xl mb-4 overflow-x-auto no-scrollbar bg-muted"
         >
-          {DAYS.map((day, i) => (
+          {DAY_ORDER.map((dayIndex) => (
             <DayPill
-              key={day}
-              label={day}
-              isSelected={selectedDay === i}
-              isToday={currentDay === i}
-              onClick={() => setSelectedDay(i)}
+              key={dayIndex}
+              label={DAYS[dayIndex]}
+              isSelected={selectedDay === dayIndex}
+              isToday={currentDay === dayIndex}
+              onClick={() => setSelectedDay(dayIndex)}
             />
           ))}
         </motion.nav>
+
+        <ViewToggle mode={viewMode} onChange={setViewMode} />
 
         {categories.length > 0 && (
           <motion.div
@@ -468,21 +642,34 @@ export function ProgramacionPage() {
               <h2 className="font-semibold text-lg">{DAYS_FULL[selectedDay]}</h2>
               {!loading && totalSlots > 0 && (
                 <p className="text-xs mt-0.5 text-muted-foreground">
-                  {totalSlots} horario{totalSlots !== 1 ? 's' : ''} en {sections.length} tipo{sections.length !== 1 ? 's' : ''}
+                  {viewMode === 'chronological'
+                    ? `${totalSlots} horario${totalSlots !== 1 ? 's' : ''} en orden del día`
+                    : `${totalSlots} horario${totalSlots !== 1 ? 's' : ''} en ${sections.length} tipo${sections.length !== 1 ? 's' : ''}`}
                 </p>
               )}
             </div>
-            {currentDay === selectedDay && (
-              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-brand/15 text-brand">
-                Hoy
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {viewMode === 'categories' && sectionKeys.length > 1 && (
+                <button
+                  onClick={toggleAllSections}
+                  className="flex items-center gap-1 text-xs font-medium text-brand outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                >
+                  <ChevronsUpDown className="w-3.5 h-3.5" aria-hidden />
+                  {allSectionsCollapsed ? 'Expandir todo' : 'Contraer todo'}
+                </button>
+              )}
+              {currentDay === selectedDay && (
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-brand/15 text-brand">
+                  Hoy
+                </span>
+              )}
+            </div>
           </motion.div>
         </AnimatePresence>
 
         <AnimatePresence mode="wait">
           <motion.div
-            key={`day-${selectedDay}-${selectedCategoryId}`}
+            key={`day-${selectedDay}-${selectedCategoryId}-${viewMode}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -493,16 +680,7 @@ export function ProgramacionPage() {
               <div>
                 {[0, 1, 2].map(i => <SkeletonCard key={i} />)}
               </div>
-            ) : sections.length > 0 ? (
-              sections.map((section, idx) => (
-                <ScheduleSection
-                  key={section.category?.id ?? '__none__'}
-                  section={section}
-                  idx={idx}
-                  onSelect={setSelectedProgram}
-                />
-              ))
-            ) : (
+            ) : dayPrograms.length === 0 ? (
               /* Empty state */
               <motion.div
                 initial={{ opacity: 0, scale: 0.97 }}
@@ -524,6 +702,30 @@ export function ProgramacionPage() {
                   </p>
                 </div>
               </motion.div>
+            ) : viewMode === 'chronological' ? (
+              <div>
+                {dayPrograms.map((program, index) => (
+                  <TimelineRow
+                    key={`${program.id}-${program.start_timestamp}`}
+                    program={program}
+                    isLast={index === dayPrograms.length - 1}
+                    onSelect={setSelectedProgram}
+                  />
+                ))}
+              </div>
+            ) : (
+              sections.map((section) => {
+                const key = section.category?.id ?? '__none__';
+                return (
+                  <ScheduleSection
+                    key={key}
+                    section={section}
+                    collapsed={collapsedSections.has(key)}
+                    onToggle={() => toggleSection(key)}
+                    onSelect={setSelectedProgram}
+                  />
+                );
+              })
             )}
           </motion.div>
         </AnimatePresence>
@@ -560,8 +762,8 @@ export function ProgramacionPage() {
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 opacity-60" />
                     <span className="text-sm">
-                      {new Date(selectedProgram.start_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })} - {' '}
-                      {new Date(selectedProgram.end_timestamp * 1000).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      {formatScheduleTime(selectedProgram.start_timestamp)} - {' '}
+                      {formatScheduleTime(selectedProgram.end_timestamp)}
                     </span>
                   </div>
                   {selectedProgram.slots && selectedProgram.slots > 1 && (
