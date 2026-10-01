@@ -64,8 +64,8 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
               <StationLogo className="w-full h-full object-contain" />
             </motion.div>
           )}
-          <div className="hidden sm:block">
-            <h1 className="font-display text-[17px] leading-tight tracking-tight">{stationName}</h1>
+          <div>
+            <h1 className="font-display text-[15px] sm:text-[17px] leading-tight tracking-tight">{stationName}</h1>
             <p className="text-[11px] font-mono tracking-widest uppercase text-muted-foreground">24/7 · Cartago</p>
           </div>
         </div>

@@ -1,5 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Facebook, Radio } from 'lucide-react';
+import { Link } from 'react-router';
+import { Facebook, Radio, CalendarClock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface FacebookLivePlayerProps {
   liveUrl: string | null;
@@ -25,7 +27,7 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
 
   return (
     <div className="w-full px-4 py-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Container with responsive grid layout */}
         <div className="relative">
           {/* Placeholder when no live stream */}
@@ -37,46 +39,50 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-                className="w-full rounded-2xl border-2 border-dashed border-gray-700/50 bg-slate-900/50 backdrop-blur-sm p-8 md:p-12"
+                className="w-full rounded-2xl border border-dashed border-border/50 bg-card/30 backdrop-blur-sm p-8 md:p-12"
               >
                 <div className="flex flex-col items-center justify-center text-center space-y-4">
                   <div className="relative">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                      <Radio className="w-8 h-8 text-gray-500" />
+                    <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center">
+                      <Radio className="w-8 h-8 text-muted-foreground" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-lg md:text-xl font-semibold text-gray-300">
-                      No hay transmisión en vivo en este momento
+                    <h3 className="text-lg md:text-xl font-semibold text-foreground">
+                      La transmisión en vivo no está activa
                     </h3>
-                    <p className="text-sm md:text-base text-gray-500 max-w-md">
-                      Cuando iniciemos una transmisión en vivo en Facebook, aparecerá aquí automáticamente.
+                    <p className="text-sm md:text-base text-muted-foreground max-w-md">
+                      Cuando transmitamos por Facebook, el video aparecerá aquí. Mientras tanto, la emisora sigue al aire 24/7.
                     </p>
                   </div>
+                  <Button asChild variant="outline" className="rounded-full border-border bg-card">
+                    <Link to="/programacion">
+                      <CalendarClock className="w-4 h-4" aria-hidden />
+                      Ver programación
+                    </Link>
+                  </Button>
                 </div>
               </motion.div>
             ) : (
               <motion.div
                 key="player"
-                initial={{ opacity: 0, y: 12, scale: 0.97, filter: 'blur(4px)' }}
-                animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: -12, scale: 0.97, filter: 'blur(4px)' }}
+                initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -12, scale: 0.97 }}
                 transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
                 className="w-full will-change-transform"
               >
-                {/* Live Badge */}
+                {/* Live Badge — coherente con el lenguaje mono/eyebrow del sitio */}
                 <div className="flex items-center justify-center mb-4">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-red-600 to-rose-500 shadow-lg shadow-red-500/30">
-                    <div className="relative flex items-center justify-center">
-                      <span className="relative flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
-                      </span>
-                    </div>
-                    <span className="text-white font-bold text-sm md:text-base tracking-wide">
-                      EN VIVO
+                  <div className="inline-flex items-center gap-2 text-tally">
+                    <span className="relative flex h-2 w-2" aria-hidden>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-tally opacity-60"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-tally"></span>
                     </span>
-                    <Facebook className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                    <span className="font-mono text-sm font-bold tracking-widest uppercase">
+                      En vivo · Facebook
+                    </span>
+                    <Facebook className="w-4 h-4" aria-hidden />
                   </div>
                 </div>
 
@@ -104,9 +110,9 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
                       href={liveUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 active:scale-[0.97] transition-[transform,color] duration-150 ease-out"
+                      className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground active:scale-[0.97] transition-[transform,color] duration-150 ease-out"
                     >
-                      <span>Abrir en Facebook</span>
+                      <span className="underline underline-offset-4 decoration-border hover:decoration-current">Abrir en Facebook</span>
                       <svg
                         className="w-4 h-4"
                         fill="none"

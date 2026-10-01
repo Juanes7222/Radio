@@ -99,9 +99,9 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
                 ) : chapterData?.verses ? (
                   <motion.div
                     key={`${currentBook}-${currentChapter}`}
-                    initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
-                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                    exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
                   >
                     <h1 className="font-display text-4xl md:text-5xl font-normal text-center mb-2 tracking-tight text-foreground">

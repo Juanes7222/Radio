@@ -11,7 +11,8 @@ export function PublicLayout() {
   return (
     <div className="flex flex-col min-h-screen">
       <StationHealthBanner />
-      <div className="flex-1 pb-20 overflow-hidden">
+      {/* Reserve space for the fixed MiniPlayer only where it is rendered */}
+      <div className={isHome ? 'flex-1 overflow-hidden' : 'flex-1 pb-20 overflow-hidden'}>
         <AnimatePresence mode="wait" initial={false}>
           <PageTransition key={location.pathname}>
             <Outlet />

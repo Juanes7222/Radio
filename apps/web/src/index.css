@@ -363,6 +363,20 @@ button,
   top: 1rem;
 }
 
+/* ─── Ambient artwork fade-in ─────────────────────────────────────────
+   CSS-only so the resting opacity is owned by the utility class and no
+   inline style can override it (framer-motion inline opacity:1 used to
+   clobber opacity-[0.18] and show the artwork sharp at full strength). */
+@keyframes ambient-artwork-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.ambient-artwork-in {
+  animation: ambient-artwork-in 0.45s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 /* ─── Typography helpers ────────────────────────────────────────────── */
 
 .fluid-title {

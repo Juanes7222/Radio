@@ -122,7 +122,7 @@ export function WaveformVisualizer({
   }
 
   return (
-    <div className="relative w-full h-16 rounded-xl overflow-hidden bg-muted/30 border border-border/30">
+    <div className="relative w-full h-16 overflow-hidden">
       <canvas
         ref={canvasRef}
         width={800}

@@ -223,11 +223,10 @@ export function StationConsole({
             {artworkUrl && (
               <motion.div
                 key={artworkUrl}
-                initial={{ opacity: 0, filter: 'blur(8px)' }}
-                animate={{ opacity: 1, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, filter: 'blur(4px)' }}
-                transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
-                className="absolute inset-0 scale-125 blur-[42px] opacity-[0.18] will-change-transform"
+                initial={false}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                className="absolute inset-0 scale-125 blur-[42px] opacity-[0.18] ambient-artwork-in"
                 style={{ backgroundImage: `url(${artworkUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
               />
             )}
@@ -240,14 +239,14 @@ export function StationConsole({
         <div className="relative border-b border-border/30 bg-card/20 backdrop-blur-sm">
           <div className="mx-auto max-w-6xl px-4 md:px-6 h-8 md:h-9 flex items-center justify-center text-xs">
             <div className="flex items-center justify-center gap-3">
-              <span className="inline-flex items-center gap-1.5 font-mono text-[11px] tracking-widest uppercase text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 font-mono text-xs tracking-widest uppercase text-muted-foreground">
                 <span className={`w-1.5 h-1.5 rounded-full ${playerState.isPlaying ? 'bg-tally animate-pulse' : 'bg-muted-foreground/40'}`} />
                 {playerState.isPlaying ? 'Al aire' : 'En espera'}
               </span>
               {isLive ? (
-                <Badge variant="destructive" className="h-5 px-2 text-[10px] tracking-widest uppercase">En vivo</Badge>
+                <Badge variant="destructive" className="h-5 px-2 text-[11px] tracking-widest uppercase">En vivo</Badge>
               ) : (
-                <Badge variant="secondary" className="h-5 px-2 text-[10px] tracking-widest uppercase">AutoDJ</Badge>
+                <Badge variant="secondary" className="h-5 px-2 text-[11px] tracking-widest uppercase">AutoDJ</Badge>
               )}
               <span className="inline-flex items-center gap-1 text-muted-foreground">
                 <Wifi className="w-3 h-3" aria-hidden />
@@ -274,9 +273,9 @@ export function StationConsole({
             initial={shouldReduceMotion ? undefined : { opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="flex justify-center mb-2 md:mb-5"
+            className="flex justify-center mb-3 md:mb-6 mt-4 md:mt-10"
           >
-            <div className="w-44 md:w-64">
+            <div className="w-44 md:w-64 lg:w-72">
               <StationLogo priority className="w-full h-auto" />
             </div>
           </motion.div>
@@ -436,7 +435,7 @@ export function StationConsole({
                   <button onClick={sleepTimer.cancel} className="text-xs underline underline-offset-2 hover:opacity-80 ml-1">Cancelar</button>
                 </motion.div>
               )}
-              <p className="hidden md:block text-[11px] font-mono tracking-widest uppercase text-muted-foreground/60">
+              <p className="hidden md:block text-xs font-mono tracking-widest uppercase text-muted-foreground/60">
                 Espacio para {playerState.isPlaying ? 'pausar' : 'reproducir'}
               </p>
             </motion.div>
@@ -448,24 +447,18 @@ export function StationConsole({
               transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
               className="md:col-span-7 flex flex-col gap-2.5 md:gap-4 items-center text-center"
             >
-              {/* Eyebrow — centrado */}
+              {/* Eyebrow — identidad; el estado vive en la barra superior y en el halo del disco */}
               <div className="flex items-center justify-center gap-2 text-xs">
                 <Radio className="w-3.5 h-3.5 text-primary" aria-hidden />
                 <span className="font-mono tracking-[0.14em] uppercase text-primary font-semibold">La Voz de la Verdad</span>
-                <span className="hidden sm:inline-flex items-center gap-1.5 ml-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${playerState.isPlaying ? 'bg-tally animate-pulse' : 'bg-muted-foreground/30'}`} aria-hidden />
-                  <span className={`font-mono text-[11px] tracking-widest uppercase ${playerState.isPlaying ? 'text-tally' : 'text-muted-foreground'}`}>
-                    {playerState.isPlaying ? 'En vivo' : 'Fuera del aire'}
-                  </span>
-                </span>
               </div>
 
               <AnimatePresence mode="wait">
                 <motion.div
                   key={songData?.id ?? 'no-info'}
-                  initial={shouldReduceMotion ? undefined : { opacity: 0, y: 8, filter: 'blur(4px)' }}
-                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }}
+                  initial={shouldReduceMotion ? undefined : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
                   className="space-y-3 flex flex-col items-center w-full will-change-transform"
                 >
@@ -481,23 +474,19 @@ export function StationConsole({
                     </div>
                   ) : (
                     <>
-                      {isPreaching ? (
-                        <span className="inline-flex text-[11px] font-bold uppercase tracking-widest text-primary border border-primary/30 rounded-full px-3 py-1">
+                      {isPreaching && (
+                        <span className="inline-flex text-xs font-bold uppercase tracking-widest text-primary border border-primary/30 rounded-full px-3 py-1">
                           Prédica
                         </span>
-                      ) : (
-                        <span className="inline-flex md:hidden items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-tally">
-                          <span className="w-1.5 h-1.5 rounded-full bg-tally animate-pulse" aria-hidden /> En vivo
-                        </span>
                       )}
-                      <h1 className="font-display text-[1.7rem] md:text-4xl font-normal leading-[0.95] tracking-tight text-foreground line-clamp-2 text-center">
+                      <h1 className="font-display text-[2rem] md:text-5xl font-normal leading-[1.05] tracking-tight text-foreground line-clamp-2 text-center">
                         {title || 'La Voz de la Verdad'}
                       </h1>
-                      <p className="font-mono text-sm md:text-[15px] text-muted-foreground min-h-[20px] text-center">
+                      <p className="font-mono text-base text-muted-foreground min-h-[24px] text-center">
                         {displayArtist || 'Radio cristiana · Cartago, Colombia'}
                       </p>
                       {currentSong?.playlist && (
-                        <span className="text-xs text-muted-foreground font-mono text-center">
+                        <span className="max-w-full truncate text-xs text-muted-foreground font-mono text-center">
                           {currentSong.playlist}
                         </span>
                       )}
@@ -506,14 +495,14 @@ export function StationConsole({
                 </motion.div>
               </AnimatePresence>
 
-              {/* Waveform — compacto en mobile */}
-              <div className="w-full rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm overflow-hidden">
+              {/* Waveform — sin caja: solo las barras y el progreso */}
+              <div className="w-full">
                 <div className="px-3 pt-2 md:pt-3">
                   <WaveformVisualizer analyserNode={analyserRef} isPlaying={playerState.isPlaying && !playerState.isLoading} />
                 </div>
                 {currentSong && (
                   <div className="px-3 pb-2 md:pb-3 pt-1.5 md:pt-2">
-                    <div className="flex items-center justify-between text-[11px] font-mono tabular-nums text-muted-foreground mb-1">
+                    <div className="flex items-center justify-between text-xs font-mono tabular-nums text-muted-foreground mb-1">
                       <span>{formatTime(currentSong.elapsed)}</span>
                       <span>{formatTime(currentSong.duration)}</span>
                     </div>
@@ -533,7 +522,7 @@ export function StationConsole({
               <div className="flex flex-wrap items-center justify-center gap-2 w-full">
                 {/* Volume */}
                 <div className="flex items-center gap-2 bg-card border border-border rounded-full px-2 py-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={onToggleMute} aria-label={playerState.isMuted || playerState.volume === 0 ? 'Activar sonido' : 'Silenciar'}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={onToggleMute} aria-label={playerState.isMuted || playerState.volume === 0 ? 'Activar sonido' : 'Silenciar'}>
                     {playerState.isMuted || playerState.volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                   </Button>
                   <div className="w-20 hidden sm:block">
