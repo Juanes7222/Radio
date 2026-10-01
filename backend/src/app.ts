@@ -45,6 +45,15 @@ const ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:4173"];
 export function createApp(): Express {
   const app = express();
 
+  // Exactly one reverse proxy (nginx) sits in front of this process and
+  // appends the real peer to X-Forwarded-For. Without this, req.ip is always
+  // 127.0.0.1 for every request, which collapses the login rate limiter into a
+  // single global counter (30 attempts lock out the whole station) and makes
+  // access logs useless. Hop count 1 trusts the socket peer and reads the
+  // closest address nginx recorded; a client-supplied X-Forwarded-For cannot
+  // spoof it because nginx appends the real peer as the last entry.
+  app.set("trust proxy", 1);
+
   // "tiny" instead of "dev": same concise line without ANSI colors,
   // which pollute PM2 files and break the admin log viewer.
   // Skip the log-viewer own endpoints and healthchecks: without this,

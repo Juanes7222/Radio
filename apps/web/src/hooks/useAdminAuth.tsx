@@ -10,6 +10,7 @@ import axios from 'axios';
 import type { AdminPermission, AdminRole, AdminUser } from '@radio/types';
 import { hasAdminPermission } from '@radio/types';
 import { apiUrl } from '@/config';
+import { describeRequestError } from '@/lib/apiErrors';
 
 const STORAGE_KEY = 'admin_session';
 const STATION_ID = import.meta.env.VITE_STATION_ID || 'la_voz_de_la_verdad';
@@ -102,16 +103,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(adminUser));
       return true;
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const msg = err.response?.data?.error as string | undefined;
-        setError(
-          err.response?.status === 403
-            ? (msg ?? 'Tu cuenta de Google no tiene acceso a este panel.')
-            : (msg ?? 'Error al conectar con el servidor.')
-        );
-      } else {
-        setError('Error desconocido.');
-      }
+      setError(describeRequestError(err));
       return false;
     } finally {
       setIsLoading(false);

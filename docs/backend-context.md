@@ -57,6 +57,17 @@
 - Remediation policy: only AutoDJ restart is automatic (with backoff). Everything else notifies `EMAIL_RECIPIENTS` with a direct link to the affected panel area (`PANEL_PATH_BY_CHECK`: streaming, youtube, backups, dashboard) and the same URL travels in the push `data.url`. Alerts re-notify up to 3 attempts; recovery clears them.
 - Live-streamer safety: `checkAutoDj` reports OK while `now_playing.live.is_live` is true (no alert, no remediation), and `attemptAutoDjRestart` re-checks `getPanelStatus().isLive` immediately before calling `start-autodj`, so the watchdog can never kick an on-air streamer off the stream.
 
+## Behind nginx (trust proxy)
+
+`app.set("trust proxy", 1)` in `backend/src/app.ts` assumes exactly one reverse
+proxy hop. nginx must therefore send `X-Forwarded-For`
+(`proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`). Without this,
+`req.ip` is `127.0.0.1` for every request and any IP-keyed logic degrades:
+the login rate limiter (`auth.routes.ts`, 30 attempts / 10 min) becomes a single
+global counter and locks out every admin at once. Hop count 1 is safe against
+spoofing because nginx appends the real peer as the last entry, which is the one
+Express reads.
+
 ## Ports
 
 - HTTP: `PORT` (default 3001). WS worker server: `WS_PORT` (default 3001) — they must differ in production or the second listen fails with EADDRINUSE. This mirrors the original behavior.

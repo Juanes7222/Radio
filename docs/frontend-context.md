@@ -18,6 +18,33 @@
 - Keep accessibility in mind.
 - Preserve the project's existing UI patterns and spacing conventions.
 
+## Backend wiring (env vars)
+
+`apps/web/src/config.ts` is the single place that builds every backend URL
+(`apiUrl()`, `API_BASE_URL`). Two independent variables define the topology,
+and mixing them is the source of most "it works in production but not in dev"
+bugs.
+
+`VITE_API_BASE_URL` is what the **browser** calls. It must be empty or an
+absolute `http(s)` URL, and `config.ts` throws at startup otherwise. Empty
+means same-origin, which is the setup in production (nginx serves the app and
+proxies `/api`, `/admin-api`, `/live-status` and `/live-relay`). A bare host
+such as `www.lavozverdad.com` is rejected on purpose: it used to be silently
+treated as a relative path and resolved against the current route, producing
+requests like `localhost:5173/admin/www.lavozverdad.com/api/nowplaying`.
+
+`VITE_API_PROXY_TARGET` is what the **Vite dev server** forwards to. It only
+exists in `vite.config.ts` and never reaches the bundle. To run the frontend
+locally against the production backend, set `VITE_API_BASE_URL=` (empty) and
+`VITE_API_PROXY_TARGET=https://www.lavozverdad.com`. This is preferred over
+pointing `VITE_API_BASE_URL` at production: requests stay same-origin, so CORS
+does not apply, cookies are not third-party, and SSE plus the `live-relay`
+WebSocket keep working. The dev server prints the resolved target on boot
+(`[vite] API dev proxy -> ...`), and an unusable value fails the boot instead
+of degrading into 404s. If a cross-origin setup is ever needed, add the dev
+origin to `ALLOWED_ORIGINS` in `backend/src/app.ts` (`http://localhost:5173`
+and `http://localhost:4173` are already there).
+
 ## Suggested expectations for the agent
 
 - Identify the exact components, hooks, and styles involved.

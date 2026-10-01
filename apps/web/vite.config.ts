@@ -3,13 +3,44 @@ import react from "@vitejs/plugin-react"
 import { defineConfig, loadEnv } from "vite"
 import { inspectAttr } from 'kimi-plugin-inspect-react'
 
+// Backend the dev server forwards to when the app calls its own origin.
+// Overridable so the frontend can run against a remote backend without
+// turning every browser request into a cross-origin one (no CORS, no
+// third-party cookie restrictions, SSE and WebSocket keep working).
+const DEFAULT_PROXY_TARGET = 'http://localhost:3000'
+
+function resolveProxyTarget(env: Record<string, string>): string {
+  const configured = (env.VITE_API_PROXY_TARGET ?? '').trim()
+  const base = (env.VITE_API_BASE_URL ?? '').trim()
+  const target = configured || base || DEFAULT_PROXY_TARGET
+
+  if (!/^https?:\/\/[^/\s]+/.test(target)) {
+    throw new Error(
+      `Invalid dev proxy target: "${target}". Set VITE_API_PROXY_TARGET to an absolute URL (e.g. https://api.example.com), or leave it empty to use ${DEFAULT_PROXY_TARGET}.`,
+    )
+  }
+
+  return target.replace(/\/+$/, '')
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
-  // Single source of truth: the dev proxy forwards relative API routes to the
-  // same origin the app uses (VITE_API_BASE_URL). Falls back to the local
-  // backend, which listens on 3000 by default (see backend/.env.example).
   const env = loadEnv(mode, path.resolve(__dirname), "")
-  const backendTarget = env.VITE_API_BASE_URL || "http://localhost:3000"
+  const backendTarget = resolveProxyTarget(env)
+
+  if (command === 'serve') {
+    console.log(`[vite] API dev proxy -> ${backendTarget}`)
+  }
+
+  // Same routing contract for `vite dev` and `vite preview`, so a preview run
+  // against a remote backend behaves like production: the app keeps calling
+  // its own origin and the proxy performs the cross-origin hop once.
+  const proxy = {
+    '/admin-api': { target: backendTarget, changeOrigin: true },
+    '/api': { target: backendTarget, changeOrigin: true },
+    '/live-status': { target: backendTarget, changeOrigin: true },
+    '/live-relay': { target: backendTarget, changeOrigin: true, ws: true },
+  }
 
   return {
     base: '/',
@@ -31,25 +62,11 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     server: {
-      proxy: {
-        '/admin-api': {
-          target: backendTarget,
-          changeOrigin: true,
-        },
-        '/api': {
-          target: backendTarget,
-          changeOrigin: true,
-        },
-        '/live-status': {
-          target: backendTarget,
-          changeOrigin: true,
-        },
-        '/live-relay': {
-          target: backendTarget,
-          changeOrigin: true,
-          ws: true,
-        },
-      },
+      proxy,
+    },
+    preview: {
+      port: 4173,
+      proxy,
     },
     build: {
       rollupOptions: {
