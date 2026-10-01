@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { ScrollReveal } from '@/components/layout/ScrollReveal';
 import { MmmLogo } from './OptimizedLogo';
 
 interface AppFooterProps {
@@ -15,7 +16,7 @@ const LEGAL_LINKS = [
 export function AppFooter({ stationName }: AppFooterProps) {
   return (
     <footer className="border-t border-border/50 bg-card/20 px-4 py-8">
-      <div className="max-w-6xl mx-auto flex flex-col items-center gap-4">
+      <ScrollReveal className="max-w-6xl mx-auto flex flex-col items-center gap-4">
         <div className="h-7 w-auto opacity-70">
           <MmmLogo className="h-7 w-auto object-contain" />
         </div>
@@ -38,7 +39,7 @@ export function AppFooter({ stationName }: AppFooterProps) {
             </Link>
           ))}
         </nav>
-      </div>
+      </ScrollReveal>
     </footer>
   );
 }

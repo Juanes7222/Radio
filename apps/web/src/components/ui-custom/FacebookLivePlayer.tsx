@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Link } from 'react-router';
 import { Facebook, Radio, CalendarClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ScrollReveal } from '@/components/layout/ScrollReveal';
 
 interface FacebookLivePlayerProps {
   liveUrl: string | null;
@@ -26,7 +27,7 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
   const embedUrl = getEmbedUrl(liveUrl);
 
   return (
-    <div className="w-full px-4 py-6">
+    <ScrollReveal className="w-full px-4 py-6">
       <div className="max-w-6xl mx-auto">
         {/* Container with responsive grid layout */}
         <div className="relative">
@@ -134,6 +135,6 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
           </AnimatePresence>
         </div>
       </div>
-    </div>
+    </ScrollReveal>
   );
 }

@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { ScrollReveal } from '@/components/layout/ScrollReveal';
 
 interface SocialLink {
   label: string;
@@ -18,7 +19,8 @@ export function DesktopSocialLinks({ links }: SocialLinksSectionProps) {
   const featuredLinks = links.filter(l => l.featured);
 
   return (
-    <section className="hidden md:block px-4 pt-8 pb-8 max-w-6xl mx-auto">
+    <ScrollReveal>
+      <section className="hidden md:block px-4 pt-8 pb-8 max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
         <span className="h-px flex-1 bg-border/50" aria-hidden />
         <h2 className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted-foreground">Síguenos</h2>
@@ -72,7 +74,8 @@ export function DesktopSocialLinks({ links }: SocialLinksSectionProps) {
           ))}
         </div>
       )}
-    </section>
+      </section>
+    </ScrollReveal>
   );
 }
 
@@ -81,7 +84,8 @@ export function MobileSocialLinks({ links }: SocialLinksSectionProps) {
   const featuredLinks = links.filter(l => l.featured);
 
   return (
-    <section className="md:hidden px-5 pt-6 pb-4" aria-label="Redes sociales">
+    <ScrollReveal>
+      <section className="md:hidden px-5 pt-6 pb-4" aria-label="Redes sociales">
       <div className="flex items-center gap-3 mb-4">
         <span className="h-px flex-1 bg-border/50" aria-hidden />
         <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted-foreground">Síguenos</p>
@@ -134,6 +138,7 @@ export function MobileSocialLinks({ links }: SocialLinksSectionProps) {
           ))}
         </div>
       )}
-    </section>
+      </section>
+    </ScrollReveal>
   );
 }
