@@ -348,7 +348,7 @@ if [[ "$DEPLOY_BACKEND" == "true" ]]; then
   fi
 
   info "Applying database migrations..."
-  "$PNPM_BIN" --filter "$BACKEND_PACKAGE" exec prisma migrate deploy
+  "$PNPM_BIN" --filter "$BACKEND_PACKAGE" run prisma:migrate:deploy
 
   BIBLE_DB="$BACKEND_DIR/prisma/dev.db"
   if [[ ! -f "$BIBLE_DB" ]] || [[ ! -s "$BIBLE_DB" ]]; then
