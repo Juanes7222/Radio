@@ -75,6 +75,81 @@ export function isBibleSearchResponse(value: unknown): value is BibleSearchRespo
   }
 }
 
+export interface BibleTextSegment {
+  text: string;
+  matched: boolean;
+}
+
+/**
+ * Case- and accent-insensitive folding, mirroring how FTS5 matches: a search for
+ * "senor" must highlight "Señor" just like the index found it.
+ */
+function foldForSearch(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+interface MatchRange {
+  start: number;
+  end: number;
+}
+
+function collectRanges(text: string, term: string, ranges: MatchRange[]): void {
+  const needle = foldForSearch(term);
+  if (needle.length === 0) return;
+
+  // Slices the original string by the term's own length and compares folded
+  // values, so no assumption is made about how folding changes string length.
+  for (let start = 0; start + term.length <= text.length; start += 1) {
+    if (foldForSearch(text.slice(start, start + term.length)) === needle) {
+      ranges.push({ start, end: start + term.length });
+      start += term.length - 1;
+    }
+  }
+}
+
+/**
+ * Splits verse text into matched and unmatched segments so callers can render
+ * the emphasis themselves. Returns plain strings: no HTML, so the text cannot
+ * carry markup that a renderer would have to escape.
+ *
+ * Matching is by substring rather than by FTS token boundary, so an infix term
+ * like "ñor" highlights inside "Señor" even though the index would not have
+ * matched that token. Overshooting only marks text the user already asked for.
+ */
+export function splitBibleText(text: string, terms: string[]): BibleTextSegment[] {
+  const ranges: MatchRange[] = [];
+  for (const term of terms) collectRanges(text, term, ranges);
+  if (ranges.length === 0) return [{ text, matched: false }];
+
+  ranges.sort((a, b) => a.start - b.start);
+
+  const merged: MatchRange[] = [];
+  for (const range of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && range.start <= last.end) {
+      last.end = Math.max(last.end, range.end);
+    } else {
+      merged.push({ ...range });
+    }
+  }
+
+  const segments: BibleTextSegment[] = [];
+  let cursor = 0;
+  for (const range of merged) {
+    if (range.start > cursor) {
+      segments.push({ text: text.slice(cursor, range.start), matched: false });
+    }
+    segments.push({ text: text.slice(range.start, range.end), matched: true });
+    cursor = range.end;
+  }
+  if (cursor < text.length) segments.push({ text: text.slice(cursor), matched: false });
+
+  return segments;
+}
+
 function toErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const body: unknown = err.response?.data;

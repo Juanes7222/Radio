@@ -1,12 +1,15 @@
 import { motion } from 'framer-motion';
+import { splitBibleText } from '@radio/api';
 import type { BibleSearchResult } from '@radio/types';
 
 interface BibleSearchVerseListProps {
   verses: BibleSearchResult[];
+  /** Terms to emphasize; omitted for reference and chapter results. */
+  highlightTerms?: string[];
   onSelect: (bookName: string, chapterNumber: number) => void;
 }
 
-export function BibleSearchVerseList({ verses, onSelect }: BibleSearchVerseListProps) {
+export function BibleSearchVerseList({ verses, highlightTerms, onSelect }: BibleSearchVerseListProps) {
   return (
     <>
       {verses.map((verse) => (
@@ -23,7 +26,17 @@ export function BibleSearchVerseList({ verses, onSelect }: BibleSearchVerseListP
             </span>
           </div>
           <p className="text-lg text-foreground/80 leading-relaxed font-serif group-hover:text-foreground transition-colors">
-            {verse.text}
+            {highlightTerms
+              ? splitBibleText(verse.text, highlightTerms).map((segment, index) =>
+                  segment.matched ? (
+                    <mark key={index} className="bg-primary/25 text-foreground rounded px-0.5">
+                      {segment.text}
+                    </mark>
+                  ) : (
+                    <span key={index}>{segment.text}</span>
+                  ),
+                )
+              : verse.text}
           </p>
         </motion.button>
       ))}

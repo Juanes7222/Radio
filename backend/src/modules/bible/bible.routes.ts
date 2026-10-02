@@ -3,6 +3,8 @@ import { prisma } from "../../infrastructure/database/prisma";
 import { getTodayReading } from "../rotation/rotation.service";
 import { asyncHandler } from "../../shared/errors/async-handler";
 import { logger } from "../../shared/logger/logger";
+import { isValidBookOrder } from "./bookCatalog";
+import { parseQueryReference } from "./reference-parser";
 
 const router = Router();
 
@@ -20,165 +22,28 @@ function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 
-// Maps common abbreviations and alternate spellings to canonical book names.
-// Covers Spanish names, English names, and common abbreviations.
-const BOOK_ALIASES: Record<string, string> = {
-  // Pentateuch
-  gen: "Génesis", gén: "Génesis", genesis: "Génesis",
-  exo: "Éxodo", éxodo: "Éxodo", exodo: "Éxodo", exodus: "Éxodo",
-  lev: "Levítico", levítico: "Levítico", levitico: "Levítico",
-  num: "Números", números: "Números", numeros: "Números", numbers: "Números",
-  deu: "Deuteronomio", dt: "Deuteronomio", deut: "Deuteronomio",
-  // Historical
-  jos: "Josué", josue: "Josué", josh: "Josué",
-  jue: "Jueces", judges: "Jueces",
-  rut: "Rut", ruth: "Rut",
-  "1sam": "1 Samuel", "1 sam": "1 Samuel", "1samuel": "1 Samuel",
-  "2sam": "2 Samuel", "2 sam": "2 Samuel", "2samuel": "2 Samuel",
-  "1rey": "1 Reyes", "1re": "1 Reyes", "1kings": "1 Reyes",
-  "2rey": "2 Reyes", "2re": "2 Reyes", "2kings": "2 Reyes",
-  "1cr": "1 Crónicas", "1cro": "1 Crónicas", "1chron": "1 Crónicas",
-  "2cr": "2 Crónicas", "2cro": "2 Crónicas", "2chron": "2 Crónicas",
-  esd: "Esdras", ezra: "Esdras",
-  neh: "Nehemías", nehemias: "Nehemías",
-  est: "Ester", esther: "Ester",
-  // Poetic
-  job: "Job",
-  sal: "Salmos", ps: "Salmos", psa: "Salmos", psalm: "Salmos", psalms: "Salmos", salmo: "Salmos",
-  pro: "Proverbios", prov: "Proverbios", proverbs: "Proverbios",
-  ecl: "Eclesiastés", qoh: "Eclesiastés",
-  cnt: "Cantares", cant: "Cantares", song: "Cantares",
-  // Prophets
-  isa: "Isaías", is: "Isaías", isaiah: "Isaías", isaias: "Isaías",
-  jer: "Jeremías", jeremias: "Jeremías",
-  lam: "Lamentaciones",
-  eze: "Ezequiel", ezq: "Ezequiel", ezekiel: "Ezequiel",
-  dan: "Daniel",
-  ose: "Oseas", hos: "Oseas",
-  joe: "Joel", jl: "Joel",
-  amo: "Amós", am: "Amós",
-  abd: "Abdías", ob: "Abdías",
-  jon: "Jonás", jonas: "Jonás",
-  miq: "Miqueas", mic: "Miqueas",
-  nah: "Nahúm", nah2: "Nahúm",
-  hab: "Habacuc",
-  sof: "Sofonías", zep: "Sofonías",
-  hag: "Hageo",
-  zac: "Zacarías", zech: "Zacarías",
-  mal: "Malaquías",
-  // Gospels and Acts
-  mat: "Mateo", mt: "Mateo", matt: "Mateo", mateo: "Mateo", matthew: "Mateo",
-  mar: "Marcos", mc: "Marcos", mk: "Marcos", mark: "Marcos", marcos: "Marcos",
-  luc: "Lucas", lk: "Lucas", luke: "Lucas", lucas: "Lucas",
-  jn: "Juan", jua: "Juan", john: "Juan", juan: "Juan",
-  hch: "Hechos", act: "Hechos", acts: "Hechos",
-  // Epistles
-  rom: "Romanos", ro: "Romanos", romans: "Romanos",
-  "1co": "1 Corintios", "1cor": "1 Corintios", "1 cor": "1 Corintios", "1corinthians": "1 Corintios",
-  "2co": "2 Corintios", "2cor": "2 Corintios", "2 cor": "2 Corintios", "2corinthians": "2 Corintios",
-  gal: "Gálatas", ga: "Gálatas", galatians: "Gálatas",
-  efe: "Efesios", ef: "Efesios", eph: "Efesios", ephesians: "Efesios",
-  fil: "Filipenses", php: "Filipenses", philippians: "Filipenses",
-  col: "Colosenses", colosenses: "Colosenses", colossians: "Colosenses",
-  "1tes": "1 Tesalonicenses", "1ts": "1 Tesalonicenses", "1thess": "1 Tesalonicenses",
-  "2tes": "2 Tesalonicenses", "2ts": "2 Tesalonicenses", "2thess": "2 Tesalonicenses",
-  "1ti": "1 Timoteo", "1tim": "1 Timoteo", "1timothy": "1 Timoteo",
-  "2ti": "2 Timoteo", "2tim": "2 Timoteo", "2timothy": "2 Timoteo",
-  tit: "Tito", titus: "Tito",
-  flm: "Filemón", phm: "Filemón", philemon: "Filemón",
-  heb: "Hebreos", hebrews: "Hebreos",
-  san: "Santiago", stg: "Santiago", jas: "Santiago", james: "Santiago",
-  "1pe": "1 Pedro", "1ped": "1 Pedro", "1pet": "1 Pedro", "1peter": "1 Pedro",
-  "2pe": "2 Pedro", "2ped": "2 Pedro", "2pet": "2 Pedro", "2peter": "2 Pedro",
-  "1jn": "1 Juan", "1jo": "1 Juan", "1john": "1 Juan",
-  "2jn": "2 Juan", "2jo": "2 Juan", "2john": "2 Juan",
-  "3jn": "3 Juan", "3jo": "3 Juan", "3john": "3 Juan",
-  jud: "Judas", jude: "Judas",
-  ap: "Apocalipsis", apo: "Apocalipsis", rev: "Apocalipsis", revelation: "Apocalipsis",
-};
-
-type ParsedReference =
-  | { kind: "book"; bookName: string }
-  | { kind: "chapter"; bookName: string; chapter: number }
-  | { kind: "verse"; bookName: string; chapter: number; verseStart: number; verseEnd?: number };
-
-const ORDINAL_TO_DIGIT: Record<string, string> = {
-  primera: "1",
-  primero: "1",
-  primer: "1",
-  segunda: "2",
-  segundo: "2",
-  tercera: "3",
-  tercero: "3",
-  tercer: "3",
-};
-
-// Lets people type "primera de Juan" the way they'd say it out loud.
-function spellOutOrdinalPrefix(query: string): string {
-  const match = query.match(
-    /^(primero|primera|primer|segundo|segunda|tercero|tercera|tercer)\s+(?:de\s+)?/i,
-  );
-  if (!match) return query;
-  return `${ORDINAL_TO_DIGIT[match[1].toLowerCase()]} ${query.slice(match[0].length)}`;
-}
-
-// Accepts compact typing ("jn3:16"), a trailing period on abbreviations
-// ("Jn. 3:16"), ":" "." or "," as the chapter-verse separator, and "-" or
-// "al" as the verse-range separator.
-const REFERENCE_PATTERN =
-  /^(\d\s*)?([a-záéíóúüñ]+)\.?(?:\s*(\d+)(?:\s*[:.,]\s*(\d+)(?:\s*(?:-|al)\s*(\d+))?)?)?$/i;
-
-function normalizeKey(raw: string): string {
-  return raw
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, "")
-    .trim();
-}
-
-const NORMALIZED_ALIASES: Record<string, string> = Object.fromEntries(
-  Object.entries(BOOK_ALIASES).map(([alias, canonical]) => [normalizeKey(alias), canonical]),
-);
-
-// Falls back to the canonical name itself, so full names like "1 Corintios"
-// resolve even without an explicit abbreviation entry.
-const CANONICAL_BOOK_LOOKUP: Record<string, string> = Object.fromEntries(
-  [...new Set(Object.values(BOOK_ALIASES))].map((name) => [normalizeKey(name), name]),
-);
-
-function resolveBookAlias(raw: string): string | null {
-  const key = normalizeKey(raw);
-  return NORMALIZED_ALIASES[key] ?? CANONICAL_BOOK_LOOKUP[key] ?? null;
-}
-
 /**
- * Attempts to parse a query string as a verse reference.
- * Classifies intent as book ("Apocalipsis"), chapter ("Salmos 23"),
- * or verse ("Jn 3:16", "jn3:16", "Jn. 3:16", "Juan 3.16", "Juan 3,16",
- * "Juan 3:16 al 18"). Returns null when the query is free text.
+ * Book selector for the read-only endpoints: either the language-independent
+ * position or a name, which clients holding a `BibleBook` already have.
  */
-function parseQueryReference(query: string): ParsedReference | null {
-  const normalized = spellOutOrdinalPrefix(query.trim());
-  const match = normalized.match(REFERENCE_PATTERN);
-  if (!match) return null;
+type BookSelector = { order: number } | { name: string };
 
-  const [, prefix, bookRaw, chapterRaw, verseStartRaw, verseEndRaw] = match;
-  const bookName = resolveBookAlias(`${prefix ?? ""} ${bookRaw}`);
-  if (!bookName) return null;
+function parseBookSelector(rawOrder: unknown, rawName: unknown): BookSelector | null {
+  if (rawOrder !== undefined) {
+    // Number(null) and Number("") are 0, which fails the range check.
+    const order = Number(asString(rawOrder));
+    return isValidBookOrder(order) ? { order } : null;
+  }
 
-  if (!chapterRaw) return { kind: "book", bookName };
+  const name = asString(rawName);
+  return name ? { name } : null;
+}
 
-  const chapter = parseInt(chapterRaw, 10);
-  if (!verseStartRaw) return { kind: "chapter", bookName, chapter };
-
-  return {
-    kind: "verse",
-    bookName,
-    chapter,
-    verseStart: parseInt(verseStartRaw, 10),
-    verseEnd: verseEndRaw ? parseInt(verseEndRaw, 10) : undefined,
-  };
+function bookWhereClause(selector: BookSelector, translationAbbr: string) {
+  const translation = { abbreviation: translationAbbr };
+  return "order" in selector
+    ? { order: selector.order, translation }
+    : { name: selector.name, translation };
 }
 
 function buildFtsQuery(terms: string[], mode: "AND" | "OR"): string {
@@ -232,14 +97,11 @@ async function fetchRankedVerses(ftsRows: FtsRow[], translationAbbr: string) {
 }
 
 // Shared lookup between GET /chapter and the chapter intent of GET /search.
-async function getChapterWithVerses(bookName: string, chapterNumber: number, translationAbbr: string) {
+async function getChapterWithVerses(selector: BookSelector, chapterNumber: number, translationAbbr: string) {
   return prisma.bibleChapter.findFirst({
     where: {
       number: chapterNumber,
-      book: {
-        name: bookName,
-        translation: { abbreviation: translationAbbr },
-      },
+      book: bookWhereClause(selector, translationAbbr),
     },
     include: {
       book: { include: { translation: true } },
@@ -248,8 +110,8 @@ async function getChapterWithVerses(bookName: string, chapterNumber: number, tra
   });
 }
 
-// Lectura bíblica programada: devuelve los capítulos que se están
-// reproduciendo hoy según la rotación bíblica activa, si existe.
+// Scheduled Bible reading: returns the chapters played today by the active
+// Bible rotation, when there is one.
 router.get(
   "/reading/today",
   asyncHandler(async (_req: Request, res: Response) => {
@@ -300,17 +162,14 @@ router.get(
     }
     const translationAbbr = asString(req.query.translation) ?? "RVR1960";
 
-    const bookName = asString(req.query.book);
-    if (!bookName) {
-      return res.status(400).json({ error: "Book parameter is required" });
+    const selector = parseBookSelector(req.query.order, req.query.book);
+    if (!selector) {
+      return res.status(400).json({ error: "A valid book order or book parameter is required" });
     }
 
     const chapters = await prisma.bibleChapter.findMany({
       where: {
-        book: {
-          name: bookName,
-          translation: { abbreviation: translationAbbr },
-        },
+        book: bookWhereClause(selector, translationAbbr),
       },
       orderBy: { number: "asc" },
     });
@@ -327,9 +186,9 @@ router.get(
     }
     const translationAbbr = asString(req.query.translation) ?? "RVR1960";
 
-    const bookName = asString(req.query.book);
+    const selector = parseBookSelector(req.query.order, req.query.book);
     const chapterRaw = asString(req.query.chapter);
-    if (!bookName || !chapterRaw) {
+    if (!selector || !chapterRaw) {
       return res.status(400).json({ error: "Book and chapter parameters are required" });
     }
 
@@ -338,7 +197,7 @@ router.get(
       return res.status(400).json({ error: "Invalid chapter parameter" });
     }
 
-    const chapterData = await getChapterWithVerses(bookName, chapterNumber, translationAbbr);
+    const chapterData = await getChapterWithVerses(selector, chapterNumber, translationAbbr);
 
     if (!chapterData) {
       return res.status(404).json({ error: "Chapter not found" });
@@ -369,12 +228,12 @@ router.get(
     const reference = parseQueryReference(q);
 
     if (reference) {
+      const bookOrder = reference.bookOrder;
+      const bookSelector: BookSelector = { order: bookOrder };
+
       if (reference.kind === "book") {
         const book = await prisma.bibleBook.findFirst({
-          where: {
-            name: reference.bookName,
-            translation: { abbreviation: translationAbbr },
-          },
+          where: bookWhereClause(bookSelector, translationAbbr),
           include: {
             chapters: { orderBy: { number: "asc" }, select: { number: true } },
           },
@@ -391,11 +250,7 @@ router.get(
       }
 
       if (reference.kind === "chapter") {
-        const chapterData = await getChapterWithVerses(
-          reference.bookName,
-          reference.chapter,
-          translationAbbr,
-        );
+        const chapterData = await getChapterWithVerses(bookSelector, reference.chapter, translationAbbr);
         if (!chapterData) return res.status(404).json({ error: "Chapter not found" });
         return res.json({
           type: "chapter",
@@ -419,10 +274,7 @@ router.get(
           number: verseFilter,
           chapter: {
             number: reference.chapter,
-            book: {
-              name: reference.bookName,
-              translation: { abbreviation: translationAbbr },
-            },
+            book: bookWhereClause(bookSelector, translationAbbr),
           },
         },
         include: {
@@ -438,7 +290,9 @@ router.get(
       return res.json({
         type: "reference",
         reference: {
-          book: reference.bookName,
+          // Read back from the database: the name is the translation's, not the
+          // catalog's, since resolution now happens by position.
+          book: verses[0].chapter.book.name,
           chapter: reference.chapter,
           verseStart: reference.verseStart,
           verseEnd: reference.verseEnd,

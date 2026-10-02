@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, BookOpen, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -77,9 +77,11 @@ function ChapterGrid({
 
 function SearchBody({
   response,
+  highlightTerms,
   onSelect,
 }: {
   response: BibleSearchResponse;
+  highlightTerms?: string[];
   onSelect: (bookName: string, chapterNumber: number) => void;
 }) {
   switch (response.type) {
@@ -104,7 +106,11 @@ function SearchBody({
               <span>No se encontraron todos los términos, así que estos resultados pueden ser parciales.</span>
             </div>
           )}
-          <BibleSearchVerseList verses={response.results} onSelect={onSelect} />
+          <BibleSearchVerseList
+            verses={response.results}
+            highlightTerms={highlightTerms}
+            onSelect={onSelect}
+          />
         </>
       );
   }
@@ -117,6 +123,14 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submittedQuery, setSubmittedQuery] = useState('');
   const abortRef = useRef<AbortController | null>(null);
+
+  // Only free-text results are highlighted: in a reference or chapter result
+  // the query terms are book names and numbers, not words found in the verse.
+  const highlightTerms = useMemo(
+    () =>
+      response?.type === 'fulltext' ? submittedQuery.split(/\s+/).filter(Boolean) : undefined,
+    [response, submittedQuery],
+  );
 
   const handleClose = () => {
     onClose();
@@ -205,7 +219,7 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
                   No encontramos nada para "<span className="text-foreground font-medium">{submittedQuery}</span>".
                 </div>
               ) : (
-                <SearchBody response={response} onSelect={onSelect} />
+                <SearchBody response={response} highlightTerms={highlightTerms} onSelect={onSelect} />
               )}
             </div>
           </div>

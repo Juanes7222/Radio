@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,9 +74,11 @@ function ChapterGrid({
 
 function SearchBody({
   response,
+  highlightTerms,
   onSelect,
 }: {
   response: BibleSearchResponse;
+  highlightTerms?: string[];
   onSelect: (bookName: string, chapterNumber: number) => void;
 }) {
   switch (response.type) {
@@ -102,7 +104,11 @@ function SearchBody({
               </Text>
             </View>
           )}
-          <BibleSearchVerseList verses={response.results} onSelect={onSelect} />
+          <BibleSearchVerseList
+            verses={response.results}
+            highlightTerms={highlightTerms}
+            onSelect={onSelect}
+          />
         </View>
       );
   }
@@ -117,6 +123,14 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
   const [contentKey, setContentKey] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const { height: windowHeight } = useWindowDimensions();
+
+  // Only free-text results are highlighted: in a reference or chapter result
+  // the query terms are book names and numbers, not words found in the verse.
+  const highlightTerms = useMemo(
+    () =>
+      response?.type === 'fulltext' ? submittedQuery.split(/\s+/).filter(Boolean) : undefined,
+    [response, submittedQuery],
+  );
 
   const handleSearch = async () => {
     const trimmed = query.trim();
@@ -196,10 +210,14 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
 
     return (
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.resultsContainer}>
-        <SearchBody response={response} onSelect={(bookName, chapterNumber) => {
-          onSelect(bookName, chapterNumber);
-          handleClose();
-        }} />
+        <SearchBody
+          response={response}
+          highlightTerms={highlightTerms}
+          onSelect={(bookName, chapterNumber) => {
+            onSelect(bookName, chapterNumber);
+            handleClose();
+          }}
+        />
       </ScrollView>
     );
   };

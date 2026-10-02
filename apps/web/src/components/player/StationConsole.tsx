@@ -3,7 +3,6 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Volume2,
   VolumeX,
-  Radio,
   Wifi,
   Settings,
   Heart,
@@ -33,6 +32,7 @@ import {
 import { useFavoriteNotify, SLEEP_PRESETS } from '@/hooks';
 import type { NowPlayingData, StreamQuality, PlayerState } from '@radio/types';
 import { WaveformVisualizer } from './WaveformVisualizer';
+import { EmissionQueue } from './EmissionQueue';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import { formatTime } from '@/lib/utils';
 import { VinylDisc } from '@/components/ui-custom/VinylDisc';
@@ -263,26 +263,26 @@ export function StationConsole({
           )}
         </div>
 
-        <div className="relative mx-auto max-w-6xl w-full flex-1 flex flex-col justify-center px-4 md:px-6 py-3 md:py-6">
-          {/* Logo — compacto en mobile para liberar altura */}
+        <div className="relative mx-auto w-full max-w-6xl xl:max-w-[1400px] 2xl:max-w-[1640px] flex-1 flex flex-col justify-center px-4 md:px-6 xl:px-8 py-6 md:py-8">
+          {/* Logo — banda propia y centrada sobre todo el grid */}
           <motion.div
             initial={shouldReduceMotion ? undefined : { opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="flex justify-center mb-3 md:mb-6 mt-4 md:mt-10"
+            className="flex justify-center mb-8 md:mb-12"
           >
-            <div className="w-44 md:w-64 lg:w-72">
+            <div className="w-44 md:w-64 xl:w-72">
               <StationLogo priority className="w-full h-auto" />
             </div>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-8 items-center flex-1">
-            {/* Disco / Dial de luz — firma del rediseño */}
+          <div className="grid w-full grid-cols-1 gap-y-8 lg:gap-y-10 lg:grid-cols-12 lg:gap-x-10 lg:items-center xl:gap-x-14">
+            {/* Dial de luz — firma del rediseño */}
             <motion.div
               initial={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-              className="md:col-span-5 flex flex-col items-center gap-2 md:gap-3 justify-center"
+              className="lg:col-span-5 xl:col-span-4 2xl:col-span-4 flex flex-col items-center gap-2 md:gap-3 justify-center"
             >
               <div className="relative">
                 {/* Halo Dial de Luz — único indicador vivo, sin duplicar botón */}
@@ -370,7 +370,7 @@ export function StationConsole({
                   <motion.div
                     animate={discRotation}
                     transition={discTransition}
-                    className="relative w-48 h-48 md:w-[268px] md:h-[268px] rounded-full overflow-hidden shadow-console ring-1 ring-white/10"
+                    className="relative w-48 h-48 md:w-[min(clamp(268px,34vh,480px),30vw)] md:h-[min(clamp(268px,34vh,480px),30vw)] rounded-full overflow-hidden shadow-console ring-1 ring-white/10"
                   >
                     {artworkUrl ? (
                       <img
@@ -441,14 +441,8 @@ export function StationConsole({
               initial={shouldReduceMotion ? undefined : { opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="md:col-span-7 flex flex-col gap-2.5 md:gap-4 items-center text-center"
+              className="lg:col-span-7 xl:col-span-6 2xl:col-span-5 flex flex-col gap-2.5 md:gap-4 items-center text-center"
             >
-              {/* Eyebrow — identidad; el estado vive en la barra superior y en el halo del disco */}
-              <div className="flex items-center justify-center gap-2 text-xs">
-                <Radio className="w-3.5 h-3.5 text-primary" aria-hidden />
-                <span className="font-mono tracking-[0.14em] uppercase text-primary font-semibold">La Voz de la Verdad</span>
-              </div>
-
               <AnimatePresence mode="wait">
                 <motion.div
                   key={songData?.id ?? 'no-info'}
@@ -475,7 +469,7 @@ export function StationConsole({
                           Prédica
                         </span>
                       )}
-                      <h1 className="font-display text-[2rem] md:text-5xl font-normal leading-[1.05] tracking-tight text-foreground line-clamp-2 text-center">
+                      <h1 className="font-display text-[2rem] md:text-5xl 2xl:text-[3.5rem] font-normal leading-[1.05] tracking-tight text-foreground line-clamp-2 text-center">
                         {title || 'La Voz de la Verdad'}
                       </h1>
                       <p className="font-mono text-base text-muted-foreground min-h-[24px] text-center">
@@ -515,7 +509,7 @@ export function StationConsole({
               </div>
 
               {/* Toolbar — centrada, sin duplicar play */}
-              <div className="flex flex-wrap items-center justify-center gap-2 w-full">
+              <div className="flex flex-wrap items-center justify-center gap-2 xl:gap-2.5 w-full">
                 {/* Volume */}
                 <div className="flex items-center gap-2 bg-card border border-border rounded-full px-2 py-1">
                   <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={onToggleMute} aria-label={playerState.isMuted || playerState.volume === 0 ? 'Activar sonido' : 'Silenciar'}>
@@ -639,6 +633,8 @@ export function StationConsole({
                 )}
               </AnimatePresence>
             </motion.div>
+
+            <EmissionQueue stationData={stationData} currentSongId={songData?.id ?? null} />
           </div>
         </div>
       </section>
