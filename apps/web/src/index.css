@@ -187,15 +187,9 @@ body {
 .pr-safe { padding-right: env(safe-area-inset-right); }
 .mb-safe { margin-bottom: env(safe-area-inset-bottom); }
 
-/* Reserve space for the fixed bottom player on mobile */
+/* Reserve space for the fixed MiniPlayer (h-16) plus the iOS home indicator */
 .bottom-player-clearance {
-  padding-bottom: calc(6rem + env(safe-area-inset-bottom));
-}
-
-@media (min-width: 768px) {
-  .bottom-player-clearance {
-    padding-bottom: 0;
-  }
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
 }
 
 /* Press feedback — every pressable should respond */

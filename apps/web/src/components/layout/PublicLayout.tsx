@@ -38,7 +38,7 @@ export function PublicLayout() {
   return (
     <div className="flex flex-col min-h-screen">
       <StationHealthBanner />
-      <div className={isHome ? 'flex-1 overflow-hidden' : 'flex-1 pb-20 overflow-hidden'}>
+      <div className={isHome ? 'flex-1 overflow-hidden' : 'bottom-player-clearance flex-1 overflow-hidden'}>
         <AnimatePresence mode="wait" initial={false}>
           <PageTransition key={location.pathname}>
             <Outlet />
