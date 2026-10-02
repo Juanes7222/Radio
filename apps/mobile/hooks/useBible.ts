@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { BibleQueryResponse, BibleTranslation, BibleBook, BibleSearchResult } from '@radio/types';
+import type { BibleQueryResponse, BibleTranslation, BibleBook, BibleSearchResponse } from '@radio/types';
+import { fetchBibleSearch } from '@radio/api';
 import { BACKEND_URL } from '@/constants/api';
 
 const API_BASE = `${BACKEND_URL}/api/bible`;
@@ -99,19 +100,8 @@ export function useBible() {
     ).catch(() => {});
   }, [currentTranslation, currentBook, currentChapter]);
 
-  const searchBible = async (query: string): Promise<BibleSearchResult[]> => {
-    try {
-      const res = await fetch(
-        `${API_BASE}/search?translation=${currentTranslation}&q=${encodeURIComponent(query)}`
-      );
-      if (!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data) ? data : (data.results ?? []);
-    } catch (err) {
-      console.error('Error searching:', err);
-      return [];
-    }
-  };
+  const searchBible = async (query: string, signal?: AbortSignal): Promise<BibleSearchResponse> =>
+    fetchBibleSearch(API_BASE, currentTranslation, query, signal);
 
   // Fetch books
   useEffect(() => {

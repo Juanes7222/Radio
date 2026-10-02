@@ -194,10 +194,14 @@ interface FtsRow {
   rank: number;
 }
 
+// Mirrors BibleMatchMode on @radio/types: whether the full-text branch found
+// every term ("all") or had to widen the query ("any").
+type MatchMode = "all" | "any";
+
 async function runFullTextSearch(ftsQuery: string, translationAbbr: string): Promise<FtsRow[]> {
   return prisma.$queryRaw<FtsRow[]>`
     SELECT verse_id,
-           snippet(bible_verse_fts, 1, '<mark>', '</mark>', '…', 8) AS snippet,
+           snippet(bible_verse_fts, 1, '', '', '…', 8) AS snippet,
            bm25(bible_verse_fts) AS rank
     FROM bible_verse_fts
     JOIN "BibleVerse" ON "BibleVerse".id = bible_verse_fts.verse_id
@@ -366,22 +370,23 @@ router.get(
 
     if (reference) {
       if (reference.kind === "book") {
-        const chapters = await prisma.bibleChapter.findMany({
+        const book = await prisma.bibleBook.findFirst({
           where: {
-            book: { name: reference.bookName, translation: { abbreviation: translationAbbr } },
+            name: reference.bookName,
+            translation: { abbreviation: translationAbbr },
           },
-          orderBy: { number: "asc" },
-          select: { number: true },
+          include: {
+            chapters: { orderBy: { number: "asc" }, select: { number: true } },
+          },
         });
-        if (chapters.length === 0) {
+        if (!book) {
           return res.status(404).json({ error: "Book not found" });
         }
+        const { chapters, ...bookData } = book;
         return res.json({
           type: "book",
-          book: reference.bookName,
-          chapterCount: chapters.length,
+          book: { ...bookData, _count: { chapters: chapters.length } },
           chapters: chapters.map((chapter) => chapter.number),
-          results: [],
         });
       }
 
@@ -392,17 +397,12 @@ router.get(
           translationAbbr,
         );
         if (!chapterData) return res.status(404).json({ error: "Chapter not found" });
-        const results = chapterData.verses.map((verse) => ({
-          ...verse,
-          chapter: { number: chapterData.number, book: { name: chapterData.book.name } },
-        }));
         return res.json({
           type: "chapter",
           translation: chapterData.book.translation,
           book: chapterData.book,
           chapter: chapterData.number,
           verses: chapterData.verses,
-          results,
         });
       }
 
@@ -452,27 +452,27 @@ router.get(
       return res.status(400).json({ error: "Search query too short (minimum 2 characters)" });
     }
 
-    // Full-text branch: try FTS5 with BM25 ranking and highlighted snippets.
+    // Full-text branch: try FTS5 with BM25 ranking and a plain-text excerpt.
     // Falls back to LIKE search if the virtual table is unavailable (e.g. migration not yet applied).
+    const terms = q.split(/\s+/).filter(Boolean);
     try {
-      const terms = q.trim().split(/\s+/).filter(Boolean);
-      if (terms.length > 0) {
-        let ftsRows = await runFullTextSearch(buildFtsQuery(terms, "AND"), translationAbbr);
+      let ftsRows = await runFullTextSearch(buildFtsQuery(terms, "AND"), translationAbbr);
+      let matchMode: MatchMode = "all";
 
-        // People often misremember one word of a verse; widen the search instead
-        // of returning nothing.
-        if (ftsRows.length === 0 && terms.length > 1) {
-          ftsRows = await runFullTextSearch(buildFtsQuery(terms, "OR"), translationAbbr);
-        }
-
-        if (ftsRows.length === 0) {
-          return res.json({ type: "fulltext", results: [] });
-        }
-
-        const results = await fetchRankedVerses(ftsRows, translationAbbr);
-
-        return res.json({ type: "fulltext", results });
+      // People often misremember one word of a verse; widen the search instead
+      // of returning nothing.
+      if (ftsRows.length === 0 && terms.length > 1) {
+        ftsRows = await runFullTextSearch(buildFtsQuery(terms, "OR"), translationAbbr);
+        matchMode = "any";
       }
+
+      if (ftsRows.length === 0) {
+        return res.json({ type: "fulltext", matchMode, results: [] });
+      }
+
+      const results = await fetchRankedVerses(ftsRows, translationAbbr);
+
+      return res.json({ type: "fulltext", matchMode, results });
     } catch (err) {
       // FTS5 unavailable or query syntax error — log and fall through to LIKE fallback
       logger.warn("Bible", "FTS5 query failed, falling back to LIKE", {
@@ -494,7 +494,7 @@ router.get(
       take: 50,
     });
 
-    res.json({ type: "fulltext", results: verses });
+    res.json({ type: "fulltext", matchMode: "all" as const, results: verses });
   }),
 );
 

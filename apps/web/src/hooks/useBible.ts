@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { BibleQueryResponse, BibleTranslation, BibleBook, BibleSearchResult } from '@radio/types';
+import type { BibleQueryResponse, BibleTranslation, BibleBook, BibleSearchResponse } from '@radio/types';
+import { fetchBibleSearch } from '@radio/api';
 import { apiUrl } from '@/config';
 
 const API_BASE = apiUrl('/api/bible');
@@ -17,19 +18,8 @@ export function useBible() {
   const [error, setError] = useState<string | null>(null);
   const [isEmpty, setIsEmpty] = useState(false);
 
-  const searchBible = async (query: string): Promise<BibleSearchResult[]> => {
-    try {
-      const res = await fetch(
-        `${API_BASE}/search?translation=${currentTranslation}&q=${encodeURIComponent(query)}`
-      );
-      if (!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data) ? data : (data.results ?? []);
-    } catch (err) {
-      console.error('Error searching:', err);
-      return [];
-    }
-  };
+  const searchBible = async (query: string, signal?: AbortSignal): Promise<BibleSearchResponse> =>
+    fetchBibleSearch(API_BASE, currentTranslation, query, signal);
 
   // Fetch books
   useEffect(() => {
