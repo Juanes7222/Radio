@@ -264,25 +264,26 @@ export function StationConsole({
         </div>
 
         <div className="relative mx-auto w-full max-w-6xl xl:max-w-[1400px] 2xl:max-w-[1640px] flex-1 flex flex-col justify-center px-4 md:px-6 xl:px-8 py-6 md:py-8">
-          {/* Logo — banda propia y centrada sobre todo el grid */}
-          <motion.div
-            initial={shouldReduceMotion ? undefined : { opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="flex justify-center mb-8 md:mb-12"
-          >
-            <div className="w-44 md:w-64 xl:w-72">
-              <StationLogo priority className="w-full h-auto" />
-            </div>
-          </motion.div>
-
           <div className="grid w-full grid-cols-1 gap-y-8 lg:gap-y-10 lg:grid-cols-12 lg:gap-x-10 lg:items-center xl:gap-x-14">
+            {/* Logo — se ancla con col-start/col-end, no con col-span: el shorthand
+                `grid-column: span N / span N` de col-span pisa el col-start de otro breakpoint. */}
+            <motion.div
+              initial={shouldReduceMotion ? undefined : { opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              className="flex justify-center lg:col-start-6 lg:col-end-13 lg:row-start-1 xl:col-start-5 xl:col-end-11 2xl:col-end-10"
+            >
+              <div className="w-40 sm:w-52 md:w-64 xl:w-[22rem] 2xl:w-[26rem] max-w-full mb-2 md:mb-5">
+                <StationLogo priority className="w-full h-auto" />
+              </div>
+            </motion.div>
+
             {/* Dial de luz — firma del rediseño */}
             <motion.div
               initial={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-              className="lg:col-span-5 xl:col-span-4 2xl:col-span-4 flex flex-col items-center gap-2 md:gap-3 justify-center"
+              className="lg:col-start-1 lg:col-end-6 lg:row-start-2 xl:col-end-5 2xl:col-end-5 flex flex-col items-center gap-2 md:gap-3 justify-center"
             >
               <div className="relative">
                 {/* Halo Dial de Luz — único indicador vivo, sin duplicar botón */}
@@ -441,7 +442,7 @@ export function StationConsole({
               initial={shouldReduceMotion ? undefined : { opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="lg:col-span-7 xl:col-span-6 2xl:col-span-5 flex flex-col gap-2.5 md:gap-4 items-center text-center"
+              className="lg:col-start-6 lg:col-end-13 lg:row-start-2 xl:col-start-5 xl:col-end-11 2xl:col-end-10 flex flex-col gap-2.5 md:gap-4 items-center text-center"
             >
               <AnimatePresence mode="wait">
                 <motion.div
@@ -469,7 +470,7 @@ export function StationConsole({
                           Prédica
                         </span>
                       )}
-                      <h1 className="font-display text-[2rem] md:text-5xl 2xl:text-[3.5rem] font-normal leading-[1.05] tracking-tight text-foreground line-clamp-2 text-center">
+                      <h1 className="font-display text-[2rem] md:text-20xl 2xl:text-[3.5rem] font-normal leading-[1.05] tracking-tight text-foreground line-clamp-2 text-center">
                         {title || 'La Voz de la Verdad'}
                       </h1>
                       <p className="font-mono text-base text-muted-foreground min-h-[24px] text-center">

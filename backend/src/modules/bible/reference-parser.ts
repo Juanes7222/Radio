@@ -4,10 +4,11 @@
  * Pure and dependency-free so the resolution rules can be exercised against a
  * table of cases without a database or an HTTP server.
  */
-import { resolveBook } from "./bookCatalog";
+import { resolveBook, type BookCatalogEntry } from "./bookCatalog";
 
 export type ParsedReference =
-  | { kind: "book"; bookOrder: number }
+  | { kind: "book"; bookOrder: number; bookQuery: string }
+  | { kind: "ambiguous"; candidates: BookCatalogEntry[]; bookQuery: string }
   | { kind: "chapter"; bookOrder: number; chapter: number }
   | {
       kind: "verse";
@@ -47,7 +48,8 @@ const REFERENCE_PATTERN =
 /**
  * Classifies intent as book ("Apocalipsis"), chapter ("Salmos 23") or verse
  * ("Jn 3:16", "jn3:16", "Jn. 3:16", "Juan 3.16", "Juan 3,16",
- * "Juan 3:16 al 18"). Returns null when the query is free text.
+ * "Juan 3:16 al 18"). A bare word matching several books comes back as
+ * ambiguous ("corintios"). Returns null when the query is free text.
  *
  * Books resolve to their canonical 1..66 position so the result never depends on
  * how a translation names them.
@@ -59,18 +61,29 @@ export function parseQueryReference(query: string): ParsedReference | null {
 
   const [, prefix, bookRaw, chapterRaw, verseStartRaw, verseEndRaw] = match;
   const resolution = resolveBook(`${prefix ?? ""} ${bookRaw}`);
+  // The bare word that resolved, without the numeral: searching "1 co" for the
+  // text of "1" would match nearly every verse that contains a digit.
+  const bookQuery = bookRaw;
+
+  if (!chapterRaw) {
+    if (resolution.status === "resolved") {
+      return { kind: "book", bookOrder: resolution.entry.order, bookQuery };
+    }
+    // Ambiguity only helps a bare word: "cor 13" has no way to pick a side.
+    if (resolution.status === "ambiguous") {
+      return { kind: "ambiguous", candidates: resolution.candidates, bookQuery };
+    }
+    return null;
+  }
+
   if (resolution.status !== "resolved") return null;
 
-  const { order: bookOrder } = resolution.entry;
-
-  if (!chapterRaw) return { kind: "book", bookOrder };
-
   const chapter = parseInt(chapterRaw, 10);
-  if (!verseStartRaw) return { kind: "chapter", bookOrder, chapter };
+  if (!verseStartRaw) return { kind: "chapter", bookOrder: resolution.entry.order, chapter };
 
   return {
     kind: "verse",
-    bookOrder,
+    bookOrder: resolution.entry.order,
     chapter,
     verseStart: parseInt(verseStartRaw, 10),
     verseEnd: verseEndRaw ? parseInt(verseEndRaw, 10) : undefined,

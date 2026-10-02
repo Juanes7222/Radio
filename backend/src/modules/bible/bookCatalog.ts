@@ -87,8 +87,12 @@ export const BOOK_CATALOG: readonly BookCatalogEntry[] = [
 export const MIN_BOOK_ORDER = 1;
 export const MAX_BOOK_ORDER = 66;
 
+/** Below this length a query is too short to disambiguate by prefix. */
+export const MIN_PREFIX_LENGTH = 3;
+
 export type BookResolution =
   | { status: "resolved"; entry: BookCatalogEntry }
+  | { status: "ambiguous"; candidates: BookCatalogEntry[] }
   | { status: "unknown" };
 
 /** Lowercases and strips diacritics and spaces so "1 S AM" and "1sam" match. */
@@ -101,19 +105,23 @@ export function normalizeBookKey(raw: string): string {
     .trim();
 }
 
-const ORDER_BY_KEY: ReadonlyMap<string, BookCatalogEntry> = buildLookupIndex();
+interface BookLookupIndex {
+  exact: ReadonlyMap<string, BookCatalogEntry>;
+  /** Keys usable as prefix sources, ordered so the best match comes first. */
+  prefixKeys: ReadonlyMap<BookCatalogEntry, readonly string[]>;
+}
 
-function buildLookupIndex(): ReadonlyMap<string, BookCatalogEntry> {
-  const index = new Map<string, BookCatalogEntry>();
+function buildLookupIndex(): BookLookupIndex {
+  const exact = new Map<string, BookCatalogEntry>();
+  const prefixKeys = new Map<BookCatalogEntry, string[]>();
 
   for (const entry of BOOK_CATALOG) {
-    // An alias that only differs from the canonical name by accents or spacing
-    // is redundant: normalization already maps it onto the name.
     const keys = [entry.name, ...entry.aliases].map(normalizeBookKey);
+
     for (const key of keys) {
       if (key.length === 0) continue;
 
-      const existing = index.get(key);
+      const existing = exact.get(key);
       if (existing && existing.order !== entry.order) {
         // The table is static, so a collision is a programming error. Failing
         // loudly beats silently resolving a query to the wrong book.
@@ -121,17 +129,49 @@ function buildLookupIndex(): ReadonlyMap<string, BookCatalogEntry> {
           `Bible book alias "${key}" maps to both order ${existing.order} and ${entry.order}`,
         );
       }
-      index.set(key, entry);
+      exact.set(key, entry);
     }
+
+    const prefixes = [...keys];
+
+    // "corintios" has to reach "1 Corintios", so numbered keys also answer to
+    // their unnumbered form. Short remainders are skipped: stripping the digit
+    // off "1re" would leave "re" and make every "re..." word match Reyes.
+    for (const key of keys) {
+      if (!/^\d/.test(key)) continue;
+      const stripped = key.replace(/^\d/, "");
+      if (stripped.length >= MIN_PREFIX_LENGTH) prefixes.push(stripped);
+    }
+
+    prefixKeys.set(entry, [...new Set(prefixes)]);
   }
 
-  return index;
+  return { exact, prefixKeys };
 }
 
-/** Resolves a book name or alias to its canonical 1..66 position. */
+const LOOKUP = buildLookupIndex();
+
+/**
+ * Resolves a book name or alias to its canonical 1..66 position.
+ *
+ * Exact keys win first, so "jn" stays Juan instead of becoming an ambiguous
+ * Juan / 1 Juan / 2 Juan / 3 Juan. Only then are prefixes considered, and a
+ * prefix matching several books is reported as ambiguous rather than guessed.
+ */
 export function resolveBook(raw: string): BookResolution {
-  const entry = ORDER_BY_KEY.get(normalizeBookKey(raw));
-  return entry ? { status: "resolved", entry } : { status: "unknown" };
+  const key = normalizeBookKey(raw);
+
+  const exactMatch = LOOKUP.exact.get(key);
+  if (exactMatch) return { status: "resolved", entry: exactMatch };
+
+  if (key.length < MIN_PREFIX_LENGTH) return { status: "unknown" };
+
+  const candidates = BOOK_CATALOG.filter((entry) =>
+    LOOKUP.prefixKeys.get(entry)!.some((prefixKey) => prefixKey.startsWith(key)),
+  );
+
+  if (candidates.length === 1) return { status: "resolved", entry: candidates[0] };
+  return candidates.length > 1 ? { status: "ambiguous", candidates } : { status: "unknown" };
 }
 
 export function isValidBookOrder(value: number): boolean {

@@ -5,6 +5,8 @@
 import axios from 'axios';
 import type {
   BibleBook,
+  BibleBookCandidate,
+  BibleMatchMode,
   BibleSearchResponse,
   BibleSearchResult,
   BibleVerse,
@@ -50,6 +52,23 @@ function isResultList(value: unknown): value is BibleSearchResult[] {
   );
 }
 
+function isMatchMode(value: unknown): value is BibleMatchMode {
+  return value === 'all' || value === 'any';
+}
+
+function isCandidateList(value: unknown): value is BibleBookCandidate[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (candidate) =>
+        isRecord(candidate) &&
+        isBook(candidate.book) &&
+        Array.isArray(candidate.chapters) &&
+        candidate.chapters.every((chapter) => typeof chapter === 'number'),
+    )
+  );
+}
+
 /**
  * Validates the discriminant and the payload each branch depends on, so an
  * unexpected shape surfaces as an error instead of an empty result list.
@@ -62,14 +81,22 @@ export function isBibleSearchResponse(value: unknown): value is BibleSearchRespo
       return (
         isBook(value.book) &&
         Array.isArray(value.chapters) &&
-        value.chapters.every((chapter) => typeof chapter === 'number')
+        value.chapters.every((chapter) => typeof chapter === 'number') &&
+        isMatchMode(value.matchMode) &&
+        isResultList(value.results)
+      );
+    case 'ambiguous':
+      return (
+        isCandidateList(value.candidates) &&
+        isMatchMode(value.matchMode) &&
+        isResultList(value.results)
       );
     case 'chapter':
       return isBook(value.book) && typeof value.chapter === 'number' && isVerseList(value.verses);
     case 'reference':
       return isResultList(value.results);
     case 'fulltext':
-      return (value.matchMode === 'all' || value.matchMode === 'any') && isResultList(value.results);
+      return isMatchMode(value.matchMode) && isResultList(value.results);
     default:
       return false;
   }

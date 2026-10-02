@@ -67,11 +67,34 @@ export interface BibleVerseReference {
   verseEnd?: number;
 }
 
-/** A bare book name, e.g. "Apocalipsis": renders a chapter picker. */
+/** A book with the chapters the database actually holds for it. */
+export interface BibleBookCandidate {
+  book: BibleBook;
+  chapters: number[];
+}
+
+/**
+ * A bare book name, e.g. "Apocalipsis": renders a chapter picker plus any verse
+ * that contains the same word.
+ */
 export interface BibleBookSearchResponse {
   type: 'book';
   book: BibleBook;
   chapters: number[];
+  /** Verse hits for the same word, so "sal" still surfaces Salmos passages. */
+  matchMode: BibleMatchMode;
+  results: BibleSearchResult[];
+}
+
+/**
+ * A word that matches more than one book, e.g. "corintios". Carries the same
+ * verse hits as the book branch so the user is never blocked by the ambiguity.
+ */
+export interface BibleAmbiguousSearchResponse {
+  type: 'ambiguous';
+  candidates: BibleBookCandidate[];
+  matchMode: BibleMatchMode;
+  results: BibleSearchResult[];
 }
 
 /** A book and chapter, e.g. "Juan 3": renders every verse of that chapter. */
@@ -100,6 +123,7 @@ export interface BibleFullTextSearchResponse {
  */
 export type BibleSearchResponse =
   | BibleBookSearchResponse
+  | BibleAmbiguousSearchResponse
   | BibleChapterSearchResponse
   | BibleReferenceSearchResponse
   | BibleFullTextSearchResponse;

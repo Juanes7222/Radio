@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../infrastructure/database/prisma";
 import { getTodayReading } from "../rotation/rotation.service";
 import { asyncHandler } from "../../shared/errors/async-handler";
@@ -63,7 +64,16 @@ interface FtsRow {
 // every term ("all") or had to widen the query ("any").
 type MatchMode = "all" | "any";
 
-async function runFullTextSearch(ftsQuery: string, translationAbbr: string): Promise<FtsRow[]> {
+const FULL_TEXT_RESULT_LIMIT = 50;
+
+/** Verse hits shown next to a book card, where they are secondary to the chapters. */
+const SUPPLEMENTARY_RESULT_LIMIT = 12;
+
+async function runFullTextSearch(
+  ftsQuery: string,
+  translationAbbr: string,
+  limit: number,
+): Promise<FtsRow[]> {
   return prisma.$queryRaw<FtsRow[]>`
     SELECT verse_id,
            snippet(bible_verse_fts, 1, '', '', '…', 8) AS snippet,
@@ -76,7 +86,7 @@ async function runFullTextSearch(ftsQuery: string, translationAbbr: string): Pro
     WHERE bible_verse_fts MATCH ${ftsQuery}
       AND "BibleTranslation".abbreviation = ${translationAbbr}
     ORDER BY rank ASC
-    LIMIT 50
+    LIMIT ${limit}
   `;
 }
 
@@ -94,6 +104,77 @@ async function fetchRankedVerses(ftsRows: FtsRow[], translationAbbr: string) {
   return verses
     .sort((a, b) => rankById.get(a.id)!.rank - rankById.get(b.id)!.rank)
     .map((verse) => ({ ...verse, snippet: rankById.get(verse.id)!.snippet }));
+}
+
+type FullTextVerse = Prisma.BibleVerseGetPayload<{
+  include: { chapter: { include: { book: true } } };
+}>;
+
+interface FullTextOutcome {
+  matchMode: MatchMode;
+  results: FullTextVerse[];
+}
+
+/**
+ * BM25-ranked search with an AND pass, widened to OR when one term was
+ * misremembered. Falls back to LIKE when the virtual table is unavailable, which
+ * is why both paths must return the same shape.
+ */
+async function searchFullText(
+  terms: string[],
+  translationAbbr: string,
+  limit: number,
+): Promise<FullTextOutcome> {
+  try {
+    let ftsRows = await runFullTextSearch(buildFtsQuery(terms, "AND"), translationAbbr, limit);
+    let matchMode: MatchMode = "all";
+
+    if (ftsRows.length === 0 && terms.length > 1) {
+      ftsRows = await runFullTextSearch(buildFtsQuery(terms, "OR"), translationAbbr, limit);
+      matchMode = "any";
+    }
+
+    if (ftsRows.length === 0) return { matchMode, results: [] };
+
+    return { matchMode, results: await fetchRankedVerses(ftsRows, translationAbbr) };
+  } catch (err) {
+    logger.warn("Bible", "FTS5 query failed, falling back to LIKE", {
+      error: err instanceof Error ? err.message : String(err),
+      terms,
+    });
+
+    const verses = await prisma.bibleVerse.findMany({
+      where: {
+        text: { contains: terms.join(" ") },
+        chapter: { book: { translation: { abbreviation: translationAbbr } } },
+      },
+      include: { chapter: { include: { book: true } } },
+      take: limit,
+    });
+
+    return { matchMode: "all", results: verses };
+  }
+}
+
+/** Loads books with their chapter numbers, keeping the catalog ordering. */
+async function loadBookCandidates(orders: number[], translationAbbr: string) {
+  const books = await prisma.bibleBook.findMany({
+    where: { order: { in: orders }, translation: { abbreviation: translationAbbr } },
+    include: { chapters: { orderBy: { number: "asc" }, select: { number: true } } },
+  });
+
+  const chaptersByOrder = new Map(
+    books.map((book) => [book.order, book.chapters.map((chapter) => chapter.number)]),
+  );
+  const nameByOrder = new Map(books.map((book) => [book.order, book]));
+
+  // A book may be absent from a given translation, so the candidate list is
+  // filtered to what actually loaded.
+  return orders.flatMap((order) => {
+    const book = nameByOrder.get(order);
+    const chapters = chaptersByOrder.get(order);
+    return book && chapters ? [{ book, chapters }] : [];
+  });
 }
 
 // Shared lookup between GET /chapter and the chapter intent of GET /search.
@@ -225,29 +306,41 @@ router.get(
       return res.status(400).json({ error: "Search query is required" });
     }
 
+    const terms = q.split(/\s+/).filter(Boolean);
     const reference = parseQueryReference(q);
 
-    if (reference) {
-      const bookOrder = reference.bookOrder;
-      const bookSelector: BookSelector = { order: bookOrder };
+    /** Verse hits for a bare book word, so "sal" still surfaces Salmos passages. */
+    const supplementary = async (bookQuery: string) =>
+      searchFullText([bookQuery], translationAbbr, SUPPLEMENTARY_RESULT_LIMIT);
 
-      if (reference.kind === "book") {
-        const book = await prisma.bibleBook.findFirst({
-          where: bookWhereClause(bookSelector, translationAbbr),
-          include: {
-            chapters: { orderBy: { number: "asc" }, select: { number: true } },
-          },
-        });
-        if (!book) {
-          return res.status(404).json({ error: "Book not found" });
-        }
-        const { chapters, ...bookData } = book;
+    if (reference?.kind === "ambiguous") {
+      const candidates = await loadBookCandidates(
+        reference.candidates.map((candidate) => candidate.order),
+        translationAbbr,
+      );
+
+      if (candidates.length > 0) {
         return res.json({
-          type: "book",
-          book: { ...bookData, _count: { chapters: chapters.length } },
-          chapters: chapters.map((chapter) => chapter.number),
+          type: "ambiguous",
+          candidates,
+          ...(await supplementary(reference.bookQuery)),
         });
       }
+    } else if (reference) {
+      if (reference.kind === "book") {
+        const [candidate] = await loadBookCandidates([reference.bookOrder], translationAbbr);
+        if (!candidate) {
+          return res.status(404).json({ error: "Book not found" });
+        }
+        return res.json({
+          type: "book",
+          book: { ...candidate.book, _count: { chapters: candidate.chapters.length } },
+          chapters: candidate.chapters,
+          ...(await supplementary(reference.bookQuery)),
+        });
+      }
+
+      const bookSelector: BookSelector = { order: reference.bookOrder };
 
       if (reference.kind === "chapter") {
         const chapterData = await getChapterWithVerses(bookSelector, reference.chapter, translationAbbr);
@@ -306,49 +399,10 @@ router.get(
       return res.status(400).json({ error: "Search query too short (minimum 2 characters)" });
     }
 
-    // Full-text branch: try FTS5 with BM25 ranking and a plain-text excerpt.
-    // Falls back to LIKE search if the virtual table is unavailable (e.g. migration not yet applied).
-    const terms = q.split(/\s+/).filter(Boolean);
-    try {
-      let ftsRows = await runFullTextSearch(buildFtsQuery(terms, "AND"), translationAbbr);
-      let matchMode: MatchMode = "all";
-
-      // People often misremember one word of a verse; widen the search instead
-      // of returning nothing.
-      if (ftsRows.length === 0 && terms.length > 1) {
-        ftsRows = await runFullTextSearch(buildFtsQuery(terms, "OR"), translationAbbr);
-        matchMode = "any";
-      }
-
-      if (ftsRows.length === 0) {
-        return res.json({ type: "fulltext", matchMode, results: [] });
-      }
-
-      const results = await fetchRankedVerses(ftsRows, translationAbbr);
-
-      return res.json({ type: "fulltext", matchMode, results });
-    } catch (err) {
-      // FTS5 unavailable or query syntax error — log and fall through to LIKE fallback
-      logger.warn("Bible", "FTS5 query failed, falling back to LIKE", {
-        error: err instanceof Error ? err.message : String(err),
-        query: q,
-      });
-    }
-
-    const verses = await prisma.bibleVerse.findMany({
-      where: {
-        text: { contains: q },
-        chapter: {
-          book: { translation: { abbreviation: translationAbbr } },
-        },
-      },
-      include: {
-        chapter: { include: { book: true } },
-      },
-      take: 50,
+    res.json({
+      type: "fulltext",
+      ...(await searchFullText(terms, translationAbbr, FULL_TEXT_RESULT_LIMIT)),
     });
-
-    res.json({ type: "fulltext", matchMode: "all" as const, results: verses });
   }),
 );
 

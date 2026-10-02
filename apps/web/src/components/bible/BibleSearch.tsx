@@ -1,9 +1,14 @@
 import { useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Search, BookOpen, Info } from 'lucide-react';
+import { X, Search, BookOpen, Info, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { BibleBook, BibleSearchResponse, BibleSearchResult } from '@radio/types';
+import type {
+  BibleBook,
+  BibleMatchMode,
+  BibleSearchResponse,
+  BibleSearchResult,
+} from '@radio/types';
 import { BibleSearchVerseList } from './BibleSearchVerseList';
 
 interface BibleSearchProps {
@@ -29,10 +34,46 @@ function hasResults(response: BibleSearchResponse): boolean {
       return response.chapters.length > 0;
     case 'chapter':
       return response.verses.length > 0;
+    case 'ambiguous':
     case 'reference':
     case 'fulltext':
       return response.results.length > 0;
   }
+}
+
+/** Shown when the AND pass found nothing and the query was widened to OR. */
+function PartialMatchNotice() {
+  return (
+    <div className="flex items-start gap-3 p-4 rounded-2xl border border-primary/30 bg-primary/5 text-sm text-muted-foreground">
+      <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+      <span>No se encontraron todos los términos, así que estos resultados pueden ser parciales.</span>
+    </div>
+  );
+}
+
+/** Verse hits that travel with a book answer, hidden when there are none. */
+function SupplementaryVerses({
+  matchMode,
+  results,
+  highlightTerms,
+  onSelect,
+}: {
+  matchMode: BibleMatchMode;
+  results: BibleSearchResult[];
+  highlightTerms?: string[];
+  onSelect: (bookName: string, chapterNumber: number) => void;
+}) {
+  if (results.length === 0) return null;
+
+  return (
+    <>
+      {matchMode === 'any' && <PartialMatchNotice />}
+      <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground pt-4">
+        La palabra también aparece en {results.length} versículo{results.length === 1 ? '' : 's'}
+      </p>
+      <BibleSearchVerseList verses={results} highlightTerms={highlightTerms} onSelect={onSelect} />
+    </>
+  );
 }
 
 function ChapterGrid({
@@ -87,11 +128,42 @@ function SearchBody({
   switch (response.type) {
     case 'book':
       return (
-        <ChapterGrid
-          book={response.book}
-          chapters={response.chapters}
-          onPick={(chapter) => onSelect(response.book.name, chapter)}
-        />
+        <>
+          <ChapterGrid
+            book={response.book}
+            chapters={response.chapters}
+            onPick={(chapter) => onSelect(response.book.name, chapter)}
+          />
+          <SupplementaryVerses
+            matchMode={response.matchMode}
+            results={response.results}
+            highlightTerms={highlightTerms}
+            onSelect={onSelect}
+          />
+        </>
+      );
+    case 'ambiguous':
+      return (
+        <>
+          <div className="flex items-start gap-3 p-4 rounded-2xl border border-border bg-muted/40 text-sm text-muted-foreground">
+            <HelpCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>Esta palabra coincide con varios libros. Elige uno o revisa los versículos debajo.</span>
+          </div>
+          {response.candidates.map((candidate) => (
+            <ChapterGrid
+              key={candidate.book.id}
+              book={candidate.book}
+              chapters={candidate.chapters}
+              onPick={(chapter) => onSelect(candidate.book.name, chapter)}
+            />
+          ))}
+          <SupplementaryVerses
+            matchMode={response.matchMode}
+            results={response.results}
+            highlightTerms={highlightTerms}
+            onSelect={onSelect}
+          />
+        </>
       );
     case 'chapter':
       return <BibleSearchVerseList verses={chapterVersesAsResults(response)} onSelect={onSelect} />;
@@ -100,12 +172,7 @@ function SearchBody({
     case 'fulltext':
       return (
         <>
-          {response.matchMode === 'any' && (
-            <div className="flex items-start gap-3 p-4 rounded-2xl border border-primary/30 bg-primary/5 text-sm text-muted-foreground">
-              <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-              <span>No se encontraron todos los términos, así que estos resultados pueden ser parciales.</span>
-            </div>
-          )}
+          {response.matchMode === 'any' && <PartialMatchNotice />}
           <BibleSearchVerseList
             verses={response.results}
             highlightTerms={highlightTerms}
@@ -126,11 +193,15 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
 
   // Only free-text results are highlighted: in a reference or chapter result
   // the query terms are book names and numbers, not words found in the verse.
-  const highlightTerms = useMemo(
-    () =>
-      response?.type === 'fulltext' ? submittedQuery.split(/\s+/).filter(Boolean) : undefined,
-    [response, submittedQuery],
-  );
+  // Single characters are dropped so a leading numeral in "1 co" does not
+  // highlight every digit in the text.
+  const highlightTerms = useMemo(() => {
+    if (response === null) return undefined;
+    if (response.type !== 'fulltext' && response.type !== 'book' && response.type !== 'ambiguous') {
+      return undefined;
+    }
+    return submittedQuery.split(/\s+/).filter((term) => term.length >= 2);
+  }, [response, submittedQuery]);
 
   const handleClose = () => {
     onClose();

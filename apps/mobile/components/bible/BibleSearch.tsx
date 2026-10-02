@@ -2,7 +2,12 @@ import { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import type { BibleBook, BibleSearchResponse, BibleSearchResult } from '@radio/types';
+import type {
+  BibleBook,
+  BibleMatchMode,
+  BibleSearchResponse,
+  BibleSearchResult,
+} from '@radio/types';
 import { Colors, Typography, Radii, Spacing } from '@/constants/theme';
 import { BibleSearchVerseList } from './BibleSearchVerseList';
 
@@ -29,10 +34,47 @@ function hasResults(response: BibleSearchResponse): boolean {
       return response.chapters.length > 0;
     case 'chapter':
       return response.verses.length > 0;
+    case 'ambiguous':
     case 'reference':
     case 'fulltext':
       return response.results.length > 0;
   }
+}
+
+/** Shown when the AND pass found nothing and the query was widened to OR. */
+function PartialMatchNotice() {
+  return (
+    <View style={styles.partialNotice}>
+      <Text style={styles.partialNoticeText}>
+        No se encontraron todos los términos, así que estos resultados pueden ser parciales.
+      </Text>
+    </View>
+  );
+}
+
+/** Verse hits that travel with a book answer, hidden when there are none. */
+function SupplementaryVerses({
+  matchMode,
+  results,
+  highlightTerms,
+  onSelect,
+}: {
+  matchMode: BibleMatchMode;
+  results: BibleSearchResult[];
+  highlightTerms?: string[];
+  onSelect: (bookName: string, chapterNumber: number) => void;
+}) {
+  if (results.length === 0) return null;
+
+  return (
+    <View style={{ gap: Spacing.md }}>
+      {matchMode === 'any' && <PartialMatchNotice />}
+      <Text style={styles.supplementaryLabel}>
+        La palabra también aparece en {results.length} versículo{results.length === 1 ? '' : 's'}
+      </Text>
+      <BibleSearchVerseList verses={results} highlightTerms={highlightTerms} onSelect={onSelect} />
+    </View>
+  );
 }
 
 function ChapterGrid({
@@ -84,11 +126,43 @@ function SearchBody({
   switch (response.type) {
     case 'book':
       return (
-        <ChapterGrid
-          book={response.book}
-          chapters={response.chapters}
-          onPick={(chapter) => onSelect(response.book.name, chapter)}
-        />
+        <View style={{ gap: Spacing.lg }}>
+          <ChapterGrid
+            book={response.book}
+            chapters={response.chapters}
+            onPick={(chapter) => onSelect(response.book.name, chapter)}
+          />
+          <SupplementaryVerses
+            matchMode={response.matchMode}
+            results={response.results}
+            highlightTerms={highlightTerms}
+            onSelect={onSelect}
+          />
+        </View>
+      );
+    case 'ambiguous':
+      return (
+        <View style={{ gap: Spacing.lg }}>
+          <View style={styles.ambiguousNotice}>
+            <Text style={styles.partialNoticeText}>
+              Esta palabra coincide con varios libros. Elige uno o revisa los versículos debajo.
+            </Text>
+          </View>
+          {response.candidates.map((candidate) => (
+            <ChapterGrid
+              key={candidate.book.id}
+              book={candidate.book}
+              chapters={candidate.chapters}
+              onPick={(chapter) => onSelect(candidate.book.name, chapter)}
+            />
+          ))}
+          <SupplementaryVerses
+            matchMode={response.matchMode}
+            results={response.results}
+            highlightTerms={highlightTerms}
+            onSelect={onSelect}
+          />
+        </View>
       );
     case 'chapter':
       return <BibleSearchVerseList verses={chapterVersesAsResults(response)} onSelect={onSelect} />;
@@ -97,13 +171,7 @@ function SearchBody({
     case 'fulltext':
       return (
         <View style={{ gap: Spacing.md }}>
-          {response.matchMode === 'any' && (
-            <View style={styles.partialNotice}>
-              <Text style={styles.partialNoticeText}>
-                No se encontraron todos los términos, así que estos resultados pueden ser parciales.
-              </Text>
-            </View>
-          )}
+          {response.matchMode === 'any' && <PartialMatchNotice />}
           <BibleSearchVerseList
             verses={response.results}
             highlightTerms={highlightTerms}
@@ -126,11 +194,15 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
 
   // Only free-text results are highlighted: in a reference or chapter result
   // the query terms are book names and numbers, not words found in the verse.
-  const highlightTerms = useMemo(
-    () =>
-      response?.type === 'fulltext' ? submittedQuery.split(/\s+/).filter(Boolean) : undefined,
-    [response, submittedQuery],
-  );
+  // Single characters are dropped so a leading numeral in "1 co" does not
+  // highlight every digit in the text.
+  const highlightTerms = useMemo(() => {
+    if (response === null) return undefined;
+    if (response.type !== 'fulltext' && response.type !== 'book' && response.type !== 'ambiguous') {
+      return undefined;
+    }
+    return submittedQuery.split(/\s+/).filter((term) => term.length >= 2);
+  }, [response, submittedQuery]);
 
   const handleSearch = async () => {
     const trimmed = query.trim();
@@ -373,6 +445,20 @@ const styles = StyleSheet.create({
     borderColor: Colors.accentGlow,
     borderRadius: Radii.md,
     padding: Spacing.md,
+  },
+  ambiguousNotice: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: Radii.md,
+    padding: Spacing.md,
+  },
+  supplementaryLabel: {
+    ...Typography.body,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: Colors.textMuted,
   },
   partialNoticeText: {
     ...Typography.body,
