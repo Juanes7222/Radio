@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useAzuraCast, useAudioPlayer, useMediaSession, useSleepTimer, useFacebookLive } from '@/hooks';
 import type { StreamQuality, NowPlayingData } from '@radio/types';
 import { API_BASE_URL } from '@/config';
+import { readQuality, writeQuality } from '@/lib/playerStorage';
 
 // Import the specific return types for accurate typing
 type AudioPlayerHookReturn = ReturnType<typeof useAudioPlayer>;
@@ -35,7 +36,7 @@ export const AudioPlayerContext = createContext<AudioPlayerContextType | undefin
 
 export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [showRequests, setShowRequests] = useState(false);
-  const [quality, setQuality] = useState<StreamQuality>('128');
+  const [quality, setQuality] = useState<StreamQuality>(readQuality);
   const { liveUrl } = useFacebookLive();
 
   const { data, isLoading, error, getStreamUrl, requestSong } = useAzuraCast({
@@ -71,6 +72,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const handleSetQuality = useCallback((newQuality: StreamQuality) => {
     setQuality(newQuality);
     setPlayerQuality(newQuality);
+    writeQuality(newQuality);
   }, [setPlayerQuality, setQuality]);
 
   const value: AudioPlayerContextType = {

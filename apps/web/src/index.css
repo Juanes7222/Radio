@@ -146,6 +146,241 @@
   }
 }
 
+/* ─── Mobile nav drawer — transmitter faceplate ────────────────────────
+   The station's mark is a chrome ribbon microphone, so the drawer is a
+   panel of hardware rather than another dark sheet: a surface one step
+   above the page, and a recessed well for the signal meter wearing the
+   mic's woven grille.
+
+   Colour discipline: every accent here is the page's own --primary and
+   every hairline is the page's own --border. Only the two surface depths
+   are new, because nothing on the page is lighter than the background
+   (the panel) or darker than it (the recess). Scoped like .admin-theme so
+   it cannot leak into the rest of the site. */
+
+.nav-drawer {
+  --nav-surface: 215 22% 12%;
+  --nav-well: 222 30% 8%;
+
+  background: hsl(var(--nav-surface));
+  border-left: 1px solid hsl(var(--border) / 0.8);
+  box-shadow: -24px 0 60px -20px rgb(0 0 0 / 0.7);
+}
+
+/* The class is doubled on the timing rules on purpose: tailwindcss-animate's
+   `animate-in` utility sets animation-duration at the same specificity, and
+   which of the two wins depends on stylesheet order — which differs between
+   the dev server and the production build. Winning on specificity instead of
+   order makes the timing the same in both. Enter is deliberate, exit is
+   snappy, and the Sheet's transform transition is dropped so the animation is
+   the only thing that moves the panel. */
+.nav-drawer[data-state] {
+  transition-property: none;
+  animation-timing-function: var(--ease-drawer);
+}
+.nav-drawer.nav-drawer[data-state='open'] {
+  animation-duration: 340ms;
+}
+.nav-drawer.nav-drawer[data-state='closed'] {
+  animation-duration: 180ms;
+}
+
+@keyframes nav-body-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.nav-drawer__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  animation: nav-body-in 300ms var(--ease-drawer) 60ms backwards;
+}
+
+/* ─── Signal well: the mic's woven mesh over a recessed face ─────────── */
+
+.nav-drawer__well {
+  padding: 1rem 1.25rem 1.125rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.7);
+  background-color: hsl(var(--nav-well));
+  background-image:
+    repeating-linear-gradient(45deg, hsl(var(--primary) / 0.045) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(-45deg, hsl(var(--primary) / 0.045) 0 1px, transparent 1px 6px),
+    radial-gradient(ellipse 130% 90% at 50% 0%, hsl(var(--primary) / 0.1), transparent 70%);
+}
+
+.nav-drawer__meta {
+  padding: 1.375rem 1.25rem 1.5rem;
+}
+
+.nav-drawer__meter {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 1.375rem;
+}
+.nav-drawer__meter > span {
+  --lit: 0;
+  width: 4px;
+  height: 100%;
+  border-radius: 1px;
+  transform-origin: bottom;
+  transform: scaleY(calc(0.22 + var(--lit) * 0.78));
+  background-color: color-mix(
+    in oklab,
+    hsl(var(--border)),
+    hsl(var(--primary)) calc(var(--lit) * 100%)
+  );
+  will-change: transform;
+}
+
+/* ─── Panel rows ─────────────────────────────────────────────────────── */
+
+.nav-row {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  width: 100%;
+  min-height: 56px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  text-align: left;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: hsl(var(--foreground) / 0.82);
+  transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out);
+}
+/* A full-width row shrinking away from the panel edge reads as a glitch, so
+   wide rows opt out of the global press-scale; the lamp carries the press. */
+button.nav-row:active:not(:disabled) {
+  transform: none;
+}
+.nav-row:active {
+  background-color: hsl(var(--primary) / 0.14);
+  color: hsl(var(--foreground));
+}
+@media (hover: hover) and (pointer: fine) {
+  .nav-row:hover {
+    background-color: hsl(var(--primary) / 0.08);
+    color: hsl(var(--foreground));
+  }
+}
+.nav-row:focus-visible,
+.nav-legal-link:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: -2px;
+}
+
+.nav-row__lamp {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--nav-well));
+  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.55);
+  transition:
+    color 140ms var(--ease-out),
+    background-color 140ms var(--ease-out),
+    box-shadow 140ms var(--ease-out);
+}
+.nav-row:active .nav-row__lamp,
+.nav-row:hover .nav-row__lamp {
+  color: hsl(var(--primary));
+  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.5);
+}
+.nav-row[aria-current='page'] {
+  color: hsl(var(--foreground));
+}
+.nav-row[aria-current='page'] .nav-row__lamp {
+  color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 0.14);
+  box-shadow:
+    inset 0 0 0 1px hsl(var(--primary) / 0.45),
+    0 0 12px hsl(var(--primary) / 0.25);
+}
+
+/* ─── Group labels and legal documents ───────────────────────────────── */
+
+.nav-group-label {
+  padding: 0 0.75rem 0.5rem;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: hsl(var(--faint));
+}
+
+/* Legal documents are reference material, not places you navigate to, so
+   they get a quieter, indented treatment with no indicator lamp. */
+.nav-legal-link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin-left: 0.25rem;
+  padding: 0.375rem 0.75rem 0.375rem 1rem;
+  border-left: 1px solid hsl(var(--border) / 0.8);
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+  transition: color 140ms var(--ease-out), border-color 140ms var(--ease-out);
+}
+.nav-legal-link:active {
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--primary));
+}
+@media (hover: hover) and (pointer: fine) {
+  .nav-legal-link:hover {
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--primary) / 0.7);
+  }
+}
+
+.nav-drawer__footer {
+  padding: 1rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom));
+  border-top: 1px solid hsl(var(--border) / 0.5);
+}
+
+.nav-drawer__close {
+  display: grid;
+  place-items: center;
+  /* The global 44px touch floor would make this control read a size bigger
+     than the indicator lamps; keep the same visual square and grow the hit
+     area with a transparent ring instead. */
+  min-width: 0;
+  min-height: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: 0.75rem 0.75rem 0 0;
+  border-radius: 0.5rem;
+  background-color: hsl(var(--nav-well));
+  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.55);
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+  transition:
+    color 140ms var(--ease-out),
+    background-color 140ms var(--ease-out),
+    box-shadow 140ms var(--ease-out);
+}
+.nav-drawer__close::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+.nav-drawer__close:hover {
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--primary) / 0.12);
+  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.5);
+  opacity: 1;
+}
+.nav-drawer__close:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
 /* ─── Scrollbar ──────────────────────────────────────────────────────── */
 
 ::-webkit-scrollbar {

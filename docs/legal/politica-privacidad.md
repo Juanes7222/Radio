@@ -1,6 +1,6 @@
 # Política de Privacidad
 
-**La Voz de la Verdad** · Última actualización: 16 de agosto de 2026
+**La Voz de la Verdad** · Última actualización: 1 de octubre de 2026
 
 Esta política explica qué información recopilamos, para qué la usamos y los derechos que tienes sobre ella cuando utilizas la página web, la aplicación móvil o el reproductor de La Voz de la Verdad.
 
@@ -56,6 +56,12 @@ La aplicación se distribuye y actualiza a través de Google Play, App Store y E
 ## Enlaces a contenido público
 
 Desde nuestra web y la app enlazamos contenido público alojado en plataformas de terceros (por ejemplo, YouTube, Facebook o Spotify). Al abrirlos se aplican sus propias políticas de privacidad; nuestro servicio no les envía datos personales.
+
+## Video en vivo en el sitio web
+
+Cuando la emisora transmite en vivo, el sitio web muestra primero una portada propia con un botón, y no carga nada desde la plataforma donde se emite. El reproductor solo se carga en el momento en que pulsas ese botón.
+
+Si lo pulsas, la plataforma muestra el video dentro de nuestro sitio web y puede leer tu dirección IP y la información técnica de tu navegador desde el contexto de nuestras páginas, e identificarte conforme a sus propias políticas de privacidad, que no controlamos. Si nunca pulsas el botón, no se comparte información alguna con esa plataforma.
 
 ## Retención de la información
 

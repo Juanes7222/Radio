@@ -1,24 +1,17 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Menu, Share2, Home, CalendarClock, CircleQuestionMark, FileKey, Heart } from 'lucide-react';
+import { Share2, Home, Heart, CalendarClock, CircleQuestionMark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import { ShareModal } from './SharedModla';
-import { StationLogo } from './OptimizedLogo';
-import { useNavigate, useLocation } from 'react-router';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from '@/components/ui/tooltip';
+import { ShareModal } from './SharedModla';
+import { StationLogo } from './OptimizedLogo';
+import { MobileNavDrawer } from './MobileNavDrawer';
+import { useNavigate, useLocation } from 'react-router';
 
 interface HeaderProps {
   stationName?: string;
@@ -33,7 +26,6 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
   const [shareOpen, setShareOpen] = useState(false);
 
   return (
-
     <>
       <ShareModal
         open={shareOpen}
@@ -74,7 +66,7 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
         <div className="hidden md:flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => setShareOpen(true)}>
+              <Button variant="ghost" size="icon" aria-label="Compartir" onClick={() => setShareOpen(true)}>
                 <Share2 className="w-5 h-5" />
               </Button>
             </TooltipTrigger>
@@ -83,7 +75,7 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+              <Button variant="ghost" size="icon" aria-label="Inicio" onClick={() => navigate('/')}>
                 <Home className="w-5 h-5" />
               </Button>
             </TooltipTrigger>
@@ -93,7 +85,7 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
           {onOpenPrayer && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={onOpenPrayer}>
+                <Button variant="ghost" size="icon" aria-label="Oración" onClick={onOpenPrayer}>
                   <Heart className="w-5 h-5 text-rose-500" />
                 </Button>
               </TooltipTrigger>
@@ -103,7 +95,7 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => navigate('/programacion')}>
+              <Button variant="ghost" size="icon" aria-label="Programación" onClick={() => navigate('/programacion')}>
                 <CalendarClock className="w-5 h-5" />
               </Button>
             </TooltipTrigger>
@@ -112,83 +104,22 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => navigate('/info/who-we-are')}>
+              <Button variant="ghost" size="icon" aria-label="¿Quiénes somos?" onClick={() => navigate('/info/who-we-are')}>
                 <CircleQuestionMark className="w-5 h-5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>¿Quiénes somos?</TooltipContent>
           </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => navigate('/info/privacy')}>
-                <FileKey className="w-5 h-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Política de Privacidad</TooltipContent>
-          </Tooltip>
-
         </div>
       </TooltipProvider>
 
         {/* Mobile menu */}
         <div className="md:hidden flex items-center gap-2">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="w-5 h-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="bg-card border-border">
-              <SheetHeader className="sr-only">
-                <SheetTitle>Menú</SheetTitle>
-                <SheetDescription>Opciones de la aplicación de radio</SheetDescription>
-              </SheetHeader>
-              <div className="flex flex-col gap-4 mt-8">
-                <Button variant="ghost" className="justify-start" onClick={() => setShareOpen(true)}>
-                  <Share2 className="w-5 h-5 mr-2" />
-                  Compartir
-                </Button>
-                <Button variant="ghost" className="justify-start" onClick={() => {
-                  navigate('/');
-                }}>
-                  <Home className="w-5 h-5 mr-2" />
-                  Inicio
-                </Button>
-                {onOpenPrayer && (
-                  <Button variant="ghost" className="justify-start" onClick={() => {
-                    onOpenPrayer();
-                  }}>
-                    <Heart className="w-5 h-5 mr-2 text-rose-500" />
-                    Oración
-                  </Button>
-                )}
-                <Button variant="ghost" className="justify-start" onClick={() => {
-                  navigate('/programacion');
-                }}>
-                  <CalendarClock className="w-5 h-5 mr-2" />
-                  Programación
-                </Button>
-                <Button variant="ghost" className="justify-start" onClick={() => {
-                  navigate('/info/who-we-are');
-                }}>
-                <CircleQuestionMark className="w-5 h-5 mr-2" />
-                  Acerca de
-                </Button>
-                <Button variant="ghost" className="justify-start" onClick={() => {
-                  navigate('/info/privacy');
-                }}>
-                  <FileKey className="w-5 h-5 mr-2" />
-                  Política de Privacidad
-                </Button>
-                <div className="border-t border-border pt-4">
-                  <p className="text-sm text-muted-foreground px-4">
-                    {stationName}
-                  </p>
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
+          <MobileNavDrawer
+            stationName={stationName}
+            onOpenShare={() => setShareOpen(true)}
+            onOpenPrayer={onOpenPrayer}
+          />
         </div>
       </div>
     </motion.header>

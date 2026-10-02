@@ -38,7 +38,7 @@ export const LEGAL_CONTACT = {
 export const PRIVACY_DOC: LegalDocument = {
   slug: 'privacy',
   title: 'Política de Privacidad',
-  updatedAt: '18 de agosto de 2026',
+  updatedAt: '1 de octubre de 2026',
   intro:
     'Esta política explica qué información recopilamos, para qué la usamos y los derechos que tienes sobre ella cuando utilizas la página web, la aplicación móvil o el reproductor de La Voz de la Verdad.',
   sections: [
@@ -116,6 +116,13 @@ export const PRIVACY_DOC: LegalDocument = {
       heading: 'Enlaces a contenido público',
       paragraphs: [
         'Desde nuestra web y la app enlazamos contenido público alojado en plataformas de terceros (por ejemplo, YouTube, Facebook o Spotify). Al abrirlos se aplican sus propias políticas de privacidad; nuestro servicio no les envía datos personales.',
+      ],
+    },
+    {
+      heading: 'Video en vivo en el sitio web',
+      paragraphs: [
+        'Cuando la emisora transmite en vivo, el sitio web muestra primero una portada propia con un botón, y no carga nada desde la plataforma donde se emite. El reproductor solo se carga en el momento en que pulsas ese botón.',
+        'Si lo pulsas, la plataforma muestra el video dentro de nuestro sitio web y puede leer tu dirección IP y la información técnica de tu navegador desde el contexto de nuestras páginas, e identificarte conforme a sus propias políticas de privacidad, que no controlamos. Si nunca pulsas el botón, no se comparte información alguna con esa plataforma.',
       ],
     },
     {
@@ -378,7 +385,7 @@ export const TERMS_DOC: LegalDocument = {
 export const COOKIES_DOC: LegalDocument = {
   slug: 'cookies',
   title: 'Política de Cookies y Almacenamiento Local',
-  updatedAt: '16 de agosto de 2026',
+  updatedAt: '1 de octubre de 2026',
   intro:
     'Esta página explica qué cookies y tecnologías de almacenamiento local utiliza nuestro sitio web y nuestra aplicación móvil, y cómo puedes controlarlas.',
   sections: [
@@ -396,14 +403,24 @@ export const COOKIES_DOC: LegalDocument = {
       ],
       lists: [
         'Guardar la sesión del panel administrativo (solo personal autorizado de la emisora).',
-        'Recordar preferencias del reproductor (por ejemplo, calidad de audio y volumen).',
+        'Recordar tus preferencias de reproducción: el volumen y la calidad del audio que elegiste.',
+        'Recordar qué canciones marcaste como favoritas y si activaste el aviso al volver a escucharlas.',
+        'Recordar qué avisos y encuestas ya viste, para no mostrártelos de nuevo.',
+        'Recordar que cerraste el aviso de instalación de la app, para no volver a mostrártelo.',
         'Guardar en caché los recursos de la aplicación (service worker PWA) para que cargue más rápido.',
       ],
     },
     {
       heading: 'Almacenamiento local de terceros en el sitio web',
       paragraphs: [
-        'El panel administrativo usa los servicios de autenticación de Google (Firebase), que pueden guardar sus propios datos localmente conforme a sus políticas. El video en vivo se reproduce a través de YouTube cuando la emisora transmite por esa plataforma.',
+        'Solo hay dos casos en los que un tercero puede guardar información en tu dispositivo, y en los dos hace falta una acción tuya: con solo visitar el sitio no ocurre ninguno.',
+      ],
+      lists: [
+        'El panel administrativo usa los servicios de autenticación de Google (Firebase), que pueden guardar sus propios datos localmente conforme a sus políticas. Esto ocurre únicamente si entras al panel, no al visitar el sitio público.',
+        'Cuando la emisora transmite en vivo, el sitio web muestra primero una portada propia y el reproductor solo se carga si pulsas el botón de reproducción. Hasta ese momento no se solicita nada a Facebook. Si lo pulsas, Facebook puede guardar cookies y otra información técnica de tu navegador.',
+      ],
+      after: [
+        'Puedes revisar y cambiar estas decisiones en cualquier momento: el enlace "Abrir en Facebook" te lleva a la transmisión sin pasar por nuestro reproductor, y si prefieres no ver el video en el sitio, puedes seguir escuchando la radio por el reproductor normal o desde la app.',
       ],
     },
     {

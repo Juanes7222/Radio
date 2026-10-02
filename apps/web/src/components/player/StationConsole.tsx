@@ -50,6 +50,7 @@ interface StationConsoleProps {
   onTogglePlay: () => void;
   onSetVolume: (v: number) => void;
   onToggleMute: () => void;
+  quality: StreamQuality;
   onSetQuality: (q: StreamQuality) => void;
   onClearError: () => void;
   sleepTimer: { isActive: boolean; display: string; cancel: () => void; start: (minutes: number) => void };
@@ -85,12 +86,12 @@ export function StationConsole({
   onTogglePlay,
   onSetVolume,
   onToggleMute,
+  quality,
   onSetQuality,
   onClearError,
   sleepTimer,
   onShowRequests,
 }: StationConsoleProps) {
-  const [quality, setQuality] = useState<StreamQuality>('128');
   const [artworkErrorSongId, setArtworkErrorSongId] = useState<string | null>(null);
   const [favoriteSongKeys, setFavoriteSongKeys] = useState<string[]>(() => {
     try {
@@ -126,11 +127,6 @@ export function StationConsole({
 
   const isLive = stationData?.live?.is_live ?? false;
   const listeners = stationData?.listeners?.current ?? 0;
-
-  const handleQualityChange = useCallback((newQuality: StreamQuality) => {
-    setQuality(newQuality);
-    onSetQuality(newQuality);
-  }, [onSetQuality]);
 
   const toggleFavorite = useCallback(() => {
     if (!currentSongKey) return;
@@ -601,7 +597,7 @@ export function StationConsole({
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuItem disabled className="text-xs text-muted-foreground">Calidad del stream</DropdownMenuItem>
                       {(['64', '128', '320'] as StreamQuality[]).map((q) => (
-                        <DropdownMenuItem key={q} onClick={() => handleQualityChange(q)} className={quality === q ? 'bg-primary/10 text-primary font-medium' : ''}>
+                        <DropdownMenuItem key={q} onClick={() => onSetQuality(q)} className={quality === q ? 'bg-primary/10 text-primary font-medium' : ''}>
                           {q} kbps {quality === q && '✓'}
                         </DropdownMenuItem>
                       ))}

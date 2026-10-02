@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { StreamQuality, PlayerState } from '@radio/types';
+import { readVolume, writeVolume } from '@/lib/playerStorage';
 
 interface UseAudioPlayerProps {
   streamUrl: string;
@@ -14,6 +15,9 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
 
+  // Read once so the audio element and the initial UI state agree on the volume.
+  const [initialVolume] = useState(readVolume);
+
   const streamUrlRef = useRef(streamUrl);
 
   const retryRef = useRef(0);
@@ -25,7 +29,7 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
     isPlaying: false,
     isMuted: false,
     requiresUserGesture: false,
-    volume: 80,
+    volume: initialVolume,
     quality: '128',
     isLive: false,
     isLoading: false,
@@ -129,11 +133,13 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
     };
 
     const handleVolumeChange = () => {
+      const volume = Math.round(audio.volume * 100);
       setState(prev => ({ 
         ...prev, 
-        volume: Math.round(audio.volume * 100),
+        volume,
         isMuted: audio.muted 
       }));
+      writeVolume(volume);
     };
 
     audio.addEventListener('play', handlePlay);
@@ -157,6 +163,14 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
       audio.src = '';
     };
   }, []);
+
+  // Restore the remembered volume on the element. Runs once: the audio element is
+  // created by the effect above, and initialVolume never changes after mount.
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = initialVolume / 100;
+    }
+  }, [initialVolume]);
 
   const resumeAudioContext = useCallback(async () => {
     if (audioContextRef.current?.state === 'suspended') {

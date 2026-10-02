@@ -1,17 +1,11 @@
 import { Link } from 'react-router';
 import { ScrollReveal } from '@/components/layout/ScrollReveal';
 import { MmmLogo } from './OptimizedLogo';
+import { LEGAL_LINKS } from '@/lib/navigation';
 
 interface AppFooterProps {
   stationName?: string;
 }
-
-const LEGAL_LINKS = [
-  { label: 'Términos y condiciones', href: '/info/terms' },
-  { label: 'Política de privacidad', href: '/info/privacy' },
-  { label: 'Tratamiento de datos personales', href: '/info/data-treatment' },
-  { label: 'Política de cookies', href: '/info/cookies' },
-];
 
 export function AppFooter({ stationName }: AppFooterProps) {
   return (
@@ -29,13 +23,13 @@ export function AppFooter({ stationName }: AppFooterProps) {
           </p>
         </div>
         <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs" aria-label="Legal">
-          {LEGAL_LINKS.map((link) => (
+          {LEGAL_LINKS.map(({ to, label }) => (
             <Link
-              key={link.href}
-              to={link.href}
+              key={to}
+              to={to}
               className="text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4 decoration-border hover:decoration-primary"
             >
-              {link.label}
+              {label}
             </Link>
           ))}
         </nav>

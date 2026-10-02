@@ -29,6 +29,7 @@ function App() {
     reconnectAttempt,
     analyserRef,
     liveUrl,
+    quality,
     sleepTimer,
     showRequests,
     setShowRequests,
@@ -65,6 +66,7 @@ function App() {
           onSetVolume={setVolume}
           onToggleMute={toggleMute}
           onSetQuality={setQuality}
+          quality={quality}
           onClearError={clearError}
           sleepTimer={sleepTimer}
           onShowRequests={openRequests}
