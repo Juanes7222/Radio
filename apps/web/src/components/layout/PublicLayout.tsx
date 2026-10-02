@@ -5,12 +5,20 @@ import { MiniPlayer } from '@/components/player/MiniPlayer';
 import { StationHealthBanner } from './StationHealthBanner';
 import { PageTransition } from './PageTransition';
 
+const HERO_ID = 'station-console';
+
 /**
  * Dock once this fraction of the hero remains visible: the console controls
  * live in the middle of the hero, so when a third of it is left the user has
  * no usable player on screen and the docked bar must take over.
  */
 const DOCK_VISIBLE_RATIO = 0.35;
+
+function isHeroOutOfSight(hero: HTMLElement): boolean {
+  const rect = hero.getBoundingClientRect();
+  const visibleHeight = Math.min(Math.max(rect.bottom, 0), window.innerHeight);
+  return visibleHeight < rect.height * DOCK_VISIBLE_RATIO;
+}
 
 export function PublicLayout() {
   const location = useLocation();
@@ -23,16 +31,33 @@ export function PublicLayout() {
       return;
     }
 
-    const hero = document.getElementById('station-console');
-    if (!hero || typeof IntersectionObserver === 'undefined') return;
+    const syncDockState = () => {
+      const hero = document.getElementById(HERO_ID);
+      if (hero) setHeroDocked(isHeroOutOfSight(hero));
+    };
 
-    const observer = new IntersectionObserver(
-      ([entry]) =>
-        setHeroDocked(!entry.isIntersecting || entry.intersectionRatio < DOCK_VISIBLE_RATIO),
-      { threshold: [0, DOCK_VISIBLE_RATIO, 1] }
-    );
-    observer.observe(hero);
-    return () => observer.disconnect();
+    /**
+     * The hero belongs to the routed page, so on a client-side navigation it is
+     * still missing (or about to be discarded) while the previous page plays its
+     * exit animation. Measuring once per route leaves the bar frozen on whatever
+     * the last route said, so measure again as soon as the hero lands.
+     */
+    const pendingHero = new MutationObserver(() => {
+      if (!document.getElementById(HERO_ID)) return;
+      pendingHero.disconnect();
+      syncDockState();
+    });
+    pendingHero.observe(document.body, { childList: true, subtree: true });
+
+    syncDockState();
+    window.addEventListener('scroll', syncDockState, { passive: true });
+    window.addEventListener('resize', syncDockState);
+
+    return () => {
+      pendingHero.disconnect();
+      window.removeEventListener('scroll', syncDockState);
+      window.removeEventListener('resize', syncDockState);
+    };
   }, [isHome]);
 
   return (
