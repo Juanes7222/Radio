@@ -1,6 +1,11 @@
-import { Tabs } from 'expo-router';
+// `expo-router/js-tabs`, not `expo-router` and never `@react-navigation/*`:
+// since SDK 56 expo-router vendors its own bottom-tabs build and fails the
+// bundle if app code imports react-navigation directly. `js-tabs` re-exports
+// the whole vendored module, so `Tabs`, `useBottomTabBarHeight` and the screen
+// option types all come from one supported entry point.
+import { Tabs } from 'expo-router/js-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet, Pressable, AccessibilityInfo } from 'react-native';
+import { View, StyleSheet, Pressable, AccessibilityInfo, PixelRatio } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
@@ -14,7 +19,30 @@ import Animated, {
 import { useEffect, useState } from 'react';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { Colors } from '@/constants/theme';
-import { TAB_BAR_BASE } from '@/lib/responsive';
+
+/**
+ * BottomTabBar sizes itself as TABBAR_HEIGHT_UIKIT (49) + safe area — a base it
+ * derives from the real icon and label metrics, so it already adapts to the
+ * device font scale and system font. We reuse that base instead of predicting
+ * the content height ourselves, then add a constant clearance so the label
+ * clears the gesture pill instead of sitting flush on top of it.
+ *
+ * Height and paddingBottom are derived from the SAME numbers on purpose: the
+ * navigator computes both, and overriding one without the other squeezes the
+ * content box until the label overflows into the gesture area.
+ */
+const TAB_BAR_CONTENT_BASE = 49;
+const TAB_BAR_CLEARANCE = 14;
+
+/**
+ * The label keeps scaling (Dynamic Type stays accessible); the bar grows with
+ * it at the same ratio so the two never diverge. Past this the bar would eat
+ * the player, so the growth stops.
+ */
+const MAX_TAB_BAR_FONT_SCALE = 2;
+
+/** Extra height bought per unit of font scale, so the label still fits. */
+const TAB_BAR_LABEL_ROOM = 24;
 
 function LiveDot() {
   const progress = useSharedValue(0);
@@ -59,7 +87,13 @@ export default function TabLayout() {
   const { liveUrl } = useFacebookLive();
   const insets = useSafeAreaInsets();
 
-  const TAB_HEIGHT = TAB_BAR_BASE + insets.bottom;
+  // The tab bar's height is ours to set: BottomTabBar spreads the screen
+  // options' style LAST, so anything left unset falls back to its own
+  // 49 + inset. Height and padding are kept consistent with each other.
+  const fontScale = Math.min(PixelRatio.getFontScale(), MAX_TAB_BAR_FONT_SCALE);
+  const tabBarLabelRoom = Math.round((fontScale - 1) * TAB_BAR_LABEL_ROOM);
+  const tabBarPaddingBottom = insets.bottom + TAB_BAR_CLEARANCE + tabBarLabelRoom;
+  const tabBarHeight = TAB_BAR_CONTENT_BASE + tabBarPaddingBottom;
 
   const handleTabPress = () => {
     Haptics.selectionAsync().catch(() => {});
@@ -76,9 +110,9 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: 'transparent',
           borderTopWidth: 0,
-          height: TAB_HEIGHT,
-          paddingBottom: insets.bottom + 6,
-          paddingTop: 6,
+          height: tabBarHeight,
+          paddingBottom: tabBarPaddingBottom,
+          paddingTop: 4,
           paddingHorizontal: 8,
           elevation: 0,
           position: 'absolute',
@@ -91,7 +125,9 @@ export default function TabLayout() {
           />
         ),
         tabBarItemStyle: {
-          justifyContent: 'center',
+          // Top-aligned, not centered: the bar reserves extra room below the
+          // label for the gesture area, and centering would swallow half of it.
+          justifyContent: 'flex-start',
           paddingVertical: 4,
           borderRadius: 14,
         },

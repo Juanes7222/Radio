@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
 import { getDeviceId } from '@/lib/device';
-import { Colors, Radii } from '@/constants/theme';
+import { Colors, Radii, Typography } from '@/constants/theme';
 import {
   getPrayerStatusConfig,
   getTimeAgo,
@@ -90,11 +90,21 @@ export default function PrayerHistoryScreen() {
         style={StyleSheet.absoluteFill}
       />
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.heading}>Mis peticiones</Text>
-        <TouchableOpacity onPress={() => load()} style={styles.refreshBtn}>
+        <TouchableOpacity
+          onPress={() => load()}
+          style={styles.refreshBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Actualizar mis peticiones"
+        >
           <Ionicons name="refresh" size={20} color={Colors.accent} />
         </TouchableOpacity>
       </View>
@@ -157,23 +167,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  backBtn: { padding: 4 },
-  refreshBtn: { padding: 4 },
+  backBtn: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -12,
+  },
+  refreshBtn: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -12,
+  },
   heading: {
+    ...Typography.screenTitle,
     color: Colors.text,
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: -0.3,
   },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  emptyText: { color: Colors.textAltFaint, fontSize: 14 },
+  emptyText: { ...Typography.body, color: Colors.textMuted, textAlign: 'center' },
   emptyHint: {
-    color: Colors.textAltFaint,
-    fontSize: 12,
+    ...Typography.caption,
+    color: Colors.textMuted,
     lineHeight: 17,
     textAlign: 'center',
-    maxWidth: 260,
-    marginTop: -6,
+    maxWidth: 280,
   },
   emptyAction: {
     flexDirection: 'row',
@@ -186,7 +205,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     marginTop: 8,
   },
-  emptyActionText: { color: Colors.textOnSignal, fontSize: 13, fontWeight: '700' },
+  emptyActionText: { ...Typography.captionStrong, color: Colors.textOnSignal, fontSize: 13 },
   list: { paddingHorizontal: 16, gap: 12 },
   card: {
     backgroundColor: Colors.surfaceDim,
@@ -202,10 +221,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statusText: { fontSize: 12, fontWeight: '600' },
-  timeText: { color: Colors.textAltFaint, fontSize: 11 },
-  cardName: { color: Colors.text, fontSize: 13, fontWeight: '700' },
-  cardRequest: { color: Colors.textAlt, fontSize: 13, lineHeight: 18 },
+  statusText: { ...Typography.captionStrong },
+  timeText: { ...Typography.caption, color: Colors.textMuted, fontSize: 11, lineHeight: 15 },
+  cardName: { ...Typography.bodyStrong, color: Colors.text, fontSize: 13 },
+  cardRequest: { ...Typography.body, color: Colors.textAlt, fontSize: 13, lineHeight: 18 },
   responsePreview: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -214,5 +233,5 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 8,
   },
-  responsePreviewText: { color: Colors.accentLight, fontSize: 12, flex: 1 },
+  responsePreviewText: { ...Typography.caption, color: Colors.accentLight, flex: 1 },
 });

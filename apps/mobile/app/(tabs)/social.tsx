@@ -8,8 +8,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import  FontAwesome  from '@expo/vector-icons/FontAwesome';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from 'expo-router/js-tabs';
 import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { WEB_URL } from '@/constants/api';
@@ -19,7 +20,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { openExternalUrl } from '@/lib/externalLinks';
 
-import { scale, TAB_BAR_BASE } from '../../lib/responsive';
+import { scale } from '../../lib/responsive';
 
 const STATION_DOMAIN = WEB_URL.replace(/^https?:\/\//, '').replace(/\/+$/, '');
 
@@ -60,6 +61,7 @@ const SOCIAL_LINKS = [
 
 export default function StationScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const { liveUrl } = useFacebookLive();
 
   const socialLinks = SOCIAL_LINKS.map((link) =>
@@ -86,7 +88,7 @@ export default function StationScreen() {
           styles.scrollContent,
           {
             paddingTop: insets.top + Spacing.xl,
-            paddingBottom: TAB_BAR_BASE + insets.bottom + Spacing.lg,
+            paddingBottom: tabBarHeight + Spacing.lg,
           },
         ]}
         showsVerticalScrollIndicator={false}

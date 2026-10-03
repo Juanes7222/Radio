@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getPerfSnapshot, timeSinceStart } from '@/lib/perf';
 
 declare const __DEV__: boolean;
@@ -23,6 +24,7 @@ function formatElapsed(value: number | null): string {
  * re-render because of this overlay.
  */
 export function PerfOverlay(): React.ReactNode {
+  const insets = useSafeAreaInsets();
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export function PerfOverlay(): React.ReactNode {
   const nowPlaying = timeSinceStart('now_playing_first');
 
   return (
-    <View style={styles.container} pointerEvents="none">
+    <View style={[styles.container, { top: insets.top + 8 }]} pointerEvents="none">
       <Text style={styles.text}>
         {`splash ${formatElapsed(splash)} · np ${formatElapsed(nowPlaying)} · renders ${snapshot.playerRenders} · tick ${tick}`}
       </Text>
@@ -55,7 +57,6 @@ export function PerfOverlay(): React.ReactNode {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 44,
     left: 8,
     right: 8,
     alignItems: 'center',

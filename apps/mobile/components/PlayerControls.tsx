@@ -9,7 +9,7 @@ import Animated, {
   withSequence,
   Easing,
 } from 'react-native-reanimated';
-import { useEffect } from 'react';
+import { memo, useEffect } from 'react';
 import { Colors, Radii, Shadows } from '@/constants/theme';
 import { scale } from '@/lib/responsive';
 import { Spring } from '@/constants/motion';
@@ -25,7 +25,7 @@ interface PlayerControlsProps {
   onShare: () => void;
 }
 
-export function PlayerControls({
+function PlayerControlsImpl({
   isPlaying,
   isBuffering,
   isFavorite,
@@ -142,6 +142,8 @@ export function PlayerControls({
     </View>
   );
 }
+
+export const PlayerControls = memo(PlayerControlsImpl);
 
 const styles = StyleSheet.create({
   row: {

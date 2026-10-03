@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 import TextTicker from 'react-native-text-ticker';
 import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated';
@@ -10,7 +10,7 @@ interface NowPlayingInfoProps {
   isPreaching: boolean;
 }
 
-export function NowPlayingInfo({ title, artist, isPreaching }: NowPlayingInfoProps) {
+function NowPlayingInfoImpl({ title, artist, isPreaching }: NowPlayingInfoProps) {
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
@@ -88,6 +88,8 @@ export function NowPlayingInfo({ title, artist, isPreaching }: NowPlayingInfoPro
     </View>
   );
 }
+
+export const NowPlayingInfo = memo(NowPlayingInfoImpl);
 
 const styles = StyleSheet.create({
   songInfo: {

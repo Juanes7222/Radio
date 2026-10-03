@@ -3,18 +3,18 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
+import { useBottomTabBarHeight } from 'expo-router/js-tabs';
 import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { fetchSchedule, fetchScheduleCategories, mergeConsecutiveScheduleItems } from '@radio/api';
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
-import { Colors } from '@/constants/theme';
+import { Colors, Typography } from '@/constants/theme';
 import { formatScheduleTime, getBogotaDayOfWeek } from '@/lib/time';
 import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 import { ShimmerBox } from '@/components/ui/Shimmer';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { TAB_BAR_BASE } from '@/lib/responsive';
 
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const DAYS_FULL = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -33,8 +33,6 @@ const CARD_BG = Colors.inkElevated;
 const TEXT_MUTED = Colors.textMuted;
 const CIAN = Colors.signal;
 const CIAN_MUTED = Colors.signalMuted;
-const OVERLAY = 'rgba(0,0,0,0.64)';
-const MODAL_BORDER = Colors.borderGlass;
 
 const NEUTRAL_ACCENT = { dot: Colors.textFaint, glow: 'rgba(248,247,255,0.12)' };
 
@@ -135,7 +133,13 @@ function CategoryFilterButton({
   const accent = getAccent(selectedCategory);
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.filterButton}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={styles.filterButton}
+      accessibilityRole="button"
+      accessibilityLabel={selectedCategory ? `Filtrar por ${selectedCategory.name}` : 'Filtrar por categoría'}
+    >
       <Ionicons name="funnel-outline" size={15} color={accent.dot} />
       <Text style={styles.filterButtonText} numberOfLines={1}>
         {selectedCategory ? selectedCategory.name : 'Todas las categorías'}
@@ -219,7 +223,6 @@ function ProgramRow({
   program: ScheduleItem;
   accent: { dot: string; glow: string };
   onPress: () => void;
-  index?: number;
 }) {
   const startTime = formatScheduleTime(program.start_timestamp);
   const endTime = formatScheduleTime(program.end_timestamp);
@@ -302,12 +305,11 @@ function ScheduleSectionView({
           exiting={FadeOut.duration(180).easing(Easing.bezier(0.4, 0, 1, 1))}
           style={styles.sectionRows}
         >
-          {section.items.map((program, idx) => (
+          {section.items.map((program) => (
             <ProgramRow
               key={`${program.id}-${program.start_timestamp}`}
               program={program}
               accent={accent}
-              index={idx}
               onPress={() => onSelect(program)}
             />
           ))}
@@ -329,7 +331,6 @@ function TimelineRow({
   program: ScheduleItem;
   isLast: boolean;
   onPress: () => void;
-  index?: number;
 }) {
   const accent = getAccent(program.category);
   const startTime = formatScheduleTime(program.start_timestamp);
@@ -396,6 +397,7 @@ function normalizeTitle(title: string): string {
 
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const { programTitle } = useLocalSearchParams<{ programTitle?: string }>();
   const handledProgramRef = useRef<string | null>(null);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
@@ -607,7 +609,6 @@ export default function ScheduleScreen() {
               key={`${program.id}-${program.start_timestamp}`}
               program={program}
               isLast={index === dayPrograms.length - 1}
-              index={index}
               onPress={() => setSelectedProgram(program)}
             />
           ))}
@@ -636,7 +637,7 @@ export default function ScheduleScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_BASE + insets.bottom + 24 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 24 }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -679,7 +680,7 @@ export default function ScheduleScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={DAYS_FULL[i]}
                 accessibilityState={{ selected: selectedDay === i }}
-                accessibilityHint={currentDay === positionToDay(i) ? 'Hoy' : undefined}
+                accessibilityHint={currentDay === positionToDay(i) ? 'Hoy' : 'Cambiar a este dia'}
               >
                 <Text style={[
                   styles.dayText,
@@ -763,7 +764,12 @@ export default function ScheduleScreen() {
       >
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>{selectedProgram?.title}</Text>
-          <Pressable onPress={() => setSelectedProgram(null)} style={styles.closeButton}>
+          <Pressable
+            onPress={() => setSelectedProgram(null)}
+            style={styles.closeButton}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar detalle del programa"
+          >
             <Ionicons name="close" size={22} color={Colors.textMuted} />
           </Pressable>
         </View>
@@ -830,9 +836,6 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-  header: {
-    marginBottom: 24,
-  },
   daysScroll: {
     marginBottom: 12,
   },
@@ -854,9 +857,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
   },
   dayText: {
+    ...Typography.bodyStrong,
     color: TEXT_MUTED,
-    fontSize: 14,
-    fontWeight: '600',
   },
   dayTextSelected: {
     color: Colors.textBright,
@@ -885,6 +887,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    minHeight: 44,
     paddingVertical: 10,
     borderRadius: 10,
   },
@@ -892,9 +895,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
   },
   viewToggleText: {
-    color: TEXT_MUTED,
+    ...Typography.bodyStrong,
     fontSize: 13,
-    fontWeight: '600',
   },
   viewToggleTextActive: {
     color: Colors.textBright,
@@ -904,19 +906,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 8,
+    minHeight: 44,
     backgroundColor: CARD_BG,
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 8,
     marginBottom: 20,
     maxWidth: '100%',
   },
   filterButtonText: {
-    color: Colors.textBright,
+    ...Typography.bodyStrong,
     fontSize: 13,
-    fontWeight: '600',
+    color: Colors.textBright,
     flexShrink: 1,
   },
   dayHeader: {
@@ -926,26 +928,29 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   dayTitle: {
+    ...Typography.bodyStrong,
     fontSize: 18,
-    fontWeight: '600',
+    lineHeight: 24,
     color: Colors.textBright,
   },
   programCount: {
-    fontSize: 12,
+    ...Typography.caption,
     color: TEXT_MUTED,
     marginTop: 2,
   },
   collapseAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
+    gap: 6,
+    minHeight: 44,
+    justifyContent: 'center',
+    marginTop: 2,
+    marginLeft: -8,
     alignSelf: 'flex-start',
   },
   collapseAllText: {
+    ...Typography.captionStrong,
     color: CIAN,
-    fontSize: 12,
-    fontWeight: '600',
   },
   todayBadge: {
     backgroundColor: CIAN_MUTED,
@@ -954,9 +959,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   todayBadgeText: {
+    ...Typography.captionStrong,
     color: CIAN,
-    fontSize: 12,
-    fontWeight: '600',
   },
   section: {
     marginBottom: 24,
@@ -965,6 +969,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    minHeight: 44,
     marginBottom: 10,
   },
   sectionIcon: {
@@ -979,13 +984,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   sectionTitle: {
+    ...Typography.sectionTitle,
     color: Colors.textBright,
-    fontSize: 14,
-    fontWeight: '700',
   },
   sectionCount: {
-    color: TEXT_MUTED,
+    ...Typography.caption,
     fontSize: 11,
+    lineHeight: 15,
+    color: TEXT_MUTED,
     marginTop: 1,
   },
   sectionLine: {
@@ -1022,13 +1028,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   rowTitle: {
+    ...Typography.bodyStrong,
     color: Colors.textBright,
-    fontSize: 14,
-    fontWeight: '600',
   },
   rowTime: {
+    ...Typography.caption,
     color: TEXT_MUTED,
-    fontSize: 12,
     marginTop: 2,
   },
   liveBadge: {
@@ -1045,8 +1050,9 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   liveBadgeText: {
+    ...Typography.captionStrong,
     fontSize: 10,
-    fontWeight: '800',
+    lineHeight: 14,
     letterSpacing: 0.5,
   },
   timelineRow: {
@@ -1055,10 +1061,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   timelineTime: {
+    ...Typography.bodyStrong,
     width: 74,
-    color: TEXT_MUTED,
     fontSize: 13,
-    fontWeight: '700',
+    color: TEXT_MUTED,
     textAlign: 'right',
     paddingTop: 13,
   },
@@ -1103,10 +1109,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   timelineTitle: {
+    ...Typography.bodyStrong,
     flex: 1,
     color: Colors.textBright,
-    fontSize: 14,
-    fontWeight: '600',
   },
   timelineMeta: {
     flexDirection: 'row',
@@ -1120,13 +1125,13 @@ const styles = StyleSheet.create({
     borderRadius: 3.5,
   },
   timelineCategory: {
+    ...Typography.caption,
     flex: 1,
     color: TEXT_MUTED,
-    fontSize: 12,
   },
   timelineRange: {
+    ...Typography.caption,
     color: TEXT_MUTED,
-    fontSize: 12,
   },
   emptyState: {
     alignItems: 'center',
@@ -1146,46 +1151,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyTitle: {
-    color: Colors.textBright,
+    ...Typography.bodyStrong,
     fontSize: 16,
-    fontWeight: '600',
+    lineHeight: 22,
+    color: Colors.textBright,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyDesc: {
+    ...Typography.body,
     color: TEXT_MUTED,
-    fontSize: 14,
     textAlign: 'center',
-    lineHeight: 20,
-  },
-  pickerOverlay: {
-    flex: 1,
-    backgroundColor: OVERLAY,
-    justifyContent: 'flex-end',
-  },
-  pickerSheet: {
-    backgroundColor: CARD_BG,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: 1,
-    borderColor: MODAL_BORDER,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 24,
-    maxHeight: '70%',
-  },
-  pickerHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    marginBottom: 12,
   },
   pickerTitle: {
-    color: Colors.textBright,
+    ...Typography.screenTitle,
     fontSize: 16,
-    fontWeight: '700',
+    lineHeight: 22,
+    color: Colors.textBright,
     marginBottom: 12,
     paddingHorizontal: 4,
   },
@@ -1196,6 +1178,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    minHeight: 48,
     paddingVertical: 10,
     paddingHorizontal: 8,
     borderRadius: 12,
@@ -1212,28 +1195,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pickerOptionText: {
+    ...Typography.body,
     flex: 1,
     color: Colors.textBright,
-    fontSize: 14,
-    fontWeight: '500',
   },
   pickerOptionTextSelected: {
     fontWeight: '700',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: OVERLAY,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: MODAL_BORDER,
-    width: '100%',
-    maxWidth: 400,
+    letterSpacing: -0.2,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1244,14 +1212,19 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.surfaceFaint,
   },
   modalTitle: {
-    color: Colors.textBright,
+    ...Typography.bodyStrong,
     fontSize: 18,
-    fontWeight: '600',
+    lineHeight: 24,
+    color: Colors.textBright,
     flex: 1,
     marginRight: 12,
   },
   closeButton: {
-    padding: 4,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -8,
   },
   modalBody: {
     padding: 20,
@@ -1263,18 +1236,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   detailText: {
+    ...Typography.body,
     color: Colors.textBright,
-    fontSize: 14,
     flex: 1,
   },
   categoryName: {
-    fontSize: 14,
+    ...Typography.bodyStrong,
     fontWeight: '700',
+    letterSpacing: -0.2,
     flex: 1,
   },
   categoryDescription: {
-    color: TEXT_MUTED,
+    ...Typography.body,
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 19,
+    color: TEXT_MUTED,
   },
 });

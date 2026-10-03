@@ -1,28 +1,18 @@
-import { Dimensions, Platform } from 'react-native';
+import { Dimensions } from 'react-native';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Based on standard iPhone SE / 12 and 13 widths
-const guidelineBaseWidth = 375;
-const guidelineBaseHeight = 812;
+/** Width the layout was authored against (iPhone SE / 12 / 13). */
+const GUIDELINE_BASE_WIDTH = 375;
 
-export const scale = (size: number) => (SCREEN_WIDTH / guidelineBaseWidth) * size;
-export const verticalScale = (size: number) => (SCREEN_HEIGHT / guidelineBaseHeight) * size;
-export const moderateScale = (size: number, factor = 0.5) => size + (scale(size) - size) * factor;
+/**
+ * Growth stops at a large-phone width. Without this ceiling a tablet or an
+ * unfolded foldable scales every control up (a 76dp play button becomes 162dp)
+ * while the player dial stays capped, so the proportions collapse. Past this
+ * width the phone layout is centred as-is until a real tablet layout exists.
+ */
+const SCALE_MAX_WIDTH = 430;
 
-export const wp = (percentage: number) => {
-  return Math.round((percentage * SCREEN_WIDTH) / 100);
-};
+const WIDTH_RATIO = Math.min(SCREEN_WIDTH, SCALE_MAX_WIDTH) / GUIDELINE_BASE_WIDTH;
 
-export const hp = (percentage: number) => {
-  return Math.round((percentage * SCREEN_HEIGHT) / 100);
-};
-
-export const isTablet = SCREEN_WIDTH >= 768;
-
-export const TAB_BAR_BASE = 56;
-
-/** @deprecated Use TAB_BAR_BASE + insets.bottom instead (see app/(tabs)/_layout.tsx). */
-export const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 68;
-export const GLASS_TAB_HEIGHT = 72;
-export const BOTTOM_ISLAND_PADDING = 16;
+export const scale = (size: number) => WIDTH_RATIO * size;

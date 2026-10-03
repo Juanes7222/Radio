@@ -12,15 +12,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from 'expo-router/js-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { FadeInDown, FadeIn, FadeOut, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { fetchRequestableSongs, requestSong } from '@radio/api';
 import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
-import { Colors, Radii, Spacing } from '@/constants/theme';
+import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { formatMediaTitle } from '@/lib/formatMedia';
-import { scale, TAB_BAR_BASE } from '../../lib/responsive';
+import { scale } from '../../lib/responsive';
 import { ShimmerBox } from '@/components/ui/Shimmer';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 
@@ -87,6 +88,10 @@ const SongRow = memo(function SongRow({
         disabled={isSent || isRequesting}
         style={[styles.btn, isSent && styles.btnSent]}
         activeOpacity={0.8}
+        hitSlop={{ top: 4, bottom: 4 }}
+        accessibilityRole="button"
+        accessibilityLabel={`Pedir ${title}`}
+        accessibilityState={{ disabled: isSent || isRequesting }}
       >
         {isRequesting ? (
           <ActivityIndicator size="small" color={Colors.textOnSignal} />
@@ -104,7 +109,7 @@ const SongRow = memo(function SongRow({
 
 export default function RequestScreen() {
   const insets = useSafeAreaInsets();
-
+  const tabBarHeight = useBottomTabBarHeight();
 
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -331,7 +336,13 @@ export default function RequestScreen() {
           returnKeyType="search"
         />
         {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')} activeOpacity={0.7}>
+          <TouchableOpacity
+            onPress={() => setQuery('')}
+            activeOpacity={0.7}
+            hitSlop={14}
+            accessibilityRole="button"
+            accessibilityLabel="Limpiar búsqueda"
+          >
             <Ionicons name="close-circle" size={16} color={Colors.textAltFaint} />
           </TouchableOpacity>
         )}
@@ -414,7 +425,7 @@ export default function RequestScreen() {
         }
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: TAB_BAR_BASE + insets.bottom + 16 },
+          { paddingBottom: tabBarHeight + 16 },
         ]}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         showsVerticalScrollIndicator={false}
@@ -428,7 +439,7 @@ export default function RequestScreen() {
         <Animated.View
           entering={FadeInDown.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
           exiting={FadeOut.duration(180).easing(Easing.bezier(0.4, 0, 1, 1))}
-          style={[styles.errorBanner, { bottom: TAB_BAR_BASE + insets.bottom + 12 }]}
+          style={[styles.errorBanner, { bottom: tabBarHeight + 12 }]}
         >
           <Ionicons name="alert-circle" size={16} color={ERROR_TEXT} />
           <Text style={styles.errorBannerText}>{requestError}</Text>
@@ -468,17 +479,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: ERROR_BORDER,
   },
-  loadFailText: { color: ERROR_TEXT, fontSize: 13, flex: 1 },
+  loadFailText: { ...Typography.body, color: ERROR_TEXT, fontSize: 13, flex: 1 },
   loadFailRetry: {
     minHeight: 44,
     justifyContent: 'center',
     paddingHorizontal: 12,
   },
-  loadFailRetryText: { color: ERROR_TEXT, fontSize: 13, fontWeight: '700' },
+  loadFailRetryText: { ...Typography.captionStrong, color: ERROR_TEXT, fontSize: 13 },
   search: {
+    ...Typography.body,
     flex: 1,
     color: Colors.textSoft,
-    fontSize: 14,
     padding: 0,
   },
   list: { paddingHorizontal: 16 },
@@ -502,12 +513,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
   },
-  emptyTitle: { color: Colors.textSoft, fontSize: 15, fontWeight: '700' },
+  emptyTitle: { ...Typography.bodyStrong, color: Colors.textSoft, fontSize: 15 },
   emptyDesc: {
-    color: Colors.textAltFaint,
+    ...Typography.body,
+    color: Colors.textMuted,
     fontSize: 13,
-    textAlign: 'center',
     lineHeight: 18,
+    textAlign: 'center',
     marginTop: 4,
   },
   emptyAction: {
@@ -521,33 +533,35 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  emptyActionText: { color: Colors.signal, fontSize: 13, fontWeight: '700' },
-  loadingIndicator: { marginTop: 48 },
+  emptyActionText: { ...Typography.captionStrong, color: Colors.signal, fontSize: 13 },
   separator: { height: 1, backgroundColor: Colors.surfaceFaint, marginLeft: 66 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   art: { width: scale(50), height: scale(50), borderRadius: 10 },
   artFallback: { backgroundColor: Colors.surfaceSoft },
   info: { flex: 1 },
   preachingBadge: {
+    ...Typography.captionStrong,
     color: Colors.signal,
     fontSize: 10,
-    fontWeight: '700',
+    lineHeight: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: 2,
   },
-  title: { color: Colors.textSoft, fontSize: 14, fontWeight: '600' },
-  artist: { color: Colors.textAltFaint, fontSize: 12, marginTop: 3 },
+  title: { ...Typography.bodyStrong, color: Colors.textSoft },
+  artist: { ...Typography.caption, color: Colors.textAltFaint, marginTop: 3 },
   btn: {
     backgroundColor: Colors.signal,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    minHeight: 44,
+    justifyContent: 'center',
     borderRadius: 10,
-    minWidth: 60,
+    minWidth: 64,
     alignItems: 'center',
   },
   btnSent: { backgroundColor: Colors.success },
-  btnText: { color: Colors.textOnSignal, fontSize: 13, fontWeight: '700' },  errorBanner: {
+  btnText: { ...Typography.captionStrong, color: Colors.textOnSignal, fontSize: 13 },
+  errorBanner: {
     position: 'absolute',
     left: 16,
     right: 16,
@@ -562,6 +576,7 @@ const styles = StyleSheet.create({
     borderColor: ERROR_BORDER,
   },
   errorBannerText: {
+    ...Typography.body,
     color: ERROR_TEXT,
     fontSize: 13,
     flex: 1,

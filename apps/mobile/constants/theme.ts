@@ -67,7 +67,7 @@ export const Colors = {
   textMuted: '#94A3B8', // --muted-foreground 215 20% 65%
   textFaint: '#848E9F', // --faint 218 12% 57%
   textAlt: '#94A3B8',
-  textAltFaint: '#64748B', // slate-500
+  textAltFaint: '#7A8699', // slate-500 #64748B is only 4.2:1 on ink; this is 5.4:1 (AA)
   textOnSignal: '#020817', // --primary-foreground 222.2 84% 4.9% (texto oscuro sobre indigo)
   textOnPaper: '#1C1400',
 

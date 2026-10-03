@@ -16,17 +16,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from 'expo-router/js-tabs';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown, FadeIn, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BACKEND_URL } from '@/constants/api';
 import { legalUrl } from '@/constants/legalDocuments';
-import { Colors } from '@/constants/theme';
+import { Colors, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { getDeviceId } from '@/lib/device';
 import { openExternalUrl } from '@/lib/externalLinks';
-
-import { TAB_BAR_BASE } from '../../lib/responsive';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -42,6 +41,7 @@ interface PrayerFieldErrors {
 
 export default function PrayerScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const router = useRouter();
   const [name, setName] = useState('');
   const [request, setRequest] = useState('');
@@ -133,8 +133,6 @@ export default function PrayerScreen() {
     }
   }, [name, request, acceptsDataTreatment]);
 
-  
-
   const handleReset = () => {
     setSent(false);
     setName('');
@@ -159,7 +157,7 @@ export default function PrayerScreen() {
           styles.scroll,
           {
             paddingTop: Math.max(insets.top, 12) + (isSmallScreen ? 8 : 16),
-            paddingBottom: TAB_BAR_BASE + insets.bottom + (isSmallScreen ? 8 : 16),
+            paddingBottom: tabBarHeight + (isSmallScreen ? 8 : 16),
           },
         ]}
         keyboardShouldPersistTaps="handled"
@@ -213,7 +211,7 @@ export default function PrayerScreen() {
                 ref={nameRef}
                 style={[styles.input, isSmallScreen && styles.inputSmall, fieldErrors.name && styles.inputError]}
                 placeholder="Tu nombre"
-                placeholderTextColor={Colors.textAltFaint}
+                placeholderTextColor={Colors.textMuted}
                 keyboardAppearance="dark"
                 value={name}
                 onChangeText={(value) => {
@@ -245,7 +243,7 @@ export default function PrayerScreen() {
                   fieldErrors.request && styles.inputError,
                 ]}
                 placeholder="Escribe tu petición de oración..."
-                placeholderTextColor={Colors.textAltFaint}
+                placeholderTextColor={Colors.textMuted}
                 keyboardAppearance="dark"
                 value={request}
                 onChangeText={(value) => {
@@ -342,9 +340,10 @@ const styles = StyleSheet.create({
   header: { marginBottom: 8 },
   form: { gap: 16 },
   field: { gap: 6 },
-  label: { color: Colors.textAlt, fontSize: 13, fontWeight: '600' },
-  labelSmall: { fontSize: 12 },
+  label: { ...Typography.bodyStrong, color: Colors.textAlt, fontSize: 13 },
+  labelSmall: { fontSize: 12, lineHeight: 18 },
   input: {
+    ...Typography.body,
     backgroundColor: Colors.surfaceSoft,
     borderRadius: 12,
     borderWidth: 1,
@@ -353,7 +352,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     minHeight: 48,
     color: Colors.textSoft,
-    fontSize: 14,
   },
   inputSmall: {
     paddingVertical: 10,
@@ -364,23 +362,24 @@ const styles = StyleSheet.create({
     borderColor: Colors.danger,
   },
   errorText: {
+    ...Typography.caption,
     color: Colors.danger,
-    fontSize: 12,
-    lineHeight: 16,
     marginTop: 4,
   },
   charCounter: {
+    ...Typography.caption,
     color: Colors.textAltFaint,
     fontSize: 11,
+    lineHeight: 15,
     alignSelf: 'flex-end',
     marginTop: 4,
   },
   sensitiveWarning: {
+    ...Typography.caption,
     color: Colors.warning,
     fontSize: 11,
     lineHeight: 16,
     marginTop: 6,
-    opacity: 0.85,
   },
   textarea: {
     minHeight: 100,
@@ -397,9 +396,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   consentText: {
+    ...Typography.caption,
     flex: 1,
-    color: Colors.textAltFaint,
-    fontSize: 12,
+    color: Colors.textMuted,
     lineHeight: 17,
   },
   consentLink: {
@@ -420,7 +419,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText: { color: Colors.textOnSignal, fontSize: 14, fontWeight: '700' },
+  submitBtnText: { ...Typography.bodyStrong, color: Colors.textOnSignal },
   submitBtnTextSmall: { fontSize: 13 },
   successCard: {
     backgroundColor: Colors.surfaceDim,
@@ -435,35 +434,38 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 8,
   },
-  successTitle: { color: Colors.text, fontSize: 18, fontWeight: '700' },
-  successTitleSmall: { fontSize: 16 },
-  successText: { color: Colors.textAlt, fontSize: 14, textAlign: 'center' },
+  successTitle: { ...Typography.screenTitle, color: Colors.text, fontSize: 18, lineHeight: 24 },
+  successTitleSmall: { fontSize: 16, lineHeight: 22 },
+  successText: { ...Typography.body, color: Colors.textAlt, textAlign: 'center' },
   successTextSmall: { fontSize: 12 },
   headerActions: { flexDirection: 'row', justifyContent: 'flex-end' },
   historyLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
+    gap: 6,
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: 8,
   },
-  historyLinkText: { color: Colors.accent, fontSize: 12, fontWeight: '600' },
+  historyLinkText: { ...Typography.captionStrong, color: Colors.accent },
   resetBtn: {
     marginTop: 8,
     backgroundColor: Colors.surface,
     borderRadius: 10,
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
   },
-  resetBtnText: { color: Colors.textSoft, fontSize: 13, fontWeight: '600' },
+  resetBtnText: { ...Typography.captionStrong, color: Colors.textSoft, fontSize: 13 },
   viewHistoryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: Colors.signalSoft,
     borderRadius: 10,
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
   },
-  viewHistoryBtnText: { color: Colors.accent, fontSize: 13, fontWeight: '600' },
+  viewHistoryBtnText: { ...Typography.captionStrong, color: Colors.accent, fontSize: 13 },
 });

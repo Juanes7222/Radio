@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { View, Text, Image, Pressable, StyleSheet, Linking, Modal, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeOut, Easing } from "react-native-reanimated";
 import { BACKEND_URL } from "@/constants/api";
-import { Colors } from "@/constants/theme";
+import { Colors, Fonts, Spacing } from "@/constants/theme";
 import { getDeviceId } from "@/lib/device";
 import { resolveNoticeMediaUri } from "@/lib/noticeMedia";
 import { InlineVideo } from "./notices/InlineVideo";
@@ -82,6 +83,7 @@ function AutolinkedBody({ text }: { text: string }) {
 }
 
 export function NoticeOverlay() {
+  const insets = useSafeAreaInsets();
   const [current, setCurrent] = useState<Notice | null>(null);
   const [queue, setQueue] = useState<Notice[]>([]);
   const [viewCount, setViewCount] = useState(0);
@@ -203,7 +205,7 @@ export function NoticeOverlay() {
     const videoUri = resolveNoticeMediaUri(modalNotice.videoUrl);
     const imageUri = resolveNoticeMediaUri(modalNotice.imageUrl);
     return (
-      <Modal visible transparent animationType="fade" statusBarTranslucent>
+      <Modal visible transparent animationType="fade" statusBarTranslucent navigationBarTranslucent>
         <View style={mStyles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={handleDismissModal} />
           <Animated.View
@@ -226,7 +228,13 @@ export function NoticeOverlay() {
                   <Text style={mStyles.dialText}>104</Text>
                   <Text style={mStyles.dialFm}>FM</Text>
                 </View>
-                <Pressable onPress={handleDismissModal} style={mStyles.closeBtnDark} hitSlop={10}>
+                <Pressable
+                  onPress={handleDismissModal}
+                  style={mStyles.closeBtnDark}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cerrar aviso"
+                >
                   <Ionicons name="close" size={16} color="#fff" />
                 </Pressable>
               </View>
@@ -244,7 +252,7 @@ export function NoticeOverlay() {
                 {modalNotice.gallery && modalNotice.gallery.length > 0 ? (
                   <MobileNoticeCarousel items={modalNotice.gallery} />
                 ) : videoUri ? (
-                  <View style={{ backgroundColor: "#0F172A" }}>
+                  <View style={{ backgroundColor: Colors.backgroundAlt }}>
                     <View pointerEvents="none">
                       <InlineVideo uri={videoUri} aspectRatio={16 / 9} />
                     </View>
@@ -273,7 +281,7 @@ export function NoticeOverlay() {
                   </View>
                   {modalNotice.dismissible ? (
                     <Pressable onPress={handlePermanentDismissModal} style={{ marginTop: 8, alignItems: "center" }}>
-                      <Text style={{ fontSize: 11, color: "#64748B", textDecorationLine: "underline" }}>No volver a mostrar</Text>
+                      <Text style={{ fontSize: 11, color: Colors.textMuted, textDecorationLine: "underline" }}>No volver a mostrar</Text>
                     </Pressable>
                   ) : null}
 
@@ -302,7 +310,7 @@ export function NoticeOverlay() {
     <Animated.View
       entering={FadeInDown.duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
       exiting={FadeOut.duration(180)}
-      style={styles.wrapper}
+      style={[styles.wrapper, { bottom: insets.bottom + Spacing.sm }]}
       pointerEvents="box-none"
     >
       <View style={styles.card}>
@@ -329,8 +337,14 @@ export function NoticeOverlay() {
         ) : null}
 
         <View style={styles.body}>
-          <Pressable onPress={handleDismiss} style={styles.closeBtn} hitSlop={12}>
-            <Ionicons name="close" size={18} color="#94A3B8" />
+          <Pressable
+            onPress={handleDismiss}
+            style={styles.closeBtn}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar aviso"
+          >
+            <Ionicons name="close" size={18} color={Colors.textMuted} />
           </Pressable>
 
           <Text style={styles.title}>{current.title}</Text>
@@ -413,9 +427,9 @@ const mStyles = StyleSheet.create({
     maxWidth: 520,
     overflow: "hidden",
     borderRadius: 20,
-    backgroundColor: "#1E293B",
+    backgroundColor: Colors.inkElevated,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#334155",
+    borderColor: Colors.border,
     shadowColor: "#000",
     shadowOpacity: 0.45,
     shadowRadius: 24,
@@ -426,12 +440,12 @@ const mStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#0F172A",
+    backgroundColor: Colors.backgroundAlt,
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#334155",
+    borderBottomColor: Colors.border,
   },
   tallyRow: {
     flexDirection: "row",
@@ -442,13 +456,13 @@ const mStyles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#E11D48",
-    shadowColor: "#E11D48",
+    backgroundColor: Colors.tally,
+    shadowColor: Colors.tally,
     shadowOpacity: 0.9,
     shadowRadius: 6,
   },
   tallyText: {
-    color: "#F8FAFC",
+    color: Colors.text,
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.4,
@@ -459,15 +473,15 @@ const mStyles = StyleSheet.create({
     gap: 4,
     opacity: 0.55,
   },
-  dialText: { color: "#94A3B8", fontSize: 9, letterSpacing: 0.6 },
-  dialTick: { width: 1, height: 8, backgroundColor: "#334155" },
+  dialText: { color: Colors.textMuted, fontSize: 9, letterSpacing: 0.6 },
+  dialTick: { width: 1, height: 8, backgroundColor: Colors.border },
   dialNeedle: { width: 1, height: 12, backgroundColor: Colors.signalLight, marginHorizontal: 2 },
-  dialFm: { color: "#94A3B8", fontSize: 8, fontWeight: "700", marginLeft: 2 },
+  dialFm: { color: Colors.textMuted, fontSize: 8, fontWeight: "700", marginLeft: 2 },
   closeBtnDark: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "rgba(148,163,184,0.14)",
+    backgroundColor: Colors.borderGlass,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -476,24 +490,24 @@ const mStyles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 7,
-    backgroundColor: "#1E293B",
+    backgroundColor: Colors.inkElevated,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#334155",
+    borderBottomColor: Colors.border,
   },
   dotsRow: { flexDirection: "row", gap: 5 },
-  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#334155" },
+  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: Colors.border },
   eyebrowDark: {
     marginLeft: "auto",
     fontSize: 9,
     fontWeight: "600",
     letterSpacing: 1.2,
-    color: "#64748B",
+    color: Colors.textMuted,
   },
   image: {
     width: "100%",
     maxHeight: 420,
     aspectRatio: 16 / 9,
-    backgroundColor: "#0F172A",
+    backgroundColor: Colors.backgroundAlt,
   },
   body: {
     padding: 18,
@@ -502,20 +516,20 @@ const mStyles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "600",
     letterSpacing: 1.4,
-    color: "#94A3B8",
+    color: Colors.textMuted,
   },
   title: {
     marginTop: 6,
     fontSize: 22,
     fontWeight: "800",
-    color: "#F8FAFC",
+    color: Colors.text,
     lineHeight: 26,
   },
   message: {
     marginTop: 10,
     fontSize: 15,
     lineHeight: 22,
-    color: "#94A3B8",
+    color: Colors.textMuted,
   },
   actions: {
     flexDirection: "column",
@@ -539,14 +553,14 @@ const mStyles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#334155",
-    backgroundColor: "#334155",
+    borderColor: Colors.border,
+    backgroundColor: Colors.border,
   },
-  secondaryDarkText: { fontSize: 14, fontWeight: "500", color: "#CBD5E1" },
+  secondaryDarkText: { fontSize: 14, fontWeight: "500", color: Colors.textSoft },
   counter: {
     marginTop: 10,
     fontSize: 11,
-    color: "#475569",
+    color: Colors.textMuted,
     textAlign: "center",
   },
 });
@@ -556,7 +570,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 12,
     right: 12,
-    bottom: 12,
+    // bottom comes from the safe-area inset at the call site.
     alignItems: "center",
     zIndex: 60,
   },
@@ -565,9 +579,9 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     overflow: "hidden",
     borderRadius: 16,
-    backgroundColor: "#1E293B",
+    backgroundColor: Colors.inkElevated,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#334155",
+    borderColor: Colors.border,
     shadowColor: "#000",
     shadowOpacity: 0.35,
     shadowRadius: 16,
@@ -582,9 +596,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: "#1E293B",
+    backgroundColor: Colors.inkElevated,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#334155",
+    borderBottomColor: Colors.border,
   },
   dotsRow: {
     flexDirection: "row",
@@ -594,19 +608,19 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: "#334155",
+    backgroundColor: Colors.border,
   },
   eyebrow: {
     marginLeft: "auto",
     fontSize: 10,
     fontWeight: "600",
     letterSpacing: 1.4,
-    color: "#64748B",
+    color: Colors.textMuted,
   },
   image: {
     width: "100%",
     aspectRatio: 16 / 7,
-    backgroundColor: "#0F172A",
+    backgroundColor: Colors.backgroundAlt,
   },
   body: {
     padding: 16,
@@ -619,21 +633,21 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "rgba(148,163,184,0.12)",
+    backgroundColor: Colors.borderGlass,
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
     fontSize: 17,
     fontWeight: "800",
-    color: "#F8FAFC",
+    color: Colors.text,
     lineHeight: 22,
   },
   message: {
     marginTop: 6,
     fontSize: 14,
     lineHeight: 20,
-    color: "#94A3B8",
+    color: Colors.textMuted,
   },
   actions: {
     flexDirection: "row",
@@ -663,12 +677,12 @@ const styles = StyleSheet.create({
   secondaryText: {
     fontSize: 12,
     fontWeight: "500",
-    color: "#94A3B8",
+    color: Colors.textMuted,
   },
   counter: {
     marginTop: 8,
     fontSize: 11,
-    color: "#475569",
-    fontFamily: "monospace",
+    color: Colors.textMuted,
+    fontFamily: Fonts.mono,
   },
 });

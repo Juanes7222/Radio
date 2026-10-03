@@ -34,6 +34,7 @@ import { NowPlayingInfo } from '@/components/player/NowPlayingInfo';
 import { SleepTimerRow } from '@/components/player/SleepTimerRow';
 import { NextUpCard } from '@/components/player/NextUpCard';
 import { useAzuraCast } from '@radio/api';
+import { useBottomTabBarHeight } from 'expo-router/js-tabs';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { State, usePlaybackState } from 'react-native-track-player';
 import { AppState } from 'react-native';
@@ -51,7 +52,6 @@ import {
 } from '@/hooks/useFavoriteNotify';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
-import { TAB_BAR_BASE } from '@/lib/responsive';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import { incrementPlayerRenders, markNowPlayingEvent } from '@/lib/perf';
 import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2-opt.png';
@@ -61,7 +61,7 @@ const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 23
 
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
-  const tabBarHeight = TAB_BAR_BASE + insets.bottom;
+  const tabBarHeight = useBottomTabBarHeight();
 
   const [appActive, setAppActive] = useState(true);
   useEffect(() => {
@@ -201,6 +201,17 @@ export default function PlayerScreen() {
   // const handleDismissReminder = useCallback(() => { dismissReminder(); setShowTooltip(true); setTimeout(() => setShowTooltip(false), 4000); }, [dismissReminder]);
 
   const listenersCount = data?.listeners?.current ?? 0;
+
+  // The now-playing poll hands back a fresh object every cycle, so NextUpCard
+  // would re-render (and restart its marquee) on every tick. Rebuilding the
+  // object only when the copy actually changes keeps the memo boundary honest.
+  const rawNextUp = data?.playing_next?.song;
+  const nextUpTitle = rawNextUp?.title;
+  const nextUpArtist = rawNextUp?.artist;
+  const nextUpSong = useMemo(
+    () => (nextUpTitle !== undefined ? { title: nextUpTitle, artist: nextUpArtist ?? '' } : null),
+    [nextUpTitle, nextUpArtist],
+  );
 
   const handleShare = useCallback(async () => {
     // The stream URL is not useful for sharing: the Play Store link promotes
@@ -398,7 +409,7 @@ export default function PlayerScreen() {
             <SleepTimerRow display={sleepTimer.display} onCancel={sleepTimer.cancel} />
           )}
 
-          {data?.playing_next && <NextUpCard song={data.playing_next.song} active={isFocused} />}
+          {nextUpSong && <NextUpCard song={nextUpSong} active={isFocused} />}
         </View>
       </ScrollView>
 

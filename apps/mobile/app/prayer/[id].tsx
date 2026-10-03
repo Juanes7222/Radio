@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
-import { Colors } from '@/constants/theme';
+import { Colors, Typography } from '@/constants/theme';
 import { getDeviceId } from '@/lib/device';
 import { getPrayerStatusConfig, type PrayerItem } from '@/lib/prayer';
 
@@ -104,7 +104,12 @@ export default function PrayerDetailScreen() {
         style={StyleSheet.absoluteFill}
       />
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.heading}>Mi petición</Text>
@@ -164,8 +169,8 @@ export default function PrayerDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundAlt },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  errorText: { color: Colors.danger, fontSize: 14 },
-  backLink: { color: Colors.accent, fontSize: 14, fontWeight: '600' },
+  errorText: { ...Typography.body, color: Colors.danger, textAlign: 'center' },
+  backLink: { ...Typography.bodyStrong, color: Colors.accent },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -173,12 +178,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  backBtn: { padding: 4 },
+  backBtn: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -12,
+  },
   heading: {
+    ...Typography.screenTitle,
     color: Colors.text,
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: -0.3,
   },
   content: { paddingHorizontal: 20, gap: 20 },
   statusBadge: {
@@ -190,7 +199,7 @@ const styles = StyleSheet.create({
     padding: 14,
     alignSelf: 'flex-start',
   },
-  statusText: { fontSize: 14, fontWeight: '700' },
+  statusText: { ...Typography.bodyStrong, fontWeight: '700' },
   section: {
     backgroundColor: Colors.surfaceDim,
     borderRadius: 14,
@@ -200,33 +209,31 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   sectionTitle: {
+    ...Typography.eyebrow,
     color: Colors.textAlt,
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
   sectionBody: {
+    ...Typography.body,
     color: Colors.textSoft,
     fontSize: 15,
     lineHeight: 22,
   },
   dateText: {
-    color: Colors.textAltFaint,
+    ...Typography.caption,
+    color: Colors.textMuted,
     fontSize: 11,
+    lineHeight: 15,
   },
   responseSection: {
     borderColor: ACCENT_BORDER,
     backgroundColor: ACCENT_TINT,
   },
   responseTitle: {
+    ...Typography.eyebrow,
     color: Colors.accentLight,
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
   responseBody: {
+    ...Typography.body,
     color: RESPONSE_TEXT,
     fontSize: 15,
     lineHeight: 22,

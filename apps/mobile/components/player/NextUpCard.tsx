@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TextTicker from 'react-native-text-ticker';
@@ -12,7 +12,7 @@ interface NextUpCardProps {
   active?: boolean;
 }
 
-export function NextUpCard({ song, active = true }: NextUpCardProps) {
+function NextUpCardImpl({ song, active = true }: NextUpCardProps) {
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
@@ -54,6 +54,8 @@ export function NextUpCard({ song, active = true }: NextUpCardProps) {
     </Animated.View>
   );
 }
+
+export const NextUpCard = memo(NextUpCardImpl);
 
 const styles = StyleSheet.create({
   nextCard: {

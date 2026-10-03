@@ -99,12 +99,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    backgroundColor: 'rgba(239,68,68,0.1)',
+    backgroundColor: Colors.tallyMuted,
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: Radii.full,
     borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.2)',
+    borderColor: Colors.tallyGlow,
   },
   dotContainer: {
     width: scale(8),
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: 12,
-    backgroundColor: 'rgba(239,68,68,0.3)',
+    backgroundColor: Colors.tallyGlow,
   },
   listenersText: {
     ...Typography.caption,
