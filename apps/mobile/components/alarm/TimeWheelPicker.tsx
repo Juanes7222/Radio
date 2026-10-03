@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,49 +22,92 @@ function range(start: number, end: number): number[] {
   return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 }
 
+function indexFromOffset(offsetY: number, length: number): number {
+  return Math.min(Math.max(Math.round(offsetY / ITEM_HEIGHT), 0), length - 1);
+}
+
 interface WheelColumnProps {
   items: string[];
   selected: number;
   onChange: (index: number) => void;
   width?: number;
+  /** Prefix for screen readers, since the item alone is ambiguous (hours vs minutes). */
+  label?: string;
 }
 
-function WheelColumn({ items, selected, onChange, width = 104 }: WheelColumnProps) {
+function WheelColumn({ items, selected, onChange, width = 104, label }: WheelColumnProps) {
   const scrollRef = useRef<ScrollView>(null);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [active, setActive] = useState(selected);
+  // Index the wheel is currently showing. A `selected` that disagrees with it
+  // did not come from this wheel, so the wheel has to follow the form.
+  const shownRef = useRef<number | null>(null);
+  const isFirstRunRef = useRef(true);
 
-  const settleIndex = useCallback(
-    (y: number) => {
-      const index = Math.round(y / ITEM_HEIGHT);
-      const clamped = Math.min(Math.max(index, 0), items.length - 1);
-      setActive(clamped);
-      onChange(clamped);
+  const moveTo = useCallback((index: number, animated = false) => {
+    shownRef.current = index;
+    scrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated });
+  }, []);
+
+  const clearSettleTimer = useCallback(() => {
+    if (settleTimerRef.current === null) return;
+    clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = null;
+  }, []);
+
+  const settle = useCallback(
+    (offsetY: number) => {
+      const index = indexFromOffset(offsetY, items.length);
+      shownRef.current = index;
+      onChange(index);
     },
-    [items.length, onChange],
+    [items.length, onChange]
   );
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const offset = event.nativeEvent.contentOffset.y;
-      const index = Math.round(offset / ITEM_HEIGHT);
-      const clamped = Math.min(Math.max(index, 0), items.length - 1);
-      setActive(clamped);
-      if (settleTimerRef.current) {
-        clearTimeout(settleTimerRef.current);
-      }
-      settleTimerRef.current = setTimeout(() => settleIndex(offset), SETTLE_DELAY_MS);
+      const { y } = event.nativeEvent.contentOffset;
+      clearSettleTimer();
+      settleTimerRef.current = setTimeout(() => settle(y), SETTLE_DELAY_MS);
     },
-    [items.length, settleIndex],
+    [clearSettleTimer, settle]
+  );
+
+  // A pending timer from an earlier frame would land after the drag ended and
+  // overwrite the index the user just parked on.
+  const handleScrollEnd = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      clearSettleTimer();
+      settle(event.nativeEvent.contentOffset.y);
+    },
+    [clearSettleTimer, settle]
   );
 
   useEffect(() => {
-    return () => {
-      if (settleTimerRef.current) {
-        clearTimeout(settleTimerRef.current);
-      }
-    };
-  }, []);
+    if (isFirstRunRef.current) {
+      // The opening position is set from onLayout: scrolling a ScrollView
+      // before its content is measured has no effect.
+      isFirstRunRef.current = false;
+      return;
+    }
+    if (shownRef.current === selected) return;
+    moveTo(selected);
+  }, [moveTo, selected]);
+
+  useEffect(() => clearSettleTimer, [clearSettleTimer]);
+
+  const handleLayout = useCallback(() => {
+    if (shownRef.current === selected) return;
+    moveTo(selected);
+  }, [moveTo, selected]);
+
+  const handlePress = useCallback(
+    (index: number) => {
+      clearSettleTimer();
+      moveTo(index, true);
+      onChange(index);
+    },
+    [clearSettleTimer, moveTo, onChange]
+  );
 
   return (
     <View style={[styles.column, { width }]}>
@@ -76,20 +120,23 @@ function WheelColumn({ items, selected, onChange, width = 104 }: WheelColumnProp
         decelerationRate="fast"
         overScrollMode="never"
         onScroll={handleScroll}
-        onMomentumScrollEnd={(event) => settleIndex(event.nativeEvent.contentOffset.y)}
-        onScrollEndDrag={(event) => settleIndex(event.nativeEvent.contentOffset.y)}
+        onMomentumScrollEnd={handleScrollEnd}
+        onScrollEndDrag={handleScrollEnd}
         scrollEventThrottle={16}
-        nestedScrollEnabled
-        onLayout={() => {
-          scrollRef.current?.scrollTo({ y: selected * ITEM_HEIGHT, animated: false });
-        }}
+        onLayout={handleLayout}
       >
         {items.map((item, index) => (
-          <View key={item} style={styles.item}>
-            <Text style={[styles.itemText, index === active && styles.itemTextActive]}>
+          <Pressable
+            key={item}
+            style={styles.item}
+            accessibilityRole="button"
+            accessibilityLabel={label ? `${item} ${label}` : item}
+            onPress={() => handlePress(index)}
+          >
+            <Text style={[styles.itemText, index === selected && styles.itemTextActive]}>
               {item}
             </Text>
-          </View>
+          </Pressable>
         ))}
       </ScrollView>
       <View style={styles.highlightBar} pointerEvents="none" />
@@ -132,14 +179,27 @@ export function TimeWheelPicker({ hour, minute, onHourChange, onMinuteChange }: 
 
   return (
     <View style={styles.container}>
-      <WheelColumn items={hourItems} selected={hourIndex} onChange={handleHourChange} width={88} />
+      <WheelColumn
+        items={hourItems}
+        selected={hourIndex}
+        onChange={handleHourChange}
+        width={88}
+        label="horas"
+      />
       <Text style={styles.separator}>:</Text>
-      <WheelColumn items={minuteItems} selected={minute} onChange={onMinuteChange} width={88} />
+      <WheelColumn
+        items={minuteItems}
+        selected={minute}
+        onChange={onMinuteChange}
+        width={88}
+        label="minutos"
+      />
       <WheelColumn
         items={['AM', 'PM']}
         selected={isPM ? 1 : 0}
         onChange={handlePeriodChange}
         width={72}
+        label="periodo"
       />
     </View>
   );

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -9,6 +9,7 @@ import { BibleChapterNavigator } from './BibleChapterNavigator';
 import { BibleSearch } from './BibleSearch';
 import { Colors, Typography, Radii, Spacing } from '@/constants/theme';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import type { BibleVerse } from '@radio/types';
 
 const FONT_SIZE_MIN = 14;
@@ -98,7 +99,7 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
               <Text style={styles.centerText}>Cargando capítulo...</Text>
             </View>
           ) : chapterData?.verses ? (
-            <ScrollView
+            <BottomSheetScrollView
               style={{ flex: 1 }}
               contentContainerStyle={styles.versesContainer}
               showsVerticalScrollIndicator={false}
@@ -132,7 +133,7 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
                   );
                 })}
               </View>
-            </ScrollView>
+            </BottomSheetScrollView>
           ) : (
             <View style={styles.centerBox}>
               <Text style={styles.centerText}>No se encontró el capítulo.</Text>

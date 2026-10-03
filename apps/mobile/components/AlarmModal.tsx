@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -14,6 +13,7 @@ import { TimeWheelPicker } from '@/components/alarm/TimeWheelPicker';
 import type { AlarmInput, RadioAlarm } from '@/hooks/useAlarmClock';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 
 const WEEKDAY_LABELS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -130,7 +130,14 @@ export function AlarmModal({
   const isEveryDay = form.days.length === 7;
 
   return (
-    <AppBottomSheet visible={visible} onClose={onClose} snapPoints={showEditor ? ['88%', '96%'] : ['72%', '86%']}>
+    <AppBottomSheet
+      visible={visible}
+      onClose={onClose}
+      snapPoints={showEditor ? ['88%', '96%'] : ['72%', '86%']}
+      // The editor hosts the time wheel, whose columns scroll on their own. The
+      // sheet pan gesture would swallow those drags and the hour would never move.
+      enableContentPanningGesture={!showEditor}
+    >
       {!showEditor ? (
         <View style={styles.listView}>
           <View style={styles.listHeader}>
@@ -140,7 +147,7 @@ export function AlarmModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
+          <BottomSheetScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
             {alarms.length === 0 ? (
               <View style={styles.emptyWrap}>
                 <View style={styles.emptyIcon}>
@@ -186,7 +193,7 @@ export function AlarmModal({
                 </View>
               ))
             )}
-          </ScrollView>
+          </BottomSheetScrollView>
 
           <TouchableOpacity
             style={styles.addButton}
@@ -225,7 +232,7 @@ export function AlarmModal({
             onMinuteChange={(minute) => setForm((prev) => ({ ...prev, minute }))}
           />
 
-          <ScrollView
+          <BottomSheetScrollView
             style={styles.editorScroll}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -346,7 +353,7 @@ export function AlarmModal({
                 <Text style={styles.deleteButtonText}>Eliminar alarma</Text>
               </TouchableOpacity>
             )}
-          </ScrollView>
+          </BottomSheetScrollView>
         </View>
       )}
     </AppBottomSheet>

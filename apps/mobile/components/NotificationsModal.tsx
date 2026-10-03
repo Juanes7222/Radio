@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   Switch,
   ActivityIndicator,
   Alert,
@@ -19,6 +18,7 @@ import { ensureNotificationPermission } from '@/lib/device';
 import { openExactAlarmSettings } from '@/modules/exact-alarms';
 import { formatMediaTitle, normalizeTitle } from '@/lib/formatMedia';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 
 interface NotificationsModalProps {
   visible: boolean;
@@ -80,7 +80,7 @@ export function NotificationsModal({
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
+      <BottomSheetScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
         {Platform.OS === 'android' && exactAlarmGranted === false && (
           <View style={styles.exactAlarmBanner}>
             <View style={styles.exactAlarmIcon}>
@@ -193,7 +193,7 @@ export function NotificationsModal({
             <Text style={styles.emptyText}>No hay programas disponibles.</Text>
           )}
         </View>
-      </ScrollView>
+      </BottomSheetScrollView>
     </AppBottomSheet>
   );
 }

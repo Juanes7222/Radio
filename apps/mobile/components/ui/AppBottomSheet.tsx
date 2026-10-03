@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { StyleSheet } from 'react-native';
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-  BottomSheetView,
-} from '@gorhom/bottom-sheet';
+import { StyleSheet, View } from 'react-native';
+import { BottomSheetBackdrop, BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Radii } from '@/constants/theme';
 
@@ -12,12 +8,24 @@ interface AppBottomSheetProps {
   visible: boolean;
   onClose: () => void;
   snapPoints?: (string | number)[];
+  /**
+   * Disable when the sheet hosts a control that scrolls inside itself. The
+   * content pan gesture activates on any vertical drag and cancels the nested
+   * scroll view, which is what makes the alarm time wheel unresponsive.
+   */
+  enableContentPanningGesture?: boolean;
   children: React.ReactNode;
 }
 
 const DEFAULT_SNAP_POINTS: (string | number)[] = ['45%', '70%'];
 
-export function AppBottomSheet({ visible, onClose, snapPoints = DEFAULT_SNAP_POINTS, children }: AppBottomSheetProps) {
+export function AppBottomSheet({
+  visible,
+  onClose,
+  snapPoints = DEFAULT_SNAP_POINTS,
+  enableContentPanningGesture = true,
+  children,
+}: AppBottomSheetProps) {
   const ref = useRef<BottomSheetModal>(null);
   const insets = useSafeAreaInsets();
 
@@ -31,26 +39,39 @@ export function AppBottomSheet({ visible, onClose, snapPoints = DEFAULT_SNAP_POI
   }
   const points = pointsRef.current;
 
+  // Dismissing a sheet that was never presented leaves BottomSheetModal in an
+// inconsistent state: it still emits onDismiss, which calls onClose() and can
+// close the sheet the caller just opened, and a later present() no longer
+// recovers. Every modal here mounts closed and opens on demand, so the dismiss
+// is only safe once we actually presented it.
+const presentedRef = useRef(false);
+
   useEffect(() => {
-    // Diferir al siguiente tick: en el primer montaje con visible=true
-    // (p. ej. BiblePanel) el ref aún no existe en el efecto inicial.
-    const timer = setTimeout(() => {
-      if (visible) {
-        ref.current?.present();
-      } else {
+    if (!visible) {
+      if (presentedRef.current) {
         ref.current?.dismiss();
       }
+      return;
+    }
+
+    // Defer to the next tick: on the mount that flips visible to true the ref
+    // exists but the native modal is not attached yet.
+    const timer = setTimeout(() => {
+      ref.current?.present();
+      presentedRef.current = true;
     }, 0);
     return () => clearTimeout(timer);
   }, [visible]);
 
   const handleDismiss = useCallback(() => {
+    presentedRef.current = false;
     onClose();
   }, [onClose]);
 
   const handleChange = useCallback(
     (index: number) => {
       if (index === -1) {
+        presentedRef.current = false;
         onClose();
       }
     },
@@ -80,14 +101,27 @@ export function AppBottomSheet({ visible, onClose, snapPoints = DEFAULT_SNAP_POI
       onDismiss={handleDismiss}
       enablePanDownToClose
       enableDynamicSizing={false}
+      enableContentPanningGesture={enableContentPanningGesture}
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={styles.handle}
       backgroundStyle={styles.sheetBackground}
       topInset={insets.top}
     >
-      <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + 16 }]}>
+      {/**
+       * A plain View, not BottomSheetView: the library forces the latter to
+       * `position: absolute`, which drops it out of the flex layout so `flex: 1`
+       * no longer resolves and the sheet grows to its content height. A scroll
+       * view inside then measures contentSize === layout, reports no scroll
+       * range, and whatever sits below the fold is clipped and unreachable.
+       * As an in-flow child the sheet's own animated height bounds it instead.
+       *
+       * BottomSheetView also registered itself as the sheet scrollable, which
+       * overrode the BottomSheetScrollView children and kept the pan gesture
+       * from ever deferring to their scroll offset.
+       */}
+      <View style={[styles.content, { paddingBottom: insets.bottom + 16 }]}>
         {children}
-      </BottomSheetView>
+      </View>
     </BottomSheetModal>
   );
 }

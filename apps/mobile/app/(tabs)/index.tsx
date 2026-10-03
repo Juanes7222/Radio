@@ -134,7 +134,7 @@ export default function PlayerScreen() {
     }
   }, [liveUrl, pause]);
 
-  const [showBible, setShowBible] = useState(false);
+const [showBible, setShowBible] = useState(false);
   const [hasOpenedBible, setHasOpenedBible] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [showNotifyMenu, setShowNotifyMenu] = useState(false);

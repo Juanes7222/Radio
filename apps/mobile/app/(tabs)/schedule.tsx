@@ -13,6 +13,7 @@ import { Colors, Typography } from '@/constants/theme';
 import { formatScheduleTime, getBogotaDayOfWeek } from '@/lib/time';
 import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { ShimmerBox } from '@/components/ui/Shimmer';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 
@@ -175,7 +176,7 @@ function CategoryPickerModal({
   return (
     <AppBottomSheet visible={visible} onClose={onClose} snapPoints={['48%', '68%']}>
       <Text style={styles.pickerTitle}>Filtrar por categoría</Text>
-      <ScrollView style={styles.pickerList} bounces={false} showsVerticalScrollIndicator={false}>
+      <BottomSheetScrollView style={styles.pickerList} bounces={false} showsVerticalScrollIndicator={false}>
         {options.map((option) => {
           const isSelected = option.id === selectedId;
           const dotColor = option.color ?? TEXT_MUTED;
@@ -206,7 +207,7 @@ function CategoryPickerModal({
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </BottomSheetScrollView>
     </AppBottomSheet>
   );
 }

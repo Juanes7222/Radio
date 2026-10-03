@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type {
@@ -10,6 +10,7 @@ import type {
 } from '@radio/types';
 import { Colors, Typography, Radii, Spacing } from '@/constants/theme';
 import { BibleSearchVerseList } from './BibleSearchVerseList';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 
 interface BibleSearchProps {
   isOpen: boolean;
@@ -281,7 +282,7 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
     }
 
     return (
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.resultsContainer}>
+      <BottomSheetScrollView style={{ flex: 1 }} contentContainerStyle={styles.resultsContainer}>
         <SearchBody
           response={response}
           highlightTerms={highlightTerms}
@@ -290,7 +291,7 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
             handleClose();
           }}
         />
-      </ScrollView>
+      </BottomSheetScrollView>
     );
   };
 
