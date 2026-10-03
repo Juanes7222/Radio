@@ -1,15 +1,27 @@
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import  FontAwesome  from '@expo/vector-icons/FontAwesome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { WEB_URL } from '@/constants/api';
+import { LEGAL_DOCUMENTS, legalUrl } from '@/constants/legalDocuments';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { useFacebookLive } from '../../hooks/useFacebookLive';
+import { useFacebookLive } from '@/hooks/useFacebookLive';
+import { openExternalUrl } from '@/lib/externalLinks';
 
 import { scale, TAB_BAR_BASE } from '../../lib/responsive';
+
+const STATION_DOMAIN = WEB_URL.replace(/^https?:\/\//, '').replace(/\/+$/, '');
 
 const SOCIAL_LINKS = [
   {
@@ -46,7 +58,7 @@ const SOCIAL_LINKS = [
   },
 ] as const;
 
-export default function SocialScreen() {
+export default function StationScreen() {
   const insets = useSafeAreaInsets();
   const { liveUrl } = useFacebookLive();
 
@@ -55,6 +67,10 @@ export default function SocialScreen() {
       ? { ...link, url: liveUrl, isLive: true }
       : { ...link, isLive: false });
 
+  const openLink = useCallback((url: string) => {
+    Haptics.selectionAsync().catch(() => {});
+    openExternalUrl(url);
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -64,34 +80,59 @@ export default function SocialScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <Animated.View
-        entering={FadeInDown.duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}
-        style={[
-          styles.content,
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
           {
             paddingTop: insets.top + Spacing.xl,
             paddingBottom: TAB_BAR_BASE + insets.bottom + Spacing.lg,
           },
         ]}
+        showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInDown.delay(40).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
           <ScreenHeader
             eyebrow="Nuestra comunidad"
-            title="Redes Sociales"
-            subtitle="Conéctate con nuestra comunidad"
+            title="La estación"
+            subtitle="Redes sociales, sitio web y documentos legales."
           />
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(80).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+          <TouchableOpacity
+            style={styles.webCard}
+            activeOpacity={0.85}
+            onPress={() => openLink(WEB_URL)}
+            accessibilityRole="link"
+            accessibilityLabel={`Abrir el sitio web de la estación, ${STATION_DOMAIN}`}
+            accessibilityHint="Abre la página en el navegador y sales de la app"
+          >
+            <View style={styles.webSlugRow}>
+              <Ionicons name="globe-outline" size={13} color={Colors.signal} />
+              <Text style={styles.webSlug} numberOfLines={1}>{STATION_DOMAIN}</Text>
+            </View>
+            <Text style={styles.webTitle}>La Voz de la Verdad</Text>
+            <Text style={styles.webBody}>
+              Noticias, programación y la lectura bíblica del día.
+            </Text>
+            <View style={styles.webCta}>
+              <Text style={styles.webCtaLabel}>Abrir el sitio</Text>
+              <Ionicons name="arrow-forward" size={15} color={Colors.signal} />
+            </View>
+          </TouchableOpacity>
         </Animated.View>
 
         {/* Banner live */}
         {liveUrl && (
-          <Animated.View entering={FadeInDown.delay(80).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+          <Animated.View entering={FadeInDown.delay(120).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
             <TouchableOpacity
               style={styles.liveBanner}
               activeOpacity={0.85}
-              onPress={() => {
-                Haptics.selectionAsync().catch(() => {});
-                Linking.openURL(liveUrl);
-              }}
+              onPress={() => openLink(liveUrl)}
+              accessibilityRole="link"
+              accessibilityLabel="Estamos en vivo"
+              accessibilityHint="Abre la transmisión en Facebook y sales de la app"
             >
               <View style={styles.liveDot}>
                 <View style={styles.liveDotInner} />
@@ -109,15 +150,14 @@ export default function SocialScreen() {
           {socialLinks.map((link, idx) => (
             <Animated.View
               key={link.id}
-              entering={FadeInDown.delay(100 + idx * 40).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+              entering={FadeInDown.delay(160 + idx * 40).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
             >
               <TouchableOpacity
                 style={[styles.linkCard, link.isLive && styles.linkCardLive]}
                 activeOpacity={0.82}
-                onPress={() => {
-                  Haptics.selectionAsync().catch(() => {});
-                  Linking.openURL(link.url);
-                }}
+                onPress={() => openLink(link.url)}
+                accessibilityRole="link"
+                accessibilityLabel={`${link.label}. ${link.isLive ? 'En vivo ahora' : link.subtitle}`}
               >
               <View style={[styles.iconCircle, { backgroundColor: link.color + '22' }]}>
                 {link.isLive && <View style={styles.liveIndicator} />}
@@ -137,7 +177,42 @@ export default function SocialScreen() {
             </Animated.View>
           ))}
         </View>
-      </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(320).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+          <View style={styles.legalPanel}>
+            <View style={styles.legalHeader}>
+              <Text style={styles.legalEyebrow}>Documentos legales</Text>
+              <Text style={styles.legalHint}>Se abren en el navegador</Text>
+            </View>
+            {Object.values(LEGAL_DOCUMENTS).map((document) => (
+              <TouchableOpacity
+                key={document.path}
+                style={styles.legalRow}
+                activeOpacity={0.7}
+                onPress={() => openLink(legalUrl(document.id))}
+                accessibilityRole="link"
+                accessibilityLabel={
+                  document.requiredInApp
+                    ? `${document.label}. Consentimiento: se acepta al enviar una petición de oración.`
+                    : document.label
+                }
+                accessibilityHint={`${document.note}. Se abre en el navegador`}
+              >
+                <View style={styles.legalRowText}>
+                  <Text style={styles.legalLabel}>{document.label}</Text>
+                  <Text style={styles.legalNote}>{document.note}</Text>
+                </View>
+                {document.requiredInApp ? (
+                  <View style={styles.legalTag}>
+                    <Text style={styles.legalTagText}>Consentimiento</Text>
+                  </View>
+                ) : null}
+                <Ionicons name="arrow-forward" size={15} color={Colors.textAltFaint} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Animated.View>
+      </ScrollView>
     </View>
   );
 }
@@ -145,10 +220,29 @@ export default function SocialScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
 
-  content: {
-    flex: 1,
+  scroll: { flex: 1 },
+
+  scrollContent: {
     paddingHorizontal: Spacing.lg,
+    gap: Spacing.md,
   },
+
+  webCard: {
+    backgroundColor: Colors.signalSoft,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.signalGlow,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    gap: 4,
+  },
+
+  webSlugRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  webSlug: { ...Typography.mono, color: Colors.textMuted, flexShrink: 1 },
+  webTitle: { ...Typography.display, fontSize: 24, lineHeight: 28, color: Colors.text },
+  webBody: { ...Typography.body, color: Colors.textMuted },
+  webCta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.xs },
+  webCtaLabel: { ...Typography.captionStrong, color: Colors.signal },
 
   linkList: { gap: Spacing.sm },
 
@@ -184,7 +278,6 @@ const styles = StyleSheet.create({
     borderRadius: Radii.lg,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
-    marginBottom: Spacing.md,
   },
   liveBannerTitle: {
     color: '#fff',
@@ -224,4 +317,44 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.tally,
     zIndex: 1,
   },
+
+  legalPanel: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    overflow: 'hidden',
+  },
+  legalHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    paddingBottom: Spacing.sm,
+  },
+  legalEyebrow: { ...Typography.eyebrow, color: Colors.signal },
+  legalHint: { ...Typography.mono, color: Colors.textAltFaint, flexShrink: 1, textAlign: 'right' },
+  legalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    minHeight: 56,
+    paddingVertical: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderGlass,
+  },
+  legalRowText: { flex: 1, gap: 2 },
+  legalLabel: { ...Typography.body, color: Colors.text, fontWeight: '600' },
+  legalNote: { ...Typography.caption, color: Colors.textAltFaint },
+  legalTag: {
+    backgroundColor: Colors.signalMuted,
+    borderRadius: Radii.xs,
+    borderWidth: 1,
+    borderColor: Colors.signalGlow,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  legalTagText: { ...Typography.mono, fontSize: 10, color: Colors.signal },
 });

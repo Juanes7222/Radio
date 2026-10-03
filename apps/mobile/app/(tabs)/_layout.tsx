@@ -67,6 +67,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      initialRouteName="social"
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: Colors.background },

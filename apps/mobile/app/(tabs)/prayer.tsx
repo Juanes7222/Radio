@@ -17,13 +17,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Linking } from 'react-native';
 import Animated, { FadeInDown, FadeIn, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { BACKEND_URL, WEB_URL } from '@/constants/api';
+import { BACKEND_URL } from '@/constants/api';
+import { legalUrl } from '@/constants/legalDocuments';
 import { Colors } from '@/constants/theme';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { getDeviceId } from '@/lib/device';
+import { openExternalUrl } from '@/lib/externalLinks';
 
 import { TAB_BAR_BASE } from '../../lib/responsive';
 
@@ -132,11 +133,7 @@ export default function PrayerScreen() {
     }
   }, [name, request, acceptsDataTreatment]);
 
-  const openLegalPage = useCallback((path: string) => {
-    Linking.openURL(`${WEB_URL}${path}`).catch(() => {
-      Alert.alert('Error', 'No se pudo abrir la página. Intenta más tarde.');
-    });
-  }, []);
+  
 
   const handleReset = () => {
     setSent(false);
@@ -297,7 +294,7 @@ export default function PrayerScreen() {
                   style={styles.consentLink}
                   onPress={(e) => {
                     e.stopPropagation();
-                    openLegalPage('/info/data-treatment');
+                    openExternalUrl(legalUrl('data-treatment'));
                   }}
                 >
                   Política de Tratamiento de Datos Personales

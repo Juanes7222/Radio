@@ -72,7 +72,11 @@ export async function ensureNotificationChannels(): Promise<void> {
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNEL_ID, {
       name: NOTIFICATION_CHANNEL_NAME,
       importance: Notifications.AndroidImportance.HIGH,
-      sound: 'default',
+      // `sound` is intentionally omitted. expo-notifications resolves every
+      // value here as a custom res/raw resource and logs "Custom sound not
+      // found" when it is not bundled; 'default' is not a raw resource name.
+      // Omitting it falls back to Settings.System.DEFAULT_NOTIFICATION_URI,
+      // which is the same sound the channel would end up with anyway.
       vibrationPattern: [0, 250, 250, 250],
     });
   } catch {
