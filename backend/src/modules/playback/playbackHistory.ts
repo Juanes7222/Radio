@@ -6,29 +6,35 @@ import type { SongHistory } from "@radio/types";
 
 export const PLAYBACK_RETENTION_DAYS = 90;
 
-/** Días de historial que recupera una sola corrida cuando la tabla está vacía. */
-const BACKFILL_DAYS_PER_RUN = 30;
+const DAY_MS = 86_400_000;
 
 /**
- * Margen que se resta al último play conocido. El endpoint de AzuraCast se
- * consulta por ventana de tiempo, así que solapar no duplica gracias al
- * índice único sobre azuracast_sh_id, y este margen garantiza que un poll
- * fallido no deje un hueco.
+ * Slack allowed between the oldest stored event and the retention floor before
+ * a run treats the history as incomplete. Pruning leaves MIN(played_at)
+ * resting right on the floor, so without this margin a table with full
+ * coverage would look like a gap on every run.
+ */
+const COVERAGE_MARGIN_MS = DAY_MS;
+
+/**
+ * Margin subtracted from the newest known play. The AzuraCast endpoint is
+ * queried by time window, so overlapping does not duplicate thanks to the
+ * unique index on azuracast_sh_id, and this margin keeps a failed poll from
+ * leaving a hole.
  */
 const POLL_OVERLAP_MS = 10 * 60_000;
 
-const DAY_MS = 86_400_000;
 const BACKFILL_CHUNK_MS = DAY_MS;
 
-/** AzuraCast devuelve unix en segundos; Prisma trabaja con Date. */
+/** AzuraCast returns unix seconds; Prisma works with Date. */
 function toDate(unixSeconds: number): Date {
   return new Date(unixSeconds * 1000);
 }
 
 /**
- * Locuciones y DJ en vivo llegan sin metadatos. Un valor ausente se guarda
- * como cadena vacía en vez de undefined, porque undefined en un lote de
- * createMany aborta el lote completo.
+ * Live spots and DJ talk arrive without metadata. A missing value is stored as
+ * an empty string instead of undefined, because undefined in a createMany call
+ * aborts the whole batch.
  */
 function toText(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -50,9 +56,11 @@ function toRow(record: SongHistory) {
 }
 
 /**
- * Descarta las claves ya guardadas y persiste el resto en un solo lote.
- * Prisma 6.19 sobre SQLite no ofrece skipDuplicates, así que la deduplicación
- * se hace antes del insert en lugar de dejarla en la base.
+ * Drops the keys already stored and persists the rest in a single batch.
+ * Prisma 6.19 on SQLite has no skipDuplicates, so deduplication happens before
+ * the insert instead of being left to the database. Ids repeated inside the
+ * same response are dropped too: AzuraCast can report the same sh_id twice,
+ * and letting both through would violate the unique index and abort the run.
  */
 async function insertMissing(rows: ReturnType<typeof toRow>[]): Promise<number> {
   if (rows.length === 0) return 0;
@@ -63,7 +71,12 @@ async function insertMissing(rows: ReturnType<typeof toRow>[]): Promise<number> 
     select: { azuracastShId: true },
   });
   const known = new Set(existing.map((row) => row.azuracastShId));
-  const fresh = rows.filter((row) => !known.has(row.azuracastShId));
+  const claimed = new Set<number>();
+  const fresh = rows.filter((row) => {
+    if (known.has(row.azuracastShId) || claimed.has(row.azuracastShId)) return false;
+    claimed.add(row.azuracastShId);
+    return true;
+  });
   if (fresh.length === 0) return 0;
 
   await prisma.playbackEvent.createMany({ data: fresh });
@@ -85,10 +98,9 @@ async function collect(from: Date, to: Date): Promise<number> {
 }
 
 /**
- * Una sola corrida a la vez. El poll manual desde el panel de Jobs puede
- * solaparse con el cron; sin este guard ambos podrían intentar insertar el
- * mismo sh_id. Si aun así llegara un P2002, la ventana solapada del
- * siguiente tick lo resuelve.
+ * One run at a time. The manual poll from the Jobs panel can overlap with the
+ * cron; without this guard both could try to insert the same sh_id. If a P2002
+ * still gets through, the next tick overlaps the same window and heals it.
  */
 let running: Promise<void> | null = null;
 
@@ -105,29 +117,27 @@ export async function capturePlaybackHistory(): Promise<void> {
 
 async function runOnce(): Promise<void> {
   const now = new Date();
-  let inserted = 0;
+  const cutoff = new Date(now.getTime() - PLAYBACK_RETENTION_DAYS * DAY_MS);
 
-  const newest = await prisma.playbackEvent.findFirst({
-    orderBy: { playedAt: "desc" },
-    select: { playedAt: true },
-  });
-
-  if (!newest) {
-    // Tabla vacía: no hay de dónde retomar, así que se recupera el histórico
-    // por días. Un día son ~480 registros (~0,2 MB de JSON); pedir los 30 de
-    // una vez serían ~8 MB en una sola respuesta, por encima del timeout.
-    const start = new Date(now.getTime() - BACKFILL_DAYS_PER_RUN * DAY_MS);
-    inserted = await collectByDay(start, now);
-    logger.info("PlaybackHistory", "Backfill run finished", { days: BACKFILL_DAYS_PER_RUN, inserted });
-  } else {
-    const from = new Date(Math.max(newest.playedAt.getTime() - POLL_OVERLAP_MS, 0));
-    const gapDays = Math.ceil((now.getTime() - from.getTime()) / DAY_MS);
-    inserted =
-      gapDays > 1 ? await collectByDay(from, now) : await collect(from, now);
-    logger.info("PlaybackHistory", "Poll finished", { from: from.toISOString(), inserted });
+  try {
+    await collectHistory(now, cutoff);
+  } catch (error) {
+    // Retention has to run even when collection fails, otherwise the table
+    // grows without bound exactly when the system is already broken. The prune
+    // error is dropped on purpose: the collection error is the one the scheduler
+    // has to record.
+    await prune(cutoff).catch((pruneError: unknown) => {
+      logger.error("PlaybackHistory", "Prune failed after a collection error", {
+        error: pruneError instanceof Error ? pruneError.message : String(pruneError),
+      });
+    });
+    throw error;
   }
 
-  const cutoff = new Date(now.getTime() - PLAYBACK_RETENTION_DAYS * DAY_MS);
+  await prune(cutoff);
+}
+
+async function prune(cutoff: Date): Promise<void> {
   const deleted = await prisma.playbackEvent.deleteMany({ where: { playedAt: { lt: cutoff } } });
   if (deleted.count > 0) {
     logger.info("PlaybackHistory", "Pruned old events", { deleted: deleted.count });
@@ -135,8 +145,47 @@ async function runOnce(): Promise<void> {
 }
 
 /**
- * Una caída larga deja un hueco que cabe en una sola ventana. Se pide día por
- * día para que ninguna respuesta crezca sin límite.
+ * Coverage is measured from the oldest stored event, not from an empty table:
+ * a cold deployment fills its first window and every later run would otherwise
+ * poll forward and never look back, leaving the older part of the retention
+ * window permanently empty.
+ */
+async function collectHistory(now: Date, cutoff: Date): Promise<void> {
+  const [oldest, newest] = await Promise.all([
+    prisma.playbackEvent.findFirst({ orderBy: { playedAt: "asc" }, select: { playedAt: true } }),
+    prisma.playbackEvent.findFirst({ orderBy: { playedAt: "desc" }, select: { playedAt: true } }),
+  ]);
+
+  const coveredToFloor =
+    oldest !== null &&
+    newest !== null &&
+    oldest.playedAt.getTime() <= cutoff.getTime() + COVERAGE_MARGIN_MS;
+
+  if (!coveredToFloor) {
+    // One day is ~480 records (~0.2 MB of JSON); asking for the whole window at
+    // once would be ~18 MB in a single response, past the request timeout.
+    const inserted = await collectByDay(cutoff, now);
+    logger.info("PlaybackHistory", "Backfill run finished", {
+      from: cutoff.toISOString(),
+      to: now.toISOString(),
+      inserted,
+    });
+    return;
+  }
+
+  // Clamped to now because a station clock ahead of the backend would otherwise
+  // produce an inverted window and a poll that silently returns nothing.
+  const from = new Date(
+    Math.min(Math.max(newest.playedAt.getTime() - POLL_OVERLAP_MS, 0), now.getTime()),
+  );
+  const gapDays = Math.ceil((now.getTime() - from.getTime()) / DAY_MS);
+  const inserted = gapDays > 1 ? await collectByDay(from, now) : await collect(from, now);
+  logger.info("PlaybackHistory", "Poll finished", { from: from.toISOString(), inserted });
+}
+
+/**
+ * A long outage leaves a gap too wide for one request, so the window is walked
+ * day by day and no single response grows without bound.
  */
 async function collectByDay(from: Date, to: Date): Promise<number> {
   let inserted = 0;
