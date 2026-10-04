@@ -119,7 +119,13 @@ function parseRange(query: Record<string, unknown>): PlaybackRange {
     rawFrom === ""
       ? getStationDayStartWithOffset(-(DEFAULT_WINDOW_DAYS - 1), to)
       : stationDayStartForKey(rawFrom);
-  const exclusiveTo = getStationDayStartWithOffset(1, to);
+  // `to` carries two different meanings depending on where it came from. When
+  // `to` is absent it is the start of tomorrow, already the exclusive end of the
+  // window. When `to` is present it is the inclusive start of the last day the
+  // caller asked for, so covering that day whole needs one more day. Adding a
+  // day unconditionally would stretch the no-`to` window by one, which both
+  // covered tomorrow and made the retention cap unreachable through that path.
+  const exclusiveTo = rawTo === "" ? to : getStationDayStartWithOffset(1, to);
 
   if (from.getTime() > to.getTime()) {
     throw new AppError(400, "El rango 'from' no puede ser posterior a 'to'");
