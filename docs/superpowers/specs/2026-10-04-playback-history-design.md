@@ -23,6 +23,12 @@ El tipo `SongHistory` ya existe en `packages/types/src/azuracast.ts:87-95` con
 `sh_id`, `played_at`, `duration`, `playlist`, `streamer`, `is_request` y `song`.
 No hace falta tipar nada nuevo del lado de AzuraCast.
 
+Verificado contra la estación real: la respuesta trae además `playlist_chain`,
+`playlist_source`, `listeners_start`, `listeners_end`, `delta_total` e `is_visible`,
+que no se guardan. En 510 registros ninguno vino sin `song.id` ni sin `song.title`, y
+`played_at` viene en segundos unix. Los nombres de playlist pueden llevar tildes
+(`MÚSICA`), lo que es seguro en una columna TEXT.
+
 Se descarta la alternativa de leer el contador `num_play` de los archivos de la
 estación: no tiene marca de tiempo, así que no puede responder "a qué hora y qué
 día", y obliga a barrer la biblioteca de 15 000 archivos.
@@ -162,9 +168,16 @@ El contrato `{ rows, total, page, totalPages }` es el de la casa
 
 ## Rendimiento
 
-Medido sobre SQLite con el esquema real, tres perfiles de 90 días (tracks de 4,6 min
-con 2 500 audios distintos; tracks de 3 min con 2 500; y tracks de 3 min con 8 000),
-con `EXPLAIN QUERY PLAN` y p50/p95 sobre 20 corridas.
+Cifras de volumen medidas contra la estación real: una ventana de 36 horas devolvió
+**510 registros, 288 KB**, es decir ~340 reproducciones por día y ~0,56 KB por
+registro. Eso son ~30 600 filas y ~17 MB de JSON a 90 días. También confirma que el
+*backfill* debe ir por días: 30 días en una sola petición serían ~5,7 MB, por encima
+del timeout de 15 s de `AZURACAST_REQUEST_TIMEOUT_MS`.
+
+Los tiempos de consulta de abajo vienen de un banco SQLite desechable con el esquema
+real y tres perfiles de 90 días (tracks de 4,6 min con 2 500 audios distintos; de
+3 min con 2 500; y de 3 min con 8 000), con `EXPLAIN QUERY PLAN` y p50/p95 sobre 20
+corridas.
 
 | operación | 30 días | 90 días |
 |---|---|---|
@@ -258,6 +271,11 @@ deploy` en producción; `prisma migrate dev` en local.
 - **Volumen de red** contra AzuraCast: ~5 registros y ~5 KB cada 5 minutos.
 - **Caché de playlists** TTL 10 min: una rotación nueva no aparece en el desplegable
   hasta que expire. Se acepta.
+- **Si se reconstruye la base de datos de AzuraCast**, su `sh_id` reinicia en 1 y las
+  columnas nuevas colisionarían con el índice único, con lo que el job dejaría de
+  insertar de forma silenciosa (solo un warning en el log). No se diseña nada para
+  esto: es una operación administrativa rara y la remedio es vaciar `playback_events`.
+  Queda anotado en la documentación del módulo.
 
 ## Fuera de alcance
 
