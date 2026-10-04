@@ -128,9 +128,13 @@ function parseRange(query: Record<string, unknown>): PlaybackRange {
   // The window is measured in station days, not in milliseconds: 55 station days
   // span 55 days plus or minus an hour across a time zone change, and the cap
   // must count days, otherwise the edge of the retention window becomes
-  // unreachable on half of the calendar.
-  const rangeDays =
-    dayDiffBetweenKeys(getStationTime(from).dayKey, getStationTime(exclusiveTo).dayKey) + 1;
+  // unreachable on half of the calendar. `exclusiveTo` already is the start of
+  // the first day outside the window, so the day difference up to it is the count
+  // of covered days with no correction: a window from D to D+54 covers 55 days.
+  const rangeDays = dayDiffBetweenKeys(
+    getStationTime(from).dayKey,
+    getStationTime(exclusiveTo).dayKey
+  );
   if (rangeDays > PLAYBACK_RETENTION_DAYS) {
     throw new AppError(400, `El rango no puede superar ${PLAYBACK_RETENTION_DAYS} días`);
   }
@@ -149,8 +153,8 @@ function parseSearch(query: Record<string, unknown>): string | null {
 }
 
 /**
- * Normaliza el orden del agregado por audio. Vive en el servicio para que la
- * ruta no tenga que reimplementar el valor por defecto.
+ * Normalizes the audio aggregate order. It lives in the service so the route
+ * does not have to reimplement the default.
  */
 export function parseOrder(value: unknown): PlaybackAudioOrder {
   if (value === "recent" || value === "first") return value;
@@ -162,7 +166,12 @@ export function parsePlaybackQuery(query: Record<string, unknown>): ParsedPlayba
   // There is no cap on the page number: an out of range page answers with an
   // empty `rows` instead of silently rewriting the page the caller asked for,
   // and deep offsets are cheap because the played_at index resolves them.
-  const page = Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1;
+  // `isSafeInteger` instead of `isInteger` keeps the trust boundary closed
+  // without reintroducing a business cap: a page beyond 2^53 makes `skip`
+  // overflow, Prisma sends it to the engine as null and the query fails with an
+  // unhandled 500. Such a value is malformed input, like 0 or "abc", so it is
+  // normalized to the first page like any other.
+  const page = Number.isSafeInteger(rawPage) && rawPage >= 1 ? rawPage : 1;
   // A valid limit is clipped to the maximum; anything that is not a positive
   // integer falls back to the default.
   const rawLimit = Number(query.limit);
@@ -253,10 +262,13 @@ export async function listPlaybackAudios(
 // songId breaks every tie. Tied plays are the common case, not the exception:
   // an audio played once in the window ties with every other audio played once,
   // and without a second key the pagination would repeat and drop rows.
-  // Two constraints shape this declaration: Prisma only accepts the array form
-  // here at runtime, and `satisfies` keeps the literal type, because an
-  // annotation would widen to every field of the model and Prisma requires that
-  // every field named in orderBy is listed in `by`.
+  // `satisfies` rather than a type annotation: the generated type for groupBy is
+  // `orderBy?: X | X[]`, but a type annotation widens this to the whole model and
+  // Prisma requires every field named in orderBy to be listed in `by`, so the wide
+  // type does not compile. `satisfies` keeps the narrow shape and still checks it.
+  // The array form is not a Prisma requirement: the object form is inside the
+  // contract too (devices/admin.routes.ts:395 uses it), but these two criteria
+  // cannot share one object.
   const orderBy = (order === "recent"
     ? [{ _max: { playedAt: "desc" } }, { songId: "asc" }]
     : order === "first"
@@ -277,8 +289,7 @@ export async function listPlaybackAudios(
 
   // Prisma no expone COUNT(DISTINCT), y el SQL crudo queda descartado por
   // decisión de diseño, así que el total de audios distintos se cuenta
-  // trayendo solo la clave. Medido: 103-108 ms con 34 000 filas en la ventana,
-  // porque Prisma resuelve `distinct` trae y deduplica en memoria.
+  // trayendo solo la clave. Medido: 103-108 ms con 34 000 filas en la ventana.
   const distinctSongIds = await prisma.playbackEvent.findMany({
     where,
     distinct: ["songId"],
