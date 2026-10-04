@@ -4,9 +4,23 @@ import { logger } from "../../shared/logger/logger";
 import { AZURACAST_REQUEST_TIMEOUT_MS } from "../../shared/constants";
 import type { SongHistory } from "@radio/types";
 
-export const PLAYBACK_RETENTION_DAYS = 90;
+/**
+ * Kept below the ~60 days of history AzuraCast actually keeps: its own pruning
+ * decides what still exists, and a longer promise would leave the coverage
+ * check permanently unsatisfied, so every run would re-scan days the station
+ * can no longer serve.
+ */
+export const PLAYBACK_RETENTION_DAYS = 55;
 
 const DAY_MS = 86_400_000;
+
+/**
+ * Consecutive empty daily windows that end a backfill. The station keeps a
+ * bounded history, so walking further back than the source can answer is
+ * wasted work; a single empty window is not enough to stop because a station
+ * with a real gap in the middle must still be collected past it.
+ */
+const MAX_EMPTY_DAYS = 3;
 
 /**
  * Slack allowed between the oldest stored event and the retention floor before
@@ -91,10 +105,17 @@ async function fetchRange(from: Date, to: Date): Promise<SongHistory[]> {
   return Array.isArray(data) ? data : [];
 }
 
-async function collect(from: Date, to: Date): Promise<number> {
+type CollectResult = {
+  /** Records returned by AzuraCast for the window. */
+  fetched: number;
+  /** Records actually written; the rest were already stored. */
+  inserted: number;
+};
+
+async function collect(from: Date, to: Date): Promise<CollectResult> {
   const records = await fetchRange(from, to);
-  if (records.length === 0) return 0;
-  return insertMissing(records.map(toRow));
+  if (records.length === 0) return { fetched: 0, inserted: 0 };
+  return { fetched: records.length, inserted: await insertMissing(records.map(toRow)) };
 }
 
 /**
@@ -162,8 +183,8 @@ async function collectHistory(now: Date, cutoff: Date): Promise<void> {
     oldest.playedAt.getTime() <= cutoff.getTime() + COVERAGE_MARGIN_MS;
 
   if (!coveredToFloor) {
-    // One day is ~480 records (~0.2 MB of JSON); asking for the whole window at
-    // once would be ~18 MB in a single response, past the request timeout.
+    // One day is ~340 records (~0.2 MB of JSON); asking for the whole window at
+    // once would be ~11 MB in a single response, past the request timeout.
     const inserted = await collectByDay(cutoff, now);
     logger.info("PlaybackHistory", "Backfill run finished", {
       from: cutoff.toISOString(),
@@ -179,19 +200,36 @@ async function collectHistory(now: Date, cutoff: Date): Promise<void> {
     Math.min(Math.max(newest.playedAt.getTime() - POLL_OVERLAP_MS, 0), now.getTime()),
   );
   const gapDays = Math.ceil((now.getTime() - from.getTime()) / DAY_MS);
-  const inserted = gapDays > 1 ? await collectByDay(from, now) : await collect(from, now);
+  const inserted =
+    gapDays > 1 ? await collectByDay(from, now) : (await collect(from, now)).inserted;
   logger.info("PlaybackHistory", "Poll finished", { from: from.toISOString(), inserted });
 }
 
 /**
  * A long outage leaves a gap too wide for one request, so the window is walked
- * day by day and no single response grows without bound.
+ * one day at a time and no single response grows without bound. The walk runs
+ * backwards from `to`, which keeps the most recent day first and lets
+ * MAX_EMPTY_DAYS end the walk once the station runs out of history.
  */
 async function collectByDay(from: Date, to: Date): Promise<number> {
   let inserted = 0;
-  for (let cursor = from.getTime(); cursor < to.getTime(); cursor += BACKFILL_CHUNK_MS) {
-    const chunkEnd = Math.min(cursor + BACKFILL_CHUNK_MS, to.getTime());
-    inserted += await collect(new Date(cursor), new Date(chunkEnd));
+  let emptyDays = 0;
+
+  for (let chunkEnd = to.getTime(); chunkEnd > from.getTime(); chunkEnd -= BACKFILL_CHUNK_MS) {
+    const chunkStart = Math.max(chunkEnd - BACKFILL_CHUNK_MS, from.getTime());
+    const result = await collect(new Date(chunkStart), new Date(chunkEnd));
+    inserted += result.inserted;
+    emptyDays = result.fetched === 0 ? emptyDays + 1 : 0;
+
+    if (emptyDays >= MAX_EMPTY_DAYS) {
+      logger.info("PlaybackHistory", "Backfill stopped after empty windows", {
+        reached: new Date(chunkStart).toISOString(),
+        emptyDays,
+        inserted,
+      });
+      return inserted;
+    }
   }
+
   return inserted;
 }
