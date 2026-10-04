@@ -85,14 +85,33 @@ exigiría volver a la biblioteca.
 
 Módulo nuevo `backend/src/modules/playback/`.
 
-`playback.service.ts` expone `capturePlaybackHistory()`, siguiendo la forma de
+`playbackHistory.ts` expone `capturePlaybackHistory()`, siguiendo la forma de
 `listenerHistory.service.ts:18-38`:
 
-1. Lee `MAX(played_at)` de la tabla (0,03 ms medidos).
-2. Si la tabla está vacía, hace *backfill* por días desde hace 90 días, 30 días por
-   corrida como máximo. Sin esto la página estaría vacía durante 90 días.
+1. Lee `MAX(played_at)` y `MIN(played_at)` de la tabla (0,03 ms medidos).
+2. Si la tabla está vacía **o no alcanza la ventana de retención**, hace *backfill* por
+   días desde el piso de retención. Sin esto la página estaría vacía durante meses.
 3. Si no, consulta la ventana `[max - 10 min, ahora]`.
 4. Mapea los registros a filas y las inserta.
+5. Poda, siempre, aunque la recolección haya fallado.
+
+El disparador del *backfill* se ancla en la fila **más antigua**, no en la vaciedad de
+la tabla, con un margen de un día para distinguir "tabla llena" de "recién sembrada".
+Anclado solo en `MAX(played_at)`, una interrupción a mitad del *backfill* lo dejaría
+incompleto para siempre.
+
+**El límite real de AzuraCast obliga a acotar la retención.** Medido contra la
+estación: hay registros a 60 días de antigüedad y ninguno a 60,5. AzuraCast conserva
+unos 60 días, así que pedir 90 es pedir datos que la fuente ya borró y que ninguna
+frecuencia de *polling* puede recuperar. La retención queda en **55 días**, con 5 días
+de margen contra el recorte de la fuente.
+
+**El backfill está acotado.** Al extender hacia atrás se detiene tras 3 ventanas
+diarias vacías consecutivas. Sin ese tope, si la profundidad de AzuraCast queda por
+debajo de nuestra retención, cada corrida reintenta día por día hasta el piso sin
+converger nunca. Medido, cada petición diaria tarda entre 0,2 s y 1,7 s, así que 90
+peticiones serían de 20 s a 90 s **en cada corrida, cada 5 minutos, para siempre**. Con
+el tope degrada a 3 peticiones por corrida.
 
 **El insert idempotente.** Prisma 6.19.3 sobre SQLite no soporta `skipDuplicates`: no
 aparece en el cliente generado que consume la app
@@ -104,11 +123,14 @@ Si aun así colara un `P2002`, la ventana solapada del siguiente tick lo resuelv
 
 **Por qué lotes de un día y no fila por fila.** Medido: 3,3 ms por fila contra
 3,4 ms por lote de 3, 25 ms por lote de 480 y 19 000–30 000 filas/s en lote grande. El
-fsync por commit en WAL domina. Los 90 días de *backfill* cuestan 68 s fila por fila y
+fsync por commit en WAL domina. Los 55 días de *backfill* cuestan 68 s fila por fila y
 2,3 s con lotes de un día.
 
-**Poda.** La misma corrida borra lo anterior a 90 días, igual que
-`SNAPSHOT_RETENTION_DAYS` en `listenerHistory.service.ts:5,34-37`.
+**Poda.** La misma corrida borra lo anterior a la ventana de retención, igual que
+`SNAPSHOT_RETENTION_DAYS` en `listenerHistory.service.ts:5,34-37`. Se ejecuta aunque la
+recolección haya lanzado: si no, un fallo de AzuraCast es justo el caso en que la tabla
+crece sin límite, y el error original debe seguir propagándose para que lo registre el
+cron.
 
 `playback.job.ts` la registra en el scheduler con cron `*/5 * * * *` y timezone
 `config.locutor.timezone`, copiando `listenerHistory.job.ts:10-23`. La frecuencia no
@@ -128,7 +150,7 @@ reasignar permisos a los admins actuales.
 Las fechas viajan como `YYYY-MM-DD` y se interpretan en la zona de la estación, con
 `getStationDayStartWithOffset` de `shared/utils/date.ts:157`, que ya resuelve el
 offset de Bogotá. `to` incluye el día completo. Ventana por defecto: 30 días. Tope
-duro: 90 días, alineado con la retención. Una ventana más ancha, un `from` posterior
+duro: 55 días, alineado con la retención. Una ventana más ancha, un `from` posterior
 al `to` o una fecha mal formada se rechazan con 400 en vez de degradarse en silencio.
 
 `limit` es 20 por defecto y 50 como máximo, igual que en `prayer.routes.ts:33-37`.
@@ -170,14 +192,16 @@ El contrato `{ rows, total, page, totalPages }` es el de la casa
 
 Cifras de volumen medidas contra la estación real: una ventana de 36 horas devolvió
 **510 registros, 288 KB**, es decir ~340 reproducciones por día y ~0,56 KB por
-registro. Eso son ~30 600 filas y ~17 MB de JSON a 90 días. También confirma que el
+registro. Eso son ~30 600 filas y ~17 MB de JSON a 90 días, y ~18 700 filas a los 55
+días de retención reales. También confirma que el
 *backfill* debe ir por días: 30 días en una sola petición serían ~5,7 MB, por encima
 del timeout de 15 s de `AZURACAST_REQUEST_TIMEOUT_MS`.
 
 Los tiempos de consulta de abajo vienen de un banco SQLite desechable con el esquema
 real y tres perfiles de 90 días (tracks de 4,6 min con 2 500 audios distintos; de
 3 min con 2 500; y de 3 min con 8 000), con `EXPLAIN QUERY PLAN` y p50/p95 sobre 20
-corridas.
+corridas. La columna de 90 días es el peor caso medido, por encima del tope real de 55
+días: el caso que la UI nunca puede pedir.
 
 | operación | 30 días | 90 días |
 |---|---|---|
@@ -199,7 +223,7 @@ El total de audios distintos se cuenta con `SELECT DISTINCT song_id` y no con
 46 ms contra 39 ms a 90 días, y a cambio no hay SQL crudo en el servicio.
 
 **El `GROUP BY` crece linealmente con la ventana.** Esa es la frontera del diseño: si
-algún día se quiere más de 90 días, esa vista pasa a cientos de ms y haría falta una
+algún día se quiere más de 55 días, esa vista pasa a cientos de ms y haría falta una
 tabla pre-agregada. Con la retención actual no.
 
 **Búsqueda de texto.** `LIKE '%x%'` no usa índice; en el peor caso escanea la
@@ -215,7 +239,8 @@ minutos y el backfill corta el lock de escritura en rebanadas de 25 ms. Ninguna
 lectura de la API se bloquea.
 
 **Espacio.** 34 000 filas ocupan 5,5 MB con los dos índices; la base pasa de 0,48 MB
-a ~6 MB. Acotado por la retención, así que no crece más allá. Normalizar
+a ~3-4 MB con los ~18 700 filas de la retención real de 55 días. Acotado por la
+retención, así que no crece más allá. Normalizar
 título/artista en una tabla de dimensión lo reduciría, pero reintroduce un JOIN en el
 camino caliente y no vale ese ahorro.
 
@@ -229,7 +254,7 @@ sobre el mismo filtro:
 - **Por audio**: una fila por audio con total de reproducciones, primera y última
   vez, ordenable.
 
-Filtros compartidos: rango de fechas (presets de 7/30/90 días más fechas a mano),
+Filtros compartidos: rango de fechas (presets de 7/30/55 días más fechas a mano),
 playlist, búsqueda con *debounce*, y un interruptor de solo peticiones.
 
 Sigue las convenciones existentes: `.then` en vez de `async` en efectos (react-hooks
@@ -282,5 +307,8 @@ deploy` en producción; `prisma migrate dev` en local.
 - Gráficas y estadísticas agregadas (top audios, reproducciones por día o por hora).
 - Exportación a CSV.
 - Contadores de reproducción de por vida desde AzuraCast (`num_play`).
-- Retención configurable por entorno; 90 días es fijo.
+- Retención configurable por entorno; 55 días es fijo y coincide con lo que AzuraCast
+  conserva más 5 días de margen.
+- Registrar o consultar histórico de más de 55 días: la fuente ya lo borró. Si hace
+  falta más historia, hay que actuar antes de que AzuraCast recorte, no después.
 - Historial anterior a la primera corrida más allá del backfill inicial.

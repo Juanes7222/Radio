@@ -19,7 +19,10 @@
   - Lint frontend: `pnpm --filter @radio/web lint`
   - Build frontend: `pnpm --filter @radio/web build`
   - Tests frontend: `pnpm --filter @radio/web test`
-- **Retención fija de 90 días, ventana por defecto 30 días, tope duro 90 días.** Una ventana más ancha se rechaza con 400, no se degrada.
+- **Retención fija de 55 días, ventana por defecto 30 días, tope duro 55 días.** Una ventana
+  más ancha se rechaza con 400, no se degrada. Los 55 días no son arbitrarios: medido
+  contra la estación, AzuraCast conserva ~60 días de historial (hay registros a 60 días
+  y ninguno a 60,5), así que 55 deja 5 días de margen contra su recorte.
 - **`limit` 20 por defecto, 50 máximo**, igual que `prayer.routes.ts:33-37`.
 - **Contrato de respuesta `{ rows, total, page, totalPages }`**, el de la casa (`prayer.routes.ts:195-202`).
 - **Permiso `dashboard`**, reutilizado. No se toca `AdminPermission` ni las tres listas de `packages/types/src/admin.ts`.
@@ -167,6 +170,12 @@ git commit -m "feat(playback): add playback_events table"
 
 ### Task 2: Recolección desde AzuraCast
 
+> **Nota de ejecución:** el código de esta tarea se reescribió durante su ronda de
+> revisión. Lo que quedó commiteado es la fuente de verdad: el *backfill* quedó anclado
+> en la fila más antigua en vez de en la vaciedad de la tabla, la poda corre en un
+> `finally`, hay deduplicación dentro del lote y los comentarios están en inglés. El
+> bloque de abajo es el diseño original; donde discrepa, el código manda.
+
 **Files:**
 - Create: `backend/src/modules/playback/playbackHistory.ts`
 
@@ -185,10 +194,7 @@ import { logger } from "../../shared/logger/logger";
 import { AZURACAST_REQUEST_TIMEOUT_MS } from "../../shared/constants";
 import type { SongHistory } from "@radio/types";
 
-export const PLAYBACK_RETENTION_DAYS = 90;
-
-/** Días de historial que recupera una sola corrida cuando la tabla está vacía. */
-const BACKFILL_DAYS_PER_RUN = 30;
+export const PLAYBACK_RETENTION_DAYS = 55;
 
 /**
  * Margen que se resta al último play conocido. El endpoint de AzuraCast se
@@ -1195,7 +1201,7 @@ const PAGE_SIZE = 20;
 const WINDOW_OPTIONS = [
   { value: '7', label: '7 días' },
   { value: '30', label: '30 días' },
-  { value: '90', label: '90 días' },
+  { value: '55', label: '55 días' },
 ];
 const ORDER_OPTIONS: { value: PlaybackAudioOrder; label: string }[] = [
   { value: 'plays', label: 'Más reproducidos' },
@@ -1481,7 +1487,7 @@ export default function AdminPlaybackHistory() {
           ) : rows.length === 0 ? (
             <p className="py-10 text-center text-sm text-faint">
               No hay reproducciones registradas en este periodo. El historial se sincroniza
-              cada 5 minutos y conserva 90 días.
+              cada 5 minutos y conserva 55 días.
             </p>
           ) : tab === 'log' ? (
             <Table>
@@ -1648,16 +1654,18 @@ El backend no tiene framework y `AGENTS.md` prohíbe crear uno. Cuando exista, e
 casos merecen prueba, por orden de valor:
 
 **`parsePlaybackQuery`** — ventana por defecto de 30 días; `from` posterior a `to`
-rechazado; rango de más de 90 días rechazado; fecha mal formada rechazada; `limit`
+rechazado; rango de más de 55 días rechazado; fecha mal formada rechazada; `limit`
 mayor de 50 cae al máximo; `page` fuera de rango cae a 1; `search` de más de 200
 caracteres rechazado.
 
 **`buildWhere`** — `automatedOnly` filtra por `streamer` vacío; `search` genera el `OR`
 sobre título y artista; los tres filtros se combinan.
 
-**Ventana del job** — con la tabla vacía pide los últimos 30 días; con filas pide
-`[max - 10 min, ahora]`; un hueco de varios días se divide por días. Esta es la
-invariante que sostiene la ausencia de duplicados y la ausencia de huecos.
+**Ventana del job** — con la tabla vacía pide desde el piso de retención; con filas pide
+`[max - 10 min, ahora]`; un hueco de varios días se divide por días; y el backfill se
+detiene tras 3 ventanas diarias vacías consecutivas. La última es la invariante que
+impide que el job reintente día por día hasta el piso para siempre si la profundidad de
+AzuraCast baja de nuestra retención.
 
 **Idempotencia** — correr `capturePlaybackHistory` dos veces sobre la misma respuesta
 de AzuraCast deja el mismo número de filas.
