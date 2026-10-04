@@ -84,11 +84,12 @@ function stationDayStartForKey(dateKey: string): Date {
 }
 
 /**
- * Valida el rango. El tope coincide con la retención: permitir ventanas más
- * anchas solo daría consultas más lentas sobre datos que ya no existen.
+ * Valida el rango y devuelve la ventana. El tope coincide con la retención:
+ * permitir ventanas más anchas solo daría consultas más lentas sobre datos que
+ * ya no existen.
  *
- * `to` es exclusivo: el último día del rango se cubre entero porque el límite
- * superior es el inicio del día siguiente.
+ * El rango devuelto es semiabierto, `[from, to)`: el último día se cubre entero
+ * porque el límite superior es el inicio del día siguiente.
  */
 function parseRange(query: Record<string, unknown>): PlaybackRange {
   const rawFrom = typeof query.from === "string" ? query.from.trim() : "";
@@ -107,36 +108,38 @@ function parseRange(query: Record<string, unknown>): PlaybackRange {
     throw new AppError(400, "Fecha 'to' inválida, se espera YYYY-MM-DD");
   }
 
-  if (rawFrom === "" && rawTo === "") {
-    return {
-      from: getStationDayStartWithOffset(-(DEFAULT_WINDOW_DAYS - 1)),
-      to: getStationDayStartWithOffset(1),
-    };
-  }
+  // This is the only place that decides the upper bound of the window.
+  // `lastCoveredDay` is the start of the last day the window covers and it means
+  // that and nothing else: the day the caller named in `to`, or today when `to`
+  // is absent. The exclusive limit is derived from it once, below, and every
+  // other bound is anchored to it, so no branch has to know whether the value it
+  // received was already exclusive. Treating the raw value as the bound itself
+  // is what previously made the no-`to` window cover one day too many and put
+  // the retention cap out of reach through that path.
+  const lastCoveredDay =
+    rawTo === "" ? getStationDayStartWithOffset(0) : stationDayStartForKey(rawTo);
+  const exclusiveTo = getStationDayStartWithOffset(1, lastCoveredDay);
 
-  const to = rawTo === "" ? getStationDayStartWithOffset(1) : stationDayStartForKey(rawTo);
+  // An absent `from` anchors the default window on the last covered day. This is
+  // also why there is no early return for the default window: with the bounds
+  // expressed this way the default falls out of the same code as every other
+  // combination, so no combination is handled by a special case and no branch
+  // depends on another one being unreachable.
   const from =
     rawFrom === ""
-      ? getStationDayStartWithOffset(-(DEFAULT_WINDOW_DAYS - 1), to)
+      ? getStationDayStartWithOffset(-(DEFAULT_WINDOW_DAYS - 1), lastCoveredDay)
       : stationDayStartForKey(rawFrom);
-  // `to` carries two different meanings depending on where it came from. When
-  // `to` is absent it is the start of tomorrow, already the exclusive end of the
-  // window. When `to` is present it is the inclusive start of the last day the
-  // caller asked for, so covering that day whole needs one more day. Adding a
-  // day unconditionally would stretch the no-`to` window by one, which both
-  // covered tomorrow and made the retention cap unreachable through that path.
-  const exclusiveTo = rawTo === "" ? to : getStationDayStartWithOffset(1, to);
 
-  if (from.getTime() > to.getTime()) {
+  if (from.getTime() > lastCoveredDay.getTime()) {
     throw new AppError(400, "El rango 'from' no puede ser posterior a 'to'");
   }
 
   // The window is measured in station days, not in milliseconds: 55 station days
   // span 55 days plus or minus an hour across a time zone change, and the cap
   // must count days, otherwise the edge of the retention window becomes
-  // unreachable on half of the calendar. `exclusiveTo` already is the start of
-  // the first day outside the window, so the day difference up to it is the count
-  // of covered days with no correction: a window from D to D+54 covers 55 days.
+  // unreachable on half of the calendar. `exclusiveTo` is the start of the first
+  // day outside the window, so the day difference up to it is the count of
+  // covered days with no correction: a window from D to D+54 covers 55 days.
   const rangeDays = dayDiffBetweenKeys(
     getStationTime(from).dayKey,
     getStationTime(exclusiveTo).dayKey
