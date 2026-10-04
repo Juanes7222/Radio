@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { Easing, FadeIn } from 'react-native-reanimated';
 import type {
   BibleBook,
   BibleMatchMode,
@@ -9,6 +10,7 @@ import type {
   BibleSearchResult,
 } from '@radio/types';
 import { Colors, Typography, Radii, Spacing } from '@/constants/theme';
+import { Durations, Easings } from '@/constants/motion';
 import { BibleSearchVerseList } from './BibleSearchVerseList';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 
@@ -189,7 +191,6 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
   const [status, setStatus] = useState<SearchStatus>('done');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submittedQuery, setSubmittedQuery] = useState('');
-  const [contentKey, setContentKey] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const { height: windowHeight } = useWindowDimensions();
 
@@ -296,7 +297,7 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
   };
 
   return (
-    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={handleClose} onShow={() => setContentKey(prev => prev + 1)}>
+<Modal visible={isOpen} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={{ height: windowHeight * 0.1 }} pointerEvents="none" />
         <SafeAreaView style={styles.container}>
@@ -320,10 +321,17 @@ export function BibleSearch({ isOpen, onClose, onSelect, onSearch }: BibleSearch
             </TouchableOpacity>
           </View>
 
-          {/* Results */}
-          <View style={styles.content} key={contentKey}>
+          {/* Keyed on the query so each new result set fades in as one block. Animating
+              the cards individually would re-fire as the results scroll, since
+              these live inside a scroll view that mounts rows near the
+              viewport. */}
+          <Animated.View
+            key={`results-${query.trim()}`}
+            entering={FadeIn.duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+            style={styles.content}
+          >
             {renderBody()}
-          </View>
+          </Animated.View>
         </SafeAreaView>
       </View>
     </Modal>
@@ -336,12 +344,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
   },
   container: {
-    backgroundColor: '#0c0c1e',
+    backgroundColor: Colors.inkSoft,
     flex: 1,
     borderTopLeftRadius: Radii.xl,
     borderTopRightRadius: Radii.xl,
     borderTopWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: Colors.borderGlass,
   },
   header: {
     flexDirection: 'row',

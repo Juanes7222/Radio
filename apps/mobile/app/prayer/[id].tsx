@@ -9,10 +9,12 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { Easing, FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Typography } from '@/constants/theme';
+import { Durations, Easings } from '@/constants/motion';
 import { getDeviceId } from '@/lib/device';
 import { getPrayerStatusConfig, type PrayerItem } from '@/lib/prayer';
 
@@ -85,8 +87,15 @@ export default function PrayerDetailScreen() {
           style={StyleSheet.absoluteFill}
         />
         <View style={styles.center}>
-          <Text style={styles.errorText}>{error ?? 'Error desconocido'}</Text>
-          <TouchableOpacity onPress={() => router.back()}>
+          <Animated.View entering={FadeIn.duration(Durations.fast).easing(Easing.bezier(...Easings.enter))}>
+            <Text style={styles.errorText}>{error ?? 'Error desconocido'}</Text>
+          </Animated.View>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backLinkWrap}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+          >
             <Text style={styles.backLink}>Volver</Text>
           </TouchableOpacity>
         </View>
@@ -123,14 +132,20 @@ export default function PrayerDetailScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.statusBadge}>
+        <Animated.View
+          entering={FadeIn.duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+          style={styles.statusBadge}
+        >
           <Ionicons name={config.icon} size={18} color={config.color} />
           <Text style={[styles.statusText, { color: config.color }]}>
             {config.label}
           </Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.section}>
+        <Animated.View
+          entering={FadeIn.delay(60).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+          style={styles.section}
+        >
           <Text style={styles.sectionTitle}>Mi mensaje</Text>
           <Text style={styles.sectionBody}>{detail.request}</Text>
           <Text style={styles.dateText}>
@@ -142,10 +157,13 @@ export default function PrayerDetailScreen() {
               minute: '2-digit',
             })}
           </Text>
-        </View>
+        </Animated.View>
 
         {detail.respuesta && (
-          <View style={[styles.section, styles.responseSection]}>
+          <Animated.View
+            entering={FadeIn.delay(120).duration(Durations.slow).easing(Easing.bezier(...Easings.enter))}
+            style={[styles.section, styles.responseSection]}
+          >
             <Text style={styles.responseTitle}>Respuesta</Text>
             <Text style={styles.responseBody}>{detail.respuesta}</Text>
             {detail.answeredAt && (
@@ -159,7 +177,7 @@ export default function PrayerDetailScreen() {
                 })}
               </Text>
             )}
-          </View>
+          </Animated.View>
         )}
       </ScrollView>
     </View>
@@ -171,6 +189,12 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   errorText: { ...Typography.body, color: Colors.danger, textAlign: 'center' },
   backLink: { ...Typography.bodyStrong, color: Colors.accent },
+  backLinkWrap: {
+    minHeight: 44,
+    minWidth: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
