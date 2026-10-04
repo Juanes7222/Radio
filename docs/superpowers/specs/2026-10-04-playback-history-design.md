@@ -89,10 +89,13 @@ Módulo nuevo `backend/src/modules/playback/`.
 `listenerHistory.service.ts:18-38`:
 
 1. Lee `MAX(played_at)` y `MIN(played_at)` de la tabla (0,03 ms medidos).
-2. Si la tabla está vacía **o no alcanza la ventana de retención**, hace *backfill* por
-   días desde el piso de retención. Sin esto la página estaría vacía durante meses.
-3. Si no, consulta la ventana `[max - 10 min, ahora]`.
-4. Mapea los registros a filas y las inserta.
+2. Si hay alguna fila, consulta la ventana `[max - 10 min, ahora]`. **Este poll corre en
+   toda corrida**, incluso con la cobertura incompleta: el backfill del punto 3 camina
+   hacia atrás desde el evento más antiguo y nunca alcanza el extremo reciente, así que
+   atarlo al "si no" congelaría el log.
+3. Si `MIN(played_at)` no alcanza el piso de retención, hace *backfill* por días desde
+   el piso hasta `MIN(played_at)`. Sin esto la página estaría vacía durante meses.
+4. Mapea los registros a filas y las inserta, deduplicando por `azuracast_sh_id`.
 5. Poda, siempre, aunque la recolección haya fallado.
 
 El disparador del *backfill* se ancla en la fila **más antigua**, no en la vaciedad de
@@ -106,12 +109,25 @@ unos 60 días, así que pedir 90 es pedir datos que la fuente ya borró y que ni
 frecuencia de *polling* puede recuperar. La retención queda en **55 días**, con 5 días
 de margen contra el recorte de la fuente.
 
-**El backfill está acotado.** Al extender hacia atrás se detiene tras 3 ventanas
-diarias vacías consecutivas. Sin ese tope, si la profundidad de AzuraCast queda por
-debajo de nuestra retención, cada corrida reintenta día por día hasta el piso sin
-converger nunca. Medido, cada petición diaria tarda entre 0,2 s y 1,7 s, así que 90
-peticiones serían de 20 s a 90 s **en cada corrida, cada 5 minutos, para siempre**. Con
-el tope degrada a 3 peticiones por corrida.
+**El backfill está acotado y reanuda.** Camina hacia atrás desde el evento más antiguo
+que ya tenemos, no desde `now`, así que una corrida interrumpida o detenida por el tope
+retoma donde se quedó en vez de recorrer la ventana entera otra vez. Se detiene tras 3
+ventanas diarias vacías consecutivas.
+
+El anclaje en el evento más antiguo no es un detalle: si la franja entre el piso de
+retención y la profundidad real de AzuraCast no tuviera ninguna reproducción —por
+porque la estación estuvo apagada en ese periodo— `MIN(played_at)` nunca tocaría el
+piso, la condición de cobertura seguiría insatisfecha y cada corrida volvería a
+recorrer toda la ventana. Anclando en `oldest`, ese caso degrada a 1 petición de poll
+más hasta 3 de caminata, en vez de ~56.
+
+El tope de ventanas vacías también aplica al poll cuando hay una caída larga, y ahí sí
+tiene un coste: tras 3 días seguidos sin ninguna reproducción, el poll corta antes de
+llegar al día en que la estación volvió y ese día se pierde de forma permanente. Una
+radio 24/7 no se queda tres días en silencio sin que el vigilante de salud ya haya
+avisado, y la alternativa sin tope serían ~60 peticiones por corrida indefinidamente,
+así que el trade-off se queda como está. El log `Backfill stopped after empty windows`
+delata el corte.
 
 **El insert idempotente.** Prisma 6.19.3 sobre SQLite no soporta `skipDuplicates`: no
 aparece en el cliente generado que consume la app
