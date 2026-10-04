@@ -127,12 +127,14 @@ al `to` o una fecha mal formada se rechazan con 400 en vez de degradarse en sile
 
 `limit` es 20 por defecto y 50 como máximo, igual que en `prayer.routes.ts:33-37`.
 `playlist` es coincidencia exacta sobre el nombre de playlist de AzuraCast.
-`requests` es `"1"` para ocultar las transmisiones de DJ, `"0"` o ausente para
-mostrarlas todas. `search` busca con `contains` sobre título y artista.
+`automated` es `"1"` para excluir las transmisiones de DJ (las que tienen `streamer`
+informado) y mostrar solo programación automática. No se llama `requests` porque
+`isRequest` en AzuraCast significa "canción pedida por un oyente", que es otra cosa.
+`search` busca con `contains` sobre título y artista.
 
 | Endpoint | Query | Respuesta |
 |---|---|---|
-| `GET /playback/log` | `from,to,playlist,search,requests,page,limit` | `{ rows, total, page, totalPages }` |
+| `GET /playback/log` | `from,to,playlist,search,automated,page,limit` | `{ rows, total, page, totalPages }` |
 | `GET /playback/audios` | `from,to,playlist,search,page,limit,order` | `{ rows, total, page, totalPages }` |
 | `GET /playback/filters` | — | `{ playlists: string[] }` |
 
@@ -170,14 +172,18 @@ con `EXPLAIN QUERY PLAN` y p50/p95 sobre 20 corridas.
 | log, página 250 (offset 4980) | 0,50 ms | 0,93 ms |
 | `COUNT(*)` del log | ~0,7 ms | 2,2 ms |
 | `GROUP BY song_id`, top 20 | 11,8 ms | 48,9–58,2 ms |
-| `COUNT(DISTINCT song_id)` | ~8 ms | 34–40 ms |
+| total de audios distintos (`SELECT DISTINCT song_id`) | 15 ms | 46 ms |
 | `DISTINCT playlist` | 3,2 ms | 17–29 ms |
 | metadatos de 20 audios | — | 1,75 ms (41 ms sin índice) |
 | búsqueda `LIKE` sin coincidencias | ~15 ms | 39 ms (p95 94 ms) |
 
-Carga por página del admin: log ~2 ms; vista por audio ~20 ms a 30 días, ~90 ms
-p50 / ~120 ms p95 a 90 días. Un solo hilo, y solo si un admin navega muchas páginas
+Carga por página del admin: log ~2 ms; vista por audio ~27 ms a 30 días, ~105 ms
+p50 / ~135 ms p95 a 90 días. Un solo hilo, y solo si un admin navega muchas páginas
 por minuto. Ninguna de estas consultas es un cuello de botella.
+
+El total de audios distintos se cuenta con `SELECT DISTINCT song_id` y no con
+`COUNT(DISTINCT ...)`, porque Prisma no expone el segundo. La diferencia medida es
+46 ms contra 39 ms a 90 días, y a cambio no hay SQL crudo en el servicio.
 
 **El `GROUP BY` crece linealmente con la ventana.** Esa es la frontera del diseño: si
 algún día se quiere más de 90 días, esa vista pasa a cientos de ms y haría falta una
