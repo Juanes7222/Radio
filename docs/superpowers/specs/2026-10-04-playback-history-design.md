@@ -230,9 +230,21 @@ días: el caso que la UI nunca puede pedir.
 | metadatos de 20 audios | — | 1,75 ms (41 ms sin índice) |
 | búsqueda `LIKE` sin coincidencias | ~15 ms | 39 ms (p95 94 ms) |
 
-Carga por página del admin: log ~2 ms; vista por audio ~27 ms a 30 días, ~105 ms
-p50 / ~135 ms p95 a 90 días. Un solo hilo, y solo si un admin navega muchas páginas
-por minuto. Ninguna de estas consultas es un cuello de botella.
+Carga por página del admin: log ~2 ms; vista por audio, medida dentro de la aplicación
+con 34 000 filas sembradas y ventana de 55 días, 159-173 ms caliente y 546-598 ms en
+frío (la primera llamada tras insertar tiene la caché de páginas de SQLite vacía).
+Un solo hilo, y solo si un admin navega muchas páginas por minuto. Ninguna de estas
+consultas es un cuello de botella.
+
+El desglose de esa vista por audio: `GROUP BY` 54-61 ms, el total de audios distintos
+103-108 ms y la resolución de metadata 17-19 ms. El total es la parte cara y es
+proporcional al **volumen de la ventana**, no al número de audios distintos, porque
+`SELECT DISTINCT` post-procesa todas las filas del rango. Con los ~19 000 filas que
+dan 55 días a 340 reproducciones diarias, eso son unas 950 páginas en el log.
+
+No hay tope de páginas: los desplazamientos profundos salen a ~1 ms porque el índice de
+`played_at` los resuelve, así que un tope artificial solo serviría para devolver la
+página 1 en silencio cuando se alcanzara.
 
 El total de audios distintos se cuenta con `SELECT DISTINCT song_id` y no con
 `COUNT(DISTINCT ...)`, porque Prisma no expone el segundo. La diferencia medida es
