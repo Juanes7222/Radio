@@ -1,16 +1,22 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../infrastructure/database/prisma";
 import { AppError } from "../../shared/errors/app-error";
-import { getBogotaDateString, getStationDayStartWithOffset } from "../../shared/utils/date";
+import { getStationDayStartWithOffset, getStationTime } from "../../shared/utils/date";
 import { PLAYBACK_RETENTION_DAYS } from "./playbackHistory";
 
 const DEFAULT_WINDOW_DAYS = 30;
-const DAY_MS = 86_400_000;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
-const MAX_LIMIT_PAGES = 500;
 const MAX_SEARCH_LENGTH = 200;
 const PLAYLIST_CACHE_TTL_MS = 10 * 60_000;
+
+/**
+ * Length of a day, used only to count whole days between two station day keys,
+ * which are read as UTC midnights and are therefore always exact multiples of
+ * it. Station day arithmetic goes through `getStationDayStartWithOffset`, which
+ * re-normalizes the day so a time zone change cannot shift the window.
+ */
+const MS_PER_KEY_DAY = 86_400_000;
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -58,26 +64,23 @@ export interface PlaybackAudioRow {
   lastPlayedAt: Date;
 }
 
-/**
- * Días hacia atrás desde hoy en la zona de la estación. Se resuelve contra el
- * día de la estación y no contra las 24 h del servidor, que pueden no coincidir.
- */
-function stationDayStartWithOffset(daysOffset: number): Date {
-  return getStationDayStartWithOffset(daysOffset);
+/** Whole days between two station day keys, counted between UTC midnights. */
+function dayDiffBetweenKeys(fromKey: string, toKey: string): number {
+  return Math.round(
+    (Date.parse(`${toKey}T00:00:00Z`) - Date.parse(`${fromKey}T00:00:00Z`)) / MS_PER_KEY_DAY
+  );
 }
 
 /**
  * Convierte una clave YYYY-MM-DD al instante del inicio de ese día en la zona de
  * la estación. La diferencia de días se calcula entre claves, no entre
  * instantes: comparar contra `Date.now()` obliga a redondear y el redondeo
- * desplaza el día un día entero en la mitad de los casos.
+* desplaza el día un día entero en la mitad de los casos. La clave de hoy es la
+ * de la estación y no una fija en Bogotá, para que el offset con el que se
+ * resuelve y el día de referencia nunca midan contra zonas distintas.
  */
 function stationDayStartForKey(dateKey: string): Date {
-  const todayKey = getBogotaDateString(0);
-  const diffDays = Math.round(
-    (Date.parse(`${dateKey}T00:00:00Z`) - Date.parse(`${todayKey}T00:00:00Z`)) / DAY_MS
-  );
-  return stationDayStartWithOffset(diffDays);
+  return getStationDayStartWithOffset(-dayDiffBetweenKeys(dateKey, getStationTime().dayKey));
 }
 
 /**
@@ -106,22 +109,29 @@ function parseRange(query: Record<string, unknown>): PlaybackRange {
 
   if (rawFrom === "" && rawTo === "") {
     return {
-      from: stationDayStartWithOffset(-(DEFAULT_WINDOW_DAYS - 1)),
-      to: stationDayStartWithOffset(1),
+      from: getStationDayStartWithOffset(-(DEFAULT_WINDOW_DAYS - 1)),
+      to: getStationDayStartWithOffset(1),
     };
   }
 
-  const to = rawTo === "" ? stationDayStartWithOffset(1) : stationDayStartForKey(rawTo);
+  const to = rawTo === "" ? getStationDayStartWithOffset(1) : stationDayStartForKey(rawTo);
   const from =
     rawFrom === ""
-      ? new Date(to.getTime() - (DEFAULT_WINDOW_DAYS - 1) * DAY_MS)
+      ? getStationDayStartWithOffset(-(DEFAULT_WINDOW_DAYS - 1), to)
       : stationDayStartForKey(rawFrom);
-  const exclusiveTo = new Date(to.getTime() + DAY_MS);
+  const exclusiveTo = getStationDayStartWithOffset(1, to);
 
   if (from.getTime() > to.getTime()) {
     throw new AppError(400, "El rango 'from' no puede ser posterior a 'to'");
   }
-  if (exclusiveTo.getTime() - from.getTime() > PLAYBACK_RETENTION_DAYS * DAY_MS) {
+
+  // The window is measured in station days, not in milliseconds: 55 station days
+  // span 55 days plus or minus an hour across a time zone change, and the cap
+  // must count days, otherwise the edge of the retention window becomes
+  // unreachable on half of the calendar.
+  const rangeDays =
+    dayDiffBetweenKeys(getStationTime(from).dayKey, getStationTime(exclusiveTo).dayKey) + 1;
+  if (rangeDays > PLAYBACK_RETENTION_DAYS) {
     throw new AppError(400, `El rango no puede superar ${PLAYBACK_RETENTION_DAYS} días`);
   }
 
@@ -138,22 +148,26 @@ function parseSearch(query: Record<string, unknown>): string | null {
   return value;
 }
 
-function parseOrder(value: unknown): PlaybackAudioOrder {
+/**
+ * Normaliza el orden del agregado por audio. Vive en el servicio para que la
+ * ruta no tenga que reimplementar el valor por defecto.
+ */
+export function parseOrder(value: unknown): PlaybackAudioOrder {
   if (value === "recent" || value === "first") return value;
   return "plays";
 }
 
 export function parsePlaybackQuery(query: Record<string, unknown>): ParsedPlaybackQuery {
   const rawPage = Number(query.page);
+  // There is no cap on the page number: an out of range page answers with an
+  // empty `rows` instead of silently rewriting the page the caller asked for,
+  // and deep offsets are cheap because the played_at index resolves them.
+  const page = Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1;
+  // A valid limit is clipped to the maximum; anything that is not a positive
+  // integer falls back to the default.
   const rawLimit = Number(query.limit);
-  const page =
-    Number.isInteger(rawPage) && rawPage >= 1 && rawPage <= MAX_LIMIT_PAGES
-      ? rawPage
-      : 1;
   const limit =
-    Number.isInteger(rawLimit) && rawLimit >= 1 && rawLimit <= MAX_LIMIT
-      ? rawLimit
-      : DEFAULT_LIMIT;
+    Number.isInteger(rawLimit) && rawLimit >= 1 ? Math.min(rawLimit, MAX_LIMIT) : DEFAULT_LIMIT;
 
   return {
     page,
@@ -187,12 +201,24 @@ function buildWhere(filters: PlaybackFilters): Prisma.PlaybackEventWhereInput {
   return where;
 }
 
-export async function listPlaybackEvents(parsed: ParsedPlaybackQuery) {
+export interface PlaybackPage<TRow> {
+  rows: TRow[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export async function listPlaybackEvents(
+  parsed: ParsedPlaybackQuery
+): Promise<PlaybackPage<PlaybackEventRow>> {
   const where = buildWhere(parsed.filters);
   const [rows, total] = await Promise.all([
     prisma.playbackEvent.findMany({
       where,
-      orderBy: { playedAt: "desc" },
+      // Ties are broken by sh_id because two events can share playedAt down to
+      // the millisecond, and without a second key the same row could appear on
+      // two pages or on none.
+      orderBy: [{ playedAt: "desc" }, { azuracastShId: "desc" }],
       take: parsed.limit,
       skip: (parsed.page - 1) * parsed.limit,
     }),
@@ -218,15 +244,25 @@ export async function listPlaybackEvents(parsed: ParsedPlaybackQuery) {
   };
 }
 
-export async function listPlaybackAudios(parsed: ParsedPlaybackQuery, order: PlaybackAudioOrder) {
+export async function listPlaybackAudios(
+  parsed: ParsedPlaybackQuery,
+  order: PlaybackAudioOrder
+): Promise<PlaybackPage<PlaybackAudioRow>> {
   const where = buildWhere(parsed.filters);
 
-  const orderBy =
-    order === "recent"
-      ? { lastPlayedAt: "desc" as const }
-      : order === "first"
-        ? { firstPlayedAt: "asc" as const }
-        : { plays: "desc" as const };
+// songId breaks every tie. Tied plays are the common case, not the exception:
+  // an audio played once in the window ties with every other audio played once,
+  // and without a second key the pagination would repeat and drop rows.
+  // Two constraints shape this declaration: Prisma only accepts the array form
+  // here at runtime, and `satisfies` keeps the literal type, because an
+  // annotation would widen to every field of the model and Prisma requires that
+  // every field named in orderBy is listed in `by`.
+  const orderBy = (order === "recent"
+    ? [{ _max: { playedAt: "desc" } }, { songId: "asc" }]
+    : order === "first"
+      ? [{ _min: { playedAt: "asc" } }, { songId: "asc" }]
+      : [{ _count: { songId: "desc" } }, { songId: "asc" }]) satisfies
+    Prisma.PlaybackEventOrderByWithAggregationInput[];
 
   const grouped = await prisma.playbackEvent.groupBy({
     by: ["songId"],
@@ -234,19 +270,15 @@ export async function listPlaybackAudios(parsed: ParsedPlaybackQuery, order: Pla
     _count: { _all: true },
     _min: { playedAt: true },
     _max: { playedAt: true },
-    orderBy:
-      order === "recent"
-        ? { _max: { playedAt: "desc" } }
-        : order === "first"
-          ? { _min: { playedAt: "asc" } }
-          : { _count: { songId: "desc" } },
+    orderBy,
     skip: (parsed.page - 1) * parsed.limit,
     take: parsed.limit,
   });
 
   // Prisma no expone COUNT(DISTINCT), y el SQL crudo queda descartado por
   // decisión de diseño, así que el total de audios distintos se cuenta
-  // trayendo solo la clave. Medido: 46 ms a 90 días, 15 ms a 30.
+  // trayendo solo la clave. Medido: 103-108 ms con 34 000 filas en la ventana,
+  // porque Prisma resuelve `distinct` trae y deduplica en memoria.
   const distinctSongIds = await prisma.playbackEvent.findMany({
     where,
     distinct: ["songId"],
@@ -258,12 +290,15 @@ export async function listPlaybackAudios(parsed: ParsedPlaybackQuery, order: Pla
   // La metadata se resuelve aparte y se toma del play más reciente de cada
   // audio: agrupar por songId + title partiría el contador de un audio en
   // varios grupos si su metadata se editó dentro de la ventana.
-  const metadata = songIds.length === 0 ? [] : await prisma.playbackEvent.findMany({
-    where: { songId: { in: songIds } },
-    distinct: ["songId"],
-    orderBy: { playedAt: "desc" },
-    select: { songId: true, title: true, artist: true, album: true },
-  });
+  const metadata =
+    songIds.length === 0
+      ? []
+      : await prisma.playbackEvent.findMany({
+          where: { songId: { in: songIds } },
+          distinct: ["songId"],
+          orderBy: { playedAt: "desc" },
+          select: { songId: true, title: true, artist: true, album: true },
+        });
   const metaBySongId = new Map(metadata.map((row) => [row.songId, row]));
 
   return {
@@ -273,8 +308,11 @@ export async function listPlaybackAudios(parsed: ParsedPlaybackQuery, order: Pla
       artist: metaBySongId.get(group.songId)?.artist ?? "",
       album: metaBySongId.get(group.songId)?.album ?? "",
       plays: group._count._all,
-      firstPlayedAt: group._min.playedAt,
-      lastPlayedAt: group._max.playedAt,
+      // `_min` and `_max` are typed as nullable because Prisma does not know
+      // that playedAt is NOT NULL in the model. The null is impossible by
+      // schema: a group only exists when it has at least one row.
+      firstPlayedAt: group._min.playedAt as Date,
+      lastPlayedAt: group._max.playedAt as Date,
     })),
     total,
     page: parsed.page,
@@ -295,10 +333,11 @@ export async function listPlaybackPlaylists(): Promise<string[]> {
     return playlistCache.values;
   }
 
+  // No aggregation here: this groups the whole table and only the names are
+  // returned, so a `_count` would be computed over every row and discarded.
   const grouped = await prisma.playbackEvent.groupBy({
     by: ["playlist"],
     where: { playlist: { not: "" } },
-    _count: { _all: true },
     orderBy: { playlist: "asc" },
   });
   const values = grouped.map((group) => group.playlist);
