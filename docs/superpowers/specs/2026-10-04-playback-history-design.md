@@ -48,6 +48,7 @@ model PlaybackEvent {
 
   @@map("playback_events")
   @@index([playedAt])
+  @@index([songId])
 }
 ```
 
@@ -59,10 +60,12 @@ Tres decisiones, todas con medición detrás (ver "Rendimiento"):
    (`rotation/azuracastPlaylist.service.ts:83-113`); el historial no paga ese costo
    nunca.
 
-2. **Un solo índice, `(playedAt)`.** Se descartaron los índices sobre `songId`: con
-   la condición `WHERE played_at BETWEEN` el planificador elige siempre el índice de
-   `played_at` y termina en `USE TEMP B-TREE FOR GROUP BY`, así que un índice extra
-   solo añade escritura y tamaño sin ganar nada.
+2. **Dos índices: `(playedAt)` y `(songId)`.** Ninguno de los dos ayuda al
+   `GROUP BY`: con la condición `WHERE played_at BETWEEN` el planificador elige
+   siempre el índice de `played_at` y termina en `USE TEMP B-TREE FOR GROUP BY`. El de
+   `song_id` se justifies por otra cosa: la vista por audio agrupa por `songId` y
+   después resuelve título, artista y álbum de los audios de la página, y eso sin
+   índice es un escaneo completo (41 ms medidos para 20 audios, 1,75 ms con índice).
 
 3. **`azuracastShId` es la clave de idempotencia.** Permite ventanas de consulta
    solapadas entre corridas: el job pide `[max(playedAt) - 10 min, ahora]`. Un poll
@@ -85,13 +88,13 @@ Módulo nuevo `backend/src/modules/playback/`.
 3. Si no, consulta la ventana `[max - 10 min, ahora]`.
 4. Mapea los registros a filas y las inserta.
 
-**El insert idempotente.** Prisma 6.19 sobre SQLite no soporta `skipDuplicates`:
-`BibleBookCreateManyArgs` solo declara `data`
-(`backend/src/generated/prisma/models/BibleBook.ts:1362-1367`). El patrón es un
-`findMany` de los `sh_id` del lote más un `createMany` de los que faltan, con un
-guard in-process que serializa corridas solapadas — el mismo patrón que el
-in-flight dedup de `bibleSource.service.ts:223-275`. Si aun así colara un `P2002`, la
-ventana solapada del siguiente tick lo resuelve.
+**El insert idempotente.** Prisma 6.19.3 sobre SQLite no soporta `skipDuplicates`: no
+aparece en el cliente generado que consume la app
+(`node_modules/.prisma/client/index.d.ts`, cero apariciones) y `BibleBookCreateManyArgs`
+solo declara `data`. El patrón es un `findMany` de los `sh_id` del lote más un
+`createMany` de los que faltan, con un guard in-process que serializa corridas
+solapadas — el mismo patrón que el in-flight dedup de `bibleSource.service.ts:223-275`.
+Si aun así colara un `P2002`, la ventana solapada del siguiente tick lo resuelve.
 
 **Por qué lotes de un día y no fila por fila.** Medido: 3,3 ms por fila contra
 3,4 ms por lote de 3, 25 ms por lote de 480 y 19 000–30 000 filas/s en lote grande. El
@@ -140,6 +143,13 @@ lastPlayedAt }`.
 
 `order` acepta `plays` (default), `recent` y `first`.
 
+La vista por audio agrupa **solo por `songId`**, y en una segunda consulta resuelve
+título, artista y álbum de los audios de la página, tomando el registro más reciente
+de cada uno. Agrupar por `songId, title, artist, album` partido el contador de un
+audio en varios grupos si su metadata se editó en AzuraCast dentro de la ventana, y el
+`song.id` de AzuraCast no cambia al editar metadata. Esa segunda consulta es la razón
+del índice sobre `songId`: 41 ms sin él, 1,75 ms con él.
+
 `/filters` va aparte y no se recalcula en cada carga de página: la lista de playlists
 medida cuesta 17–29 ms por request, puro trabajo para llenar un dropdown. Se cachea
 en memoria 10 minutos, porque las rotaciones se configuran a las 03:30 y esa lista
@@ -162,6 +172,7 @@ con `EXPLAIN QUERY PLAN` y p50/p95 sobre 20 corridas.
 | `GROUP BY song_id`, top 20 | 11,8 ms | 48,9–58,2 ms |
 | `COUNT(DISTINCT song_id)` | ~8 ms | 34–40 ms |
 | `DISTINCT playlist` | 3,2 ms | 17–29 ms |
+| metadatos de 20 audios | — | 1,75 ms (41 ms sin índice) |
 | búsqueda `LIKE` sin coincidencias | ~15 ms | 39 ms (p95 94 ms) |
 
 Carga por página del admin: log ~2 ms; vista por audio ~20 ms a 30 días, ~90 ms
@@ -184,10 +195,10 @@ durabilidad de usuarios, peticiones de oración y demás, y no hace falta.
 minutos y el backfill corta el lock de escritura en rebanadas de 25 ms. Ninguna
 lectura de la API se bloquea.
 
-**Espacio.** 34 000 filas ocupan 6,4–7,5 MB; la base pasa de 0,48 MB a ~7 MB. Acotado
-por la retención, así que no crece más allá. Normalizar título/artista en una tabla
-de dimensión lo reduciría, pero reintroduce un JOIN en el camino caliente y no vale
-4 MB.
+**Espacio.** 34 000 filas ocupan 5,5 MB con los dos índices; la base pasa de 0,48 MB
+a ~6 MB. Acotado por la retención, así que no crece más allá. Normalizar
+título/artista en una tabla de dimensión lo reduciría, pero reintroduce un JOIN en el
+camino caliente y no vale ese ahorro.
 
 ## Panel
 
