@@ -52,11 +52,11 @@ TYPES_PACKAGE="@radio/types"
 # browserslist (GHSA-c83g-rgw3-j3cx, GHSA-73wf-gq98-2v4g): OOM + prototype
 # pollution via cache/stats handling, patched in 4.28.7. Transitive via
 # autoprefixer/@babel, build-time only, never handles user input at runtime.
-# Patched via pnpm override browserslist@^4.28.8; keep allowlisted until lock
-# fully deduplicates 4.28.2 away. Remove once pnpm audit no longer reports <4.28.7.
+# Fixed by the pnpm override browserslist@^4.28.8, so these two ids no longer
+# appear in pnpm audit and were removed from the allowlist.
 # The variable must be exported so the node audit filter below can read it
 # from process.env; without export the allowlist is silently ignored.
-export DEPLOY_AUDIT_ALLOWLIST="${DEPLOY_AUDIT_ALLOWLIST:-GHSA-w3rx-r6r6-pgpr,GHSA-5p2g-fcmc-qvqq,GHSA-ggr8-5vv4-36mx,GHSA-c83g-rgw3-j3cx,GHSA-73wf-gq98-2v4g}"
+export DEPLOY_AUDIT_ALLOWLIST="${DEPLOY_AUDIT_ALLOWLIST:-GHSA-w3rx-r6r6-pgpr,GHSA-5p2g-fcmc-qvqq,GHSA-ggr8-5vv4-36mx}"
 
 SKIP_AUDIT=false
 FORCE_DEPLOY=false
@@ -257,8 +257,12 @@ else
       // Mobile (apps/mobile, e.g. expo/@xmldom) is never deployed from here,
       // so its advisories must not block a backend/frontend deploy.
       // A finding path looks like "backend>express>qs" or "apps__web>vitest".
+      // The root importer is "." and is never deployed either: the root
+      // package.json only carries mobile and tooling dependencies (expo,
+      // react-native, turbo, typescript), so its advisories are mobile-only.
       function isRelevantPath(p) {
         if (p.startsWith("apps__mobile>") || p === "apps__mobile") return false;
+        if (p === "." || p.startsWith(".>")) return false;
         if (deployBackend && !deployFrontend) {
           return !p.startsWith("apps__web>") && p !== "apps__web";
         }
