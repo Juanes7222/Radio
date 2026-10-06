@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
+  AlertTriangle,
   CalendarClock,
   ListMusic,
   Loader2,
@@ -199,6 +200,13 @@ export default function AdminPrograms() {
                       </p>
                     </div>
                   </div>
+
+                  {program.playlistWarning && (
+                    <p className="flex items-start gap-1.5 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-warning">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      {program.playlistWarning}
+                    </p>
+                  )}
 
                   {program.description && (
                     <p className="text-xs text-muted-foreground line-clamp-2">{program.description}</p>

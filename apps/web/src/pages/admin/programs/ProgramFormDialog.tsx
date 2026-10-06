@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ImagePlus, ImageOff, Loader2, Upload, X } from 'lucide-react';
 import {
   Dialog,
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAdminApi } from '@/hooks/useAdminApi';
-import type { Program } from '@radio/types';
+import type { AdminPlaylist, Program } from '@radio/types';
 import {
   ALL_DAYS_MASK,
   DAY_NAMES,
@@ -37,8 +37,11 @@ interface Props {
   onSaved: (program: Program) => void;
 }
 
+const CREATE_PLAYLIST = 'new';
+
 interface FormState {
   name: string;
+  playlistId: string;
   description: string;
   artist: string;
   album: string;
@@ -57,6 +60,7 @@ interface FormState {
 function initialForm(program: Program | null): FormState {
   return {
     name: program?.name ?? '',
+    playlistId: program ? String(program.playlistId) : CREATE_PLAYLIST,
     description: program?.description ?? '',
     artist: program?.artist ?? '',
     album: program?.album ?? '',
@@ -74,10 +78,18 @@ function initialForm(program: Program | null): FormState {
 }
 
 export function ProgramFormDialog({ open, program, onClose, onSaved }: Props) {
-  const { createProgram, updateProgram, uploadProgramArtwork, clearProgramArtwork, uploadProgramAsset, clearProgramAsset } =
-    useAdminApi();
+  const {
+    createProgram,
+    updateProgram,
+    uploadProgramArtwork,
+    clearProgramArtwork,
+    uploadProgramAsset,
+    clearProgramAsset,
+    getPlaylists,
+  } = useAdminApi();
 
   const [form, setForm] = useState<FormState>(() => initialForm(program));
+  const [playlists, setPlaylists] = useState<AdminPlaylist[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [artwork, setArtwork] = useState<File | null>(null);
@@ -87,6 +99,31 @@ export function ProgramFormDialog({ open, program, onClose, onSaved }: Props) {
   const [assetBusy, setAssetBusy] = useState<'intro' | 'outro' | null>(null);
 
   const selectedDays = useMemo(() => daysMaskToSet(form.daysMask), [form.daysMask]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    getPlaylists()
+      .then((rows) => {
+        if (!cancelled) setPlaylists(rows);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(errorMessage(err, 'No se pudieron cargar las playlists de AzuraCast.'));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, getPlaylists]);
+
+  /** Playlists that can actually hold the episodes of a program. */
+  const selectablePlaylists = useMemo(
+    () =>
+      playlists.filter(
+        (playlist) => playlist.source === 'songs' && playlist.order === 'sequential' && playlist.is_enabled
+      ),
+    [playlists]
+  );
 
   const toggleDay = (dayIndex: number) => {
     setForm((current) => {
@@ -118,6 +155,7 @@ export function ProgramFormDialog({ open, program, onClose, onSaved }: Props) {
     try {
       const payload = {
         name,
+        playlistId: form.playlistId === CREATE_PLAYLIST ? null : Number(form.playlistId),
         description: form.description || null,
         artist: form.artist || null,
         album: form.album || null,
@@ -338,6 +376,33 @@ export function ProgramFormDialog({ open, program, onClose, onSaved }: Props) {
               )}
             </CardContent>
           </Card>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="program-playlist">Playlist de AzuraCast</Label>
+            <Select
+              value={form.playlistId}
+              onValueChange={(value) => setForm((f) => ({ ...f, playlistId: value }))}
+            >
+              <SelectTrigger id="program-playlist">
+                <SelectValue placeholder="Elige una playlist" />
+              </SelectTrigger>
+              <SelectContent>
+                {selectablePlaylists.map((playlist) => (
+                  <SelectItem key={playlist.id} value={String(playlist.id)}>
+                    {playlist.name}
+                    {playlist.schedule_items?.length
+                      ? ` · ${playlist.schedule_items.length} franja(s)`
+                      : ''}
+                  </SelectItem>
+                ))}
+                <SelectItem value={CREATE_PLAYLIST}>Crear una nueva playlist</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-faint">
+              Esta playlist es la que emite el programa. Solo se listan las que están basadas en la biblioteca
+              de audio, habilitadas y en orden secuencial.
+            </p>
+          </div>
 
           <div className="space-y-1.5">
             <Label>Programación</Label>

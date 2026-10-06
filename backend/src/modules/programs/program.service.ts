@@ -27,7 +27,10 @@ import {
 import {
   createPlaylist,
   ensureMediaDirectory,
+  getFileDetail,
   getPlaylistDetail,
+  playlistBlockingReason,
+  setFilePlaylists,
 } from "../rotation/azuracastPlaylist.service";
 import type { Program, ProgramEpisode, ProgramEpisodeCounts, ProgramScheduleMode } from "@radio/types";
 
@@ -129,6 +132,7 @@ export function toEpisodeDto(episode: EpisodeRow): ProgramEpisode {
 function toProgramDto(
   program: ProgramRow,
   playlistName: string | null,
+  playlistWarning: string | null,
   counts: ProgramEpisodeCounts
 ): Program {
   return {
@@ -145,6 +149,7 @@ function toProgramDto(
     fadeSeconds: program.fadeSeconds,
     playlistId: program.playlistId,
     playlistName,
+    playlistWarning,
     folderName: program.folderName,
     pendingFolder: program.pendingFolder,
     playedFolder: program.playedFolder,
@@ -182,12 +187,15 @@ async function countEpisodes(programId: string): Promise<ProgramEpisodeCounts> {
   return counts;
 }
 
-async function resolvePlaylistName(playlistId: number): Promise<string | null> {
+async function resolvePlaylist(playlistId: number): Promise<{
+  name: string | null;
+  warning: string | null;
+}> {
   try {
     const detail = await getPlaylistDetail(playlistId);
-    return detail.name;
+    return { name: detail.name, warning: playlistBlockingReason(detail) };
   } catch {
-    return null;
+    return { name: null, warning: `No se encontró la playlist #${playlistId} en AzuraCast.` };
   }
 }
 
@@ -195,14 +203,17 @@ async function resolvePlaylistName(playlistId: number): Promise<string | null> {
 
 export async function listPrograms(): Promise<Program[]> {
   const rows = await prisma.program.findMany({ orderBy: { createdAt: "desc" } });
-  const names = await Promise.all(rows.map((row) => resolvePlaylistName(row.playlistId)));
+  const playlists = await Promise.all(rows.map((row) => resolvePlaylist(row.playlistId)));
   const counts = await Promise.all(rows.map((row) => countEpisodes(row.id)));
-  return rows.map((row, index) => toProgramDto(row, names[index], counts[index]));
+  return rows.map((row, index) =>
+    toProgramDto(row, playlists[index].name, playlists[index].warning, counts[index])
+  );
 }
 
 export async function getProgram(id: string): Promise<Program> {
   const row = await findProgramRow(id);
-  return toProgramDto(row, await resolvePlaylistName(row.playlistId), await countEpisodes(row.id));
+  const playlist = await resolvePlaylist(row.playlistId);
+  return toProgramDto(row, playlist.name, playlist.warning, await countEpisodes(row.id));
 }
 
 export async function findProgramRow(id: string): Promise<ProgramRow> {
@@ -230,6 +241,11 @@ export async function listEpisodes(
 
 export interface ProgramInput {
   name: string;
+  /**
+   * AzuraCast playlist that drives the program. `null` asks the backend to
+   * create one named after the program.
+   */
+  playlistId?: number | null;
   description?: string | null;
   artist?: string | null;
   album?: string | null;
@@ -243,6 +259,23 @@ export interface ProgramInput {
   bufferMinutes?: number;
   active?: boolean;
   fadeSeconds?: number;
+}
+
+/**
+ * Checks that a playlist can hold the episodes of a program. The station must
+ * own the playlist and it must be a plain library playlist, otherwise the
+ * episode would never be queued.
+ */
+async function requireUsablePlaylist(playlistId: number): Promise<void> {
+  let detail;
+  try {
+    detail = await getPlaylistDetail(playlistId);
+  } catch {
+    throw new AppError(404, `No se encontró la playlist #${playlistId} en AzuraCast.`);
+  }
+
+  const reason = playlistBlockingReason(detail);
+  if (reason) throw new AppError(409, reason);
 }
 
 /** Creates the four library folders of the program, one level at a time. */
@@ -279,7 +312,15 @@ export async function createProgram(input: ProgramInput): Promise<Program> {
     throw new AppError(409, "Ya existe un programa con ese nombre.");
   }
 
-  const playlist = await createPlaylist({ name, order: "sequential", playFullCycle: false });
+  const playlistId =
+    input.playlistId === null
+    ? (await createPlaylist({ name, order: "sequential" })).id
+    : input.playlistId;
+
+  if (playlistId === undefined) {
+    throw new AppError(400, "Indica la playlist de AzuraCast que manejará el programa.");
+  }
+  await requireUsablePlaylist(playlistId);
 
   try {
     const row = await prisma.program.create({
@@ -290,7 +331,7 @@ export async function createProgram(input: ProgramInput): Promise<Program> {
         artist: input.artist?.trim() || null,
         album: input.album?.trim() || null,
         genre: input.genre?.trim() || null,
-        playlistId: playlist.id,
+        playlistId,
         pendingFolder: DEFAULT_PENDING_FOLDER,
         playedFolder: DEFAULT_PLAYED_FOLDER,
         folderName: slug,
@@ -335,6 +376,21 @@ export async function updateProgram(id: string, input: Partial<ProgramInput>): P
   if (input.artist !== undefined) data.artist = input.artist?.trim() || null;
   if (input.album !== undefined) data.album = input.album?.trim() || null;
   if (input.genre !== undefined) data.genre = input.genre?.trim() || null;
+  if (input.playlistId !== undefined) {
+    const nextPlaylistId =
+      input.playlistId === null
+        ? (
+            await createPlaylist({
+              name: typeof data.name === "string" ? data.name : current.name,
+              order: "sequential",
+            })
+          ).id
+        : input.playlistId;
+    if (nextPlaylistId !== current.playlistId) {
+      await requireUsablePlaylist(nextPlaylistId);
+      data.playlistId = nextPlaylistId;
+    }
+  }
   if (input.scheduleMode !== undefined) data.scheduleMode = input.scheduleMode;
   if (input.daysMask !== undefined) data.daysMask = input.daysMask;
   if (input.airStart !== undefined) {
@@ -351,7 +407,45 @@ export async function updateProgram(id: string, input: Partial<ProgramInput>): P
 
   await prisma.program.update({ where: { id }, data });
   if (data.slug !== undefined) await ensureProgramFolders(current.folderName);
+  if (data.playlistId !== undefined) {
+    await moveQueuedEpisodes(current.playlistId, data.playlistId as number);
+  }
   return getProgram(id);
+}
+
+/**
+ * Swaps the playlist of every episode still waiting in the queue, so a program
+ * never leaves episodes behind in the playlist it used to use.
+ */
+async function moveQueuedEpisodes(fromPlaylistId: number, toPlaylistId: number): Promise<void> {
+  const queued = await prisma.programEpisode.findMany({
+    where: { status: "queued", mediaId: { not: null } },
+    select: { id: true, mediaId: true },
+  });
+
+  const affected = queued.filter((episode) => episode.mediaId !== null);
+  if (affected.length === 0) return;
+
+  for (const episode of affected) {
+    try {
+      const detail = await getFileDetail(episode.mediaId as string);
+      const remaining = detail.playlists
+        .map((playlist) => playlist.id)
+        .filter((playlistId) => playlistId !== fromPlaylistId);
+      await setFilePlaylists(episode.mediaId as string, [...remaining, toPlaylistId]);
+    } catch (err) {
+      logger.warn("Programs", "Could not move an episode to the new playlist", {
+        episodeId: episode.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  logger.info("Programs", "Queued episodes moved to the new playlist", {
+    fromPlaylistId,
+    toPlaylistId,
+    count: affected.length,
+  });
 }
 
 export async function setProgramArtwork(

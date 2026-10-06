@@ -3,6 +3,7 @@ import axios, { type AxiosRequestConfig } from 'axios';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import type {
   AdminDeviceList,
+  AdminPlaylist,
   DeviceZoneList,
   DjAssignment,
   DjStreamer,
@@ -27,6 +28,7 @@ import type {
   Program,
   ProgramEpisode,
   ProgramEpisodeUploadResult,
+  ProgramInput,
   ProgramSlotSuggestion,
   ProgramStreamWindow,
   ProgramSyncResult,
@@ -119,7 +121,7 @@ export function useAdminApi() {
 
   // ── Playlists ────────────────────────────────────────────────
   const getPlaylists = useCallback(
-    () => request<unknown[]>({ url: '/admin-api/station/playlists' }),
+    () => request<AdminPlaylist[]>({ url: '/admin-api/station/playlists' }),
     [request]
   );
 
@@ -279,13 +281,13 @@ export function useAdminApi() {
   );
 
   const createProgram = useCallback(
-    (data: Partial<Program>) =>
+    (data: ProgramInput) =>
       request<Program>({ method: 'POST', url: '/admin-api/programs', data }),
     [request]
   );
 
   const updateProgram = useCallback(
-    (id: string, data: Partial<Program>) =>
+    (id: string, data: ProgramInput) =>
       request<Program>({ method: 'PUT', url: `/admin-api/programs/${id}`, data }),
     [request]
   );

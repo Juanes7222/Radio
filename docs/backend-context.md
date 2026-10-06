@@ -52,6 +52,24 @@ its own.
   name is the schedule item title, so `schedule/categorizer.service.ts` already
   tags it from the `keywords` of a `ScheduleCategory`. A `category_id` column
   existed and was removed because nothing ever read it.
+- **The program is driven by a playlist the station already owns.** `Program.playlistId`
+  points at a playlist of AzuraCast chosen in the panel, or at one the backend
+  creates when the admin picks "Crear una nueva playlist". AzuraCast is what
+  actually plays it, so `POST /` and `PUT /:id` validate the target with
+  `playlistBlockingReason` (`azuracastPlaylist.service.ts`): it must have
+  `source === "songs"`, be enabled and be sequential. A rejected playlist comes
+  back as a 409 naming the reason, and `Program.playlistWarning` repeats it on
+  every read so drift edited by hand in AzuraCast is visible in the panel.
+  Changing the playlist also moves the episodes still in the queue, so none are
+  left behind in the old one.
+- **`play_full_cycle` does not exist in current AzuraCast** and neither does
+  `shuffle_enabled`: both were removed from `StationPlaylist` upstream. A
+  sequential library playlist already drops an item once it has played, which is
+  what the archive detection relies on, so `createPlaylist` sends only fields
+  that still exist (`name`, `type`, `source`, `order`, `is_enabled`,
+  `include_in_requests`, `include_in_on_demand`, `avoid_duplicates`).
+  Do not reintroduce the old flags: they would be ignored by the API and would
+  look like a guarantee that is not there.
 - Folder layout in the AzuraCast library:
   `<PROGRAMS_ROOT_FOLDER>/<slug>/NO REPRODUCIDOS/<yyyy-mm-dd> - <titulo>.mp3`
   for pending episodes and the same name under `REPRODUCIDOS` once aired. The
@@ -113,7 +131,10 @@ its own.
   day mask, emission window and `bufferMinutes` reserved around other programs),
   `manual` (the admin sends `dayIndex` + `startTime` and it is validated the same
   way). Writing a window replaces the whole `schedule_items` array, so the
-  untouched items are read back and resent.
+  untouched items are read back and resent. **A linked playlist that already has
+  schedule items is never touched**: those items are the program airing pattern
+  the station owner defined, so `auto`/`manual` step aside and the episode just
+  queues into the existing programming.
 - Endpoints (all `requireAuth` + permiso `programs`, mounted at
   `/admin-api/programs`): `GET|POST /`, `GET|PUT|DELETE /:id`,
   `POST|DELETE /:id/artwork`, `POST|DELETE /:id/assets/:kind` (`intro`|`outro`),

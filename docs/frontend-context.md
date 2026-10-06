@@ -90,8 +90,9 @@ and `http://localhost:4173` are already there).
   `pages/admin/AdminReadingHistory.tsx` shows the per-day history.
 - Programs: `pages/admin/AdminPrograms.tsx` (grid of programs, each with its
   pending/played counters) plus a `pages/admin/programs/` folder holding
-  `ProgramFormDialog.tsx` (metadata, default artwork, intro/outro, schedule
-  mode, day mask, emission window), `EpisodeUploadDialog.tsx` (audio + optional
+  `ProgramFormDialog.tsx` (playlist de AzuraCast, metadata, default artwork,
+  intro/outro, schedule mode, day mask, emission window),
+  `EpisodeUploadDialog.tsx` (audio + optional
   per-episode image + the slot the backend reserved + the per-episode audio
   repair checkboxes) and
   `ProgramEpisodesDialog.tsx` (status list with "marcar emitido" and "volver a

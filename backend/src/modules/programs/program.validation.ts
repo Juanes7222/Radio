@@ -80,9 +80,27 @@ export function optionalDaysMask(value: unknown): number | undefined {
   return parsed;
 }
 
+/** Sentinel the panel sends to ask the backend for a brand new playlist. */
+const CREATE_PLAYLIST = "new";
+
+/**
+ * `null` asks for a new playlist, a number points at an existing one, and
+ * `undefined` means the field was not part of the request.
+ */
+function parsePlaylistId(value: unknown): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === CREATE_PLAYLIST || value === "") return null;
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new AppError(400, "La playlist indicada no es válida.");
+  }
+  return parsed;
+}
+
 /** Parses the JSON body of the program creation endpoint. */
 export function parseProgramCreateBody(body: unknown): {
   name: string;
+  playlistId?: number | null;
   description?: string | null;
   artist?: string | null;
   album?: string | null;
@@ -101,6 +119,7 @@ export function parseProgramCreateBody(body: unknown): {
 
   return {
     name: requiredName(raw.name),
+    playlistId: parsePlaylistId(raw.playlistId),
     description: optionalString(raw.description) ?? null,
     artist: optionalString(raw.artist) ?? null,
     album: optionalString(raw.album) ?? null,
@@ -130,6 +149,7 @@ export function parseProgramUpdateBody(body: unknown): Record<string, unknown> {
   const data: Record<string, unknown> = {};
 
   if (raw.name !== undefined) data.name = parsed.name;
+  if (raw.playlistId !== undefined) data.playlistId = parsed.playlistId;
   if (raw.description !== undefined) data.description = parsed.description;
   if (raw.artist !== undefined) data.artist = parsed.artist;
   if (raw.album !== undefined) data.album = parsed.album;

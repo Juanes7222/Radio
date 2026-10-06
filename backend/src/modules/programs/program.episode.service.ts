@@ -264,9 +264,16 @@ export async function publishEpisode(
 }
 
 /**
- * Writes the emission window of a freshly queued episode, when the program is
- * configured to schedule itself. Returns a human-readable reason when the
- * episode stays queued without a window.
+ * Writes the emission window of a freshly published episode, when the program
+ * is configured to schedule itself.
+ *
+ * When the linked playlist already carries schedule items, that existing
+ * schedule IS the program airing pattern and AzuraCast drives it: the episode
+ * simply queues into it and nothing is written, otherwise the automatic mode
+ * would stack windows on top of the ones the station owner defined.
+ *
+ * Returns a human-readable note when the episode stays queued without a window
+ * written by this call.
  */
 async function applySchedule(
   program: ProgramRow,
@@ -275,6 +282,13 @@ async function applySchedule(
   durationSec: number
 ): Promise<string | null> {
   if (program.scheduleMode === "none") return null;
+
+  const detail = await getPlaylistDetail(program.playlistId);
+  const existingItems = detail.schedule_items ?? [];
+
+  if (existingItems.length > 0) {
+    return `La playlist ya tiene ${existingItems.length} franja(s) de emisión en AzuraCast; el episodio entra en esa programación.`;
+  }
 
   const requiredMinutes = Math.max(1, Math.ceil(durationSec / 60));
   let dayIndex: number;
@@ -314,8 +328,7 @@ async function applySchedule(
     if (!available) return "La franja indicada ya está ocupada por otro programa.";
   }
 
-  const detail = await getPlaylistDetail(program.playlistId);
-  const items = withoutWindow(detail.schedule_items ?? [], dayIndex, startMinute);
+  const items = withoutWindow(existingItems, dayIndex, startMinute);
   await replacePlaylistSchedule(program.playlistId, [
     ...items,
     toScheduleItem(dayIndex, startMinute, endMinute),

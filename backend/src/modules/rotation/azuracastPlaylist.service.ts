@@ -36,11 +36,31 @@ export interface PlaylistScheduleItem {
 export interface PlaylistDetail {
   id: number;
   name: string;
+  type?: string;
   source: string;
   order: string;
-  play_full_cycle?: boolean;
   is_enabled?: boolean;
   schedule_items?: PlaylistScheduleItem[];
+}
+
+/**
+ * Why a playlist cannot host the episodes of a program, or null when it can.
+ *
+ * A sequential library playlist already drops an item once it has played, so
+ * there is no extra flag to require; the only hard requirement is that the
+ * playlist is backed by the media library.
+ */
+export function playlistBlockingReason(playlist: PlaylistDetail): string | null {
+  if (playlist.source !== "songs") {
+    return `La playlist "${playlist.name}" no está basada en la biblioteca de audio, así que no puede contener los episodios del programa.`;
+  }
+  if (playlist.is_enabled === false) {
+    return `La playlist "${playlist.name}" está deshabilitada, así que sus episodios no se emitirán.`;
+  }
+  if (playlist.order && playlist.order !== "sequential") {
+    return `La playlist "${playlist.name}" está en orden "${playlist.order}" en vez de secuencial: los episodios se emitirán en orden aleatorio.`;
+  }
+  return null;
 }
 
 export interface MediaFileDetail {
@@ -224,12 +244,18 @@ export interface CreatePlaylistParams {
   name: string;
   /** 'songs' keeps the playlist bound to the media library. */
   source?: string;
-  order?: "sequential" | "random";
-  /** Sequential playlists loop forever unless this is off. */
-  playFullCycle?: boolean;
+  order?: "sequential" | "random" | "shuffle";
+  description?: string;
 }
 
-/** Creates a sequential playlist bound to the media library. */
+/**
+ * Creates a sequential playlist bound to the media library.
+ *
+ * Only fields that exist in the current StationPlaylist entity are sent:
+ * `shuffle_enabled` and `play_full_cycle` were removed upstream and would be
+ * meaningless. A sequential library playlist already drops an item once it has
+ * played, which is what makes the archive detection work.
+ */
 export async function createPlaylist(params: CreatePlaylistParams): Promise<{ id: number; name: string }> {
   const { data } = await azuracastApi.post<{ id: number; name: string }>(
     `/station/${STATION_ID}/playlists`,
@@ -238,10 +264,12 @@ export async function createPlaylist(params: CreatePlaylistParams): Promise<{ id
       type: "default",
       source: params.source ?? "songs",
       order: params.order ?? "sequential",
-      shuffle_enabled: false,
-      play_full_cycle: params.playFullCycle ?? false,
       is_enabled: true,
       include_in_requests: false,
+      include_in_on_demand: false,
+      // A program may hold the same recording twice on purpose.
+      avoid_duplicates: false,
+      ...(params.description ? { description: params.description } : {}),
     }
   );
   return data;

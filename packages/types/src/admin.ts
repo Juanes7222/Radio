@@ -181,6 +181,7 @@ export interface AdminPlaylist {
   remote_url: string | null;
   status: string;
   is_enabled: boolean;
+  schedule_items?: PlaylistScheduleItem[];
   is_jingle: boolean;
   play_per_songs: number;
   play_per_minutes: number;
@@ -663,6 +664,11 @@ export interface Program {
   fadeSeconds: number;
   playlistId: number;
   playlistName: string | null;
+  /**
+   * Reason the linked playlist cannot drive this program as configured, or null
+   * when it is usable.
+   */
+  playlistWarning: string | null;
   /** Carpeta del programa dentro de la biblioteca de AzuraCast. */
   folderName: string;
   pendingFolder: string;
@@ -680,6 +686,25 @@ export interface Program {
   counts: ProgramEpisodeCounts;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Payload of the program create/update endpoints. `playlistId: null` asks for a new playlist. */
+export interface ProgramInput {
+  name: string;
+  playlistId: number | null;
+  description: string | null;
+  artist: string | null;
+  album: string | null;
+  genre: string | null;
+  fadeSeconds: number;
+  scheduleMode: ProgramScheduleMode;
+  daysMask: number;
+  airStart: string | null;
+  airEnd: string | null;
+  daysAhead: number;
+  leadMinutes: number;
+  bufferMinutes: number;
+  active: boolean;
 }
 
 export interface ProgramEpisode {
