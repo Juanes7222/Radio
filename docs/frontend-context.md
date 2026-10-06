@@ -88,6 +88,19 @@ and `http://localhost:4173` are already there).
   rotation immediately. The book/chapter pickers are built from the chapters
   the source actually contains, not from a hardcoded list.
   `pages/admin/AdminReadingHistory.tsx` shows the per-day history.
+- Programs: `pages/admin/AdminPrograms.tsx` (grid of programs, each with its
+  pending/played counters) plus a `pages/admin/programs/` folder holding
+  `ProgramFormDialog.tsx` (metadata, default artwork, intro/outro, schedule
+  mode, day mask, emission window), `EpisodeUploadDialog.tsx` (audio + optional
+  per-episode image + the slot the backend reserved + the per-episode audio
+  repair checkboxes) and
+  `ProgramEpisodesDialog.tsx` (status list with "marcar emitido" and "volver a
+  la cola"). `programs/shared.ts` holds the day names, the status label/class
+  maps and `errorMessage`. Route `/admin/programs`, permission `programs`,
+  sidebar item in Contenido between Playlists and Rotaciones.
+  The episode dialog polls every 4 s while any episode is `processing`, because
+  publishing a long episode is a long upload. A draft can be previewed and
+  published again from the episode list if the admin left the upload dialog.
 - Sidebar nav is grouped into Emisión / Contenido / Audiencia sections;
   the topbar derives the page title from that same structure.
 - Data loaders use `.then` chains on purpose: react-hooks v7 flags

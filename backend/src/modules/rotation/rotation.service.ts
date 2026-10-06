@@ -4,6 +4,7 @@ import { AppError } from "../../shared/errors/app-error";
 import { sendPushToTokens } from "../../infrastructure/firebase/notification.service";
 import { parseSubscriptions } from "../../shared/utils/subscriptions";
 import { BOGOTA_TIME_ZONE } from "../../shared/utils/date";
+import { normalizeText } from "../../shared/utils/text";
 import {
   emptyPlaylist,
   getFileDetail,
@@ -30,14 +31,6 @@ export interface RotationRunResult {
   chapters: ChapterRef[];
   titles: string[];
   errors: string[];
-}
-
-function normalizeTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
 }
 
 /** Builds a compact summary like "Génesis 1-7" or "Génesis 1-2, Éxodo 3". */
@@ -77,12 +70,12 @@ async function notifyReading(notifyProgram: string, chapters: ChapterRef[]): Pro
     select: { fcmToken: true, subscriptions: true },
   });
 
-  const programNormalized = normalizeTitle(notifyProgram);
+  const programNormalized = normalizeText(notifyProgram);
   const tokens: string[] = [];
 
   for (const device of devices) {
     const isSubscribed = parseSubscriptions(device.subscriptions).some(
-      (subscription) => normalizeTitle(subscription) === programNormalized
+      (subscription) => normalizeText(subscription) === programNormalized
     );
     if (isSubscribed && device.fcmToken) {
       tokens.push(device.fcmToken);

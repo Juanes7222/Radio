@@ -10,6 +10,7 @@ import { healthConfig } from "./health.config";
 import { logsConfig } from "./logs.config";
 import { liveConfig } from "./live.config";
 import { processingConfig } from "./processing.config";
+import { programsConfig } from "./programs.config";
 import { webhookConfig } from "./webhook.config";
 import { workersConfig } from "./workers.config";
 import { youtubeConfig } from "./youtube.config";
@@ -23,6 +24,7 @@ export const config = {
   youtube: youtubeConfig,
   worker: workersConfig,
   processing: processingConfig,
+  programs: programsConfig,
   notifications: notificationsConfig,
   webhook: webhookConfig,
   logs: logsConfig,

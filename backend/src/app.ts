@@ -28,6 +28,7 @@ import programCatalogPublicRouter from "./modules/notifications/public.routes";
 import devicesAdminRouter from "./modules/devices/admin.routes";
 import listenerHistoryRouter from "./modules/azuracast/listenerHistory.routes";
 import rotationRouter from "./modules/rotation/rotation.routes";
+import programsRouter from "./modules/programs/program.routes";
 import noticesPublicRouter from "./modules/notices/public.routes";
 import noticesAdminRouter from "./modules/notices/admin.routes";
 import noticeImagesRouter from "./modules/notices/noticeImages.routes";
@@ -38,7 +39,9 @@ import backupsRouter from "./modules/backups/backups.routes";
 import { healthAdminRouter, healthPublicRouter } from "./modules/health/health.routes";
 import { getHealthStatusSnapshot } from "./modules/health/health.service";
 import swaggerFile from "./swagger-output.json";
+import { config } from "./config";
 import { NOTICE_IMAGES_DIR, NOTICE_VIDEOS_DIR } from "./modules/notices/media/media.storage";
+import { resolveStorageDir } from "./shared/storage/localStorage";
 
 const ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:4173"];
 
@@ -130,6 +133,7 @@ export function createApp(): Express {
   app.use("/admin-api/devices", devicesAdminRouter);
   app.use("/admin-api/listeners", listenerHistoryRouter);
   app.use("/admin-api/rotations", rotationRouter);
+  app.use("/admin-api/programs", programsRouter);
   app.use("/api/notices", noticesPublicRouter);
   app.use("/admin-api/notices", noticesAdminRouter);
   app.use("/admin-api/notices", noticeImagesRouter);
@@ -183,6 +187,18 @@ export function createApp(): Express {
       },
     })
   );
+  // Program artwork - the file name changes on every replacement, so it is
+  // cached for a day instead of being immutable.
+  const programArtDir = resolveStorageDir(config.programs.artDir);
+  const programArtOptions = {
+    maxAge: "1d",
+    setHeaders(res: express.Response) {
+      res.setHeader("Cache-Control", "public, max-age=86400");
+    },
+  };
+  app.use(config.programs.artUrlPrefix, express.static(programArtDir, programArtOptions));
+  app.use(`/api${config.programs.artUrlPrefix}`, express.static(programArtDir, programArtOptions));
+
   app.use("/api/prayer", prayerRouter);
   app.use("/api/health", healthPublicRouter);
 

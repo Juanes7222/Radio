@@ -63,3 +63,5 @@ export const AZURACAST_BASE_URL_TIMEOUTS = {
   streamers: 5000,
   backend: 10_000,
 };
+
+export const FFMPEG_CONCAT_TIMEOUT_MS = 15 * 60 * 1000;

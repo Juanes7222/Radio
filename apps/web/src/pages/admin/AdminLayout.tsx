@@ -76,6 +76,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/admin/upload', label: 'Subir archivo', icon: UploadCloud, permission: 'upload' },
       { to: '/admin/playlists', label: 'Playlists', icon: ListMusic, permission: 'playlists' },
+      { to: '/admin/programs', label: 'Programas', icon: Radio, permission: 'programs' },
       { to: '/admin/rotations', label: 'Rotaciones', icon: Repeat, permission: 'rotations' },
       { to: '/admin/reading-history', label: 'Historial de lectura', icon: BookOpen, permission: 'reading.history' },
       { to: '/admin/locutor', label: 'Locutor', icon: AudioLines, permission: 'locutor' },

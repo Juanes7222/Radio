@@ -80,9 +80,11 @@ export async function getRecentFiles(): Promise<unknown> {
 
 /** Orders AzuraCast to reprocess the media library. */
 export async function triggerMediaRescan(): Promise<void> {
+  // AzuraCast reads the batch verb from `do`; `action` is silently ignored and
+  // the request answers "Invalid batch action specified".
   await axios.put(
     `${config.azuracast.url}/api/station/${config.azuracast.stationId}/files/batch`,
-    { files: [], action: "reprocess" },
+    { files: [], do: "reprocess" },
     {
       headers: {
         Authorization: `Bearer ${config.azuracast.apiKey}`,

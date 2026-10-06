@@ -1,0 +1,93 @@
+// Programs produced outside the station team: each program owns an AzuraCast
+// playlist plus two library folders (pending / played). An uploaded episode is
+// composed with the program intro and outro, queued once, and archived in the
+// played folder as soon as it leaves the playlist.
+model Program {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  // Folder-safe identifier used to build the library path of the program
+  slug        String  @unique
+  description String?
+
+  // ── Automatic metadata written to every episode ──
+  artist      String?
+  album       String?
+  genre       String?
+  // Filename of the default artwork inside storage/program-art, or null when
+  // the program has no image of its own
+  artFile     String?  @map("art_file")
+  // Filename of the stored intro/outro inside storage/program-assets
+  introFile   String?  @map("intro_file")
+  outroFile   String?  @map("outro_file")
+  // Seconds of crossfade applied to the seams of the composed episode
+  fadeSeconds Float    @default(0) @map("fade_seconds")
+
+  // AzuraCast playlist where the episodes are queued
+  playlistId  Int      @map("playlist_id")
+  // Library subfolder holding episodes waiting to be played
+  pendingFolder String @default("NO REPRODUCIDOS") @map("pending_folder")
+  // Library subfolder holding episodes that already aired
+  playedFolder  String @default("REPRODUCIDOS") @map("played_folder")
+  // Folder basename of the program inside the library root
+  folderName    String @map("folder_name")
+
+  // 'none' queues without touching the station schedule, 'auto' picks a free
+  // window, 'manual' uses the window the admin provides
+  scheduleMode   String  @default("none") @map("schedule_mode")
+  // AzuraCast day indices (1 = Monday .. 7 = Sunday) the program may air on
+  daysMask       Int     @default(127) @map("days_mask")
+  // Minutes since midnight bounding the emission window
+  airStartMinute Int?    @map("air_start_minute")
+  airEndMinute   Int?    @map("air_end_minute")
+  // Minutes searched ahead when scheduleMode is 'auto'
+  daysAhead      Int     @default(7) @map("days_ahead")
+  // Minutes between the computed slot and the actual air time
+  leadMinutes    Int     @default(10) @map("lead_minutes")
+  // Minutes reserved around each episode so neighbouring programs keep room
+  bufferMinutes  Int     @default(2) @map("buffer_minutes")
+
+  active     Boolean @default(true)
+  lastSyncAt DateTime? @map("last_sync_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  episodes ProgramEpisode[]
+
+  @@map("programs")
+}
+
+model ProgramEpisode {
+  id        String @id @default(uuid())
+  programId String @map("program_id")
+  program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  title String
+  // Filename the admin uploaded, kept for traceability
+  sourceFile String @map("source_file")
+
+  // 'processing' while ffmpeg composes the audio, then 'queued', 'played' or 'failed'
+  status      String  @default("processing")
+  // Station day (YYYY-MM-DD) the episode was uploaded on
+  uploadDate  String  @map("upload_date")
+  durationSec Float?  @map("duration_sec")
+  // Path relative to the program folder in the AzuraCast library
+  relativePath String? @map("relative_path")
+  mediaId     String? @map("media_id")
+  // Filename of a per-episode artwork inside storage/program-art
+  artFile     String? @map("art_file")
+  // Repair filters chosen by the admin when the episode was uploaded
+  normalizeLoudness Boolean @default(false) @map("normalize_loudness")
+  reduceNoise       Boolean @default(false) @map("reduce_noise")
+  errorMessage String? @map("error_message")
+
+  queuedAt DateTime? @map("queued_at")
+  playedAt DateTime? @map("played_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("program_episodes")
+  @@index([programId, status])
+  @@index([programId, createdAt])
+}

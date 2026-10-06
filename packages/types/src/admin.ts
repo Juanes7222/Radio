@@ -10,6 +10,7 @@ export type AdminPermission =
   | "live"
   | "upload"
   | "playlists"
+  | "programs"
   | "rotations"
   | "reading.history"
   | "locutor"
@@ -30,6 +31,7 @@ export const ADMIN_PERMISSIONS: AdminPermission[] = [
   "live",
   "upload",
   "playlists",
+  "programs",
   "rotations",
   "reading.history",
   "locutor",
@@ -57,6 +59,7 @@ export const ADMIN_PERMISSION_LABELS: Record<AdminPermission, string> = {
   live: "Transmitir en vivo",
   upload: "Subir archivo",
   playlists: "Playlists",
+  programs: "Programas",
   rotations: "Rotaciones",
   "reading.history": "Historial de lectura",
   locutor: "Locutor",
@@ -629,6 +632,104 @@ export interface BibleReadingToday {
     rotationName: string;
     chapters: BibleChapterRef[];
   } | null;
+}
+
+export type ProgramScheduleMode = 'none' | 'auto' | 'manual';
+
+export type ProgramEpisodeStatus = 'draft' | 'processing' | 'queued' | 'played' | 'failed';
+
+export interface ProgramEpisodeCounts {
+  total: number;
+  /** Composed and waiting for the admin to listen and publish. */
+  draft: number;
+  processing: number;
+  queued: number;
+  played: number;
+  failed: number;
+}
+
+/** Programa producido fuera del equipo: caretaker de intro/outro, metadata y archivo. */
+export interface Program {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  artist: string | null;
+  album: string | null;
+  genre: string | null;
+  artUrl: string | null;
+  hasIntro: boolean;
+  hasOutro: boolean;
+  fadeSeconds: number;
+  playlistId: number;
+  playlistName: string | null;
+  /** Carpeta del programa dentro de la biblioteca de AzuraCast. */
+  folderName: string;
+  pendingFolder: string;
+  playedFolder: string;
+  scheduleMode: ProgramScheduleMode;
+  /** Bitmask de días de AzuraCast (bit 0 = lunes ... bit 6 = domingo). */
+  daysMask: number;
+  airStart: string | null;
+  airEnd: string | null;
+  daysAhead: number;
+  leadMinutes: number;
+  bufferMinutes: number;
+  active: boolean;
+  lastSyncAt: string | null;
+  counts: ProgramEpisodeCounts;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProgramEpisode {
+  id: string;
+  programId: string;
+  title: string;
+  sourceFile: string;
+  status: ProgramEpisodeStatus;
+  /** Fecha de estación (YYYY-MM-DD) en la que se subió el audio. */
+  uploadDate: string;
+  durationSec: number | null;
+  /** Ruta del archivo dentro de la biblioteca, relativa a la carpeta del programa. */
+  relativePath: string | null;
+  mediaId: string | null;
+  artUrl: string | null;
+  /** EBU R128 loudness pass applied while composing the episode. */
+  normalizeLoudness: boolean;
+  /** Background hiss reduction applied before the loudness pass. */
+  reduceNoise: boolean;
+  errorMessage: string | null;
+  queuedAt: string | null;
+  playedAt: string | null;
+  createdAt: string;
+}
+
+export interface ProgramEpisodeUploadResult {
+  episode: ProgramEpisode;
+  warnings: string[];
+}
+
+export interface ProgramSyncResult {
+  programId: string;
+  checked: number;
+  archived: number;
+  errors: string[];
+}
+
+export interface ProgramSlotSuggestion {
+  dayIndex: number;
+  dayKey: string;
+  startTime: string;
+  endTime: string;
+  startsAt: string;
+}
+
+export interface ProgramStreamWindow {
+  id: number;
+  dayIndex: number;
+  startTime: string;
+  endTime: string;
 }
 
 /** Summary of program push notifications sent (admin dashboard cards) */

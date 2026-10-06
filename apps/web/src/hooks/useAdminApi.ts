@@ -24,6 +24,12 @@ import type {
   PlaylistDetail,
   PlaylistOrderEntry,
   PlaylistRotation,
+  Program,
+  ProgramEpisode,
+  ProgramEpisodeUploadResult,
+  ProgramSlotSuggestion,
+  ProgramStreamWindow,
+  ProgramSyncResult,
   RotationAlignResult,
   RotationSourcePreview,
   PushCampaignInput,
@@ -253,6 +259,195 @@ export function useAdminApi() {
       request<BibleReadingHistoryEntry[]>({
         url: '/admin-api/rotations/history',
         params: { limit },
+      }),
+    [request]
+  );
+
+  // ── Programas ────────────────────────────────────────────────────────────
+  // A long episode is re-encoded server side, so the upload cannot use the
+  // default 10s timeout.
+  const PROGRAM_UPLOAD_TIMEOUT_MS = 300000;
+
+  const getPrograms = useCallback(
+    () => request<{ programs: Program[] }>({ url: '/admin-api/programs' }),
+    [request]
+  );
+
+  const getProgram = useCallback(
+    (id: string) => request<Program>({ url: `/admin-api/programs/${id}` }),
+    [request]
+  );
+
+  const createProgram = useCallback(
+    (data: Partial<Program>) =>
+      request<Program>({ method: 'POST', url: '/admin-api/programs', data }),
+    [request]
+  );
+
+  const updateProgram = useCallback(
+    (id: string, data: Partial<Program>) =>
+      request<Program>({ method: 'PUT', url: `/admin-api/programs/${id}`, data }),
+    [request]
+  );
+
+  const deleteProgram = useCallback(
+    (id: string) => request<void>({ method: 'DELETE', url: `/admin-api/programs/${id}` }),
+    [request]
+  );
+
+  const uploadProgramArtwork = useCallback(
+    (id: string, file: File) => {
+      const form = new FormData();
+      form.append('image', file);
+      return request<Program>({
+        method: 'POST',
+        url: `/admin-api/programs/${id}/artwork`,
+        data: form,
+      });
+    },
+    [request]
+  );
+
+  const clearProgramArtwork = useCallback(
+    (id: string) => request<Program>({ method: 'DELETE', url: `/admin-api/programs/${id}/artwork` }),
+    [request]
+  );
+
+  const uploadProgramAsset = useCallback(
+    (id: string, kind: 'intro' | 'outro', file: File) => {
+      const form = new FormData();
+      form.append('audio', file);
+      return request<Program>({
+        method: 'POST',
+        url: `/admin-api/programs/${id}/assets/${kind}`,
+        data: form,
+      });
+    },
+    [request]
+  );
+
+  const clearProgramAsset = useCallback(
+    (id: string, kind: 'intro' | 'outro') =>
+      request<Program>({ method: 'DELETE', url: `/admin-api/programs/${id}/assets/${kind}` }),
+    [request]
+  );
+
+  const getProgramEpisodes = useCallback(
+    (id: string, limit = 200) =>
+      request<{ episodes: ProgramEpisode[] }>({
+        url: `/admin-api/programs/${id}/episodes`,
+        params: { limit },
+      }),
+    [request]
+  );
+
+  const prepareProgramEpisode = useCallback(
+    (id: string, form: FormData, onProgress?: (percent: number) => void) =>
+      request<ProgramEpisodeUploadResult>({
+        method: 'POST',
+        url: `/admin-api/programs/${id}/episodes/prepare`,
+        data: form,
+        timeout: PROGRAM_UPLOAD_TIMEOUT_MS,
+        onUploadProgress: (event) => {
+          if (!onProgress || !event.total) return;
+          onProgress(Math.round((event.loaded * 100) / event.total));
+        },
+      }),
+    [request]
+  );
+
+  const publishProgramEpisode = useCallback(
+    (episodeId: string, payload: { dayIndex?: number; startTime?: string } = {}) =>
+      request<ProgramEpisode>({
+        method: 'POST',
+        url: `/admin-api/programs/episodes/${episodeId}/publish`,
+        data: payload,
+        timeout: PROGRAM_UPLOAD_TIMEOUT_MS,
+      }),
+    [request]
+  );
+
+  /**
+   * Downloads the composed episode as an object URL.
+   *
+   * The `<audio>` element cannot send the Authorization header, so the file is
+   * fetched with axios instead of streaming through the route. A long episode is
+   * a full-size download, which is why the route only serves drafts.
+   */
+  const fetchProgramEpisodePreview = useCallback(
+    async (episodeId: string): Promise<string> => {
+      const response = await axios.get<Blob>(
+        `${API_BASE_URL}/admin-api/programs/episodes/${episodeId}/preview`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob',
+          timeout: PROGRAM_UPLOAD_TIMEOUT_MS,
+        }
+      );
+      return URL.createObjectURL(response.data);
+    },
+    [token]
+  );
+
+  const markProgramEpisodePlayed = useCallback(
+    (episodeId: string) =>
+      request<ProgramEpisode>({
+        method: 'POST',
+        url: `/admin-api/programs/episodes/${episodeId}/played`,
+      }),
+    [request]
+  );
+
+  const requeueProgramEpisode = useCallback(
+    (episodeId: string) =>
+      request<ProgramEpisode>({
+        method: 'POST',
+        url: `/admin-api/programs/episodes/${episodeId}/queued`,
+      }),
+    [request]
+  );
+
+  const deleteProgramEpisode = useCallback(
+    (episodeId: string, keepFile = false) =>
+      request<void>({
+        method: 'DELETE',
+        url: `/admin-api/programs/episodes/${episodeId}`,
+        params: keepFile ? { keepFile: 'true' } : undefined,
+      }),
+    [request]
+  );
+
+  const getProgramSchedule = useCallback(
+    (id: string) =>
+      request<{ windows: ProgramStreamWindow[] }>({ url: `/admin-api/programs/${id}/schedule` }),
+    [request]
+  );
+
+  const getProgramSlot = useCallback(
+    (id: string, durationSec: number) =>
+      request<{ slot: ProgramSlotSuggestion }>({
+        url: `/admin-api/programs/${id}/slot`,
+        params: { durationSec },
+      }),
+    [request]
+  );
+
+  const checkProgramSlot = useCallback(
+    (id: string, payload: { dayIndex: number; startTime: string; durationSec: number }) =>
+      request<{ available: boolean; startTime: string; endTime: string }>({
+        method: 'POST',
+        url: `/admin-api/programs/${id}/slot/check`,
+        data: payload,
+      }),
+    [request]
+  );
+
+  const syncProgram = useCallback(
+    (id: string) =>
+      request<ProgramSyncResult>({
+        method: 'POST',
+        url: `/admin-api/programs/${id}/sync`,
+        timeout: 30000,
       }),
     [request]
   );
@@ -884,6 +1079,26 @@ export function useAdminApi() {
     getRotationRuns,
     getRotationSource,
     alignRotation,
+    getPrograms,
+    getProgram,
+    createProgram,
+    updateProgram,
+    deleteProgram,
+    uploadProgramArtwork,
+    clearProgramArtwork,
+    uploadProgramAsset,
+    clearProgramAsset,
+    getProgramEpisodes,
+    prepareProgramEpisode,
+    publishProgramEpisode,
+    fetchProgramEpisodePreview,
+    markProgramEpisodePlayed,
+    requeueProgramEpisode,
+    deleteProgramEpisode,
+    getProgramSchedule,
+    getProgramSlot,
+    checkProgramSlot,
+    syncProgram,
     getReadingHistory,
     getPendingRequests,
     approveRequest,

@@ -1,5 +1,6 @@
 import { azuracastApi, STATION_ID } from "../azuracast/azuracast.client";
 import { logger } from "../../shared/logger/logger";
+import { AZURACAST_UPLOAD_TIMEOUT_MS } from "../../shared/constants";
 
 /**
  * One row of a sequential playlist, as returned by
@@ -37,6 +38,8 @@ export interface PlaylistDetail {
   name: string;
   source: string;
   order: string;
+  play_full_cycle?: boolean;
+  is_enabled?: boolean;
   schedule_items?: PlaylistScheduleItem[];
 }
 
@@ -209,4 +212,101 @@ export async function clonePlaylist(playlistId: number): Promise<{ id: number; n
     `/station/${STATION_ID}/playlist/${playlistId}/clone`
   );
   return data;
+}
+
+/** Every playlist of the station, including its schedule items. */
+export async function listStationPlaylists(): Promise<PlaylistDetail[]> {
+  const { data } = await azuracastApi.get<PlaylistDetail[]>(`/station/${STATION_ID}/playlists`);
+  return Array.isArray(data) ? data : [];
+}
+
+export interface CreatePlaylistParams {
+  name: string;
+  /** 'songs' keeps the playlist bound to the media library. */
+  source?: string;
+  order?: "sequential" | "random";
+  /** Sequential playlists loop forever unless this is off. */
+  playFullCycle?: boolean;
+}
+
+/** Creates a sequential playlist bound to the media library. */
+export async function createPlaylist(params: CreatePlaylistParams): Promise<{ id: number; name: string }> {
+  const { data } = await azuracastApi.post<{ id: number; name: string }>(
+    `/station/${STATION_ID}/playlists`,
+    {
+      name: params.name,
+      type: "default",
+      source: params.source ?? "songs",
+      order: params.order ?? "sequential",
+      shuffle_enabled: false,
+      play_full_cycle: params.playFullCycle ?? false,
+      is_enabled: true,
+      include_in_requests: false,
+    }
+  );
+  return data;
+}
+
+/** Creates a directory in the media library, ignoring an existing one. */
+export async function ensureMediaDirectory(directoryPath: string): Promise<void> {
+  await azuracastApi.put(
+    `/station/${STATION_ID}/files/mkdir`,
+    {},
+    { params: { currentDirectory: parentDirectory(directoryPath), name: lastSegment(directoryPath) } }
+  );
+}
+
+export function parentDirectory(directoryPath: string): string {
+  const normalized = directoryPath.replace(/\/+$/, "");
+  const index = normalized.lastIndexOf("/");
+  return index === -1 ? "" : normalized.slice(0, index);
+}
+
+export function lastSegment(directoryPath: string): string {
+  const normalized = directoryPath.replace(/\/+$/, "");
+  const index = normalized.lastIndexOf("/");
+  return index === -1 ? normalized : normalized.slice(index + 1);
+}
+
+/** Moves a media file to another path, keeping the same metadata. */
+export async function moveMediaFile(fromPath: string, toPath: string): Promise<void> {
+  if (fromPath === toPath) return;
+  await azuracastApi.put(`/station/${STATION_ID}/files/rename`, {
+    file: fromPath,
+    newPath: toPath,
+  });
+}
+
+/** Song fields AzuraCast accepts through the media edit endpoint. */
+export interface MediaMetadata {
+  title?: string;
+  artist?: string;
+  album?: string;
+  genre?: string;
+  isrc?: string;
+  lyrics?: string;
+}
+
+/** Writes the song fields of a media file and, optionally, its playlist list. */
+export async function updateMediaMetadata(
+  mediaId: string | number,
+  metadata: MediaMetadata,
+  playlistIds?: number[]
+): Promise<void> {
+  const payload: Record<string, unknown> = { ...metadata };
+  if (playlistIds) {
+    payload.playlists = playlistIds.map((id) => ({ id, weight: 0 }));
+  }
+  await azuracastApi.put(`/station/${STATION_ID}/file/${mediaId}`, payload);
+}
+
+/** Uploads the album art of a media file. */
+export async function uploadMediaArt(mediaId: string | number, art: Buffer): Promise<void> {
+  const form = new FormData();
+  form.append("file", new Blob([new Uint8Array(art)], { type: "image/webp" }), "art.webp");
+  await azuracastApi.post(`/station/${STATION_ID}/art/${mediaId}`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    timeout: AZURACAST_UPLOAD_TIMEOUT_MS,
+    maxBodyLength: Infinity,
+  });
 }

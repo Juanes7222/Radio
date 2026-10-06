@@ -9,6 +9,7 @@ import { runAllActiveRotations } from "../rotation/rotation.service";
 import { updateDbIpDatabase, updateGeoIpDatabase } from "../devices/geoipUpdate.service";
 import { cleanupOrphanNoticeMedia } from "../notices/media/media.cleanup";
 import { runHealthCycle } from "../health/health.service";
+import { discardStaleDrafts, syncAllPrograms } from "../programs/program.episode.service";
 
 export type SystemJobKey =
   | "nightly-generation"
@@ -21,7 +22,8 @@ export type SystemJobKey =
   | "rotations"
   | "geoip-update"
   | "notice-media-cleanup"
-  | "health-watchdog";
+  | "health-watchdog"
+  | "programs-archive";
 
 export interface SystemJobMeta {
   key: SystemJobKey;
@@ -33,6 +35,11 @@ export interface SystemJobMeta {
 
 async function runGeoIpUpdate(): Promise<void> {
   await Promise.all([updateGeoIpDatabase(), updateDbIpDatabase()]);
+}
+
+async function runProgramsArchive(): Promise<unknown> {
+  const [results, discardedDrafts] = await Promise.all([syncAllPrograms(), discardStaleDrafts()]);
+  return { archived: results, discardedDrafts };
 }
 
 export const SYSTEM_JOB_CATALOG: SystemJobMeta[] = [
@@ -113,6 +120,14 @@ export const SYSTEM_JOB_CATALOG: SystemJobMeta[] = [
     schedule: "cada 2 min",
     requiresConfirm: false,
   },
+  {
+    key: "programs-archive",
+    label: "Archivar episodios emitidos",
+    description:
+      "Saca de la playlist los episodios ya emitidos, los mueve a la carpeta de reproducidos y descarta las previews sin publicar.",
+    schedule: "cada 5 min",
+    requiresConfirm: false,
+  },
 ];
 
 export const SYSTEM_JOB_RUNNERS: Record<SystemJobKey, () => Promise<unknown>> = {
@@ -127,6 +142,7 @@ export const SYSTEM_JOB_RUNNERS: Record<SystemJobKey, () => Promise<unknown>> = 
   "geoip-update": runGeoIpUpdate,
   "notice-media-cleanup": cleanupOrphanNoticeMedia,
   "health-watchdog": runHealthCycle,
+  "programs-archive": runProgramsArchive,
 };
 
 export function isSystemJobKey(value: string): value is SystemJobKey {
