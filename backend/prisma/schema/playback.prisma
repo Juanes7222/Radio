@@ -1,0 +1,29 @@
+// One row per playback detected in the AzuraCast history.
+// The audio metadata is copied into the row on purpose: resolving it against
+// the station library requires paginating thousands of files, and the history
+// is queried far more often than the library.
+model PlaybackEvent {
+  // AzuraCast sh_id. Idempotency key: lets the job query overlapping windows
+  // between runs without duplicating rows or storing a cursor.
+  azuracastShId Int      @unique @map("azuracast_sh_id")
+  playedAt      DateTime @map("played_at")
+  durationSec   Int      @map("duration_sec")
+  songId        String   @map("song_id")
+  title         String
+  artist        String   @default("")
+  album         String   @default("")
+  playlist      String   @default("")
+  streamer      String   @default("")
+  isRequest     Boolean  @default(false) @map("is_request")
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("playback_events")
+  // Serves the chronological log, the MAX(played_at) that fixes the next poll
+  // window and the pruning DELETE.
+  @@index([playedAt])
+  // Does not help the GROUP BY (the planner picks played_at from the range
+  // filter), but resolves the audio metadata of a page in 1.75 ms instead of
+  // the 41 ms of a full scan.
+  @@index([songId])
+}

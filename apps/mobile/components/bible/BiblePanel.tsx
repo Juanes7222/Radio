@@ -4,10 +4,18 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInDown,
+  ZoomIn,
+} from 'react-native-reanimated';
 import { useBible } from '@/hooks/useBible';
 import { BibleChapterNavigator } from './BibleChapterNavigator';
 import { BibleSearch } from './BibleSearch';
 import { Colors, Typography, Radii, Spacing } from '@/constants/theme';
+import { Durations, Easings, Motion } from '@/constants/motion';
+import { PressScale } from '@/components/ui/PressScale';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import type { BibleVerse } from '@radio/types';
@@ -26,7 +34,6 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
   const { chapterData, isLoading, currentBook, currentChapter, currentTranslation, actions, books } = useBible();
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [contentKey, setContentKey] = useState(0);
   const [fontSize, setFontSize] = useState(BASE_FONT_SIZE);
   const [copiedVerse, setCopiedVerse] = useState<number | null>(null);
 
@@ -56,7 +63,7 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
 
   return (
     <AppBottomSheet visible={isOpen} onClose={onClose} snapPoints={['92%', '96%']}>
-      <View style={styles.container} key={contentKey}>
+      <View style={styles.container}>
         {/* Header Minimalista */}
         <View style={styles.header}>
           <View style={styles.headerPill}>
@@ -68,20 +75,22 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
           </View>
           
           <View style={styles.headerActions}>
-            <TouchableOpacity
+            <PressScale
               style={styles.fontSizeBtn}
-              onPress={() => setFontSize((s) => Math.max(FONT_SIZE_MIN, s - FONT_SIZE_STEP))}
               disabled={fontSize <= FONT_SIZE_MIN}
+              onPress={() => setFontSize((s) => Math.max(FONT_SIZE_MIN, s - FONT_SIZE_STEP))}
+              accessibilityLabel="Reducir tamaño de texto"
             >
               <Text style={[styles.fontSizeBtnText, fontSize <= FONT_SIZE_MIN && styles.fontSizeBtnDisabled]}>A-</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </PressScale>
+            <PressScale
               style={styles.fontSizeBtn}
-              onPress={() => setFontSize((s) => Math.min(FONT_SIZE_MAX, s + FONT_SIZE_STEP))}
               disabled={fontSize >= FONT_SIZE_MAX}
+              onPress={() => setFontSize((s) => Math.min(FONT_SIZE_MAX, s + FONT_SIZE_STEP))}
+              accessibilityLabel="Aumentar tamaño de texto"
             >
               <Text style={[styles.fontSizeBtnText, fontSize >= FONT_SIZE_MAX && styles.fontSizeBtnDisabled]}>A+</Text>
-            </TouchableOpacity>
+            </PressScale>
             <TouchableOpacity style={styles.iconBtn} onPress={() => setIsSearchOpen(true)}>
               <Ionicons name="search" size={20} color={Colors.text} />
             </TouchableOpacity>
@@ -105,9 +114,24 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
               showsVerticalScrollIndicator={false}
               scrollEnabled={true}
             >
-              <Text style={styles.chapterTitle}>{currentBook}</Text>
-              <Text style={styles.chapterSubtitle}>Capítulo {currentChapter}</Text>
-              
+              {/* A chapter turn is a page turn, not a response to a tap: the
+                  slowest, softest entrance in the app. Keyed on the chapter so
+                  it replays on every turn, and scoped to the reading area so
+                  the header keeps its own state. */}
+              <Animated.View
+                key={`chapter-${currentBook}-${currentChapter}`}
+                entering={FadeInDown.duration(Durations.slow).easing(Easing.bezier(...Easings.enter))}
+                exiting={FadeIn.duration(Durations.fast)}
+              >
+                <Text style={styles.chapterTitle}>{currentBook}</Text>
+                <Animated.Text
+                  entering={FadeIn.delay(Motion.entryStaggerMs * 2).duration(Durations.slow).easing(Easing.bezier(...Easings.enter))}
+                  style={styles.chapterSubtitle}
+                >
+                  Capítulo {currentChapter}
+                </Animated.Text>
+              </Animated.View>
+
               <View style={styles.readingArea}>
                 {chapterData.verses.map((verse) => {
                   const isCopied = copiedVerse === verse.number;
@@ -121,7 +145,12 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
                       <View style={styles.verseNumberColumn}>
                         <Text style={styles.verseNumber}>{verse.number}</Text>
                         {isCopied && (
-                          <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
+                          <Animated.View
+                            entering={ZoomIn.duration(Durations.normal).easing(Easing.bezier(...Easings.spring))}
+                            exiting={FadeIn.duration(Durations.instant)}
+                          >
+                            <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
+                          </Animated.View>
                         )}
                       </View>
                       <Text
@@ -144,30 +173,32 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
         {/* Navegación Flotante (Glassmorphism) */}
         <BlurView intensity={80} tint="dark" style={styles.floatingNavContainer}>
           <View style={styles.bottomNav}>
-            <TouchableOpacity 
+            <PressScale
               style={[styles.navBtn, (isLoading || isFirstBookAndChapter) && styles.navBtnDisabled]}
-              onPress={handlePrevChapter}
               disabled={isLoading || isFirstBookAndChapter}
+              onPress={handlePrevChapter}
+              accessibilityLabel="Capítulo anterior"
             >
               <Ionicons name="arrow-back" size={18} color={isLoading || isFirstBookAndChapter ? Colors.textMuted : Colors.text} />
-            </TouchableOpacity>
-            
+            </PressScale>
+
             <View style={styles.translationBadge}>
               <Text style={styles.translationText}>{currentTranslation}</Text>
             </View>
-            
-            <TouchableOpacity 
+
+            <PressScale
               style={[styles.navBtn, (isLoading || isLastBookAndChapter) && styles.navBtnDisabled]}
-              onPress={handleNextChapter}
               disabled={isLoading || isLastBookAndChapter}
+              onPress={handleNextChapter}
+              accessibilityLabel="Capítulo siguiente"
             >
               <Ionicons name="arrow-forward" size={18} color={isLoading || isLastBookAndChapter ? Colors.textMuted : Colors.text} />
-            </TouchableOpacity>
+            </PressScale>
           </View>
         </BlurView>
 
-        <BibleChapterNavigator isOpen={isNavOpen} onClose={() => setIsNavOpen(false)} books={books} currentBook={currentBook} onSelect={(bookName, chapterNum) => { actions.setBook(bookName); actions.setChapter(chapterNum); setContentKey(prev => prev + 1); }} />
-        <BibleSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} onSearch={actions.searchBible} onSelect={(bookName, chapterNum) => { actions.setBook(bookName); actions.setChapter(chapterNum); setContentKey(prev => prev + 1); }} />
+        <BibleChapterNavigator isOpen={isNavOpen} onClose={() => setIsNavOpen(false)} books={books} currentBook={currentBook} onSelect={(bookName, chapterNum) => { actions.setBook(bookName); actions.setChapter(chapterNum); }} />
+        <BibleSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} onSearch={actions.searchBible} onSelect={(bookName, chapterNum) => { actions.setBook(bookName); actions.setChapter(chapterNum); }} />
       </View>
     </AppBottomSheet>
   );
@@ -223,6 +254,12 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     borderWidth: 1,
     borderColor: Colors.borderGlass,
+    // These are the primary legibility control of a reading surface; at 4dp of
+    // vertical padding they were ~28dp tall, well under a reliable touch.
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fontSizeBtnText: {
     ...Typography.body,
@@ -239,6 +276,10 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     borderWidth: 1,
     borderColor: Colors.borderGlass,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     flex: 1,
@@ -320,6 +361,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceGlass,
     borderWidth: 1,
     borderColor: Colors.borderGlass,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navBtnDisabled: {
     opacity: 0.3,

@@ -1,20 +1,119 @@
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import Svg, { Circle } from 'react-native-svg';
 import Animated, {
-  useSharedValue,
+  Easing,
+  useAnimatedProps,
   useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
   withSpring,
   withTiming,
   withSequence,
-  Easing,
 } from 'react-native-reanimated';
 import { memo, useEffect } from 'react';
 import { Colors, Radii, Shadows } from '@/constants/theme';
 import { scale } from '@/lib/responsive';
-import { Spring } from '@/constants/motion';
+import { Durations, Motion, Spring } from '@/constants/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+const PLAY_SIZE = 76;
+const BUFFER_STROKE = 2.5;
+const BUFFER_RADIUS = (PLAY_SIZE + BUFFER_STROKE * 2) / 2 - 1;
+const BUFFER_CIRCUMFERENCE = 2 * Math.PI * BUFFER_RADIUS;
+const BUFFER_ARC = BUFFER_CIRCUMFERENCE * 0.26;
+
+/**
+ * Indeterminate arc drawn around the play button while the stream buffers.
+ * Same rotation language as ConnectingDial, so "working" looks the same
+ * everywhere in the app, and it keeps the play affordance in place instead of
+ * replacing it with a spinner.
+ */
+function BufferingArc() {
+  const reduceMotion = useReducedMotion();
+  const spin = useSharedValue(0);
+
+  useEffect(() => {
+    spin.value = reduceMotion
+      ? 0
+      : withRepeat(
+          withTiming(1, { duration: Motion.spinMs, easing: Easing.linear }),
+          -1,
+          false
+        );
+  }, [reduceMotion, spin]);
+
+  const spinStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${spin.value * 360}deg` }],
+  }));
+
+  const arcProps = useAnimatedProps(() => ({
+    strokeDashoffset: BUFFER_CIRCUMFERENCE * (1 - spin.value),
+  }));
+
+  const size = scale(PLAY_SIZE) + BUFFER_STROKE * 2 + 2;
+
+  return (
+    <Animated.View pointerEvents="none" style={[styles.bufferArc, spinStyle]}>
+      <Svg width={size} height={size}>
+        <AnimatedCircle
+          cx={size / 2}
+          cy={size / 2}
+          r={BUFFER_RADIUS}
+          fill="none"
+          stroke={Colors.textOnSignal}
+          strokeWidth={BUFFER_STROKE}
+          strokeLinecap="round"
+          strokeDasharray={BUFFER_ARC}
+          animatedProps={arcProps}
+        />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/**
+ * Play and pause cross-fade instead of swapping. The icon sits on the most
+ * pressed control in the app, and an instant glyph swap reads as a flicker; the
+ * small scale ramp gives the change somewhere to come from.
+ */
+function PlayPauseIcon({ isPlaying }: { isPlaying: boolean }) {
+  const playOpacity = useSharedValue(isPlaying ? 0 : 1);
+  const pauseOpacity = useSharedValue(isPlaying ? 1 : 0);
+
+  useEffect(() => {
+    playOpacity.value = withTiming(isPlaying ? 0 : 1, { duration: Durations.fast });
+    pauseOpacity.value = withTiming(isPlaying ? 1 : 0, { duration: Durations.fast });
+  }, [isPlaying, pauseOpacity, playOpacity]);
+
+  const playStyle = useAnimatedStyle(() => ({
+    opacity: playOpacity.value,
+    transform: [{ scale: 0.82 + playOpacity.value * 0.18 }],
+  }));
+
+  const pauseStyle = useAnimatedStyle(() => ({
+    opacity: pauseOpacity.value,
+    transform: [{ scale: 0.82 + pauseOpacity.value * 0.18 }],
+  }));
+
+  return (
+    <View style={styles.iconStack}>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.iconLayer, styles.playIconLayer, playStyle]}
+      >
+        <Ionicons name="play" size={scale(34)} color={Colors.textOnSignal} />
+      </Animated.View>
+      <Animated.View pointerEvents="none" style={[styles.iconLayer, pauseStyle]}>
+        <Ionicons name="pause" size={scale(34)} color={Colors.textOnSignal} />
+      </Animated.View>
+    </View>
+  );
+}
 
 interface PlayerControlsProps {
   isPlaying: boolean;
@@ -115,16 +214,7 @@ function PlayerControlsImpl({
         accessibilityHint={isPlaying ? 'Pausa la emisión en vivo' : 'Reanuda la emisión en vivo'}
         hitSlop={12}
       >
-        {isBuffering ? (
-          <ActivityIndicator size="large" color={Colors.textOnSignal} />
-        ) : (
-          <Ionicons
-            name={isPlaying ? 'pause' : 'play'}
-            size={scale(34)}
-            color={Colors.textOnSignal}
-            style={!isPlaying ? { marginLeft: scale(3) } : undefined}
-          />
-        )}
+        {isBuffering ? <BufferingArc /> : <PlayPauseIcon isPlaying={isPlaying} />}
       </AnimatedPressable>
 
       <AnimatedPressable
@@ -171,4 +261,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...Shadows.signal,
   },
+  bufferArc: {
+    position: 'absolute',
+    top: -(BUFFER_STROKE + 1),
+    left: -(BUFFER_STROKE + 1),
+  },
+  iconStack: {
+    width: scale(34),
+    height: scale(34),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // The play triangle reads optically off-centre inside the circle; the pause
+  // bars are symmetric and need no nudge.
+  playIconLayer: { left: scale(3), right: -scale(3) },
 });

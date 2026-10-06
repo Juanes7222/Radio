@@ -4,19 +4,27 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   Linking,
   ScrollView,
   Image,
-  Dimensions,
   Share,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeIn, Easing } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  Extrapolation,
+  FadeIn,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { ShimmerBox } from '@/components/ui/Shimmer';
+import { ConnectingDial } from '@/components/player/ConnectingDial';
 import { DialVivo } from '@/components/player/DialVivo';
 import { PlayerControls } from '@/components/PlayerControls';
 import { SleepTimerModal } from '@/components/SleepTimerModal';
@@ -31,7 +39,7 @@ import type { StreamQuality } from '@radio/types';
 // Recordatorios deshabilitados temporalmente - codigo conservado en components/player/ReminderBanner.tsx
 // import { ReminderBanner } from '@/components/player/ReminderBanner';
 import { NowPlayingInfo } from '@/components/player/NowPlayingInfo';
-import { SleepTimerRow } from '@/components/player/SleepTimerRow';
+import { SleepTimerBubble } from '@/components/player/SleepTimerBubble';
 import { NextUpCard } from '@/components/player/NextUpCard';
 import { useAzuraCast } from '@radio/api';
 import { useBottomTabBarHeight } from 'expo-router/js-tabs';
@@ -56,12 +64,18 @@ import { formatMediaTitle } from '@/lib/formatMedia';
 import { incrementPlayerRenders, markNowPlayingEvent } from '@/lib/perf';
 import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2-opt.png';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const VINYL_SIZE = Math.min(SCREEN_WIDTH * 0.62, (SCREEN_HEIGHT - 260) * 0.6, 232);
-
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
+
+  // Window size has to come from the hook, not a module-scope read: split
+  // screen and multi-window resize the app without any reload, and a frozen
+  // value left the dial sized for the window the app happened to open in.
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const vinylSize = useMemo(
+    () => Math.min(screenWidth * 0.62, (screenHeight - 260) * 0.6, 232),
+    [screenHeight, screenWidth]
+  );
 
   const [appActive, setAppActive] = useState(true);
   useEffect(() => {
@@ -275,6 +289,19 @@ const [showBible, setShowBible] = useState(false);
     }
   }, [notifyEnabled, enableNotify, disableNotify]);
 
+  // Scroll-linked dial parallax. Driven straight from the scroll offset with no
+  // timing, so it can never lag behind the finger or read as slow: the vinyl
+  // recedes as the metadata scrolls up under it.
+  const scrollY = useSharedValue(0);
+  const handleScroll = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
+  const dialStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: interpolate(scrollY.value, [0, 140], [1, 0.94], Extrapolation.CLAMP) },
+    ],
+  }));
+
   if (isLoading) {
     return (
       <View style={styles.center}>
@@ -283,9 +310,8 @@ const [showBible, setShowBible] = useState(false);
           style={StyleSheet.absoluteFill}
         />
         <Animated.View entering={FadeIn.duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
-          <View style={styles.loadingHalo} />
+          <ConnectingDial />
         </Animated.View>
-        <ActivityIndicator size="large" color={Colors.signal} />
         <Text style={styles.loadingText}>Conectando con la emisora…</Text>
         <Animated.View
           entering={FadeIn.delay(120).duration(260)}
@@ -298,7 +324,12 @@ const [showBible, setShowBible] = useState(false);
     );
   }
 
-  if (error) {
+  // A metadata failure is only fatal when there is nothing to play: with no
+  // station payload there is no stream URL either, so getStreamUrl() returns
+  // empty and the player genuinely cannot start. Once station data has landed,
+  // a later poll failure is degraded — the stream keeps playing and the controls
+  // must stay on screen, which is why that case goes to the banner instead.
+  if (error && !data) {
     return (
       <Animated.View
         entering={FadeIn.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
@@ -339,6 +370,8 @@ const [showBible, setShowBible] = useState(false);
       <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.topSection, { paddingTop: insets.top + Spacing.sm }]}>
@@ -384,7 +417,7 @@ const [showBible, setShowBible] = useState(false);
         </View>
 
         <View style={styles.centerSection}>
-          <View>
+          <Animated.View style={dialStyle}>
             {liveUrl ? (
               <FacebookLivePlayer liveUrl={liveUrl} />
             ) : (
@@ -392,7 +425,7 @@ const [showBible, setShowBible] = useState(false);
                 artworkUri={artworkUri}
                 isPlaying={(isPlaying || isBuffering) && isFocused}
                 isPreaching={isPreaching}
-                size={VINYL_SIZE}
+                size={vinylSize}
                 progress={
                   data && data.now_playing.duration > 0
                     ? data.now_playing.elapsed / data.now_playing.duration
@@ -401,12 +434,17 @@ const [showBible, setShowBible] = useState(false);
                 songId={data?.now_playing.sh_id ?? null}
               />
             )}
-          </View>
+          </Animated.View>
 
           <NowPlayingInfo title={title} artist={artist} isPreaching={isPreaching} />
 
           {sleepTimer.isActive && (
-            <SleepTimerRow display={sleepTimer.display} onCancel={sleepTimer.cancel} />
+            <SleepTimerBubble
+              display={sleepTimer.display}
+              progress={sleepTimer.progress}
+              onPress={() => setShowSleepMenu(true)}
+              onCancel={sleepTimer.cancel}
+            />
           )}
 
           {nextUpSong && <NextUpCard song={nextUpSong} active={isFocused} />}
@@ -417,7 +455,11 @@ const [showBible, setShowBible] = useState(false);
         style={[styles.bannerOverlay, { top: insets.top + Spacing.sm }]}
         pointerEvents="box-none"
       >
-        <ConnectionBanner reconnectAttempt={reconnectAttempt} error={audioError} />
+        <ConnectionBanner
+          reconnectAttempt={reconnectAttempt}
+          error={audioError}
+          metadataError={error && data ? 'Sin datos del servidor. La radio sigue sonando.' : null}
+        />
       </View>
 
       <View
@@ -499,14 +541,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.background,
     gap: Spacing.md,
-  },
-  loadingHalo: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: Colors.signalGlow,
-    opacity: 0.22,
   },
   skeletonRow: { gap: 8, alignItems: 'center', marginTop: Spacing.md },
   skeletonLine: { width: 160, height: 10, borderRadius: 6, backgroundColor: Colors.surfaceGlass, opacity: 0.9 },

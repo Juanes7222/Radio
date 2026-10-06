@@ -30,6 +30,8 @@ export const Motion = {
   // Vinyl / Dial rotation
   vinylRotationMs: 9000,
   haloPulseMs: 2800,
+  // Indeterminate "working" rotation (loading dial, buffering arc)
+  spinMs: 1400,
   // Entry choreography
   entryStaggerMs: 40,
 } as const;

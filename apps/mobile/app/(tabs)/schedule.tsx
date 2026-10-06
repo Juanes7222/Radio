@@ -4,12 +4,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { useBottomTabBarHeight } from 'expo-router/js-tabs';
-import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, Easing } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, Easing, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { fetchSchedule, fetchScheduleCategories, mergeConsecutiveScheduleItems } from '@radio/api';
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Typography } from '@/constants/theme';
+import { PressScale } from '@/components/ui/PressScale';
+import { Spring } from '@/constants/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { formatScheduleTime, getBogotaDayOfWeek } from '@/lib/time';
 import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
@@ -234,13 +237,15 @@ function ProgramRow({
     <Animated.View
       layout={LinearTransition.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
     >
-      <TouchableOpacity
+      <PressScale
         onPress={() => {
           Haptics.selectionAsync().catch(() => {});
           onPress();
         }}
-        activeOpacity={0.8}
         style={[styles.rowCard, isNow && styles.rowCardNow]}
+        intensity={0.015}
+        accessibilityLabel={`${program.title}, ${startTime} a ${endTime}`}
+        accessibilityState={{ selected: !!isNow }}
       >
         <View style={[styles.rowDot, { backgroundColor: accent.dot }]} />
         <View style={styles.rowInfo}>
@@ -258,7 +263,7 @@ function ProgramRow({
             </Text>
           </View>
         )}
-      </TouchableOpacity>
+      </PressScale>
     </Animated.View>
   );
 }
@@ -275,6 +280,20 @@ function ScheduleSectionView({
   onSelect: (program: ScheduleItem) => void;
 }) {
   const accent = getAccent(section.category);
+  const reduceMotion = useReducedMotion();
+
+  // The chevron used to snap between two rotations on a plain render style.
+  // A spring carries the direction of the change, and Reduce Motion drops it to
+  // an instant cut rather than removing the state change itself.
+  const chevronRotation = useSharedValue(collapsed ? 0 : 180);
+  useEffect(() => {
+    const target = collapsed ? 0 : 180;
+    chevronRotation.value = reduceMotion ? target : withSpring(target, Spring.snappy);
+  }, [chevronRotation, collapsed, reduceMotion]);
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${chevronRotation.value}deg` }],
+  }));
 
   return (
     <Animated.View layout={LinearTransition.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))} style={styles.section}>
@@ -291,7 +310,7 @@ function ScheduleSectionView({
           </Text>
         </View>
         <View style={[styles.sectionLine, { backgroundColor: accent.dot }]} />
-        <Animated.View style={{ transform: [{ rotate: collapsed ? '0deg' : '180deg' }] }}>
+        <Animated.View style={chevronStyle}>
           <Ionicons
             name="chevron-down"
             size={16}

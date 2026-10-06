@@ -1,56 +1,64 @@
-import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { AppState, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { Colors, Radii, Typography } from '@/constants/theme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale } from '@/lib/responsive';
+
+const PULSE_MS = 900;
 
 interface LiveBadgeProps {
   listenersCount: number;
 }
 
 export function LiveBadge({ listenersCount }: LiveBadgeProps) {
-  const pulseScale = useRef(new Animated.Value(1)).current;
-  const pulseOpacity = useRef(new Animated.Value(0.8)).current;
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const reduceMotion = useReducedMotion();
+  const pulse = useSharedValue(0);
 
+  // Reanimated instead of the legacy Animated loop: it runs on the UI thread and
+  // shares the app-wide reduced-motion source. The loop also has to stop when
+  // the app is backgrounded — an infinite native animation kept running behind
+  // a locked screen was burning battery for nothing.
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled?.()
-      ?.then((enabled: boolean) => setReduceMotion(!!enabled))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (reduceMotion) return;
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(pulseScale, {
-            toValue: 1.9,
-            duration: 900,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseOpacity, {
-            toValue: 0,
-            duration: 900,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.timing(pulseScale, {
-            toValue: 1,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseOpacity, {
-            toValue: 0.8,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-      ])
+    if (reduceMotion) {
+      cancelAnimation(pulse);
+      pulse.value = 0;
+      return;
+    }
+    pulse.value = withRepeat(
+      withTiming(1, { duration: PULSE_MS, easing: Easing.out(Easing.ease) }),
+      -1,
+      false
     );
-    pulse.start();
-    return () => pulse.stop();
-  }, [pulseOpacity, pulseScale, reduceMotion]);
+    return () => cancelAnimation(pulse);
+  }, [pulse, reduceMotion]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') {
+        cancelAnimation(pulse);
+      } else if (!reduceMotion) {
+        pulse.value = withRepeat(
+          withTiming(1, { duration: PULSE_MS, easing: Easing.out(Easing.ease) }),
+          -1,
+          false
+        );
+      }
+    });
+    return () => subscription.remove();
+  }, [pulse, reduceMotion]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + pulse.value * 0.9 }],
+    opacity: 0.8 * (1 - pulse.value),
+  }));
 
   const formattedListeners = listenersCount > 999
     ? `${(listenersCount / 1000).toFixed(1)}k`
@@ -70,12 +78,7 @@ export function LiveBadge({ listenersCount }: LiveBadgeProps) {
     >
       <View style={styles.dotContainer} accessible={false} importantForAccessibility="no-hide-descendants">
         {!reduceMotion && (
-          <Animated.View
-            style={[
-              styles.pulseDot,
-              { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
-            ]}
-          />
+          <Animated.View style={[styles.pulseDot, pulseStyle]} />
         )}
         <View style={styles.solidDot} />
       </View>

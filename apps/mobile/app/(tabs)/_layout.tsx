@@ -6,19 +6,77 @@
 import { Tabs } from 'expo-router/js-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Pressable, AccessibilityInfo, PixelRatio } from 'react-native';
+import type { ReactNode } from 'react';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
   Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { useEffect, useState } from 'react';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { Colors } from '@/constants/theme';
+import { Durations, Spring } from '@/constants/motion';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/**
+ * The vendored tab bar does not pass a `focused` flag to `tabBarButton`; it
+ * passes the ARIA attribute, which React Native lowers to
+ * `accessibilityState.selected` natively. `props['aria-selected']` is the only
+ * reliable "this tab just became active" signal available here.
+ *
+ * `tabBarIcon` cannot be used for this: the library renders it twice, once with
+ * `focused: true` and once with `focused: false`, and cross-fades the two with
+ * opacity. It carries no information about which tab is active.
+ */
+type TabBarButtonProps = Omit<React.ComponentProps<typeof Pressable>, 'style'> & {
+  style?: StyleProp<ViewStyle>;
+  'aria-selected'?: boolean;
+  children?: ReactNode;
+};
+
+function TabBarButton(props: TabBarButtonProps) {
+  const { style, onPress, onPressIn, onPressOut } = props;
+  const selected = props['aria-selected'];
+  const pop = useSharedValue(1);
+  const pressed = useSharedValue(0);
+
+  useEffect(() => {
+    if (!selected) return;
+    pop.value = withSequence(withSpring(1.1, Spring.bouncy), withSpring(1, Spring.gentle));
+  }, [pop, selected]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pop.value * (1 - pressed.value * 0.04) }],
+  }));
+
+  return (
+    <AnimatedPressable
+      {...props}
+      onPress={(e) => {
+        Haptics.selectionAsync().catch(() => {});
+        onPress?.(e);
+      }}
+      onPressIn={(e) => {
+        pressed.value = withTiming(1, { duration: Durations.instant, easing: Easing.out(Easing.ease) });
+        onPressIn?.(e);
+      }}
+      onPressOut={(e) => {
+        pressed.value = withTiming(0, { duration: Durations.fast, easing: Easing.out(Easing.ease) });
+        onPressOut?.(e);
+      }}
+      style={[style, animatedStyle]}
+    />
+  );
+}
 
 /**
  * BottomTabBar sizes itself as TABBAR_HEIGHT_UIKIT (49) + safe area — a base it
@@ -95,10 +153,6 @@ export default function TabLayout() {
   const tabBarPaddingBottom = insets.bottom + TAB_BAR_CLEARANCE + tabBarLabelRoom;
   const tabBarHeight = TAB_BAR_CONTENT_BASE + tabBarPaddingBottom;
 
-  const handleTabPress = () => {
-    Haptics.selectionAsync().catch(() => {});
-  };
-
   return (
     <Tabs
       initialRouteName="social"
@@ -141,17 +195,7 @@ export default function TabLayout() {
         tabBarAllowFontScaling: true,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         tabBarButton: (props: any) => (
-          <Pressable
-            {...props}
-            onPress={(e) => {
-              handleTabPress();
-              props.onPress?.(e);
-            }}
-            style={({ pressed }) => [
-              props.style,
-              pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] },
-            ]}
-          />
+          <TabBarButton {...(props as TabBarButtonProps)} />
         ),
       }}
     >

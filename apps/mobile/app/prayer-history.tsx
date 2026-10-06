@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { memo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,21 +9,35 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { Easing, FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
 import { getDeviceId } from '@/lib/device';
 import { Colors, Radii, Typography } from '@/constants/theme';
+import { Durations, Easings } from '@/constants/motion';
 import {
   getPrayerStatusConfig,
   getTimeAgo,
   type PrayerItem,
 } from '@/lib/prayer';
 
-function PrayerCard({ item, onPress }: { item: PrayerItem; onPress: () => void }) {
+interface PrayerCardProps {
+  item: PrayerItem;
+  /** Takes the id rather than a per-item closure so memo() actually holds. */
+  onOpen: (id: string) => void;
+}
+
+const PrayerCard = memo(function PrayerCard({ item, onOpen }: PrayerCardProps) {
   const config = getPrayerStatusConfig(item.estado);
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.card}>
+    <TouchableOpacity
+      onPress={() => onOpen(item.id)}
+      activeOpacity={0.7}
+      style={styles.card}
+      accessibilityRole="button"
+      accessibilityLabel={`Petición de ${item.name}, ${config.label}`}
+    >
       <View style={styles.cardHeader}>
         <View style={styles.statusRow}>
           <Ionicons name={config.icon} size={16} color={config.color} />
@@ -41,7 +55,7 @@ function PrayerCard({ item, onPress }: { item: PrayerItem; onPress: () => void }
       )}
     </TouchableOpacity>
   );
-}
+});
 
 export default function PrayerHistoryScreen() {
   const insets = useSafeAreaInsets();
@@ -75,6 +89,20 @@ export default function PrayerHistoryScreen() {
     await load(true);
     setRefreshing(false);
   }, [load]);
+
+  const handleOpen = useCallback(
+    (id: string) => {
+      router.push(`/prayer/${id}`);
+    },
+    [router]
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: PrayerItem }) => <PrayerCard item={item} onOpen={handleOpen} />,
+    [handleOpen]
+  );
+
+  const handleKeyExtractor = useCallback((item: PrayerItem) => item.id, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -136,23 +164,23 @@ export default function PrayerHistoryScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          data={requests}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <PrayerCard
-              item={item}
-              onPress={() => router.push(`/prayer/${item.id}`)}
-            />
-          )}
-          contentContainerStyle={[
-            styles.list,
-            { paddingBottom: insets.bottom + 16 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-        />
+        <Animated.View
+          entering={FadeIn.duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+          style={{ flex: 1 }}
+        >
+          <FlatList
+            data={requests}
+            keyExtractor={handleKeyExtractor}
+            renderItem={renderItem}
+            contentContainerStyle={[
+              styles.list,
+              { paddingBottom: insets.bottom + 16 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+          />
+        </Animated.View>
       )}
     </View>
   );

@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { BottomSheetBackdrop, BottomSheetModal } from '@gorhom/bottom-sheet';
+import Animated, { Easing, FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Radii } from '@/constants/theme';
+import { Durations, Easings } from '@/constants/motion';
+
+/** Lets the sheet start rising before its contents resolve. */
+const CONTENT_FADE_DELAY_MS = 60;
 
 interface AppBottomSheetProps {
   visible: boolean;
@@ -118,10 +123,19 @@ const presentedRef = useRef(false);
        * BottomSheetView also registered itself as the sheet scrollable, which
        * overrode the BottomSheetScrollView children and kept the pan gesture
        * from ever deferring to their scroll offset.
+       *
+       * Animated.View is still an in-flow View carrying `flex: 1`, so none of
+       * the above applies. The library already animates the sheet rising, so the
+       * content only fades: a second displacement on top of the sheet's own
+       * movement reads as busy rather than layered. The short delay lets the
+       * sheet start moving before its contents resolve.
        */}
-      <View style={[styles.content, { paddingBottom: insets.bottom + 16 }]}>
+      <Animated.View
+        entering={FadeIn.delay(CONTENT_FADE_DELAY_MS).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+        style={[styles.content, { paddingBottom: insets.bottom + 16 }]}
+      >
         {children}
-      </View>
+      </Animated.View>
     </BottomSheetModal>
   );
 }

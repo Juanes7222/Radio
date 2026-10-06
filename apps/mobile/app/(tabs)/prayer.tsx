@@ -18,11 +18,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from 'expo-router/js-tabs';
 import { useRouter } from 'expo-router';
-import Animated, { FadeInDown, FadeIn, Easing } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  ZoomIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BACKEND_URL } from '@/constants/api';
 import { legalUrl } from '@/constants/legalDocuments';
 import { Colors, Typography } from '@/constants/theme';
+import { Durations, Easings, Spring } from '@/constants/motion';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { getDeviceId } from '@/lib/device';
 import { openExternalUrl } from '@/lib/externalLinks';
@@ -46,6 +58,23 @@ export default function PrayerScreen() {
   const [name, setName] = useState('');
   const [request, setRequest] = useState('');
   const [acceptsDataTreatment, setAcceptsDataTreatment] = useState(false);
+
+  // The consent checkbox is a legal gate, so its state change is the one the
+  // user must be certain landed. A spring pop gives the toggle a physical
+  // acknowledgement instead of relying on the glyph swap alone.
+  const consentScale = useSharedValue(1);
+  useEffect(() => {
+    consentScale.value = acceptsDataTreatment
+      ? withSequence(
+          withTiming(0.78, { duration: Durations.instant }),
+          withSpring(1.2, Spring.bouncy),
+          withSpring(1, Spring.gentle)
+        )
+      : withTiming(0.92, { duration: Durations.fast, easing: Easing.out(Easing.ease) });
+  }, [acceptsDataTreatment, consentScale]);
+  const consentIconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: consentScale.value }],
+  }));
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<PrayerFieldErrors>({});
@@ -185,23 +214,42 @@ export default function PrayerScreen() {
         )}
         {sent ? (
           <Animated.View
-            entering={FadeInDown.duration(320).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+            entering={FadeInDown.duration(Durations.slow).easing(Easing.bezier(...Easings.enter))}
+            exiting={FadeOut.duration(Durations.fast).easing(Easing.bezier(...Easings.exit))}
             style={[styles.successCard, isSmallScreen && styles.successCardSmall]}
           >
-            <Ionicons name="checkmark-circle" size={isSmallScreen ? 36 : 48} color={Colors.success} />
-            <Text style={[styles.successTitle, isSmallScreen && styles.successTitleSmall]}>
+            <Animated.View
+              entering={ZoomIn.duration(Durations.normal).delay(120).easing(Easing.bezier(...Easings.spring))}
+              style={styles.successIconWrap}
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
+            >
+              <Ionicons name="checkmark-circle" size={isSmallScreen ? 36 : 48} color={Colors.success} />
+            </Animated.View>
+            <Animated.Text
+              entering={FadeInDown.delay(200).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+              style={[styles.successTitle, isSmallScreen && styles.successTitleSmall]}
+            >
               Petición enviada
-            </Text>
-            <Text style={[styles.successText, isSmallScreen && styles.successTextSmall]}>
+            </Animated.Text>
+            <Animated.Text
+              entering={FadeInDown.delay(260).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+              style={[styles.successText, isSmallScreen && styles.successTextSmall]}
+            >
               Tu petición ha sido recibida. Oraremos por ti.
-            </Text>
-            <TouchableOpacity onPress={handleReset} style={styles.resetBtn} activeOpacity={0.8}>
-              <Text style={styles.resetBtnText}>Enviar otra petición</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/prayer-history')} style={styles.viewHistoryBtn} activeOpacity={0.8}>
-              <Ionicons name="list-outline" size={14} color={Colors.accent} />
-              <Text style={styles.viewHistoryBtnText}>Ver mis peticiones</Text>
-            </TouchableOpacity>
+            </Animated.Text>
+            <Animated.View
+              entering={FadeIn.delay(340).duration(Durations.normal)}
+              style={styles.successActions}
+            >
+              <TouchableOpacity onPress={handleReset} style={styles.resetBtn} activeOpacity={0.8}>
+                <Text style={styles.resetBtnText}>Enviar otra petición</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/prayer-history')} style={styles.viewHistoryBtn} activeOpacity={0.8}>
+                <Ionicons name="list-outline" size={14} color={Colors.accent} />
+                <Text style={styles.viewHistoryBtnText}>Ver mis peticiones</Text>
+              </TouchableOpacity>
+            </Animated.View>
           </Animated.View>
         ) : (
           <Animated.View entering={FadeInDown.delay(100).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))} style={styles.form}>
@@ -281,12 +329,20 @@ export default function PrayerScreen() {
               accessibilityState={{ checked: acceptsDataTreatment }}
               accessibilityLabel="Acepto la Política de Tratamiento de Datos Personales"
             >
-              <Ionicons
-                name={acceptsDataTreatment ? 'checkmark-circle' : 'ellipse-outline'}
-                size={20}
-                color={acceptsDataTreatment ? Colors.success : Colors.textAltFaint}
-              />
-              <Text style={styles.consentText}>
+              <View
+              style={styles.consentIconWrap}
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
+            >
+              <Animated.View style={consentIconStyle}>
+                <Ionicons
+                  name={acceptsDataTreatment ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={20}
+                  color={acceptsDataTreatment ? Colors.success : Colors.textAltFaint}
+                />
+              </Animated.View>
+            </View>
+            <Text style={styles.consentText}>
                 He leído y acepto la{' '}
                 <Text
                   style={styles.consentLink}
@@ -395,6 +451,12 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 2,
   },
+  consentIconWrap: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   consentText: {
     ...Typography.caption,
     flex: 1,
@@ -429,6 +491,18 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     gap: 12,
+  },
+  successIconWrap: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successActions: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
   },
   successCardSmall: {
     padding: 16,
