@@ -9,23 +9,39 @@
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
     
-    <!-- SEO -->
-    <title>La Voz de la Verdad | Radio Cristiana Online</title>
-    <meta name="description" content="Emisora cristiana online transmitiendo 24/7 desde Colombia. Escucha la mejor música de alabanza, adoración y mensajes bíblicos que edifican tu fe. Únete a nuestros cultos en vivo." />
-    <meta name="keywords" content="radio cristiana, música cristiana, adoración, alabanza, predicaciones, iglesia cristiana, streaming cristiano, Jesús Adrián Romero, Marcos Witt, mensajes bíblicos, Cartago" />
+    <!-- SEO: home values below are the fallback for `vite dev` and for any
+         path that is not a public route. The build rewrites this whole block
+         per route in vite.config.ts (writeBundle), so each URL in dist ships
+         its own title, description, canonical and social tags. -->
+    <!--seo:head--><title>La Voz de la Verdad | Radio Cristiana Online 24/7</title>
+    <meta name="description" content="Emisora cristiana online transmitiendo 24/7 desde Colombia. Escucha música de alabanza, adoración y mensajes bíblicos que edifican tu fe. Únete a nuestros cultos en vivo." />
     <meta name="author" content="La Voz de la Verdad" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <link rel="canonical" href="https://lavozverdad.com/" />
+    <!--/seo:head-->
     
-    <!-- Open Graph (Facebook/WhatsApp) -->
-    <meta property="og:title" content="La Voz de la Verdad | Radio Cristiana" />
-    <meta property="og:description" content="Acompáñanos 24/7 con la mejor música de alabanza, adoración y mensajes que edifican. Conéctate a nuestras transmisiones en vivo." />
+    <!-- Open Graph / Twitter -->
+    <!--seo:social--><meta property="og:site_name" content="La Voz de la Verdad" />
+    <meta property="og:locale" content="es_CO" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/icon-512x512.png" />
-    
-    <!-- Twitter -->
+    <meta property="og:url" content="https://lavozverdad.com/" />
+    <meta property="og:title" content="La Voz de la Verdad | Radio Cristiana Online" />
+    <meta property="og:description" content="Emisora cristiana online transmitiendo 24/7 desde Colombia. Escucha música de alabanza, adoración y mensajes bíblicos que edifican tu fe." />
+    <meta property="og:image" content="https://lavozverdad.com/og-image.png" />
+    <meta property="og:image:secure_url" content="https://lavozverdad.com/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="La Voz de la Verdad" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="La Voz de la Verdad | Radio Cristiana" />
-    <meta name="twitter:description" content="Acompáñanos 24/7 con la mejor música de alabanza, adoración y mensajes que edifican. Conéctate a nuestras transmisiones en vivo." />
-    <meta name="twitter:image" content="/icon-512x512.png" />
+    <meta name="twitter:title" content="La Voz de la Verdad | Radio Cristiana Online" />
+    <meta name="twitter:description" content="Emisora cristiana online transmitiendo 24/7 desde Colombia. Escucha música de alabanza, adoración y mensajes bíblicos que edifican tu fe." />
+    <meta name="twitter:image" content="https://lavozverdad.com/og-image.png" />
+    <meta name="twitter:image:alt" content="La Voz de la Verdad" />
+    <!--/seo:social-->
+    
+    <!-- Structured data -->
+    <script type="application/ld+json"><!--seo:jsonld-->{}<!--/seo:jsonld--></script>
     
     <!-- iOS / Apple Touch Icon (single 180px: iOS scales down) -->
     <meta name="mobile-web-app-capable" content="yes" />

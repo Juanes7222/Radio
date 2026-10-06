@@ -109,3 +109,48 @@ and `http://localhost:4173` are already there).
   unify duplicated DetailRow/status-badge maps/skeletons, single
   SegmentedControl and Checkbox, keyboard access for the upload dropzone,
   replace the native confirm() in AdminScheduleCategories.
+
+## SEO metadata (as of Sep 2026)
+
+The public site is a client-rendered SPA served by a single
+`dist/index.html`, so before this change all seven public URLs shared one
+title and one description. Search metadata is now generated per route.
+
+- `apps/web/src/config/seo.config.ts` is the single source of truth:
+  `SITE_URL` (canonical `https://lavozverdad.com`), `PUBLIC_ROUTES`,
+  `ROUTE_META`, and the `buildHeadTags` / `buildSocialTags` / `buildJsonLd` /
+  `buildSitemapXml` generators. Keep it free of browser globals — it is loaded
+  at build time.
+- `index.html` marks three regions with `<!--seo:head-->`,
+  `<!--seo:social-->` and `<!--seo:jsonld-->` comment pairs. The build
+  replaces each region (markers included) per route; the static values in
+  `index.html` are only the `vite dev` / non-public-route fallback.
+- `vite.config.ts` owns two plugins: `perRouteSeo` (`apply: 'build'`) writes
+  `dist/<route>/index.html` for every public route plus `dist/sitemap.xml` in
+  `writeBundle`; `devRouteSeo` (`apply: 'serve'`) does the same substitution
+  through `transformIndexHtml`. In dev the requested route is only in
+  `ctx.originalUrl` — Vite normalises `ctx.path` to `/index.html`.
+- nginx needs no change to serve the per-route files: `try_files $uri $uri/`
+  plus `index index.html` already resolves `/programacion` to
+  `dist/programacion/index.html`. HTML is absent from
+  `snippets/static-cache.conf`, so heads are not pinned by a long cache.
+- `components/layout/useRouteMeta.ts` re-applies the same tags on SPA
+  navigation so a link shared after in-app navigation is not mislabelled.
+- Canonical host: `www.lavozverdad.com` and the whole `vozyverdad.com` pair
+  301 to `https://lavozverdad.com` in `scripts/nginx/domains/`. Note that
+  `backend/.env.example` still uses `https://www.lavozverdad.com` for
+  `PUBLIC_URL`; that value feeds the YouTube webhook callback and the worker
+  upload URL, so changing it requires re-registering the callback.
+- Body markup is deliberately NOT prerendered. `LegalDocPage` and
+  `PageTransition` set framer-motion `initial={{ opacity: 0 }}`, so
+  `renderToString` would emit invisible content, and hydrating it would mean
+  reproducing the whole provider stack from `main.tsx` in Node. Per-route head
+  tags deliver the search value without either risk.
+- `/` and `/programacion` still ship an empty `<div id="root">`: their content
+  comes from the API at runtime. Prerendering them would couple the deploy to
+  the backend and freeze the schedule until the next release.
+- `tests/perf/static-assets.test.ts` covers the SEO invariants, including the
+  `og:image` reference that previously pointed at a nonexistent
+  `/icon-512x512.png`. `public/og-image.png` (1200x630) has its own byte
+  ceiling instead of the icon-set one.
+
