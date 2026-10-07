@@ -93,6 +93,39 @@ MiniPlayer).
 - `apps/web/PRODUCT.md` records the product truth and
   `apps/web/.impeccable/surfaces/` the surface direction contract.
 
+## Unread prayer answers (Oct 2026)
+
+The mobile app tells a listener they have an answer waiting. Two surfaces, both
+driven by the same count, because one of them is the only thing visible all day.
+
+- **The tab bar badge is the load-bearing one.** `hooks/usePrayerAnswers.tsx` is
+  a provider mounted in `app/_layout.tsx` that owns a single
+  `unreadAnswerCount` (poll every 60 s, foreground only, refetch on resume). It
+  lives in a provider rather than in a hook because the tab bar and the prayer
+  screens are separate trees and must not disagree. The number is rendered as a
+  pill inside `tabBarIcon` (`UnreadAnswersBadge` in `app/(tabs)/_layout.tsx`),
+  following the `LiveDot` precedent, not via `tabBarBadge` — that option only
+  accepts a `TextStyle` and cannot be rounded into a pill. It is **signal
+  indigo, not `--tally`**: tally is reserved for on-air state, and the Redes tab
+  already pulses it.
+- `app/prayer/[id].tsx` calls `acknowledgeAnswer()` optimistically right after
+  posting the read receipt, so the badge drops the moment the answer is opened
+  instead of waiting out the poll. A failed receipt self-heals on the next poll.
+- **`app/prayer-history.tsx` derives its own count from the rows it rendered**
+  (`requests.filter(hasUnreadAnswer)`), not from `unreadAnswerCount`, so the
+  header summary and the cards cannot drift apart. The unread card stacks four
+  cues on purpose — left edge bar, lifted card tint, a `Respuesta nueva` label
+  and a breathing dot — because the green `RESPONDIDA` chip alone reads as
+  "done". The dot is a slow opacity breathe gated on `useReducedMotion`, and the
+  answer gets `numberOfLines={2}` only while unread so the label does not eat the
+  only visible line of the response.
+- `hasUnreadAnswer` tests `answerReadAt === null`, never falsy. A missing field
+  means an older backend, and treating that as unread would light every badge
+  after an app-only deploy.
+- The prayer module still does not go through `@radio/types` / `@radio/api`:
+  `apps/mobile/lib/prayer.ts` keeps its own `PrayerItem`. Widen both contracts in
+  the same change when this area is next touched.
+
 ## Admin design system (as of Aug 2026)
 
 - The admin panel has its own scoped theme via the `.admin-theme` class

@@ -15,6 +15,9 @@ export interface PrayerRequest {
   estado: PrayerStatus;
   respuesta: string | null;
   answeredAt: string | null;
+  /** When the listener who wrote the petition opened the answer. */
+  answerReadAt: string | null;
+  /** Unread marker for the station team, stamped by the admin panel. */
   readAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -42,6 +45,13 @@ export interface PrayerListResponse {
   totalPages: number;
   counts: PrayerStatusCounts;
   unreadCount: number;
+}
+
+/** `GET /api/prayer/my/:deviceId` — the listener's own petitions. */
+export interface MyPrayerRequestsResponse {
+  rows: PrayerRequest[];
+  /** Answers waiting to be opened, for the listener's own badge. */
+  unreadAnswerCount: number;
 }
 
 export interface PrayerCreatedEvent {

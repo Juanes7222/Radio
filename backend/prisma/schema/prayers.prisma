@@ -1,15 +1,19 @@
 model PrayerRequest {
-  id         String    @id @default(uuid())
-  deviceId   String?
-  device     Device?   @relation(fields: [deviceId], references: [deviceId])
-  name       String
-  request    String
-  estado     String    @default("PENDIENTE")
-  respuesta  String?
-  answeredAt DateTime?
-  readAt     DateTime?
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
+  id           String    @id @default(uuid())
+  deviceId     String?
+  device       Device?   @relation(fields: [deviceId], references: [deviceId])
+  name         String
+  request      String
+  estado       String    @default("PENDIENTE")
+  respuesta    String?
+  answeredAt   DateTime?
+  // readAt is the station team's unread marker, written by the admin panel.
+  // answerReadAt belongs to the listener: it stamps when the owner opened the
+  // answer and is reset whenever the team rewrites the response text.
+  answerReadAt DateTime?
+  readAt       DateTime?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   @@map("prayer_requests")
   @@index([deviceId])

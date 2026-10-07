@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,16 +9,27 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { Easing, FadeIn } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
 import { getDeviceId } from '@/lib/device';
 import { Colors, Radii, Typography } from '@/constants/theme';
 import { Durations, Easings } from '@/constants/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
   getPrayerStatusConfig,
   getTimeAgo,
+  hasUnreadAnswer,
+  unreadAnswerSummary,
   type PrayerItem,
 } from '@/lib/prayer';
 
@@ -30,14 +41,38 @@ interface PrayerCardProps {
 
 const PrayerCard = memo(function PrayerCard({ item, onOpen }: PrayerCardProps) {
   const config = getPrayerStatusConfig(item.estado);
+  const unread = hasUnreadAnswer(item);
+  const reducedMotion = useReducedMotion();
+
+  // A slow breathe, not a flash: the card is already the loudest thing on screen
+  // thanks to the edge bar and the label, so the dot only has to keep the eye
+  // from settling on it as settled.
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    if (!unread || reducedMotion) {
+      pulse.value = withTiming(1, { duration: Durations.fast });
+      return;
+    }
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(0.3, { duration: Durations.ambient / 2, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: Durations.ambient / 2, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      false
+    );
+  }, [unread, reducedMotion, pulse]);
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+
   return (
     <TouchableOpacity
       onPress={() => onOpen(item.id)}
       activeOpacity={0.7}
-      style={styles.card}
+      style={[styles.card, unread && styles.cardUnread]}
       accessibilityRole="button"
-      accessibilityLabel={`Petición de ${item.name}, ${config.label}`}
+      accessibilityLabel={`Petición de ${item.name}, ${config.label}${unread ? ', respuesta nueva sin leer' : ''}`}
     >
+      {unread && <View style={styles.unreadEdge} />}
       <View style={styles.cardHeader}>
         <View style={styles.statusRow}>
           <Ionicons name={config.icon} size={16} color={config.color} />
@@ -48,9 +83,32 @@ const PrayerCard = memo(function PrayerCard({ item, onOpen }: PrayerCardProps) {
       <Text style={styles.cardName}>{item.name}</Text>
       <Text style={styles.cardRequest} numberOfLines={2}>{item.request}</Text>
       {item.respuesta && (
-        <View style={styles.responsePreview}>
-          <Ionicons name="chatbubble-ellipses" size={14} color={Colors.accent} />
-          <Text style={styles.responsePreviewText} numberOfLines={1}>{item.respuesta}</Text>
+        <View style={[styles.responsePreview, unread && styles.responsePreviewUnread]}>
+          {unread && (
+            <View
+              style={styles.unreadLabelRow}
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
+            >
+              <Animated.View style={[styles.unreadDot, pulseStyle]}>
+                <View style={styles.unreadDotCore} />
+              </Animated.View>
+              <Text style={styles.unreadLabel}>Respuesta nueva</Text>
+            </View>
+          )}
+          <View style={styles.responseRow}>
+            <Ionicons
+              name="chatbubble-ellipses"
+              size={14}
+              color={unread ? Colors.accentLight : Colors.accent}
+            />
+            <Text
+              style={styles.responsePreviewText}
+              numberOfLines={unread ? 2 : 1}
+            >
+              {item.respuesta}
+            </Text>
+          </View>
         </View>
       )}
     </TouchableOpacity>
@@ -104,6 +162,13 @@ export default function PrayerHistoryScreen() {
 
   const handleKeyExtractor = useCallback((item: PrayerItem) => item.id, []);
 
+  // Derived from the rows on screen rather than from the server count, so the
+  // summary and the cards can never disagree with each other.
+  const unreadAnswers = useMemo(
+    () => requests.filter(hasUnreadAnswer).length,
+    [requests]
+  );
+
   useFocusEffect(
     useCallback(() => {
       load();
@@ -126,7 +191,17 @@ export default function PrayerHistoryScreen() {
         >
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.heading}>Mis peticiones</Text>
+        <View style={styles.headingBlock}>
+          <Text style={styles.heading}>Mis peticiones</Text>
+          {unreadAnswers > 0 && (
+            <Text
+              style={styles.headingSummary}
+              accessibilityLiveRegion="polite"
+            >
+              {unreadAnswerSummary(unreadAnswers)}
+            </Text>
+          )}
+        </View>
         <TouchableOpacity
           onPress={() => load()}
           style={styles.refreshBtn}
@@ -213,6 +288,8 @@ const styles = StyleSheet.create({
     ...Typography.screenTitle,
     color: Colors.text,
   },
+  headingBlock: { alignItems: 'center', gap: 2 },
+  headingSummary: { ...Typography.caption, color: Colors.accentLight },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   emptyText: { ...Typography.body, color: Colors.textMuted, textAlign: 'center' },
   emptyHint: {
@@ -242,6 +319,19 @@ const styles = StyleSheet.create({
     borderColor: Colors.surfaceSoft,
     padding: 16,
     gap: 8,
+    overflow: 'hidden',
+  },
+  cardUnread: {
+    backgroundColor: Colors.signalFaint,
+    borderColor: Colors.signalMuted,
+  },
+  unreadEdge: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: Colors.signal,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -254,12 +344,36 @@ const styles = StyleSheet.create({
   cardName: { ...Typography.bodyStrong, color: Colors.text, fontSize: 13 },
   cardRequest: { ...Typography.body, color: Colors.textAlt, fontSize: 13, lineHeight: 18 },
   responsePreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 6,
     backgroundColor: Colors.signalFaint,
     borderRadius: 8,
     padding: 8,
   },
+  responsePreviewUnread: {
+    backgroundColor: Colors.signalSoft,
+    borderWidth: 1,
+    borderColor: Colors.signalMuted,
+  },
+  unreadLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  unreadLabel: {
+    ...Typography.eyebrow,
+    fontSize: 10,
+    lineHeight: 13,
+    letterSpacing: 1,
+    color: Colors.accentLight,
+  },
+  unreadDot: {
+    width: 7,
+    height: 7,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  unreadDotCore: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: Colors.signalLight,
+  },
+  responseRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   responsePreviewText: { ...Typography.caption, color: Colors.accentLight, flex: 1 },
 });

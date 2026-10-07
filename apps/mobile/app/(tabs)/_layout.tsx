@@ -5,7 +5,7 @@
 // option types all come from one supported entry point.
 import { Tabs } from 'expo-router/js-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet, Pressable, AccessibilityInfo, PixelRatio } from 'react-native';
+import { View, Text, StyleSheet, Pressable, AccessibilityInfo, PixelRatio } from 'react-native';
 import type { ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   Easing,
+  ZoomIn,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -22,8 +23,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useEffect, useState } from 'react';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
-import { Colors } from '@/constants/theme';
-import { Durations, Spring } from '@/constants/motion';
+import { usePrayerAnswers } from '@/hooks/usePrayerAnswers';
+import { Colors, Radii, Typography } from '@/constants/theme';
+import { Durations, Easings, Spring } from '@/constants/motion';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -141,8 +143,60 @@ const liveStyles = StyleSheet.create({
   halo: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.tally, opacity: 0.5 },
 });
 
+/**
+ * Count of prayer answers this device has not opened yet.
+ *
+ * A number rather than a dot: the listener's real question is "how many", and a
+ * dot next to the label would be invisible on the unselected tab where the icon
+ * is grey and small. Signal indigo, not tally, because tally belongs to on-air
+ * state only. The pill is opaque with a bar-coloured rim so it stays legible on
+ * top of either the icon or the blur behind the bar.
+ *
+ * `entering` fires on mount only, so the badge scales in the moment the first
+ * answer is waiting and stays still as the count then goes up or down.
+ */
+function UnreadAnswersBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+
+  return (
+    <Animated.View
+      entering={ZoomIn.duration(Durations.normal).easing(Easing.bezier(...Easings.spring))}
+      style={badgeStyles.container}
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Text style={badgeStyles.text}>{count > 9 ? '9+' : count}</Text>
+    </Animated.View>
+  );
+}
+
+const badgeStyles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    top: -7,
+    right: -13,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.signal,
+    borderWidth: 1.5,
+    borderColor: 'rgba(8,10,30,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  text: {
+    ...Typography.captionStrong,
+    fontSize: 10,
+    lineHeight: 12,
+    letterSpacing: 0,
+    color: Colors.textOnSignal,
+  },
+});
+
 export default function TabLayout() {
   const { liveUrl } = useFacebookLive();
+  const { unreadAnswerCount } = usePrayerAnswers();
   const insets = useSafeAreaInsets();
 
   // The tab bar's height is ours to set: BottomTabBar spreads the screen
@@ -235,8 +289,22 @@ export default function TabLayout() {
         options={{
           title: 'Oración',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="body-outline" size={size - 2} color={color} />
+            <View>
+              <Ionicons name="body-outline" size={size - 2} color={color} />
+              <UnreadAnswersBadge count={unreadAnswerCount} />
+            </View>
           ),
+          // Swapping the whole label is the only hook the vendored tab bar
+          // offers, so the unread count costs the default iOS "…, tab, 3 of 5"
+          // ordinal. That trade is worth it: without a label here a screen reader
+          // never learns an answer arrived. Left undefined at zero so the tab
+          // keeps announcing its plain title.
+          tabBarAccessibilityLabel:
+            unreadAnswerCount === 1
+              ? 'Oración, 1 respuesta sin leer'
+              : unreadAnswerCount > 1
+                ? `Oración, ${unreadAnswerCount} respuestas sin leer`
+                : undefined,
         }}
       />
 

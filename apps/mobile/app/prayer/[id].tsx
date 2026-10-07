@@ -16,6 +16,7 @@ import { BACKEND_URL } from '@/constants/api';
 import { Colors, Typography } from '@/constants/theme';
 import { Durations, Easings } from '@/constants/motion';
 import { getDeviceId } from '@/lib/device';
+import { usePrayerAnswers } from '@/hooks/usePrayerAnswers';
 import { getPrayerStatusConfig, type PrayerItem } from '@/lib/prayer';
 
 const RESPONSE_TEXT = '#e0e7ff';
@@ -26,6 +27,7 @@ export default function PrayerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { acknowledgeAnswer } = usePrayerAnswers();
   const [detail, setDetail] = useState<PrayerItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,11 +46,16 @@ export default function PrayerDetailScreen() {
           const data = await res.json();
           setDetail(data);
 
-          if (!data.readAt && data.respuesta) {
-            fetch(`${BACKEND_URL}/api/prayer/${id}/read`, {
+          // Opening the answer IS the read receipt, so it goes to its own
+          // endpoint: POST /:id/read stamps the station team's unread marker, and
+          // writing that column from a phone would clear the admin inbox badge
+          // without anyone in the panel having opened the petition.
+          if (deviceId && data.respuesta && data.answerReadAt === null) {
+            acknowledgeAnswer();
+            fetch(`${BACKEND_URL}/api/prayer/${id}/answer-read`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', ...(deviceId ? { 'x-device-id': deviceId } : {}) },
-              body: JSON.stringify(deviceId ? { deviceId } : {}),
+              headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
+              body: JSON.stringify({ deviceId }),
             }).catch(() => {});
           }
         } else if (res.status === 403) {
@@ -63,7 +70,7 @@ export default function PrayerDetailScreen() {
       }
     }
     load();
-  }, [id]);
+  }, [id, acknowledgeAnswer]);
 
   if (loading) {
     return (

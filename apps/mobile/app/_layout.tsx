@@ -18,6 +18,7 @@ import { IBMPlexMono_500Medium } from '@expo-google-fonts/ibm-plex-mono';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { initTrackPlayer, PlaybackService } from '../service';
 import { FacebookLiveProvider } from '@/hooks/useFacebookLive';
+import { PrayerAnswersProvider } from '@/hooks/usePrayerAnswers';
 import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
 import { ensureNotificationChannels, registerDevice, updateFCMToken } from '@/lib/device';
 import { NoticeOverlay } from '@/components/NoticeOverlay';
@@ -112,10 +113,12 @@ export default function RootLayout() {
       <BottomSheetModalProvider>
         <SafeAreaProvider>
           <FacebookLiveProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" />
-            </Stack>
-            <NoticeOverlay />
+            <PrayerAnswersProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" />
+              </Stack>
+              <NoticeOverlay />
+            </PrayerAnswersProvider>
           </FacebookLiveProvider>
           <PerfOverlay />
           <StatusBar style="light" />

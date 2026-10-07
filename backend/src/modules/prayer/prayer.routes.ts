@@ -42,6 +42,18 @@ function isValidDeviceId(value: unknown): value is string {
   return typeof value === "string" && DEVICE_ID_PATTERN.test(value);
 }
 
+/**
+ * The deviceId the caller claims, from whichever of the three carriers it used.
+ * Body first so an explicit payload wins over a stale query string.
+ */
+function claimedDeviceId(req: Request): string | null {
+  const body = req.body as { deviceId?: unknown } | undefined;
+  if (typeof body?.deviceId === "string") return body.deviceId;
+  if (typeof req.query.deviceId === "string") return req.query.deviceId;
+  const header = req.headers["x-device-id"];
+  return typeof header === "string" ? header : null;
+}
+
 const BULK_MAX_IDS = 100;
 
 function parseBulkIds(body: unknown): string[] | null {
@@ -141,6 +153,7 @@ router.post("/", async (req: Request, res: Response) => {
       estado: entry.estado,
       respuesta: entry.respuesta,
       answeredAt: entry.answeredAt,
+      answerReadAt: entry.answerReadAt,
       readAt: entry.readAt,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
@@ -342,12 +355,17 @@ router.get("/my/:deviceId", async (req: Request, res: Response) => {
   }
 
   try {
-    const rows = await prisma.prayerRequest.findMany({
-      where: { deviceId },
-      orderBy: { createdAt: "desc" },
-    });
+    const [rows, unreadAnswerCount] = await Promise.all([
+      prisma.prayerRequest.findMany({
+        where: { deviceId },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.prayerRequest.count({
+        where: { deviceId, respuesta: { not: null }, answerReadAt: null },
+      }),
+    ]);
 
-    res.json({ rows });
+    res.json({ rows, unreadAnswerCount });
   } catch (err) {
     logger.error("PrayerRoutes", "Error fetching my prayer requests", {
       error: err instanceof Error ? err.message : String(err),
@@ -374,9 +392,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     // allow unauthenticated fetch by id (id is a random UUID capability).
     // If a deviceId is provided, enforce ownership.
     if (!isAdminAuthenticated(req)) {
-      const clientDeviceId =
-        (typeof req.query.deviceId === "string" ? req.query.deviceId : null) ||
-        (typeof req.headers["x-device-id"] === "string" ? (req.headers["x-device-id"] as string) : null);
+      const clientDeviceId = claimedDeviceId(req);
       if (clientDeviceId && entry.deviceId && clientDeviceId !== entry.deviceId) {
         res.status(403).json({ error: "No autorizado para esta peticion" });
         return;
@@ -443,6 +459,12 @@ router.put("/:id", requireAuth, requirePermission("prayer"), async (req: Request
       const trimmedRespuesta = respuesta.trim();
       nextRespuesta = trimmedRespuesta.length > 0 ? trimmedRespuesta : null;
       updateData.respuesta = nextRespuesta;
+      // A rewritten answer is new content for the listener, so it goes back to
+      // unread. Leaving answerReadAt alone here would silently keep the badge
+      // off after the team edits the response.
+      if (nextRespuesta !== null && nextRespuesta !== current.respuesta) {
+        updateData.answerReadAt = null;
+      }
     }
     if (name !== undefined) {
       updateData.name = name.trim();
@@ -492,6 +514,7 @@ router.put("/:id", requireAuth, requirePermission("prayer"), async (req: Request
       estado: entry.estado,
       respuesta: entry.respuesta,
       answeredAt: entry.answeredAt,
+      answerReadAt: entry.answerReadAt,
       readAt: entry.readAt,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
@@ -525,16 +548,63 @@ router.delete("/:id", requireAuth, requirePermission("prayer"), async (req: Requ
   }
 });
 
+/**
+ * Read receipt for the listener's own copy of the answer.
+ *
+ * Deliberately a separate route from `/:id/read`: that column is the station
+ * team's unread marker (it is what `GET /` counts), so writing it from a phone
+ * would clear the admin inbox badge without anyone in the panel having opened
+ * the petition.
+ *
+ * Ownership is enforced inside the WHERE clause instead of a read-then-write,
+ * which makes the call idempotent and free of a TOCTOU window. A missing
+ * deviceId fails closed: without one there is nothing to prove ownership with.
+ */
+router.post("/:id/answer-read", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const deviceId = claimedDeviceId(req);
+
+  if (!isValidDeviceId(deviceId)) {
+    res.status(400).json({ error: "deviceId invalido" });
+    return;
+  }
+
+  try {
+    const result = await prisma.prayerRequest.updateMany({
+      where: { id: String(id), deviceId, answerReadAt: null },
+      data: { answerReadAt: new Date() },
+    });
+
+    if (result.count === 0) {
+      // Either this id is not the device's own petition, or the answer was
+      // already marked read. Only the first one is an error, so one count tells
+      // them apart; a wrong device gets a 404 rather than a 403 so the route
+      // does not confirm that the id exists at all.
+      const owned = await prisma.prayerRequest.count({
+        where: { id: String(id), deviceId },
+      });
+      if (owned === 0) {
+        res.status(404).json({ error: "Peticion no encontrada" });
+        return;
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error("PrayerRoutes", "Error marking prayer answer as read", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ error: "Error al marcar la respuesta como leida" });
+  }
+});
+
 router.post("/:id/read", async (req: Request, res: Response) => {
   const { id } = req.params;
 
   // Allow admin or owner (or anyone with the UUID for backwards compat).
   // If a deviceId is supplied, verify it matches the prayer's deviceId.
   if (!isAdminAuthenticated(req)) {
-    const clientDeviceId =
-      (typeof req.body?.deviceId === "string" ? req.body.deviceId : null) ||
-      (typeof req.query.deviceId === "string" ? (req.query.deviceId as string) : null) ||
-      (typeof req.headers["x-device-id"] === "string" ? (req.headers["x-device-id"] as string) : null);
+    const clientDeviceId = claimedDeviceId(req);
     if (clientDeviceId) {
       try {
         const entry = await prisma.prayerRequest.findUnique({

@@ -10,6 +10,8 @@ export interface PrayerItem {
   respuesta: string | null;
   createdAt: string;
   answeredAt: string | null;
+  /** When this listener opened the answer. Mirrors PrayerRequest.answerReadAt. */
+  answerReadAt: string | null;
   readAt?: string | null;
 }
 
@@ -27,6 +29,23 @@ export const PRAYER_STATUS_CONFIG: Record<
 
 export function getPrayerStatusConfig(estado: PrayerStatus) {
   return PRAYER_STATUS_CONFIG[estado] ?? PRAYER_STATUS_CONFIG.PENDIENTE;
+}
+
+/**
+ * True when the team has answered and this listener has not opened the answer
+ * yet. The strict `=== null` is deliberate: a missing field means an older
+ * backend, and claiming "unread" on an unknown state would light up every
+ * badge after a deploy that only touched the app.
+ */
+export function hasUnreadAnswer(item: PrayerItem): boolean {
+  return Boolean(item.respuesta) && item.answerReadAt === null;
+}
+
+/** Singular/plural agreement for the "N respuestas sin leer" summary. */
+export function unreadAnswerSummary(count: number): string {
+  return count === 1
+    ? 'Tienes 1 respuesta sin leer'
+    : `Tienes ${count} respuestas sin leer`;
 }
 
 export function getTimeAgo(dateStr: string): string {

@@ -76,6 +76,40 @@ listener writes an opinion, a suggestion, a question or a problem report.
   `{ success: true } | { success: false, errorMessage }` union so callers render
   an inline error instead of crashing.
 
+## Prayer answer read receipt (Oct 2026)
+
+A listener needs to know an answer is waiting, and the push notification is not
+a guarantee: it needs a registered FCM token, which a first run does not have
+until `registerDevice()` succeeds.
+
+- **`readAt` and `answerReadAt` are two different audiences and must stay that
+  way.** `readAt` is the station team's unread marker; `GET /api/prayer` counts
+  `readAt: null` for its `unreadCount` and the admin panel stamps it through
+  `POST /:id/read` and `POST /bulk/read`. `answerReadAt` belongs to the person
+  who wrote the petition. Before this change the mobile detail screen wrote
+  `readAt` too, so opening a petition on a phone cleared the admin inbox badge;
+  it now writes only `answerReadAt`. Do not fold the two columns back together.
+- `PUT /:id` resets `answerReadAt` **only when `respuesta` changes to a
+  different non-empty value**. A rewritten answer is new content and goes back
+  to unread; a plain `estado` edit leaves the receipt alone so the badge does
+  not nag on a bookkeeping change. The existing "only notify when the response
+  text changed" rule for FCM uses the same comparison.
+- `POST /api/prayer/:id/answer-read` requires a valid `deviceId` and enforces
+  ownership inside the `updateMany` WHERE clause rather than a read-then-write,
+  which makes it idempotent and free of a TOCTOU window. A wrong device gets a
+  **404, not a 403**, so the route does not confirm the id exists. A missing
+  `deviceId` fails closed — there is nothing to prove ownership with.
+- `GET /api/prayer/my/:deviceId` returns `{ rows, unreadAnswerCount }`. The
+  count lives in the same payload the list already fetches rather than in a
+  separate polling endpoint, and `unreadAnswerCount` is derived from the same
+  predicate the client uses (`respuesta` non-empty and `answerReadAt` null).
+- Migration `20261012000000_add_prayer_answer_read_at` **backfills** rows that
+  already had a response: they predate the marker, and leaving them NULL would
+  hand every existing device a full inbox of badges the day the app ships.
+- Still true: `/my/:deviceId` and the read endpoints are unauthenticated. The
+  `deviceId` is a bearer capability — knowing one returns every petition that
+  device wrote, including the private `respuesta`.
+
 ## Programs (Oct 2026)
 
 Programs produced outside the station team (a guest recording, a talk show).
