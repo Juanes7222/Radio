@@ -26,6 +26,8 @@ import type {
   ManagedAdminUserInput,
   MediaFile,
   BibleReadingHistoryEntry,
+  FeedbackListResponse,
+  FeedbackUpdatePayload,
   NotificationStats,
   PrayerListResponse,
   PrayerRequestUpdatePayload,
@@ -514,6 +516,44 @@ export function useAdminApi() {
   // una semana en Bogotá, por lo que no hace falta enviar `now` ni fechas
   // desde el frontend.
   const getSchedule = useCallback(() => request<unknown[]>({ url: '/admin-api/station/schedule' }), [request]);
+
+  // ── Opiniones y sugerencias ──────────────────────────────────
+  const getFeedbackMessages = useCallback(
+    (params: { page?: number; limit?: number; estado?: string; categoria?: string; search?: string } = {}) =>
+      request<FeedbackListResponse>({
+        url: '/admin-api/feedback',
+        params,
+      }),
+    [request]
+  );
+
+  const updateFeedbackStatus = useCallback(
+    (id: string, data: FeedbackUpdatePayload) =>
+      request({
+        method: 'PUT',
+        url: `/admin-api/feedback/${id}`,
+        data,
+      }),
+    [request]
+  );
+
+  const markFeedbackRead = useCallback(
+    (id: string) =>
+      request({
+        method: 'POST',
+        url: `/admin-api/feedback/${id}/read`,
+      }),
+    [request]
+  );
+
+  const deleteFeedbackMessage = useCallback(
+    (id: string) =>
+      request({
+        method: 'DELETE',
+        url: `/admin-api/feedback/${id}`,
+      }),
+    [request]
+  );
 
     // ── Peticiones de oración ──────────────────────────────────
     const getPrayerRequests = useCallback(
@@ -1188,6 +1228,10 @@ export function useAdminApi() {
     checkProgramSlot,
     syncProgram,
     getReadingHistory,
+    getFeedbackMessages,
+    updateFeedbackStatus,
+    markFeedbackRead,
+    deleteFeedbackMessage,
     getPendingRequests,
     approveRequest,
     getPrayerRequests,

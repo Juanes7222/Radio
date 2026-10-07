@@ -1,4 +1,4 @@
-import { CalendarClock, CircleQuestionMark, Home, type LucideIcon } from 'lucide-react';
+import { CalendarClock, CircleQuestionMark, Home, MessageSquareText, type LucideIcon } from 'lucide-react';
 
 export interface NavLink {
   to: string;
@@ -13,6 +13,7 @@ export interface NavLink {
 export const PUBLIC_DESTINATIONS: readonly (NavLink & { icon: LucideIcon })[] = [
   { to: '/', label: 'Inicio', icon: Home },
   { to: '/programacion', label: 'Programación', icon: CalendarClock },
+  { to: '/opiniones', label: 'Opiniones', icon: MessageSquareText },
   { to: '/info/who-we-are', label: '¿Quiénes somos?', icon: CircleQuestionMark },
 ];
 

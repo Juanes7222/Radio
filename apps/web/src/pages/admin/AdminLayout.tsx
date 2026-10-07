@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   ListMusic,
-  MessageSquare,
+MessageSquare,
+  MessageSquareText,
   Heart,
   Mic2,
   Mic,
@@ -88,6 +89,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/admin/requests', label: 'Solicitudes', icon: MessageSquare, permission: 'requests' },
       { to: '/admin/prayer', label: 'Oración', icon: Heart, permission: 'prayer' },
+      { to: '/admin/feedback', label: 'Opiniones', icon: MessageSquareText, permission: 'feedback' },
       { to: '/admin/devices', label: 'Dispositivos', icon: Smartphone, permission: 'devices' },
       { to: '/admin/notification-programs', label: 'Programas notificables', icon: BellRing, permission: 'devices' },
       { to: '/admin/notices', label: 'Avisos', icon: Megaphone, permission: 'notices' },

@@ -52,6 +52,47 @@ and `http://localhost:4173` are already there).
 - If a UI change affects behavior, mention edge cases and empty states.
 - If a component is becoming too large, suggest a clean split.
 
+## Opinions (Oct 2026)
+
+`/opiniones` is the third public submission surface, next to song requests and
+prayer requests. `pages/OpinionesPage.tsx` is a public route with its own
+`Header` and `AppFooter`, mounted under `PublicLayout` like the other public
+pages (the layout supplies only the health banner, the transition and the
+MiniPlayer).
+
+- **The form is a sheet of stationery, not a form.** One tall
+  `rounded-2xl border border-border bg-card` with no shadow, divided by
+  `border-border` hairlines. Inputs are borderless (`bg-transparent`) so the
+  ruled line is the only affordance; the hairline turns `text-destructive`
+  colour via `aria-invalid` when a field is wrong, and the error sentence sits
+  under it with `aria-live="polite"`. The letterhead row above the rules is the
+  one place `mono-meta` carries identity rather than data.
+- The motive is a **single-select line** of text options separated by `·`, not a
+  chip bank. `MotiveField` hides the radio inputs with `sr-only` and keeps the
+  focus ring on the visible label.
+- **`--tally` appears exactly once on this page**, in
+  `components/feedback/OnAirStamp.tsx`. The system reserves it for live state
+  and this is the only live moment: after a successful POST the form is replaced
+  by a vector seal (two concentric squares + lamp + `AL AIRE`) that draws itself
+  with `pathLength`. Do not reach for tally on any other part of a public page.
+- No eyebrow above the `h1`, no gradient text, no card shadows: the heading
+  carries its own weight. Copy is sober tuteo with no regionalisms.
+- Client-side validation mirrors `validateFeedbackSubmission` in the backend
+  (`packages/types/src/feedback.ts` exports `FEEDBACK_LIMITS` and
+  `FEEDBACK_MIN_MENSAJE` so both sides read the same numbers). On failure the
+  first offending field takes focus; on success the confirmation heading is
+  focused via a `tabIndex={-1}` ref.
+- Admin moderation is `pages/admin/AdminFeedback.tsx` (list + estado/categoria
+  filters + search + status `Select` + delete). It polls every 60 s instead of
+  using SSE: unlike prayer there is no stream service or one-shot ticket, and
+  the inbox volume does not justify them.
+- Mobile mirrors it at `apps/mobile/app/feedback.tsx`, reached from a card in
+  the **Redes** tab rather than a sixth tab. Same content, mobile tokens
+  (Fraunces display instead of Instrument Serif). The stamp is rebuilt from
+  plain views because RN needs no SVG asset.
+- `apps/web/PRODUCT.md` records the product truth and
+  `apps/web/.impeccable/surfaces/` the surface direction contract.
+
 ## Admin design system (as of Aug 2026)
 
 - The admin panel has its own scoped theme via the `.admin-theme` class

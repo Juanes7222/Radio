@@ -18,6 +18,7 @@ import { RouteFallback } from './components/RouteFallback.tsx'
 // Route-level code splitting: these chunks only load when the user
 // visits the corresponding route, keeping the initial bundle small.
 const ProgramacionPage = lazy(() => import('./pages/ProgramacionPage.tsx'))
+const OpinionesPage = lazy(() => import('./pages/OpinionesPage.tsx'))
 const AboutPage = lazy(() => import('./pages/info/who-we-are.tsx'))
 const PrivacyPolicyPage = lazy(() => import('./pages/info/privacy.tsx'))
 const TermsPage = lazy(() => import('./pages/info/terms.tsx'))
@@ -33,6 +34,7 @@ const AdminPrograms = lazy(() => import('./pages/admin/AdminPrograms.tsx'))
 const AdminReadingHistory = lazy(() => import('./pages/admin/AdminReadingHistory.tsx'))
 const AdminRequests = lazy(() => import('./pages/admin/AdminRequests.tsx'))
 const AdminPrayerRequests = lazy(() => import('./pages/admin/AdminPrayerRequests.tsx'))
+const AdminFeedback = lazy(() => import('./pages/admin/AdminFeedback.tsx'))
 const AdminStreaming = lazy(() => import('./pages/admin/AdminStreaming.tsx'))
 const AdminSchedule = lazy(() => import('./pages/admin/AdminSchedule.tsx'))
 const AdminScheduleCategories = lazy(() => import('./pages/admin/AdminScheduleCategories.tsx'))
@@ -63,6 +65,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route element={<PublicLayout />}>
                   <Route path="/" element={<App />} />
                   <Route path="/programacion" element={<ProgramacionPage />} />
+                  <Route path="/opiniones" element={<OpinionesPage />} />
                   <Route path="/info/who-we-are" element={<AboutPage />} />
                   <Route path="/info/privacy" element={<PrivacyPolicyPage />} />
                   <Route path="/info/terms" element={<TermsPage />} />
@@ -83,6 +86,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="reading-history" element={<AdminReadingHistory />} />
                   <Route path="requests" element={<AdminRequests />} />
                   <Route path="prayer" element={<AdminPrayerRequests />} />
+                  <Route path="feedback" element={<AdminFeedback />} />
                   <Route path="streaming" element={<AdminStreaming />} />
                   <Route path="live" element={<AdminLive />} />
                   <Route path="schedule" element={<AdminSchedule />} />

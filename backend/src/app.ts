@@ -21,6 +21,8 @@ import youtubeRouter from "./modules/youtube/youtube.routes";
 import workerAdminRouter from "./modules/workers/workerAdmin.routes";
 import releasesRouter from "./modules/workers/releases.routes";
 import prayerRouter from "./modules/prayer/prayer.routes";
+import feedbackRouter from "./modules/feedback/feedback.routes";
+import feedbackAdminRouter from "./modules/feedback/feedback.admin.routes";
 import devicesRouter from "./modules/devices/devices.routes";
 import internalTestRouter from "./modules/internal/internalTest.routes";
 import scheduleCategoriesRouter from "./modules/schedule/category.routes";
@@ -68,6 +70,10 @@ export function createApp(): Express {
     "/health",
     "/admin-api/health",
     "/api/health/public",
+    // The feedback inbox polls itself so a new message shows up without a
+    // reload; without this, every poll writes a morgan line into the log the
+    // panel reads.
+    "/admin-api/feedback",
   ];
   app.use(
     morgan("tiny", {
@@ -202,6 +208,8 @@ export function createApp(): Express {
   app.use(`/api${config.programs.artUrlPrefix}`, express.static(programArtDir, programArtOptions));
 
   app.use("/api/prayer", prayerRouter);
+  app.use("/api/feedback", feedbackRouter);
+  app.use("/admin-api/feedback", feedbackAdminRouter);
   app.use("/api/health", healthPublicRouter);
 
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerFile));

@@ -7,6 +7,7 @@
  */
 import axios from 'axios';
 import type {
+  CreateFeedbackPayload,
   ScheduleCategorySummary,
   ScheduleItem,
   SongRequest,
@@ -15,6 +16,10 @@ import type {
 const TIMEOUT_MS = 10000;
 
 export type SongRequestResult =
+  | { success: true }
+  | { success: false; errorMessage: string };
+
+export type SubmitFeedbackResult =
   | { success: true }
   | { success: false; errorMessage: string };
 
@@ -72,6 +77,34 @@ export async function requestSong(
       }
     }
     return { success: false, errorMessage: 'No se pudo solicitar la canción.' };
+  }
+}
+
+/**
+ * Sends a listener opinion to the station inbox. Returns a discriminated
+ * result instead of throwing, because every caller has to render an inline
+ * error next to the form rather than crash the screen.
+ */
+export async function submitFeedback(
+  apiBaseUrl: string,
+  payload: CreateFeedbackPayload
+): Promise<SubmitFeedbackResult> {
+  try {
+    await axios.post(`${apiBaseUrl}/api/feedback`, payload, {
+      timeout: TIMEOUT_MS,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return { success: true };
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const serverMessage: string | undefined =
+        err.response?.data?.error ?? err.response?.data?.message;
+      if (serverMessage) return { success: false, errorMessage: serverMessage };
+      if (err.code === 'ECONNABORTED') {
+        return { success: false, errorMessage: 'Tiempo de espera agotado.' };
+      }
+    }
+    return { success: false, errorMessage: 'No se pudo enviar el mensaje.' };
   }
 }
 

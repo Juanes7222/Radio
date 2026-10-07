@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from 'expo-router/js-tabs';
+import { useRouter } from 'expo-router';
 import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { WEB_URL } from '@/constants/api';
@@ -62,6 +63,7 @@ const SOCIAL_LINKS = [
 export default function StationScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
+  const router = useRouter();
   const { liveUrl } = useFacebookLive();
 
   const socialLinks = SOCIAL_LINKS.map((link) =>
@@ -180,6 +182,32 @@ export default function StationScreen() {
           ))}
         </View>
 
+        <Animated.View entering={FadeInDown.delay(300).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+          <TouchableOpacity
+            style={styles.writeCard}
+            activeOpacity={0.85}
+            onPress={() => {
+              Haptics.selectionAsync().catch(() => {});
+              router.push('/feedback');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Escríbanos"
+            accessibilityHint="Abre el formulario para enviar una opinión o una sugerencia"
+          >
+            <View style={styles.writeIcon}>
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color={Colors.signal} />
+            </View>
+            <View style={styles.linkTextGroup}>
+              <Text style={styles.writeTitle}>Escríbanos</Text>
+              <Text style={styles.writeBody}>
+                Una sugerencia, una consulta o un problema con la emisión. Puedes hacerlo
+                sin dar ningún dato.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textFaint} />
+          </TouchableOpacity>
+        </Animated.View>
+
         <Animated.View entering={FadeInDown.delay(320).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
           <View style={styles.legalPanel}>
             <View style={styles.legalHeader}>
@@ -247,6 +275,28 @@ const styles = StyleSheet.create({
   webCtaLabel: { ...Typography.captionStrong, color: Colors.signal },
 
   linkList: { gap: Spacing.sm },
+
+  writeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.signalGlow,
+  },
+  writeIcon: {
+    width: scale(44),
+    height: scale(44),
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.signalMuted,
+  },
+  writeTitle: { ...Typography.body, color: Colors.text, fontWeight: '600' },
+  writeBody: { ...Typography.caption, color: Colors.textMuted, lineHeight: 17 },
 
   linkCard: {
     flexDirection: 'row',

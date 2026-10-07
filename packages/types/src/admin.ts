@@ -17,6 +17,7 @@ export type AdminPermission =
   | "youtube"
   | "requests"
   | "prayer"
+  | "feedback"
   | "devices"
   | "notices"
   | "logs"
@@ -38,6 +39,7 @@ export const ADMIN_PERMISSIONS: AdminPermission[] = [
   "youtube",
   "requests",
   "prayer",
+  "feedback",
   "devices",
   "notices",
   "logs",
@@ -66,6 +68,7 @@ export const ADMIN_PERMISSION_LABELS: Record<AdminPermission, string> = {
   youtube: "YouTube",
   requests: "Solicitudes",
   prayer: "Oración",
+  feedback: "Opiniones",
   devices: "Dispositivos",
   notices: "Avisos",
   logs: "Bitácora",

@@ -1,0 +1,20 @@
+// Opinion, suggestion, question or problem sent by a listener from the public
+// site (/opiniones) or the mobile app. Anonymous by design: `nombre` and
+// `contacto` are optional and only exist so the team can reply. Nothing here
+// is ever published, so there is no `publishedAt` on purpose.
+model FeedbackMessage {
+  id        String   @id @default(uuid())
+  categoria String // FELICITACION | SUGERENCIA | CONSULTA | PROBLEMA
+  mensaje   String
+  nombre    String?
+  contacto  String?
+  estado    String   @default("PENDIENTE") // PENDIENTE | RESUELTO | DESCARTADO
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("feedback_messages")
+  @@index([createdAt])
+  @@index([estado])
+  @@index([categoria])
+}

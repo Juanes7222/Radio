@@ -9,4 +9,6 @@ export {
   fetchScheduleCategories,
   requestSong,
   rewriteLocalhostUrls,
+  submitFeedback,
 } from './api';
+export type { SubmitFeedbackResult } from './api';

@@ -34,6 +34,7 @@ export const STREAM_URL = `${SITE_URL}/listen/la_voz_de_la_verdad/`;
 export const PUBLIC_ROUTES = [
   '/',
   '/programacion',
+  '/opiniones',
   '/info/who-we-are',
   '/info/privacy',
   '/info/terms',
@@ -47,7 +48,7 @@ export type PublicRoute = (typeof PUBLIC_ROUTES)[number];
  * How a route is described to crawlers. `kind` selects the JSON-LD node type;
  * `priority` and `changefreq` are only consumed by the sitemap writer.
  */
-export type RouteKind = 'home' | 'schedule' | 'about' | 'legal';
+export type RouteKind = 'home' | 'schedule' | 'about' | 'feedback' | 'legal';
 
 export interface RouteMeta {
   readonly kind: RouteKind;
@@ -78,6 +79,15 @@ export const ROUTE_META: Readonly<Record<PublicRoute, RouteMeta>> = {
     ogTitle: 'Programación semanal | La Voz de la Verdad',
     priority: 0.8,
     changefreq: 'daily',
+  },
+  '/opiniones': {
+    kind: 'feedback',
+    title: 'Opiniones y Sugerencias | La Voz de la Verdad',
+    description:
+      'Escríbenos sin dar ningún dato. Sugerencias, felicitaciones, consultas y problemas de la emisión llegan directamente a la bandeja del equipo de La Voz de la Verdad.',
+    ogTitle: 'Opiniones y sugerencias | La Voz de la Verdad',
+    priority: 0.7,
+    changefreq: 'monthly',
   },
   '/info/who-we-are': {
     kind: 'about',
@@ -256,6 +266,7 @@ const PAGE_NODE_TYPE: Readonly<Record<RouteKind, string>> = {
   home: 'WebPage',
   schedule: 'ItemList',
   about: 'AboutPage',
+  feedback: 'ContactPage',
   legal: 'WebPage',
 };
 
