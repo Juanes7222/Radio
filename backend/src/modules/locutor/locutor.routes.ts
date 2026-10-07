@@ -83,9 +83,21 @@ router.put(
 router.delete(
   "/templates/:id",
   asyncHandler(async (req, res) => {
-    await prisma.announcementTemplate.delete({
-      where: { id: String(req.params.id) },
-    });
+    const id = String(req.params.id);
+
+    // The schema declares RESTRICT on this relation, so deleting a template
+    // that still has audios fails with a raw database error. Saying it in
+    // plain terms is what lets the admin delete the audios first.
+    const dependentAudios = await prisma.generatedAudio.count({ where: { templateId: id } });
+
+    if (dependentAudios > 0) {
+      throw new AppError(
+        409,
+        `La plantilla tiene ${dependentAudios} audio(s) generado(s). Elimínalos primero si quieres borrar la plantilla.`
+      );
+    }
+
+    await prisma.announcementTemplate.delete({ where: { id } });
     res.json({ message: "Template deleted" });
   })
 );
@@ -116,10 +128,34 @@ router.get(
           hourValue: true,
           timeSlotGroup: true,
           useCount: true,
-          template: { select: { name: true, type: true } },
+          templateId: true,
         },
       });
-      res.json(audios);
+
+      // The template relation is resolved separately instead of being joined.
+      // Audios generated before a template was removed keep a template_id that
+      // no longer resolves, and Prisma rejects the whole query when a required
+      // relation comes back null, which took down the whole list. The contract
+      // in LocutorAudio already allows a null template, so the orphans are
+      // reported as such rather than breaking the page.
+      const templateIds = [...new Set(audios.map((audio) => audio.templateId))];
+      const templates = await prisma.announcementTemplate.findMany({
+        where: { id: { in: templateIds } },
+        select: { id: true, name: true, type: true },
+      });
+      const templatesById = new Map(templates.map((t) => [t.id, { name: t.name, type: t.type }]));
+
+      const orphans = templateIds.filter((id) => !templatesById.has(id)).length;
+      if (orphans > 0) {
+        logger.warn("LocutorRoutes", "Audios with a missing template", { orphans });
+      }
+
+      res.json(
+        audios.map(({ templateId, ...audio }) => ({
+          ...audio,
+          template: templatesById.get(templateId) ?? null,
+        }))
+      );
     } catch (err) {
       logger.error("LocutorRoutes", "GET /audios failed", {
         error: err instanceof Error ? err.message : String(err),
