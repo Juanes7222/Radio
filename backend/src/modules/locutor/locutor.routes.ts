@@ -382,9 +382,8 @@ router.post(
     const template = await getTemplateForHour(hour);
 
     const renderedText = renderTemplate(template.textTemplate, {
-      hour: String(hour % 12 || 12),
-      hour24: String(hour),
-      minutes: String(minute).padStart(2, "0"),
+      hour24: hour,
+      minutes: minute,
     });
 
     const filename = `hora_${String(hour).padStart(2, "0")}_${String(minute).padStart(2, "0")}_${now.getTime()}.mp3`;
@@ -445,6 +444,62 @@ router.post(
       audioId: audio.id,
       mediaId,
       message: "Audio uploaded to AzuraCast",
+    });
+  })
+);
+
+// --- TEMPLATE PREVIEW ---
+// Renders a template at a chosen time without calling the TTS. Lets the panel
+// show the exact sentence the listener will hear, which is the only way to
+// judge whether a template reads naturally before spending a generation.
+
+interface PreviewSample {
+  label: string;
+  hour24: number;
+  minutes: number;
+}
+
+/**
+ * The cases worth checking by hand: agreement on "la una" against "las dos",
+ * both readings of 12:00, the quarter and half words, and a long past-the-half
+ * minute, which is where the old "menos dieciocho" phrasing read badly.
+ */
+const PREVIEW_SAMPLES: PreviewSample[] = [
+  { label: "medianoche en punto", hour24: 0, minutes: 0 },
+  { label: "1:00 de la madrugada", hour24: 1, minutes: 0 },
+  { label: "9:15 de la mañana", hour24: 9, minutes: 15 },
+  { label: "12:00 del mediodía", hour24: 12, minutes: 0 },
+  { label: "1:30 de la tarde", hour24: 13, minutes: 30 },
+  { label: "21:42 de la noche", hour24: 21, minutes: 42 },
+  { label: "23:58 de la noche", hour24: 23, minutes: 58 },
+  { label: "19:45 de la noche", hour24: 19, minutes: 45 },
+];
+
+router.post(
+  "/templates/preview",
+  asyncHandler(async (req, res) => {
+    const textTemplate = typeof req.body?.text_template === "string" ? req.body.text_template : "";
+    const templateId = typeof req.body?.template_id === "string" ? req.body.template_id : null;
+
+    let template = textTemplate;
+    if (templateId) {
+      const found = await prisma.announcementTemplate.findUnique({ where: { id: templateId } });
+      if (!found) throw new AppError(404, "Template not found");
+      template = found.textTemplate;
+    }
+
+    if (template.trim().length === 0) {
+      throw new AppError(400, "Provide text_template or template_id");
+    }
+
+    res.json({
+      samples: PREVIEW_SAMPLES.map((sample) => ({
+        label: sample.label,
+        text: renderTemplate(template, {
+          hour24: sample.hour24,
+          minutes: sample.minutes,
+        }),
+      })),
     });
   })
 );

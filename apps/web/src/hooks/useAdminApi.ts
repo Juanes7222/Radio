@@ -21,6 +21,7 @@ import type {
   LocutorStatus,
   LocutorTemplate,
   LocutorTemplateInput,
+  LocutorTemplatePreviewSample,
   ManagedAdminUser,
   ManagedAdminUserInput,
   MediaFile,
@@ -735,6 +736,19 @@ export function useAdminApi() {
     [request]
   );
 
+  const previewLocutorTemplate = useCallback(
+    (payload: { textTemplate?: string; templateId?: string }) =>
+      request<{ samples: LocutorTemplatePreviewSample[] }>({
+        method: 'POST',
+        url: '/admin-api/locutor/templates/preview',
+        data: {
+          text_template: payload.textTemplate,
+          template_id: payload.templateId,
+        },
+      }),
+    [request]
+  );
+
   // ── Avisos de hora ─────────────────────────────────────────
   const ANNOUNCEMENT_BASE = '/admin-api/locutor/announcement';
 
@@ -1203,6 +1217,7 @@ export function useAdminApi() {
     getLocutorAudios,
     deleteLocutorAudio,
     generateLocutorAudio,
+    previewLocutorTemplate,
     getAnnouncementSettings,
     updateAnnouncementSettings,
     getAnnouncementLiveState,

@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
+import TemplatePreview from './TemplatePreview';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { toast } from 'sonner';
 import type { LocutorTemplate, LocutorTemplateInput } from '@radio/types';
@@ -126,6 +127,16 @@ export default function TemplateEditor() {
     setEditingTemplate((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
 
+  // The preview offers ready-made sentences; clicking one fills the form.
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail;
+      if (typeof detail === 'string') setField('textTemplate', detail);
+    };
+    window.addEventListener('locutor:set-template', handler);
+    return () => window.removeEventListener('locutor:set-template', handler);
+  }, []);
+
   return (
     <Card>
       <CardHeader>
@@ -204,11 +215,16 @@ export default function TemplateEditor() {
                 className="border-border bg-card"
               />
               <p className="text-xs text-faint">
-                Variables: {'{{hour}}'}, {'{{period}}'}, {'{{station_name}}'}, {'{{day}}'}, {'{{date}}'}, {'{{time_text}}'}, {'{{period_greeting}}'}
+                Variables: {'{{time_text}}'}, {'{{time_bare}}'}, {'{{hour_text}}'}, {'{{minutes_text}}'}, {'{{period}}'}, {'{{station_name}}'}, {'{{day}}'}, {'{{date}}'}, {'{{period_greeting}}'}
               </p>
               <p className="text-xs text-faint">
-                Ej: "Muy buenas {'{{period_greeting}}'}. {'{{time_text}}'}. Esto es {'{{station_name}}'}."
+                Usa {'{{time_text}}'} para anunciar la hora y el minuto: dice "son las nueve y cuarenta
+                y dos de la noche". {'{{hour_text}}'} solo da la hora, sin minutos.
               </p>
+              <TemplatePreview
+                template={editingTemplate.textTemplate}
+                templateId={'id' in editingTemplate ? editingTemplate.id : null}
+              />
             </div>
             <div className="flex items-center justify-between flex-wrap gap-3">
               <label className="flex items-center gap-2 text-sm text-muted-foreground">

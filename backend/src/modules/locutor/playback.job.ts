@@ -230,9 +230,8 @@ async function generateAndPlayNow(): Promise<boolean> {
     const template = await getTemplateForHour(currentHour);
 
     const renderedText = renderTemplate(template.textTemplate, {
-      hour: String(currentHour % 12 || 12),
-      hour24: String(currentHour),
-      minutes: String(currentMinute).padStart(2, "0"),
+      hour24: currentHour,
+      minutes: currentMinute,
     });
 
     const filename = `hora_${String(currentHour).padStart(2, "0")}_${String(currentMinute).padStart(2, "0")}_${Date.now()}.mp3`;
