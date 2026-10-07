@@ -192,3 +192,39 @@ export async function playFileAsLive(filePath: string): Promise<void> {
   });
   await streamMp3AsLive(creds.username, creds.password, filePath);
 }
+
+/**
+ * Estado del live con el nombre de quien lo ocupa.
+ *
+ * La distinción importa porque el aviso y un DJ humano usan el mismo mount: si
+ * el sistema no puede decir quién está al aire, su única reacción segura sería
+ * asumir, y asumir mal significa cortar a una persona.
+ */
+export interface LiveOwnership {
+  active: boolean;
+  humanStreamer: string | null;
+}
+
+export async function isOwnAnnouncementLive(): Promise<LiveOwnership> {
+  try {
+    const { data } = await azApi.get(`/nowplaying/${STATION_ID}`, { timeout: 8000 });
+    const active = data?.live?.is_live === true;
+    const name = typeof data?.live?.streamer_name === "string" ? data.live.streamer_name : null;
+
+    if (!active || name === null) {
+      return { active, humanStreamer: null };
+    }
+
+    const normalize = (value: string) => value.toLowerCase().trim();
+    const isOwn = normalize(name) === normalize(STREAMER_USERNAME);
+
+    return { active, humanStreamer: isOwn ? null : name };
+  } catch (err) {
+    logger.warn("LocutorStreamer", "Failed to read live ownership", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    // Ante la duda se considera que hay una persona al aire: cortar el stream
+    // de un DJ es mucho peor que dejar un aviso sin finalizar.
+    return { active: true, humanStreamer: "desconocido" };
+  }
+}

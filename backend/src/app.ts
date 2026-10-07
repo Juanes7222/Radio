@@ -16,6 +16,7 @@ import liveStatusRouter from "./modules/live/live.routes";
 import liveAdminRouter from "./modules/live/live.admin.routes";
 import bibleRouter from "./modules/bible/bible.routes";
 import locutorRouter from "./modules/locutor/locutor.routes";
+import announcementRouter from "./modules/locutor/announcement.routes";
 import youtubeRouter from "./modules/youtube/youtube.routes";
 import workerAdminRouter from "./modules/workers/workerAdmin.routes";
 import releasesRouter from "./modules/workers/releases.routes";
@@ -121,6 +122,7 @@ export function createApp(): Express {
   app.use("/live-status", liveStatusRouter);
   app.use("/admin-api/live", liveAdminRouter);
   app.use("/admin-api/locutor", locutorRouter);
+  app.use("/admin-api/locutor/announcement", announcementRouter);
   app.use("/admin-api/youtube", youtubeRouter);
   app.use("/api/bible", bibleRouter);
   app.use("/admin-api/workers", workerAdminRouter);

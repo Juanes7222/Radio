@@ -11,6 +11,13 @@ import type {
   LiveRelayStatus,
   LiveSlot,
   LocutorAudio,
+  LocutorAnnouncementSettings,
+  LocutorAnnouncementSettingsPatch,
+  LocutorDayAnalysis,
+  LocutorLiveState,
+  LocutorPersistedSlot,
+  LocutorPlanPreview,
+  LocutorRunLogEntry,
   LocutorStatus,
   LocutorTemplate,
   LocutorTemplateInput,
@@ -728,6 +735,71 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Avisos de hora ─────────────────────────────────────────
+  const ANNOUNCEMENT_BASE = '/admin-api/locutor/announcement';
+
+  const getAnnouncementSettings = useCallback(
+    () => request<LocutorAnnouncementSettings>({ url: `${ANNOUNCEMENT_BASE}/settings` }),
+    [request]
+  );
+
+  const updateAnnouncementSettings = useCallback(
+    (patch: LocutorAnnouncementSettingsPatch) =>
+      request<LocutorAnnouncementSettings>({
+        method: 'PUT',
+        url: `${ANNOUNCEMENT_BASE}/settings`,
+        data: patch,
+      }),
+    [request]
+  );
+
+  const getAnnouncementLiveState = useCallback(
+    () => request<LocutorLiveState>({ url: `${ANNOUNCEMENT_BASE}/live-state` }),
+    [request]
+  );
+
+  const getAnnouncementDayAnalysis = useCallback(
+    () => request<LocutorDayAnalysis>({ url: `${ANNOUNCEMENT_BASE}/day-analysis` }),
+    [request]
+  );
+
+  const getAnnouncementPlanPreview = useCallback(
+    () => request<LocutorPlanPreview>({ url: `${ANNOUNCEMENT_BASE}/plan/preview` }),
+    [request]
+  );
+
+  const getAnnouncementSlots = useCallback(
+    (date?: string) =>
+      request<{ dayKey: string; slots: LocutorPersistedSlot[] }>({
+        url: `${ANNOUNCEMENT_BASE}/plan/slots${date ? `?date=${date}` : ''}`,
+      }),
+    [request]
+  );
+
+  const getAnnouncementRunLog = useCallback(
+    (limit = 60) =>
+      request<LocutorRunLogEntry[]>({ url: `${ANNOUNCEMENT_BASE}/run-log?limit=${limit}` }),
+    [request]
+  );
+
+  const rebuildAnnouncementPlan = useCallback(
+    () =>
+      request<{ persisted: number; registered: number }>({
+        method: 'POST',
+        url: `${ANNOUNCEMENT_BASE}/plan/rebuild`,
+      }),
+    [request]
+  );
+
+  const toggleAnnouncements = useCallback(
+    () =>
+      request<LocutorAnnouncementSettings>({
+        method: 'POST',
+        url: `${ANNOUNCEMENT_BASE}/toggle`,
+      }),
+    [request]
+  );
+
   // ── Dispositivos y notificaciones ─────────────────────────────
   const getDevices = useCallback(
     (params: { page?: number; limit?: number; program?: string; zone?: string } = {}) =>
@@ -1131,6 +1203,15 @@ export function useAdminApi() {
     getLocutorAudios,
     deleteLocutorAudio,
     generateLocutorAudio,
+    getAnnouncementSettings,
+    updateAnnouncementSettings,
+    getAnnouncementLiveState,
+    getAnnouncementDayAnalysis,
+    getAnnouncementPlanPreview,
+    getAnnouncementSlots,
+    getAnnouncementRunLog,
+    rebuildAnnouncementPlan,
+    toggleAnnouncements,
     getDevices,
     getDeviceZones,
     assignDeviceZone,

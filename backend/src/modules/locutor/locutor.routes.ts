@@ -10,7 +10,6 @@ import {
   scheduleAudioForDate,
   getTemplateForHour,
 } from "./audioGeneration.service";
-import { analyzeSafeHours, getBlockedHours } from "../schedule/analyzer.service";
 import { uploadAudioToAzuraCast } from "../azuracast/playback.service";
 import { playFileAsLive } from "./streamer.service";
 import { runNightlyGeneration } from "./nightly.job";
@@ -415,15 +414,8 @@ router.post(
 );
 
 // --- SAFE HOURS DEBUG ---
-
-router.get(
-  "/safe-hours",
-  asyncHandler(async (_req, res) => {
-    const safe = await analyzeSafeHours(new Date());
-    const blocked = await getBlockedHours(new Date());
-    res.json({ safe, blocked });
-  })
-);
+// Reemplazado por /announcement/*: la lógica por hora quedó obsoleta porque
+// un programa puede no cumplir su horario. Ver announcement.routes.ts.
 
 // --- TRIGGER NIGHTLY JOB MANUALLY ---
 

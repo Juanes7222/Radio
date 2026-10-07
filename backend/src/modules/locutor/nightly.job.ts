@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import { prisma } from "../../infrastructure/database/prisma";
 import { generatePlan, isLowAudienceWindow } from "./timeSlotPlanner.service";
-import { filterSafeHours } from "../schedule/analyzer.service";
+import { getHoursWithFreeWindow } from "./announcementPlan.service";
 import {
   generateOrReuseAudio,
   scheduleAudioForDate,
@@ -70,22 +70,25 @@ export async function runNightlyGeneration(): Promise<void> {
       return;
     }
 
-    // Filter to safe hours only. If all hours are blocked (AzuraCast unreachable
-    // or no special programming), we still proceed with all planned hours
-    // because announcements are injected into the play queue and do not
-    // require empty time blocks.
+    // Solo se pre-genera audio de horas que tienen alguna ventana libre en el
+    // día correspondiente. Generar de más no rompe nada, pero consume TTS para
+    // archivos que nunca van a reproducirse.
     const candidateHours = plan.map((p) => p.hour);
-    const safeHours = await filterSafeHours(candidateHours);
+    const daysWithFreeHours = new Map<string, Set<number>>();
+    for (const day of new Set(plan.map((p) => p.date.toISOString().slice(0, 10)))) {
+      daysWithFreeHours.set(day, await getHoursWithFreeWindow(new Date(`${day}T12:00:00Z`)));
+    }
 
-    const effectiveSafeHours = safeHours.length > 0 ? safeHours : candidateHours;
-    const usingFallback = safeHours.length === 0;
-
-    const safePlan = plan.filter((p) => effectiveSafeHours.includes(p.hour));
+    const safePlan = plan.filter((item) => {
+      const key = item.date.toISOString().slice(0, 10);
+      const hours = daysWithFreeHours.get(key);
+      if (!hours || hours.size === 0) return true;
+      return hours.has(item.hour);
+    });
 
     logger.info("NightlyJob", "Plan after schedule analysis", {
       totalPlanned: plan.length,
-      safeHours: safeHours.length,
-      usingFallback,
+      afterFilter: safePlan.length,
       daysAhead: DAYS_AHEAD,
     });
 
@@ -142,7 +145,7 @@ export async function runNightlyGeneration(): Promise<void> {
           reused: reusedCount,
           errors,
           expired,
-          usingFallback,
+          hoursWithFreeWindow: safePlan.length,
         }),
         finishedAt: new Date(),
       },

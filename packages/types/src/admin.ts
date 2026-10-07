@@ -379,6 +379,108 @@ export interface LocutorStatus {
   timestamp: string;
 }
 
+/** Configuration of the hourly announcement scheduler, editable from the panel */
+export interface LocutorAnnouncementSettings {
+  id: string;
+  enabled: boolean;
+  timezone: string;
+  perHour: number;
+  minGapMinutes: number;
+  windowEdgeMarginMinutes: number;
+  minWindowMinutes: number;
+  retryIntervalMinutes: number;
+  maxRetries: number;
+  respectLiveStreamer: boolean;
+  respectScheduledPrograms: boolean;
+  streamerUser: string | null;
+  /** Never sent by the backend; read hasStreamerPassword instead */
+  streamerPassword: null;
+  hasStreamerPassword: boolean;
+  bedsDir: string;
+  bedVolume: number;
+  trailingSilenceSeconds: number;
+  updatedAt: string;
+}
+
+/** Partial update: only the fields present are applied */
+export type LocutorAnnouncementSettingsPatch = Partial<
+  Omit<LocutorAnnouncementSettings, "id" | "updatedAt" | "hasStreamerPassword">
+>;
+
+/** Why the system would or would not announce right now */
+export type LocutorAnnouncementReason = "ok" | "live_streamer" | "scheduled_program" | "unknown";
+
+export interface LocutorLiveState {
+  wouldAnnounceNow: boolean;
+  reason: LocutorAnnouncementReason;
+  detail: string;
+  liveStreamer: string | null;
+  playingPlaylist: string | null;
+  degraded: boolean;
+  scheduledProgram: { title: string; endsAtMinute: number } | null;
+  stationTime: { dayKey: string; clock: string };
+}
+
+export interface LocutorFreeWindow {
+  from: string;
+  to: string;
+  minutes: number;
+}
+
+export interface LocutorBusyInterval {
+  from: string;
+  to: string;
+  title: string;
+}
+
+export interface LocutorDayAnalysis {
+  dayKey: string;
+  degraded: boolean;
+  freeMinutes: number;
+  currentProgram: { title: string; endsAtMinute: number } | null;
+  freeWindows: LocutorFreeWindow[];
+  busyIntervals: LocutorBusyInterval[];
+}
+
+export type LocutorSlotStatus = "pending" | "deferred" | "played" | "skipped" | "failed";
+
+export interface LocutorPlanSlot {
+  at: string;
+  minuteOfDay: number;
+  plannedFor: string;
+}
+
+export interface LocutorPlanPreview {
+  dayKey: string;
+  slotCount: number;
+  droppedByGap: number;
+  freeMinutes: number;
+  freeWindows: number;
+  degraded: boolean;
+  slots: LocutorPlanSlot[];
+}
+
+export interface LocutorPersistedSlot {
+  id: string;
+  at: string;
+  status: LocutorSlotStatus;
+  reason: string | null;
+  retryCount: number;
+  playedAt: string | null;
+  settledAt: string | null;
+}
+
+export interface LocutorRunLogEntry {
+  id: string;
+  at: string;
+  outcome: string;
+  detail: string | null;
+  playingPlaylist: string | null;
+  liveStreamer: string | null;
+  plannedFor: string | null;
+  planDate: string | null;
+}
+
 /** Device registered by the mobile app for FCM notifications */
 export interface AdminDevice {
   deviceId: string;

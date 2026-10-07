@@ -1,32 +1,34 @@
 import cron, { type ScheduledTask } from "node-cron";
 import path from "path";
 import fs from "fs/promises";
+import { prisma } from "../../infrastructure/database/prisma";
 import { getTemplateForHour } from "./audioGeneration.service";
 import { renderTemplate } from "./template.service";
 import { synthesize, padSilenceTail, mixWithBed } from "./tts.service";
-import { playFileAsLive } from "./streamer.service";
-import { filterSafeHours } from "../schedule/analyzer.service";
-import {
-  playScheduledAnnouncementForHour,
-  isLiveActive,
-  disconnectLiveSource,
-} from "../azuracast/playback.service";
+import { playFileAsLive, isOwnAnnouncementLive } from "./streamer.service";
+import { evaluateLiveState } from "./liveState.service";
+import { replanAnnouncements } from "./announcementPlan.service";
+import { getSettings } from "./settings.service";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
 import { getStationTime } from "../../shared/utils/date";
 
-const TRAILING_SILENCE_SECONDS = 3;
-const MINUTES_IN_HOUR = 60;
-const HOURS_PER_DAY = 24;
-const SCHEDULING_GRACE_MINUTES = 5;
-const RESCHEDULE_RETRY_MS = 15 * 60 * 1000;
-const LIVE_SWITCH_SETTLE_MS = 4000;
-const LIVE_SWITCH_CHECK_ATTEMPTS = 2;
+/**
+ * Ejecución de los avisos de hora.
+ *
+ * El plan se limita a proponer slots. Cada slot se decide en vivo al momento
+ * de ocurrir, y esa decisión es lo que permite cumplir la regla de no
+ * interrumpir ningún programa cuando estos no respetan el horario: si una
+ * predica termina antes de lo previsto, el estado en vivo deja pasar el aviso;
+ * si se alarga, el aviso se difiere en lugar de emitirse encima.
+ */
+
 const STREAM_RETRY_DELAY_MS = 1500;
+const REPLAN_INTERVAL_MINUTES = 15;
 
 let activeTasks: ScheduledTask[] = [];
 let planDateKey = "";
-let rescheduleRetryTimer: NodeJS.Timeout | null = null;
+let replanInterval: NodeJS.Timeout | null = null;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -41,153 +43,188 @@ function destroyActiveTasks(): void {
   activeTasks = [];
 }
 
-function scheduleRescheduleRetry(): void {
-  if (rescheduleRetryTimer) return;
-  rescheduleRetryTimer = setTimeout(() => {
-    rescheduleRetryTimer = null;
-    rescheduleAnnouncements().catch((err) => {
-      logger.error("PlaybackJob", "Reschedule retry failed", {
-        error: err instanceof Error ? err.message : String(err),
-      });
+/**
+ * Reconstruye el plan y vuelve a registrar los cron de cada slot. Se llama al
+ * arranque, al comenzar el día y de forma periódica, porque un programa que
+ * termina antes de lo previsto libera horas que el plan anterior descartó.
+ */
+export async function rescheduleAnnouncements(date: Date = new Date()): Promise<number> {
+  const settings = await getSettings();
+  const slotCount = await replanAnnouncements(date);
+
+  destroyActiveTasks();
+  planDateKey = getDateKey(new Date());
+
+  if (!settings.enabled || slotCount === 0) {
+    logger.info("PlaybackJob", "No announcement slots registered", {
+      enabled: settings.enabled,
+      slotCount,
     });
-  }, RESCHEDULE_RETRY_MS);
-}
-
-function pickRandomMinutes(count: number, gapMinutes: number): number[] {
-  const minutes: number[] = [];
-  let attempts = 0;
-
-  while (minutes.length < count && attempts < 200) {
-    attempts++;
-    const candidate = Math.floor(Math.random() * MINUTES_IN_HOUR);
-    if (minutes.some((m) => Math.abs(m - candidate) < gapMinutes)) continue;
-    minutes.push(candidate);
+    return slotCount;
   }
 
-  return minutes.sort((a, b) => a - b);
+  const slots = await prisma.announcementSlot.findMany({
+    where: { planDate: planDateKey, status: "pending" },
+    orderBy: { minuteOfDay: "asc" },
+  });
+
+  for (const slot of slots) {
+    const minute = slot.minuteOfDay;
+    const task = cron.schedule(
+      `${minute % 60} ${Math.floor(minute / 60)} * * *`,
+      () => {
+        runSlot(slot.id).catch((err) => {
+          logger.error("PlaybackJob", "Slot handler failed", {
+            slotId: slot.id,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      },
+      { timezone: settings.timezone }
+    );
+    activeTasks.push(task);
+  }
+
+  logger.info("PlaybackJob", "Announcement slots registered", {
+    planDate: planDateKey,
+    slotCount: slots.length,
+  });
+
+  return slots.length;
 }
 
-interface AnnouncementSlot {
-  hour: number;
-  minute: number;
+async function recordRun(
+  slotId: string | null,
+  outcome: string,
+  detail?: string,
+  extra?: { playingPlaylist?: string | null; liveStreamer?: string | null; durationMs?: number }
+): Promise<void> {
+  await prisma.announcementRunLog.create({
+    data: {
+      slotId,
+      outcome,
+      detail: detail ?? null,
+      playingPlaylist: extra?.playingPlaylist ?? null,
+      liveStreamer: extra?.liveStreamer ?? null,
+      durationMs: extra?.durationMs ?? null,
+    },
+  });
 }
 
 /**
- * Builds the slots still ahead in the station day: for every safe hour, N
- * random minutes with a minimum separation. Slots already gone are dropped
- * (cron would push them to the next day, where the stale guard discards them)
- * and slots inside the grace window are skipped because they could fire in the
- * middle of re-registering the tasks.
+ * Decide y ejecuta un slot. Si el estado en vivo impide emitir, el slot se
+ * difiere y se reevalúa más adelante en lugar de perderse. Al agotar los
+ * intentos queda registrado como descartado con su motivo, para que el operador
+ * pueda ver por qué no sonó esa hora concreta.
  */
-function buildRandomSlots(
-  safeHours: number[],
-  perHour: number,
-  gapMinutes: number
-): AnnouncementSlot[] {
-  const now = getStationTime();
-  const nowTotalMinutes = now.hour * MINUTES_IN_HOUR + now.minute;
-  const slots: AnnouncementSlot[] = [];
+async function runSlot(slotId: string): Promise<void> {
+  const settings = await getSettings();
 
-  for (const hour of safeHours) {
-    for (const minute of pickRandomMinutes(perHour, gapMinutes)) {
-      const minutesFromNow = hour * MINUTES_IN_HOUR + minute - nowTotalMinutes;
-      if (minutesFromNow <= 0 || minutesFromNow < SCHEDULING_GRACE_MINUTES) {
-        continue;
-      }
-      slots.push({ hour, minute });
-    }
+  if (!settings.enabled) {
+    await settleSlot(slotId, "skipped", "Deshabilitado desde el panel");
+    return;
   }
 
-  return slots;
-}
+  const slot = await prisma.announcementSlot.findUnique({ where: { id: slotId } });
+  if (!slot || slot.status !== "pending" && slot.status !== "deferred") {
+    logger.info("PlaybackJob", "Slot already settled", { slotId, status: slot?.status });
+    return;
+  }
 
-/**
- * Recomputes the day plan from the AzuraCast schedule and re-registers
- * the cron tasks with fresh random times.
- */
-export async function rescheduleAnnouncements(): Promise<void> {
-  const allHours = Array.from({ length: HOURS_PER_DAY }, (_, i) => i);
+  if (slot.planDate !== getDateKey(new Date())) {
+    await settleSlot(slotId, "skipped", "Plan de un día anterior");
+    return;
+  }
 
-  try {
-    const safeHours = await filterSafeHours(allHours);
+  const verdict = await evaluateLiveState({
+    respectLiveStreamer: settings.respectLiveStreamer,
+    respectScheduledPrograms: settings.respectScheduledPrograms,
+  });
 
-    if (safeHours.length === 0) {
-      logger.warn("PlaybackJob", "No safe hours available, will retry later");
-      scheduleRescheduleRetry();
+  if (!verdict.allowed) {
+    const nextRetry = slot.retryCount + 1;
+
+    await recordRun(slotId, `blocked_${verdict.reason}`, verdict.detail, {
+      playingPlaylist: verdict.playingPlaylist,
+      liveStreamer: verdict.liveStreamer,
+    });
+
+    if (verdict.reason === "unknown") {
+      // Un fallo de red no es motivo para convertir el slot en reintento: se
+      // descarta, porque no se puede afirmar que la ventana siga libre.
+      await settleSlot(slotId, "failed", verdict.detail);
       return;
     }
 
-    const slots = buildRandomSlots(
-      safeHours,
-      config.locutor.announcementsPerHour,
-      config.locutor.minAnnouncementGapMinutes
-    );
-
-    destroyActiveTasks();
-    planDateKey = getDateKey(new Date());
-
-    for (const { hour, minute } of slots) {
-      const task = cron.schedule(
-        `${minute} ${hour} * * *`,
-        () => {
-          playAnnouncement(hour).catch((err) => {
-            logger.error("PlaybackJob", "Announcement handler failed", {
-              error: err instanceof Error ? err.message : String(err),
-            });
-          });
-        },
-        { timezone: config.locutor.timezone }
+    if (nextRetry > settings.maxRetries) {
+      await settleSlot(
+        slotId,
+        "skipped",
+        `${verdict.detail} (agotados ${settings.maxRetries} reintentos)`
       );
-      activeTasks.push(task);
+      return;
     }
 
-    logger.info("PlaybackJob", "Scheduled random announcements", {
-      planDate: planDateKey,
-      safeHours,
-      slotCount: slots.length,
-      slots,
+    await prisma.announcementSlot.update({
+      where: { id: slotId },
+      data: {
+        status: "deferred",
+        reason: verdict.detail,
+        retryCount: nextRetry,
+      },
     });
-  } catch (err) {
-    logger.error("PlaybackJob", "Failed to reschedule announcements", {
-      error: err instanceof Error ? err.message : String(err),
+
+    scheduleRetry(slotId, settings.retryIntervalMinutes * 60_000);
+    logger.info("PlaybackJob", "Slot deferred", {
+      slotId,
+      reason: verdict.reason,
+      retry: nextRetry,
+      ofMax: settings.maxRetries,
     });
-    scheduleRescheduleRetry();
+    return;
   }
+
+  const played = await generateAndPlayNow();
+  if (!played) {
+    await settleSlot(slotId, "failed", "No se pudo generar o reproducir el aviso");
+    return;
+  }
+
+  await settleSlot(slotId, "played", "Reproducido");
 }
 
-async function playAnnouncement(hour: number): Promise<void> {
-  if (getDateKey(new Date()) !== planDateKey) {
-    logger.info("PlaybackJob", "Skipping stale slot from previous day", { hour });
-    return;
-  }
+function scheduleRetry(slotId: string, delayMs: number): void {
+  setTimeout(() => {
+    runSlot(slotId).catch((err) => {
+      logger.error("PlaybackJob", "Deferred slot failed", {
+        slotId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+  }, delayMs);
+}
 
-  const safeHours = await filterSafeHours([hour]);
-  if (safeHours.length === 0) {
-    logger.info("PlaybackJob", "Skipping announcement, hour became blocked", { hour });
-    return;
-  }
-
-  const dynamicPlayed = await generateAndPlayNow();
-  if (dynamicPlayed) return;
-
-  const fallbackPlayed = await playScheduledAnnouncementForHour(hour);
-  if (fallbackPlayed) {
-    await verifyLiveSwitchBack();
-    return;
-  }
-
-  logger.warn("PlaybackJob", "No announcement could be played", { hour });
+async function settleSlot(slotId: string, status: string, reason: string): Promise<void> {
+  await prisma.announcementSlot.update({
+    where: { id: slotId },
+    data: {
+      status,
+      reason,
+      settledAt: new Date(),
+      ...(status === "played" ? { playedAt: new Date() } : {}),
+    },
+  });
 }
 
 /**
- * Synthesizes the announcement on the fly, mixes it over a random
- * instrumental bed (or pads it with silence when no bed is available),
- * streams it to the live mount and cleans up the temp files.
+ * Sintetiza el aviso, lo mezcla sobre una base instrumental y lo transmite por
+ * el harbor de Liquidsoap como fuente en vivo.
  */
 async function generateAndPlayNow(): Promise<boolean> {
   const now = getStationTime();
   const currentHour = now.hour;
   const currentMinute = now.minute;
+  const settings = await getSettings();
 
   try {
     const template = await getTemplateForHour(currentHour);
@@ -215,7 +252,7 @@ async function generateAndPlayNow(): Promise<boolean> {
       durationMs: duration_ms,
     });
 
-    const playablePath = await preparePlayableFile(filepath, duration_ms);
+    const playablePath = await preparePlayableFile(filepath, duration_ms, settings);
 
     await playFileWithRetry(playablePath);
     await verifyLiveSwitchBack();
@@ -253,18 +290,21 @@ async function pickRandomBed(bedsDir: string): Promise<string | null> {
 }
 
 /**
- * Prepares the file that will be streamed: voice over a random bed
- * when available, silence-padded otherwise. Falls back to the raw
- * voice file if both preparations fail.
+ * Prepara el archivo que se transmite: voz sobre una base aleatoria cuando hay
+ * una disponible, o con silencio añadido al final en caso contrario.
  */
-async function preparePlayableFile(filepath: string, durationMs: number): Promise<string> {
+async function preparePlayableFile(
+  filepath: string,
+  durationMs: number,
+  settings: Awaited<ReturnType<typeof getSettings>>
+): Promise<string> {
   const outputPath = path.join(
     config.locutor.mediaDir,
     `playable_${Date.now()}_${path.basename(filepath)}`
   );
 
   try {
-    const bedPath = await pickRandomBed(config.locutor.bedsDir);
+    const bedPath = await pickRandomBed(settings.bedsDir);
 
     if (bedPath) {
       await mixWithBed({
@@ -272,19 +312,16 @@ async function preparePlayableFile(filepath: string, durationMs: number): Promis
         bedPath,
         outputPath,
         durationSeconds: durationMs / 1000,
-        bedVolume: config.locutor.bedVolume,
-        tailSeconds: TRAILING_SILENCE_SECONDS,
+        bedVolume: settings.bedVolume,
+        tailSeconds: settings.trailingSilenceSeconds,
       });
-      logger.info("PlaybackJob", "Mixed announcement with instrumental bed", {
-        bedPath,
-        outputPath,
-      });
+      logger.info("PlaybackJob", "Mixed announcement with instrumental bed", { bedPath });
       return outputPath;
     }
 
-    await padSilenceTail(filepath, outputPath, TRAILING_SILENCE_SECONDS);
+    await padSilenceTail(filepath, outputPath, settings.trailingSilenceSeconds);
     logger.info("PlaybackJob", "No beds available, padded announcement with silence", {
-      outputPath,
+      bedsDir: settings.bedsDir,
     });
     return outputPath;
   } catch (err) {
@@ -320,24 +357,56 @@ async function playFileWithRetry(filePath: string): Promise<void> {
 }
 
 /**
- * After the announcement socket closes, Liquidsoap should switch back
- * to the auto-DJ. If the live flag stays set, the switch is stuck and
- * the station would be silent: log it and kick the live source.
+ * Tras cerrar el socket, Liquidsoap debe volver al AutoDJ. Si el live se
+ * queda activo hay que distinguir dos causas opuestas.
+ *
+ * El caso peligroso es que un humano haya conectado: la versión anterior
+ * llamaba a disconnectLiveSource() sin mirar quién estaba al aire, y eso le
+ * cortaba la señal a un DJ y le soltaba el backend. Ahora solo se desconecta
+ * cuando el live sigue siendo el propio sistema de anuncios; si hay una
+ * persona, el aviso se detiene y se avisa por log para que un humano lo corte
+ * desde el panel.
  */
 async function verifyLiveSwitchBack(): Promise<void> {
-  await sleep(LIVE_SWITCH_SETTLE_MS);
+  const settleMs = 4000;
 
-  for (let attempt = 0; attempt < LIVE_SWITCH_CHECK_ATTEMPTS; attempt++) {
-    const liveActive = await isLiveActive();
-    if (!liveActive) return;
-    await sleep(LIVE_SWITCH_SETTLE_MS);
+  await sleep(settleMs);
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const live = await isOwnAnnouncementLive();
+    if (!live.active) return;
+    await sleep(settleMs);
   }
 
-  logger.error("PlaybackJob", "Live switch stuck after announcement, disconnecting live source");
+  const live = await isOwnAnnouncementLive();
+  if (!live.active) return;
+
+  if (live.humanStreamer) {
+    logger.error(
+      "PlaybackJob",
+      "Human streamer took over during the announcement, leaving the live source untouched",
+      { humanStreamer: live.humanStreamer }
+    );
+    return;
+  }
+
+  logger.warn("PlaybackJob", "Live switch stuck after announcement, disconnecting own source");
+  const { disconnectLiveSource } = await import("../azuracast/playback.service");
   await disconnectLiveSource();
 }
 
-export function registerPlaybackJob() {
+function startReplanLoop(): void {
+  if (replanInterval) clearInterval(replanInterval);
+  replanInterval = setInterval(() => {
+    rescheduleAnnouncements().catch((err) => {
+      logger.error("PlaybackJob", "Periodic reschedule failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+  }, REPLAN_INTERVAL_MINUTES * 60_000);
+}
+
+export function registerPlaybackJob(): void {
   rescheduleAnnouncements().catch((err) => {
     logger.error("PlaybackJob", "Initial reschedule failed", {
       error: err instanceof Error ? err.message : String(err),
@@ -356,5 +425,9 @@ export function registerPlaybackJob() {
     { timezone: config.locutor.timezone }
   );
 
-  logger.info("PlaybackJob", "Random announcement scheduler registered");
+  startReplanLoop();
+
+  logger.info("PlaybackJob", "Announcement scheduler registered", {
+    replanIntervalMinutes: REPLAN_INTERVAL_MINUTES,
+  });
 }

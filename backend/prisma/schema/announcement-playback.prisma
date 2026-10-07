@@ -1,0 +1,127 @@
+// Programación y bitácora de los avisos de hora.
+//
+// El plan se persiste porque el panel necesita mostrarlo y auditar por qué un
+// aviso no sonó. La decisión final, sin embargo, siempre se toma en vivo:
+// un programa puede terminar antes de lo previsto y la ventana que el plan
+// descartó vuelve a estar disponible (ver liveState.service.ts).
+
+/// Configuración del planificador de avisos de hora. Una sola fila: la
+/// identidad es fija para que el panel nunca tenga que crear ni borrar.
+model AnnouncementSettings {
+  id String @id @default("singleton")
+
+  enabled   Boolean @default(true)
+  timezone  String  @default("America/Bogota")
+
+  /// Anuncios objetivo por hora en las ventanas libres.
+  perHour Int @default(2) @map("per_hour")
+
+  /// Separación mínima entre dos avisos consecutivos, en minutos.
+  minGapMinutes Int @default(20) @map("min_gap_minutes")
+
+  /// Margen respecto al inicio y al fin de cada ventana libre. Un aviso que
+  /// arranca pegado al programa puede pisar la entrada o la salida de este.
+  windowEdgeMarginMinutes Int @default(3) @map("window_edge_margin_minutes")
+
+  /// Ventana libre mínima para alojar un aviso. Descarta huecos de minutos que
+  /// solo existen porque un bloque se agendó con precisión de 5 minutos.
+  minWindowMinutes Int @default(10) @map("min_window_minutes")
+
+  /// Cuánto espera un slot diferido antes de volver a evaluarse. Al terminar
+  /// un programa se anuncia en la primera reevaluación viable, no al día
+  /// siguiente.
+  retryIntervalMinutes Int @default(5) @map("retry_interval_minutes")
+
+  /// Tope de intentos por slot. Evita que un bloque largo consuma reevaluaciones
+  /// infinitas y termine pisando el slot siguiente.
+  maxRetries Int @default(4) @map("max_retries")
+
+  /// Si está activo, un humano transmitiendo en vivo bloquea los avisos. Es el
+  /// caso de un DJ almicrofono: cortarlo nunca es aceptable.
+  respectLiveStreamer Boolean @default(true) @map("respect_live_streamer")
+
+  /// Si está activo, un programa agendado bloquea los avisos aunque haya
+  /// terminado antes de lo previsto. Se comprueba en vivo contra la playlist
+  /// que está sonando, no contra la hora del plan.
+  respectScheduledPrograms Boolean @default(true) @map("respect_scheduled_programs")
+
+  /// Credenciales del streamer de avisos. Vacías = usar el streamer
+  /// automático avsisos_auto.
+  streamerUser     String? @map("streamer_user")
+  streamerPassword String? @map("streamer_password")
+
+  /// Bed musical y su volumen mezclado bajo la voz.
+  bedsDir    String  @default("../packages/assets/audio") @map("beds_dir")
+  bedVolume  Float   @default(0.15) @map("bed_volume")
+
+  /// Silencio añadido al final para que Liquidsoap no corte la pista.
+  trailingSilenceSeconds Int @default(3) @map("trailing_silence_seconds")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("announcement_settings")
+}
+
+/// Slot del plan. `status` refleja el ciclo de vida completo para que el panel
+/// pueda explicar cada caso sin releer la bitácora.
+model AnnouncementSlot {
+  id String @id @default(uuid())
+
+  /// Minutos desde medianoche en hora de estación (0-1439).
+  minuteOfDay Int @map("minute_of_day")
+
+  plannedFor DateTime @map("planned_for")
+  planDate   String   @map("plan_date")
+
+  /// pending | deferred | played | skipped | failed
+  status String @default("pending")
+
+  /// Razón del último cambio de estado, legible desde el panel.
+  reason String?
+
+  /// Intentos de reevaluación consumidos por el diferimiento.
+  retryCount Int @default(0) @map("retry_count")
+
+  /// Momento en que terminó de decidirse. Distingue "aún no ha ocurrido" de
+  /// "ocurrió y se descartó", que es la diferencia que el operador quiere ver.
+  settledAt DateTime? @map("settled_at")
+  playedAt  DateTime? @map("played_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  runs AnnouncementRunLog[]
+
+  @@index([planDate, minuteOfDay])
+  @@index([status])
+  @@index([plannedFor])
+  @@map("announcement_slots")
+}
+
+/// Una fila por intento de reproducción, incluidas las reevaluaciones.
+/// Es la fuente de verdad para auditar por qué no se anuncian las horas.
+model AnnouncementRunLog {
+  id String @id @default(uuid())
+
+  slotId      String? @map("slot_id")
+  slot        AnnouncementSlot? @relation(fields: [slotId], references: [id])
+
+  /// attempted | blocked_live | blocked_program | played | failed | expired
+  outcome String
+
+  /// Veredicto de la comprobación en vivo que habilitó o impidió el aviso.
+  detail String?
+
+  /// Playlist que estaba sonando, para explicar un bloqueo con nombre propio.
+  playingPlaylist String? @map("playing_playlist")
+
+  /// Si hubo humano en vivo y por eso no se intentó nada.
+  liveStreamer String? @map("live_streamer")
+
+  durationMs Int? @map("duration_ms")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([outcome])
+  @@map("announcement_run_logs")
+}
