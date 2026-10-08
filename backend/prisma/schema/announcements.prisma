@@ -26,6 +26,11 @@ model GeneratedAudio {
   fileSizeBytes Int?     @map("file_size_bytes")
   voice         String
 
+  // Voice engine that produced the file ('elevenlabs', 'kokoro'). Reuse looks
+  // at this column: without it the bank would keep replaying recordings made
+  // by the previous engine and the new voice would never be heard.
+  provider      String   @default("kokoro")
+
   azuracastMediaId String? @map("azuracast_media_id")
 
   generatedAt   DateTime @default(now()) @map("generated_at")
@@ -50,6 +55,7 @@ model GeneratedAudio {
   @@index([timeSlotGroup])
   @@index([status])
   @@index([lastUsedDate])
+  @@index([provider])
 }
 
 model AudioSchedule {

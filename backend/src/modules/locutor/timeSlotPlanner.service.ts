@@ -1,4 +1,6 @@
 import { prisma } from "../../infrastructure/database/prisma";
+import { getTemplateForHour } from "./template.service";
+import { preferredProviderId } from "./tts.service";
 import {
   getStationDayStart,
   getStationDayStartWithOffset,
@@ -73,16 +75,24 @@ function selectHoursForDay(date: Date, slotsPerGroup: number): number[] {
  * - Audio must be for the same hour value
  * - Audio must not have been used on the previous calendar day at the same hour
  * - Audio must be in 'ready' status
+ * - Audio must come from the voice engine that would answer right now
  * - Prefer audios with lower useCount (rotation)
+ *
+ * The provider filter is what makes a voice change audible. Without it this
+ * planner hands the nightly job a file recorded by the previous engine, and
+ * the generator is never asked for the new voice at all.
  */
 async function findReusableAudio(hour: number, date: Date): Promise<string | undefined> {
   const previousDate = new Date(date);
   previousDate.setDate(previousDate.getDate() - 1);
 
+  const template = await getTemplateForHour(hour);
+
   const candidates = await prisma.generatedAudio.findMany({
     where: {
       hourValue: hour,
       status: "ready",
+      provider: preferredProviderId(template.voice),
       OR: [{ lastUsedDate: { lt: previousDate } }, { lastUsedDate: null }],
     },
     orderBy: [{ useCount: "asc" }, { generatedAt: "desc" }],

@@ -22,6 +22,8 @@ import type {
   LocutorTemplate,
   LocutorTemplateInput,
   LocutorTemplatePreviewSample,
+  TtsBalance,
+  TtsProviderId,
   ManagedAdminUser,
   ManagedAdminUserInput,
   MediaFile,
@@ -725,6 +727,22 @@ export function useAdminApi() {
     [request]
   );
 
+  // Synthesizes a real phrase through the voice chain, so the panel can tell
+  // which engine actually answered and refresh the credit balance. It spends
+  // credits on the external provider, so it stays an explicit action.
+  const testLocutorTts = useCallback(
+    () =>
+      request<{
+        provider: TtsProviderId;
+        voice: string;
+        message: string;
+        durationMs: number;
+        fileSizeBytes: number;
+        balance: TtsBalance;
+      }>({ url: '/admin-api/locutor/test-tts', timeout: 60000 }),
+    [request]
+  );
+
   const getLocutorTemplates = useCallback(
     () => request<LocutorTemplate[]>({ url: '/admin-api/locutor/templates' }),
     [request]
@@ -1255,6 +1273,7 @@ export function useAdminApi() {
     syncNotificationPrograms,
     updateNotificationProgram,
     getLocutorStatus,
+    testLocutorTts,
     getLocutorTemplates,
     saveLocutorTemplate,
     deleteLocutorTemplate,

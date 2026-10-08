@@ -42,6 +42,23 @@ Optional secrets that can also live in Infisical:
 - `TIMEZONE`
 - `STATION_NAME`
 
+## Voice engine secrets
+
+The announcements are synthesized by ElevenLabs and fall back to the local
+Kokoro service. The API keys are the only secret in that chain, and they are
+a pool rather than a single value:
+
+| Secret Name | Description |
+|-------------|-------------|
+| `ELEVENLABS_API_KEYS` | Comma-separated pool of ElevenLabs API keys |
+
+Every announcement picks the first key that is free, rotating so the monthly
+credits are spread evenly. The pool state is in memory, so restarting the
+backend re-probes every key once. The non-secret tuning values
+(`ELEVENLABS_VOICE_IDS`, `ELEVENLABS_MODEL_ID`, `ELEVENLABS_STABILITY`, the
+cooldowns) belong in `.env` or in Infisical depending on the deployment; see
+`backend/.env.example` for the full list.
+
 ## Backend local setup
 
 The backend uses a two-tier approach:

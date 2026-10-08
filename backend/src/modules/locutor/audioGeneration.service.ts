@@ -1,11 +1,12 @@
 import path from "path";
 import { prisma } from "../../infrastructure/database/prisma";
-import { synthesize } from "./tts.service";
-import { renderTemplate } from "./template.service";
+import { preferredProviderId, synthesize } from "./tts.service";
+import { getTemplateForHour, renderTemplate } from "./template.service";
 import { uploadAudioToAzuraCast } from "../azuracast/playback.service";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
 import { getStationDayStart, getStationTime } from "../../shared/utils/date";
+import type { AnnouncementTemplate } from "@prisma/client";
 import type { TimeSlotGroup } from "./timeSlotPlanner.service";
 
 const MEDIA_DIR = config.locutor.mediaDir;
@@ -17,6 +18,8 @@ export interface GenerationResult {
   durationMs: number;
   fileSizeBytes: number;
   wasReused: boolean;
+  provider: string;
+  voice: string;
 }
 
 export interface GenerationRequest {
@@ -30,70 +33,45 @@ export interface GenerationRequest {
   stationName?: string;
 }
 
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
-
-/** Station day of year (1 = January 1st), used to rotate templates. */
-function getDayIndex(): number {
-  const { year, month, day } = getStationTime();
-  const startOfYear = Date.UTC(year, 0, 0);
-  return Math.round((Date.UTC(year, month - 1, day) - startOfYear) / DAY_IN_MS);
-}
-
-/**
- * Returns the active template for a given hour, rotating across
- * available templates based on the hour and day index.
- */
-export async function getTemplateForHour(hour: number): Promise<{
-  id: string;
+/** A generation request that already resolved its template and voice engine. */
+interface ResolvedGenerationRequest extends GenerationRequest {
+  template: AnnouncementTemplate;
   voice: string;
   speed: number;
-  textTemplate: string;
-  name: string;
-}> {
-  const templates = await prisma.announcementTemplate.findMany({
-    where: { type: "hourly", active: true },
-    orderBy: { createdAt: "asc" },
-  });
-
-  if (templates.length === 0) {
-    throw new Error("No active hourly templates found");
-  }
-
-  const index = (hour + getDayIndex()) % templates.length;
-  const template = templates[index];
-
-  return {
-    id: template.id,
-    voice: template.voice,
-    speed: template.speed,
-    textTemplate: template.textTemplate,
-    name: template.name,
-  };
 }
 
 /**
  * Generates or reuses a time announcement audio.
  * If no templateId is provided, picks one automatically by
  * rotating across active templates based on (hour + dayIndex).
- * When reusing, it only reuses audio generated with the same template.
+ * When reusing, it only reuses audio generated with the same template and the
+ * same voice engine.
  */
 export async function generateOrReuseAudio(request: GenerationRequest): Promise<GenerationResult> {
-  let { templateId, hour, group, voice, speed } = request;
+  const { hour, group } = request;
 
-  if (!templateId) {
-    const picked = await getTemplateForHour(hour);
-    templateId = picked.id;
-    voice = voice || picked.voice;
-    speed = speed || picked.speed;
+  // The template is resolved first because its voice decides which engine would
+  // answer, and that engine is part of the reuse key.
+  const template = request.templateId
+    ? await prisma.announcementTemplate.findUnique({ where: { id: request.templateId } })
+    : await getTemplateForHour(hour);
+
+  if (!template) {
+    throw new Error(`Template ${request.templateId} not found`);
   }
 
-  const existing = await findReusableAudio(hour, group, templateId);
+  const voice = request.voice || template.voice;
+  const speed = request.speed || template.speed;
+  const provider = preferredProviderId(voice);
+
+  const existing = await findReusableAudio(hour, group, template.id, provider);
   if (existing) {
     logger.info("AudioGeneration", "Reusing existing audio", {
       audioId: existing.id,
       hour,
       group,
-      templateId,
+      templateId: template.id,
+      provider,
     });
 
     return {
@@ -103,16 +81,23 @@ export async function generateOrReuseAudio(request: GenerationRequest): Promise<
       durationMs: existing.durationMs || 0,
       fileSizeBytes: existing.fileSizeBytes || 0,
       wasReused: true,
+      provider: existing.provider,
+      voice: existing.voice,
     };
   }
 
-  return generateNewAudio({ ...request, templateId, voice, speed });
+  return generateNewAudio({ ...request, template, voice, speed });
 }
 
 /**
- * Finds a reusable audio matching the hour and group criteria.
+ * Finds a reusable audio matching the hour, group and voice engine criteria.
  */
-async function findReusableAudio(hour: number, group: TimeSlotGroup, templateId: string) {
+async function findReusableAudio(
+  hour: number,
+  group: TimeSlotGroup,
+  templateId: string,
+  provider: string
+) {
   const today = getStationDayStart();
 
   return prisma.generatedAudio.findFirst({
@@ -120,6 +105,7 @@ async function findReusableAudio(hour: number, group: TimeSlotGroup, templateId:
       hourValue: hour,
       timeSlotGroup: group,
       templateId,
+      provider,
       status: "ready",
       OR: [{ lastUsedDate: null }, { lastUsedDate: { lt: today } }],
     },
@@ -130,16 +116,9 @@ async function findReusableAudio(hour: number, group: TimeSlotGroup, templateId:
 /**
  * Generates a new audio file using TTS.
  */
-async function generateNewAudio(request: GenerationRequest): Promise<GenerationResult> {
-  const { templateId, hour, minutes, group, text, voice, speed } = request;
-
-  const template = await prisma.announcementTemplate.findUnique({
-    where: { id: templateId },
-  });
-
-  if (!template) {
-    throw new Error(`Template ${templateId} not found`);
-  }
+async function generateNewAudio(request: ResolvedGenerationRequest): Promise<GenerationResult> {
+  const { template, hour, minutes, group, text, voice, speed } = request;
+  const templateId = template.id;
 
   const minute = minutes !== undefined ? minutes : 0;
   const renderedText =
@@ -152,10 +131,10 @@ async function generateNewAudio(request: GenerationRequest): Promise<GenerationR
   const filename = `hora_${String(hour).padStart(2, "0")}_${Date.now()}.mp3`;
   const filepath = path.join(MEDIA_DIR, filename);
 
-  const { duration_ms, file_size_bytes } = await synthesize({
+  const synthesis = await synthesize({
     text: renderedText,
-    voice: voice || template.voice,
-    speed: speed || template.speed,
+    voice,
+    speed,
     outputPath: filepath,
   });
 
@@ -175,9 +154,10 @@ async function generateNewAudio(request: GenerationRequest): Promise<GenerationR
       filename,
       filepath,
       textRendered: renderedText,
-      durationMs: Math.round(duration_ms),
-      fileSizeBytes: file_size_bytes,
-      voice: voice || template.voice,
+      durationMs: synthesis.durationMs,
+      fileSizeBytes: synthesis.fileSizeBytes,
+      voice: synthesis.voice,
+      provider: synthesis.provider,
       hourValue: hour,
       timeSlotGroup: group,
       status: "ready",
@@ -189,16 +169,19 @@ async function generateNewAudio(request: GenerationRequest): Promise<GenerationR
     audioId: audio.id,
     hour,
     group,
-    durationMs: Math.round(duration_ms),
+    provider: synthesis.provider,
+    durationMs: synthesis.durationMs,
   });
 
   return {
     audioId: audio.id,
     filename,
     filepath,
-    durationMs: Math.round(duration_ms),
-    fileSizeBytes: file_size_bytes,
+    durationMs: synthesis.durationMs,
+    fileSizeBytes: synthesis.fileSizeBytes,
     wasReused: false,
+    provider: synthesis.provider,
+    voice: synthesis.voice,
   };
 }
 

@@ -38,6 +38,15 @@ const VOICE_OPTIONS: { value: string; label: string }[] = [
   { value: 'em_alex', label: 'Alex (Masculino - ES)' },
 ];
 
+/**
+ * The template stores a provider-neutral voice label. ElevenLabs maps it
+ * through `ELEVENLABS_VOICE_IDS` and falls back to its configured default
+ * voice, so this list only decides what the station sounds like when the
+ * engine is Kokoro.
+ */
+const VOICE_HINT =
+  'Voz del motor de reserva (Kokoro). Con ElevenLabs configurado, la voz sale de ELEVENLABS_VOICE_IDS.';
+
 const VOICE_LABELS: Record<string, string> = Object.fromEntries(
   VOICE_OPTIONS.map((option) => [option.value, option.label])
 );
@@ -190,6 +199,7 @@ export default function TemplateEditor() {
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-faint">{VOICE_HINT}</p>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-faint">
@@ -198,11 +208,14 @@ export default function TemplateEditor() {
                 <Slider
                   value={[editingTemplate.speed]}
                   onValueChange={([v]) => setField('speed', v)}
-                  min={0.6}
-                  max={1.3}
+                  min={0.7}
+                  max={1.2}
                   step={0.05}
                   className="mt-3"
                 />
+                <p className="text-xs text-faint">
+                  Rango admitido por los dos motores. 1.00 es el ritmo natural.
+                </p>
               </div>
             </div>
             <div className="space-y-1">

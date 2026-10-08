@@ -29,6 +29,25 @@ export function listEnvOr(key: string, separator = ","): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Parses a `name=value,name=value` env var into a record. Pairs without an
+ * `=` or with an empty side are dropped rather than stored as a half entry.
+ */
+export function keyValueEnvOr(key: string, separator = ","): Record<string, string> {
+  const result: Record<string, string> = {};
+
+  for (const pair of listEnvOr(key, separator)) {
+    const equalsAt = pair.indexOf("=");
+    if (equalsAt <= 0) continue;
+
+    const name = pair.slice(0, equalsAt).trim();
+    const value = pair.slice(equalsAt + 1).trim();
+    if (name && value) result[name] = value;
+  }
+
+  return result;
+}
+
 export function boolEnvOr(key: string, fallback: boolean): boolean {
   const value = process.env[key];
   if (value === undefined || value === "") return fallback;

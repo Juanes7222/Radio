@@ -392,19 +392,38 @@ function parseDockerLine(raw: string, source: SourceId): { ts: string; level: Lo
   return { ts: new Date().toISOString(), level, msg: line };
 }
 
+/**
+ * Keywords that mark a server log line as belonging to the locutor module.
+ * The list is the set of logger contexts the module actually uses, plus the
+ * voice engines ("kokoro", "elevenlabs") because the fallback decisions, the
+ * lines actually worth reading, are logged from the engine and not from the
+ * module. Without them the nightly job landed in the worker tab, because its
+ * context contains "job".
+ */
+const LOCUTOR_LOG_KEYWORDS = [
+  "locutor",
+  "kokoro",
+  "elevenlabs",
+  "tts",
+  "announcement",
+  "audiogeneration",
+  "nightlyjob",
+  "playbackjob",
+  "hourlycheck",
+  "scheduleanalyzer",
+  "templateservice",
+  "playbackazura",
+];
+
 function inferVirtualSource(context: string | undefined, msg: string): SourceId | null {
   const hay = `${context ?? ""} ${msg}`.toLowerCase();
+
+  if (LOCUTOR_LOG_KEYWORDS.some((keyword) => hay.includes(keyword))) return "locutor";
+
   if (hay.includes("worker") || hay.includes("transcode") || hay.includes("job") || hay.includes("bull") || hay.includes("processingjob")) {
-    // worker signals but also locutor contains worker? prioritize locutor if both
-    if (hay.includes("locutor") || hay.includes("kokoro") || hay.includes("tts") || hay.includes("locutor")) return "locutor";
     return "worker";
   }
-  if (hay.includes("locutor") || hay.includes("kokoro") || hay.includes("tts") || hay.includes("azuracast") && hay.includes("locutor")) return "locutor";
-  // locutor keywords
-  if (hay.includes("locutor") || hay.includes("kokoro") || hay.includes("bed") || hay.includes("announcement") || hay.includes("playbackazura")) {
-    // playbackAzuracast is locutor-related; but could overlap with server. Keep locutor for those contexts
-    if (hay.includes("playbackazura") || hay.includes("locutor") || hay.includes("kokoro")) return "locutor";
-  }
+
   return null;
 }
 
@@ -631,10 +650,7 @@ async function loadEntriesForSource(source: SourceId, opts: { tail: number; sinc
       return all.filter((r) => {
         const meta = r.meta as Record<string, unknown> | undefined;
         const ctx = (meta?.context as string) ?? "";
-        const v = inferVirtualSource(ctx, r.msg);
-        if (v === "locutor") return true;
-        const hay = `${ctx} ${r.msg}`.toLowerCase();
-        return hay.includes("locutor") || hay.includes("kokoro") || hay.includes("tts") || hay.includes("announcement") || (hay.includes("playback") && hay.includes("azura"));
+        return inferVirtualSource(ctx, r.msg) === "locutor";
       }).map((r) => ({ ...r, source: "locutor" as SourceId, id: r.id.replace(/^server-/, "locutor-") }));
     }
     case "nginx":

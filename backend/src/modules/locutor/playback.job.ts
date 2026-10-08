@@ -2,8 +2,7 @@ import cron, { type ScheduledTask } from "node-cron";
 import path from "path";
 import fs from "fs/promises";
 import { prisma } from "../../infrastructure/database/prisma";
-import { getTemplateForHour } from "./audioGeneration.service";
-import { renderTemplate } from "./template.service";
+import { renderTemplate, getTemplateForHour } from "./template.service";
 import { synthesize, padSilenceTail, mixWithBed } from "./tts.service";
 import { playFileAsLive, isOwnAnnouncementLive } from "./streamer.service";
 import { evaluateLiveState } from "./liveState.service";
@@ -237,7 +236,7 @@ async function generateAndPlayNow(): Promise<boolean> {
     const filename = `hora_${String(currentHour).padStart(2, "0")}_${String(currentMinute).padStart(2, "0")}_${Date.now()}.mp3`;
     const filepath = path.join(config.locutor.mediaDir, filename);
 
-    const { duration_ms } = await synthesize({
+    const synthesis = await synthesize({
       text: renderedText,
       voice: template.voice,
       speed: template.speed,
@@ -248,10 +247,11 @@ async function generateAndPlayNow(): Promise<boolean> {
       hour: currentHour,
       minute: currentMinute,
       text: renderedText,
-      durationMs: duration_ms,
+      provider: synthesis.provider,
+      durationMs: synthesis.durationMs,
     });
 
-    const playablePath = await preparePlayableFile(filepath, duration_ms, settings);
+    const playablePath = await preparePlayableFile(filepath, synthesis.durationMs, settings);
 
     await playFileWithRetry(playablePath);
     await verifyLiveSwitchBack();

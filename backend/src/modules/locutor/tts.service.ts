@@ -1,12 +1,27 @@
-import axios from "axios";
 import fs from "fs/promises";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { elevenLabsProvider, getElevenLabsStatus } from "./tts/elevenLabs.provider";
+import { isKokoroReachable, kokoroProvider } from "./tts/kokoro.provider";
+import type { TtsProvider, TtsProviderId } from "./tts/tts.types";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+const LOG = "TtsService";
+
+/**
+ * Fixed order: the external provider first, Kokoro as the fallback. A provider
+ * that reports itself unavailable is skipped without a request, so a station
+ * with no ElevenLabs key configured behaves exactly as it did before.
+ */
+const PROVIDERS: TtsProvider[] = [elevenLabsProvider, kokoroProvider];
+
+let lastProvider: TtsProviderId | null = null;
+let lastProviderAt: Date | null = null;
+let fallbackCount = 0;
 
 export interface SynthesizeParams {
   text: string;
@@ -16,53 +31,134 @@ export interface SynthesizeParams {
 }
 
 export interface SynthesizeResult {
-  duration_ms: number;
-  file_size_bytes: number;
+  provider: TtsProviderId;
+  /** Voice that produced the file, qualified with its provider. */
+  voice: string;
+  durationMs: number;
+  fileSizeBytes: number;
+}
+
+/**
+ * The provider that would answer a synthesis right now. The audio bank reuses
+ * only files produced by this one: a Kokoro recording left in the bank would
+ * otherwise keep playing after the good voice became available, and the
+ * station would sound robotic for weeks with nothing pointing at the cause.
+ */
+export function preferredProviderId(templateVoice: string | null): TtsProviderId {
+  return PROVIDERS.find((provider) => provider.isAvailable(templateVoice))?.id ?? "kokoro";
 }
 
 export async function synthesize({
   text,
-  voice = "ef_dora",
-  speed = 0.85,
+  voice = config.locutor.tts.defaultVoice,
+  speed = config.locutor.tts.defaultSpeed,
   outputPath,
 }: SynthesizeParams): Promise<SynthesizeResult> {
-  const KOKORO_URL = config.locutor.kokoroUrl;
+  const trimmed = text.trim();
 
-  try {
-    const response = await axios.post(
-      `${KOKORO_URL}/v1/audio/speech`,
-      { model: "kokoro", input: text, voice, speed, response_format: "mp3" },
-      { responseType: "arraybuffer", timeout: 60_000 }
-    );
-
-    const dir = path.dirname(outputPath);
-    await fs.mkdir(dir, { recursive: true });
-
-    await fs.writeFile(outputPath, Buffer.from(response.data));
-
-    const duration = await getAudioDuration(outputPath);
-    const stat = await fs.stat(outputPath);
-
-    return {
-      duration_ms: Math.round(duration * 1000),
-      file_size_bytes: stat.size,
-    };
-  } catch (err) {
-    logger.error("TtsService", "TTS synthesis failed", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    throw err;
+  if (!trimmed) {
+    throw new Error("No hay texto que locutar");
   }
+
+  if (trimmed.length > config.locutor.tts.maxTextLength) {
+    throw new Error(
+      `El texto supera los ${config.locutor.tts.maxTextLength} caracteres permitidos (${trimmed.length})`
+    );
+  }
+
+  const firstChoice = preferredProviderId(voice);
+  let lastError: Error | null = null;
+
+  for (const provider of PROVIDERS) {
+    if (!provider.isAvailable(voice)) continue;
+
+    try {
+      const output = await provider.synthesize({ text: trimmed, templateVoice: voice, speed });
+
+      const dir = path.dirname(outputPath);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(outputPath, output.audio);
+
+      const [duration, stat] = await Promise.all([
+        getAudioDuration(outputPath),
+        fs.stat(outputPath),
+      ]);
+
+      if (provider.id !== firstChoice) {
+        fallbackCount += 1;
+        logger.warn(LOG, "Falling back to another voice engine", {
+          preferred: firstChoice,
+          used: provider.id,
+          reason: lastError?.message,
+          fallbackCount,
+        });
+      }
+
+      lastProvider = provider.id;
+      lastProviderAt = new Date();
+
+      return {
+        provider: provider.id,
+        voice: output.voice,
+        durationMs: Math.round(duration * 1000),
+        fileSizeBytes: stat.size,
+      };
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      logger.warn(LOG, "Voice engine failed, trying the next one", {
+        provider: provider.id,
+        error: lastError.message,
+      });
+    }
+  }
+
+  logger.error(LOG, "Every voice engine failed", {
+    error: lastError?.message ?? "no provider available",
+  });
+
+  throw lastError ?? new Error("No hay ningún motor de voz disponible");
+}
+
+export interface TtsRuntimeStatus {
+  preferredProvider: TtsProviderId;
+  lastProvider: TtsProviderId | null;
+  lastProviderAt: string | null;
+  fallbackCount: number;
+  kokoroReachable: boolean;
+  elevenLabs: ReturnType<typeof getElevenLabsStatus>;
+}
+
+/**
+ * Live state of the voice chain for the admin panel. Reading the balance here
+ * is what makes the credit burn visible before it turns into a station that
+ * quietly fell back to the robotic voice for a month.
+ */
+export async function getTtsStatus(): Promise<TtsRuntimeStatus> {
+  return {
+    preferredProvider: preferredProviderId(null),
+    lastProvider,
+    lastProviderAt: lastProviderAt ? lastProviderAt.toISOString() : null,
+    fallbackCount,
+    kokoroReachable: await isKokoroReachable(),
+    elevenLabs: getElevenLabsStatus(),
+  };
 }
 
 async function getAudioDuration(filePath: string): Promise<number> {
   try {
-    const { stdout } = await execAsync(`ffprobe -v quiet -print_format json -show_format "${filePath}"`);
+    const { stdout } = await execFileAsync("ffprobe", [
+      "-v",
+      "quiet",
+      "-print_format",
+      "json",
+      "-show_format",
+      filePath,
+    ]);
     const data = JSON.parse(stdout);
     const duration = data.format?.duration;
     if (duration) return parseFloat(duration);
   } catch {
-    logger.warn("TtsService", `Could not get duration for ${filePath}, falling back to 0`);
+    logger.warn(LOG, `Could not get duration for ${filePath}, falling back to 0`);
   }
   return 0;
 }
@@ -73,7 +169,18 @@ async function getAudioDuration(filePath: string): Promise<number> {
  * auto-DJ when the live harbor source ends, avoiding abrupt cuts.
  */
 export async function padSilenceTail(inputPath: string, outputPath: string, seconds: number): Promise<void> {
-  await execAsync(`ffmpeg -y -v error -i "${inputPath}" -af "apad=pad_dur=${seconds}" -c:a libmp3lame "${outputPath}"`);
+  await execFileAsync("ffmpeg", [
+    "-y",
+    "-v",
+    "error",
+    "-i",
+    inputPath,
+    "-af",
+    `apad=pad_dur=${seconds}`,
+    "-c:a",
+    "libmp3lame",
+    outputPath,
+  ]);
 }
 
 export interface MixWithBedParams {
@@ -101,12 +208,30 @@ export async function mixWithBed({
   const totalSeconds = durationSeconds + tailSeconds;
   const fadeOutStart = Math.max(0, durationSeconds - 0.5);
 
-  await execAsync(
-    `ffmpeg -y -v error -stream_loop -1 -i "${bedPath}" -i "${voicePath}" ` +
-      `-filter_complex ` +
-      `"[0:a]volume=${bedVolume}[bed];` +
-      `[1:a]afade=t=in:d=0.3,afade=t=out:st=${fadeOutStart}:d=0.5[voice];` +
-      `[voice][bed]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[out]" ` +
-      `-map "[out]" -t ${totalSeconds} -c:a libmp3lame "${outputPath}"`
-  );
+  const filter = [
+    `[0:a]volume=${bedVolume}[bed];`,
+    `[1:a]afade=t=in:d=0.3,afade=t=out:st=${fadeOutStart}:d=0.5[voice];`,
+    `[voice][bed]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[out]`,
+  ].join("");
+
+  await execFileAsync("ffmpeg", [
+    "-y",
+    "-v",
+    "error",
+    "-stream_loop",
+    "-1",
+    "-i",
+    bedPath,
+    "-i",
+    voicePath,
+    "-filter_complex",
+    filter,
+    "-map",
+    "[out]",
+    "-t",
+    String(totalSeconds),
+    "-c:a",
+    "libmp3lame",
+    outputPath,
+  ]);
 }

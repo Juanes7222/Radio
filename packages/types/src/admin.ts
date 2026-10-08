@@ -357,7 +357,10 @@ export interface LocutorAudio {
   textRendered: string;
   durationMs: number | null;
   fileSizeBytes: number | null;
+  /** Provider-qualified voice that produced the file, e.g. `elevenlabs:abc123`. */
   voice: string;
+  /** Voice engine that produced the file: 'elevenlabs' or 'kokoro'. */
+  provider: string;
   azuracastMediaId: string | null;
   generatedAt: string;
   status: string;
@@ -379,9 +382,56 @@ export interface LocutorGenerationLog {
   finishedAt: string | null;
 }
 
+/** Voice engine backing the announcements */
+export type TtsProviderId = 'elevenlabs' | 'kokoro';
+
+/** One entry of the external provider's API key pool. Never carries the key itself. */
+export interface TtsKeyStatus {
+  index: number;
+  /** Last four characters of the key, enough to tell two keys apart. */
+  hint: string;
+  available: boolean;
+  blockReason: 'quota' | 'invalid' | 'transient' | null;
+  blockedUntil: string | null;
+  inFlight: number;
+  lastUsedAt: string | null;
+  lastError: string | null;
+  /** Balance of the account behind this key. Null until it has been read. */
+  balance: TtsBalance;
+}
+
+/** Credit balance of the external provider. Pool totals for `TtsRuntimeStatus`. */
+export interface TtsBalance {
+  charactersUsed: number | null;
+  characterLimit: number | null;
+  remaining: number | null;
+  /** Next quota reset; the earliest one across the pool is what matters. */
+  resetAt: string | null;
+  checkedAt: string | null;
+}
+
+/** Live state of the voice chain */
+export interface TtsRuntimeStatus {
+  /** Engine that would answer the next synthesis right now. */
+  preferredProvider: TtsProviderId;
+  /** Engine that answered the last synthesis. */
+  lastProvider: TtsProviderId | null;
+  lastProviderAt: string | null;
+  /** How many times the station fell back since the process started. */
+  fallbackCount: number;
+  kokoroReachable: boolean;
+  elevenLabs: {
+    configured: boolean;
+    modelId: string;
+    keys: TtsKeyStatus[];
+    availableKeys: number;
+    balance: TtsBalance;
+  };
+}
+
 /** Health summary of the TTS locutor */
 export interface LocutorStatus {
-  kokoro: { healthy: boolean };
+  tts: TtsRuntimeStatus;
   last_job: LocutorGenerationLog | null;
   bank: { ready: number; pending: number; error: number };
   stats: Record<string, unknown>;

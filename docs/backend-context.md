@@ -233,6 +233,79 @@ its own.
   helpers were extracted to `shared/storage/localStorage.ts`;
   `notices/media/media.storage.ts` re-exports them.
 
+## Voice engine: ElevenLabs pool with Kokoro fallback (Oct 2026)
+
+Kokoro was good enough for a script but sounds robotic on air, so the
+announcements are synthesized by ElevenLabs. The station does not pay for it,
+so the answer is a pool of free accounts: each announcement takes the first key
+that is free and falls back to Kokoro only when no key can answer.
+
+- `synthesize()` in `locutor/tts.service.ts` is still the only entry point, so
+  `audioGeneration.service.ts`, `playback.job.ts` and `locutor.routes.ts` did
+  not change their call sites. It walks a fixed list of providers
+  (`tts/tts.types.ts` `TtsProvider`): ElevenLabs first, then Kokoro. A provider
+  that reports itself unavailable is skipped without spending a request, so a
+  station with no key configured behaves exactly as before.
+- `tts/apiKeyPool.service.ts` holds the key state, in memory, per process.
+  **The three failures are not the same failure** and collapsing them into
+  "key unusable" is the bug to avoid: `invalid_api_key` (401) parks the key for
+  the process lifetime, `quota_exceeded` parks it until the reset date the
+  provider reports via `GET /v1/user/subscription`, and anything else (429
+  concurrency, 5xx, timeout) parks it for two minutes because it says nothing
+  about the quota. Reservation is round-robin so credits spread evenly and a
+  revoked key is noticed before it is needed; the lease carries an in-flight
+  counter so two concurrent generations do not both spend the last key with
+  credits. A restart re-probes every key once, which is the right trade for a
+  station that announces a few times a day.
+- **The template voice is provider-neutral and stays in the DB.**
+  `AnnouncementTemplate.voice` keeps its Kokoro label (`ef_dora`); ElevenLabs
+  maps it through `ELEVENLABS_VOICE_IDS` and falls back to
+  `ELEVENLABS_DEFAULT_VOICE_ID`. So the panel still edits a two-option
+  dropdown and the panel copy says it is the fallback voice. What was actually
+  used is recorded on the audio as `elevenlabs:<voiceId>` / `kokoro:<voice>`.
+- `speed` is shared, because both engines measure it the same way around 1.0,
+  and ElevenLabs clamps it to 0.7–1.2. The template slider was narrowed to that
+  range so it does not offer values that get silently clamped.
+- **`GeneratedAudio.provider` is what makes the voice change audible.**
+  `findReusableAudio` filters on the provider that would answer right now. A
+  Kokoro recording left in the bank would otherwise keep being reused after
+  ElevenLabs becomes available, and the station would sound robotic for weeks
+  with nothing pointing at the cause. The cost of the switch is one generation
+  per hour/group until the bank is repopulated with the new engine; the old
+  rows are not deleted, they just stop being reused and age out through
+  `expireOldAudios`. Migration
+  `20261013000000_add_announcement_provider` defaults the column to `kokoro`,
+  which is what every pre-existing row was.
+- `voice_not_found` and `max_character_limit_exceeded` throw
+  `TtsProviderConfigError` instead of parking a key: they would fail
+  identically on every key, so the chain moves straight to the fallback.
+- Admin endpoints: `GET /status` returns a `tts` block (preferred provider,
+  last provider, fallback count since process start, per-key state and the
+  credit balance) replacing the old `kokoro.healthy` flag, and
+  `GET /test-tts` (was `/test-kokoro`) synthesizes a real phrase and reports
+  which engine answered while refreshing the balance. Panel:
+  `StatusDashboard.tsx` shows the engine, the key pool and the remaining
+  characters; `AudioBank.tsx` badges each row with the engine that produced it.
+  **The key value never leaves the backend**, only its last four characters.
+- The credit balance is the number that decides how many keys the station
+  needs. It is read from the subscription endpoint only when a quota failure
+  happens or when an admin presses the test button, so it costs nothing on the
+  normal path; the panel polls `/status` every 30 s without spending a request.
+  **Measured 8 Oct 2026**: the free plan allows 10,000 characters per month and
+  a 100-character announcement takes 6.7 s of audio. That is roughly 100
+  announcements per account per month, so one key covers about two days of
+  `LOCUTOR_ANNOUNCEMENTS_PER_HOUR=2`. The pool has to be sized against that
+  number, and the cheapest lever is the bank: `findReusableAudio` refuses an
+  audio used the previous day, so with exactly one audio per hour every
+  announcement regenerates daily. Two or three per hour rotates the bank and
+  cuts the monthly bill proportionally.
+- The announcement text is sent to a third party. It contains the station name
+  and the time, no listener data, but that is a deliberate choice and worth
+  re-reading if a template ever interpolates something a listener wrote.
+- `logs.service.ts` `LOCUTOR_LOG_KEYWORDS` lists the module's logger contexts
+  and the engine names. Without `nightlyjob` the nightly job landed in the
+  worker tab, because its context contains "job".
+
 ## Bible reading rotations (Sep 2026)
 
 - Models: `PlaylistRotation` (`playlist_rotations`) + `RotationRunLog` (`rotation_run_logs`) in `prisma/schema/rotations.prisma`. Module `src/modules/rotation/` with `rotation.routes.ts`, `rotation.service.ts`, `bibleSource.service.ts`, `azuracastPlaylist.service.ts`, `rotation.job.ts`.

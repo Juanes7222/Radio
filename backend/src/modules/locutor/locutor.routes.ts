@@ -1,14 +1,14 @@
 import { Router } from "express";
 import path from "path";
 import { prisma } from "../../infrastructure/database/prisma";
-import { synthesize } from "./tts.service";
-import { renderTemplate } from "./template.service";
+import { getTtsStatus, preferredProviderId, synthesize } from "./tts.service";
+import { refreshElevenLabsBalance } from "./tts/elevenLabs.provider";
+import { getTemplateForHour, renderTemplate } from "./template.service";
 import { getAudioStats } from "./timeSlotPlanner.service";
 import {
   getAudioCountByStatus,
   generateOrReuseAudio,
   scheduleAudioForDate,
-  getTemplateForHour,
 } from "./audioGeneration.service";
 import { uploadAudioToAzuraCast } from "../azuracast/playback.service";
 import { playFileAsLive } from "./streamer.service";
@@ -122,6 +122,7 @@ router.get(
           durationMs: true,
           fileSizeBytes: true,
           voice: true,
+          provider: true,
           azuracastMediaId: true,
           generatedAt: true,
           status: true,
@@ -186,6 +187,7 @@ router.post(
         filepath: outputPath,
         textRendered: "",
         voice: template.voice,
+        provider: preferredProviderId(template.voice),
         status: "pending",
       },
     });
@@ -196,7 +198,7 @@ router.post(
     void (async () => {
       try {
         const text = renderTemplate(template.textTemplate, req.body.variables || {});
-        const { duration_ms, file_size_bytes } = await synthesize({
+        const synthesis = await synthesize({
           text,
           voice: template.voice,
           speed: template.speed,
@@ -207,8 +209,10 @@ router.post(
           where: { id: audio.id },
           data: {
             textRendered: text,
-            durationMs: Math.round(duration_ms),
-            fileSizeBytes: file_size_bytes,
+            durationMs: synthesis.durationMs,
+            fileSizeBytes: synthesis.fileSizeBytes,
+            voice: synthesis.voice,
+            provider: synthesis.provider,
             status: "ready",
           },
         });
@@ -261,16 +265,7 @@ router.delete(
 router.get(
   "/status",
   asyncHandler(async (_req, res) => {
-    let kokoroOk = false;
-    try {
-      const axios = await import("axios");
-      const { status } = await axios.default.get(`${config.locutor.kokoroUrl}/health`, {
-        timeout: 2000,
-      });
-      kokoroOk = status === 200;
-    } catch {
-      // Kokoro not reachable
-    }
+    const tts = await getTtsStatus();
 
     const lastJob = await prisma.generationLog.findFirst({
       orderBy: { startedAt: "desc" },
@@ -280,7 +275,7 @@ router.get(
     const stats = await getAudioStats();
 
     res.json({
-      kokoro: { healthy: kokoroOk },
+      tts,
       last_job: lastJob || null,
       bank: {
         ready: statusCounts["ready"] || 0,
@@ -361,6 +356,8 @@ router.post(
       filename: result.filename,
       hour,
       wasReused: result.wasReused,
+      provider: result.provider,
+      voice: result.voice,
       durationMs: result.durationMs,
     });
   })
@@ -389,7 +386,7 @@ router.post(
     const filename = `hora_${String(hour).padStart(2, "0")}_${String(minute).padStart(2, "0")}_${now.getTime()}.mp3`;
     const filepath = path.join(config.locutor.mediaDir, filename);
 
-    const { duration_ms } = await synthesize({
+    const synthesis = await synthesize({
       text: renderedText,
       voice: template.voice,
       speed: template.speed,
@@ -404,7 +401,9 @@ router.post(
         hour,
         minute,
         text: renderedText,
-        durationMs: duration_ms,
+        provider: synthesis.provider,
+        voice: synthesis.voice,
+        durationMs: synthesis.durationMs,
         file: filepath,
         message: "Announcement generated and played via live streamer",
       });
@@ -522,13 +521,19 @@ router.post(
   })
 );
 
-// --- TEST KOKORO CONNECTION ---
+// --- TEST THE VOICE CHAIN ---
 
+/**
+ * Synthesizes a short phrase through the same chain the announcements use and
+ * reports which engine answered. The credit balance is refreshed on the way
+ * out, so the panel can show how much is left without waiting for a quota
+ * failure to discover it.
+ */
 router.get(
-  "/test-kokoro",
+  "/test-tts",
   asyncHandler(async (_req, res) => {
-    const testText = "Prueba de conexión con Kokoro";
-    const testPath = path.join(MEDIA_DIR, `test_kokoro_${Date.now()}.mp3`);
+    const testText = "En este momento son las tres de la tarde. Esto es La Voz de la Verdad.";
+    const testPath = path.join(MEDIA_DIR, `test_tts_${Date.now()}.mp3`);
 
     const result = await synthesize({
       text: testText,
@@ -542,10 +547,15 @@ router.get(
 
     res.json({
       success: true,
-      message: "Kokoro responded successfully",
-      durationMs: result.duration_ms,
-      fileSizeBytes: result.file_size_bytes,
-      kokoroUrl: config.locutor.kokoroUrl,
+      provider: result.provider,
+      voice: result.voice,
+      message:
+        result.provider === "kokoro"
+          ? "Kokoro respondió. No hay ninguna key de ElevenLabs disponible."
+          : "ElevenLabs respondió.",
+      durationMs: result.durationMs,
+      fileSizeBytes: result.fileSizeBytes,
+      balance: await refreshElevenLabsBalance(),
     });
   })
 );

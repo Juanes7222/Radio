@@ -43,7 +43,7 @@ The listener surfaces are the visible product. The operational surface — worke
 **For the station team**
 
 - Full station console in the admin panel: playlists, uploads, rotations, schedule categories, DJ assignments, moderation queues, the audio bank, backup browser, log viewer and health overview.
-- TTS announcements: hour-aware templates rendered by Kokoro, mixed over background beds, scheduled into safe time slots and pushed on air by connecting to Liquidsoap's harbor socket as a temporary streamer.
+- TTS announcements: hour-aware templates rendered by ElevenLabs (a pool of API keys, so the station keeps announcing when one account runs out of credits, with self-hosted Kokoro as the fallback), mixed over background beds, scheduled into safe time slots and pushed on air by connecting to Liquidsoap's harbor socket as a temporary streamer.
 - YouTube ingestion: subscribe to channels, ingest new videos, download, extract metadata and publish them as station media — executed on worker nodes, not on the server.
 - Browser-based live relay: a DJ streams from `/admin/live` and the backend re-encodes to Icecast with the station's own streamer credential, so it never reaches the browser.
 - RBAC admin panel: Firebase sign-in, JWT sessions, database-backed roles and per-panel permissions.
@@ -96,7 +96,7 @@ The process opens two listeners: the HTTP API on `PORT` and the worker WebSocket
 | Mobile | React Native 0.86, Expo 57, Expo Router, Track Player, EAS Update |
 | Streaming | AzuraCast (Icecast + Liquidsoap AutoDJ) |
 | Media | `ffmpeg` / `fluent-ffmpeg`, `sharp`, `yt-dlp` on the workers |
-| TTS | Kokoro (self-hosted HTTP service) |
+| TTS | ElevenLabs (pooled API keys) with Kokoro (self-hosted HTTP service) as fallback |
 | Secrets | Infisical SDK, `.env` fallback for local work |
 | Email | Nodemailer (SMTP) and Brevo |
 | Infra | Nginx + Let's Encrypt, systemd, PM2, Cloudflare R2, GeoLite2 (MaxMind) |
@@ -193,7 +193,9 @@ Only the essentials here; every other knob is documented inline in `backend/.env
 | `AZURACAST_API_KEY` | Privileged AzuraCast access (Infisical) | — |
 | `PORT` / `WS_PORT` | HTTP and worker WebSocket ports | `3001` / `3001` |
 | `TIMEZONE` | Station timezone; drives schedules and cron | `UTC` |
-| `KOKORO_URL` | TTS service for announcements | — |
+| `KOKORO_URL` | Local TTS service, used as the announcement fallback | — |
+| `ELEVENLABS_API_KEYS` | Comma-separated pool of ElevenLabs keys; each announcement picks the first available one | — |
+| `ELEVENLABS_VOICE_IDS` / `ELEVENLABS_DEFAULT_VOICE_ID` | Maps an announcement template voice to an ElevenLabs voice id | — |
 | `YOUTUBE_CHANNEL_IDS` | Channels to ingest from | — |
 | `EMAIL_RECIPIENTS` | Health alert recipients | — |
 | `INFISICAL_*` | Remote secret loading | disabled |

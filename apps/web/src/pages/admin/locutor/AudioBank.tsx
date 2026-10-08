@@ -27,6 +27,28 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   expired: { label: 'Expirado', color: 'bg-faint/10 text-faint border-faint/20' },
 };
 
+const PROVIDER_LABELS: Record<string, { label: string; color: string }> = {
+  elevenlabs: { label: 'ElevenLabs', color: 'bg-success/10 text-success border-success/20' },
+  kokoro: { label: 'Kokoro', color: 'bg-info/10 text-info border-info/20' },
+};
+
+/**
+ * The voice column already carries the provider-qualified id
+ * (`elevenlabs:abc123`), so this badge only answers the question the id
+ * cannot: whether this file came from the engine the station pays for or from
+ * the fallback.
+ */
+function ProviderBadge({ provider }: { provider: string }) {
+  const config = PROVIDER_LABELS[provider];
+  if (!config) return null;
+
+  return (
+    <Badge variant="outline" className={`mt-1 text-xs border ${config.color}`}>
+      {config.label}
+    </Badge>
+  );
+}
+
 function formatBytes(bytes: number | null): string {
   if (!bytes) return '—';
   if (bytes < 1024) return `${bytes} B`;
@@ -155,7 +177,10 @@ export default function AudioBank() {
                     <TableCell className="text-muted-foreground max-w-xs truncate" title={audio.textRendered}>
                       {audio.textRendered || '—'}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{audio.voice}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      <p className="truncate" title={audio.voice}>{audio.voice}</p>
+                      <ProviderBadge provider={audio.provider} />
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       <span className="whitespace-nowrap">{formatClock((audio.durationMs ?? 0) / 1000)}</span>
                       <span className="text-xs text-faint"> · {formatBytes(audio.fileSizeBytes)}</span>
