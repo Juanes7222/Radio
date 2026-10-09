@@ -89,10 +89,13 @@ Módulo nuevo `backend/src/modules/playback/`.
 `listenerHistory.service.ts:18-38`:
 
 1. Lee `MAX(played_at)` y `MIN(played_at)` de la tabla (0,03 ms medidos).
-2. Si la tabla está vacía **o no alcanza la ventana de retención**, hace *backfill* por
-   días desde el piso de retención. Sin esto la página estaría vacía durante meses.
-3. Si no, consulta la ventana `[max - 10 min, ahora]`.
-4. Mapea los registros a filas y las inserta.
+2. Si hay alguna fila, consulta la ventana `[max - 10 min, ahora]`. **Este poll corre en
+   toda corrida**, incluso con la cobertura incompleta: el backfill del punto 3 camina
+   hacia atrás desde el evento más antiguo y nunca alcanza el extremo reciente, así que
+   atarlo al "si no" congelaría el log.
+3. Si `MIN(played_at)` no alcanza el piso de retención, hace *backfill* por días desde
+   el piso hasta `MIN(played_at)`. Sin esto la página estaría vacía durante meses.
+4. Mapea los registros a filas y las inserta, deduplicando por `azuracast_sh_id`.
 5. Poda, siempre, aunque la recolección haya fallado.
 
 El disparador del *backfill* se ancla en la fila **más antigua**, no en la vaciedad de
@@ -106,12 +109,25 @@ unos 60 días, así que pedir 90 es pedir datos que la fuente ya borró y que ni
 frecuencia de *polling* puede recuperar. La retención queda en **55 días**, con 5 días
 de margen contra el recorte de la fuente.
 
-**El backfill está acotado.** Al extender hacia atrás se detiene tras 3 ventanas
-diarias vacías consecutivas. Sin ese tope, si la profundidad de AzuraCast queda por
-debajo de nuestra retención, cada corrida reintenta día por día hasta el piso sin
-converger nunca. Medido, cada petición diaria tarda entre 0,2 s y 1,7 s, así que 90
-peticiones serían de 20 s a 90 s **en cada corrida, cada 5 minutos, para siempre**. Con
-el tope degrada a 3 peticiones por corrida.
+**El backfill está acotado y reanuda.** Camina hacia atrás desde el evento más antiguo
+que ya tenemos, no desde `now`, así que una corrida interrumpida o detenida por el tope
+retoma donde se quedó en vez de recorrer la ventana entera otra vez. Se detiene tras 3
+ventanas diarias vacías consecutivas.
+
+El anclaje en el evento más antiguo no es un detalle: si la franja entre el piso de
+retención y la profundidad real de AzuraCast no tuviera ninguna reproducción —por
+porque la estación estuvo apagada en ese periodo— `MIN(played_at)` nunca tocaría el
+piso, la condición de cobertura seguiría insatisfecha y cada corrida volvería a
+recorrer toda la ventana. Anclando en `oldest`, ese caso degrada a 1 petición de poll
+más hasta 3 de caminata, en vez de ~56.
+
+El tope de ventanas vacías también aplica al poll cuando hay una caída larga, y ahí sí
+tiene un coste: tras 3 días seguidos sin ninguna reproducción, el poll corta antes de
+llegar al día en que la estación volvió y ese día se pierde de forma permanente. Una
+radio 24/7 no se queda tres días en silencio sin que el vigilante de salud ya haya
+avisado, y la alternativa sin tope serían ~60 peticiones por corrida indefinidamente,
+así que el trade-off se queda como está. El log `Backfill stopped after empty windows`
+delata el corte.
 
 **El insert idempotente.** Prisma 6.19.3 sobre SQLite no soporta `skipDuplicates`: no
 aparece en el cliente generado que consume la app
@@ -214,9 +230,21 @@ días: el caso que la UI nunca puede pedir.
 | metadatos de 20 audios | — | 1,75 ms (41 ms sin índice) |
 | búsqueda `LIKE` sin coincidencias | ~15 ms | 39 ms (p95 94 ms) |
 
-Carga por página del admin: log ~2 ms; vista por audio ~27 ms a 30 días, ~105 ms
-p50 / ~135 ms p95 a 90 días. Un solo hilo, y solo si un admin navega muchas páginas
-por minuto. Ninguna de estas consultas es un cuello de botella.
+Carga por página del admin: log ~2 ms; vista por audio, medida dentro de la aplicación
+con 34 000 filas sembradas y ventana de 55 días, 159-173 ms caliente y 546-598 ms en
+frío (la primera llamada tras insertar tiene la caché de páginas de SQLite vacía).
+Un solo hilo, y solo si un admin navega muchas páginas por minuto. Ninguna de estas
+consultas es un cuello de botella.
+
+El desglose de esa vista por audio: `GROUP BY` 54-61 ms, el total de audios distintos
+103-108 ms y la resolución de metadata 17-19 ms. El total es la parte cara y es
+proporcional al **volumen de la ventana**, no al número de audios distintos, porque
+`SELECT DISTINCT` post-procesa todas las filas del rango. Con los ~19 000 filas que
+dan 55 días a 340 reproducciones diarias, eso son unas 950 páginas en el log.
+
+No hay tope de páginas: los desplazamientos profundos salen a ~1 ms porque el índice de
+`played_at` los resuelve, así que un tope artificial solo serviría para devolver la
+página 1 en silencio cuando se alcanzara.
 
 El total de audios distintos se cuenta con `SELECT DISTINCT song_id` y no con
 `COUNT(DISTINCT ...)`, porque Prisma no expone el segundo. La diferencia medida es
