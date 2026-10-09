@@ -58,7 +58,16 @@ export interface DayAnalysis {
   degraded: boolean;
 }
 
-function toStationMinute(instant: Date): number {
+/**
+ * Minutos desde medianoche. `dayEnd` merece un caso aparte: la medianoche del
+ * día siguiente se formatea como 00:00, y sin esto un programa que termina a
+ * medianoche reportaba endMinute 0, se le restaba el minuto de borde y quedaba
+ * en -1. `subtractBusy` descarta los intervalos con end <= 0, de modo que un
+ * bloque de 22:00 a 24:00 desaparecía del horario y toda esa franja pasaba a
+ * ser ventana libre, con avisos planificados encima de un programa en curso.
+ */
+function toStationMinute(instant: Date, dayEnd?: Date): number {
+  if (dayEnd && instant.getTime() >= dayEnd.getTime()) return MINUTES_PER_DAY;
   const { hour, minute } = getStationTime(instant);
   return hour * 60 + minute;
 }
@@ -98,7 +107,7 @@ function toDayInterval(
 
   return {
     startMinute: toStationMinute(new Date(overlapStart)),
-    endMinute: toStationMinute(new Date(overlapEnd)),
+    endMinute: toStationMinute(new Date(overlapEnd), dayEnd),
   };
 }
 
