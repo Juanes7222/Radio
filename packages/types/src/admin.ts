@@ -1187,7 +1187,7 @@ export interface PlaybackEventList {
   totalPages: number;
 }
 
-/** See `PlaybackEventRow` on why the dates are strings. */
+/** Same date rule as `PlaybackEventRow`. */
 export interface PlaybackAudioRow {
   songId: string;
   title: string;
@@ -1205,14 +1205,22 @@ export interface PlaybackAudioList {
   totalPages: number;
 }
 
-/** Distinct playlist names available for the filter dropdown. */
-export interface PlaybackFilters {
+/**
+ * Response of the playback filters endpoint: the distinct playlist names the
+ * window can be narrowed to. Not the normalized filter the backend builds from
+ * the query, which lives in `playback.service.ts`.
+ */
+export interface PlaybackFilterOptions {
   playlists: string[];
 }
 
 export interface PlaybackLogQuery {
-  from: string;
-  to: string;
+  /**
+   * Optional because the backend falls back to a default 30 day window when
+   * `from` or `to` is absent or blank.
+   */
+  from?: string;
+  to?: string;
   playlist?: string;
   search?: string;
   automated?: '0' | '1';
