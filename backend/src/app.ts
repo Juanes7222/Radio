@@ -39,6 +39,7 @@ import noticeVideosRouter from "./modules/notices/noticeVideos.routes";
 import logsRouter from "./modules/systemLogs/logs.routes";
 import systemJobsRouter from "./modules/systemJobs/systemJobs.routes";
 import backupsRouter from "./modules/backups/backups.routes";
+import playbackRouter from "./modules/playback/playback.routes";
 import { healthAdminRouter, healthPublicRouter } from "./modules/health/health.routes";
 import { getHealthStatusSnapshot } from "./modules/health/health.service";
 import swaggerFile from "./swagger-output.json";
@@ -149,6 +150,7 @@ export function createApp(): Express {
   app.use("/admin-api/logs", logsRouter);
   app.use("/admin-api/jobs", systemJobsRouter);
   app.use("/admin-api/backups", backupsRouter);
+  app.use("/admin-api/playback", playbackRouter);
   app.use("/admin-api/health/watchdog", healthAdminRouter);
 
   // Reusable optimized images - serve with immutable cache
