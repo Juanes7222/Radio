@@ -1157,3 +1157,69 @@ export interface PublicHealthSnapshot {
   status: HealthStatus;
   checkedAt: string | null;
 }
+
+// ── Historial de reproducción ────────────────────────────────────────────
+
+export type PlaybackAudioOrder = 'plays' | 'recent' | 'first';
+
+/**
+ * Date fields are `string`, not `Date`: the backend works with `Date` objects
+ * internally and Express serializes them to ISO-8601 strings in the JSON
+ * response, so this is what the panel actually receives.
+ */
+export interface PlaybackEventRow {
+  shId: number;
+  playedAt: string;
+  durationSec: number;
+  songId: string;
+  title: string;
+  artist: string;
+  album: string;
+  playlist: string;
+  streamer: string;
+  isRequest: boolean;
+}
+
+export interface PlaybackEventList {
+  rows: PlaybackEventRow[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+/** See `PlaybackEventRow` on why the dates are strings. */
+export interface PlaybackAudioRow {
+  songId: string;
+  title: string;
+  artist: string;
+  album: string;
+  plays: number;
+  firstPlayedAt: string;
+  lastPlayedAt: string;
+}
+
+export interface PlaybackAudioList {
+  rows: PlaybackAudioRow[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+/** Distinct playlist names available for the filter dropdown. */
+export interface PlaybackFilters {
+  playlists: string[];
+}
+
+export interface PlaybackLogQuery {
+  from: string;
+  to: string;
+  playlist?: string;
+  search?: string;
+  automated?: '0' | '1';
+  page?: number;
+  limit?: number;
+}
+
+export interface PlaybackAudioQuery extends PlaybackLogQuery {
+  order?: PlaybackAudioOrder;
+}
