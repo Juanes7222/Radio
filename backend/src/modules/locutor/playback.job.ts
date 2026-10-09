@@ -184,12 +184,15 @@ async function runSlot(slotId: string): Promise<void> {
   }
 
   const played = await generateAndPlayNow();
-  if (!played) {
-    await settleSlot(slotId, "failed", "No se pudo generar o reproducir el aviso");
-    return;
-  }
+  const outcome = played ? "played" : "failed";
+  const reason = played ? "Reproducido" : "No se pudo generar o reproducir el aviso";
 
-  await settleSlot(slotId, "played", "Reproducido");
+  // The bitácora is the audit trail for why an hour went unannounced, so the
+  // terminal states belong in it too. Recording only the blocked attempts left
+  // the table empty in exactly the case that matters most: the station was free,
+  // the notice was allowed to air, and it never sounded.
+  await recordRun(slotId, outcome, reason);
+  await settleSlot(slotId, outcome, reason);
 }
 
 function scheduleRetry(slotId: string, delayMs: number): void {
