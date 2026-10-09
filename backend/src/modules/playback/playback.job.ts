@@ -4,9 +4,9 @@ import { logger } from "../../shared/logger/logger";
 import { capturePlaybackHistory } from "./playbackHistory";
 
 /**
- * Sincroniza el historial de reproducción de AzuraCast con la tabla local.
- * La ventana de consulta se solapa entre corridas y el insert es idempotente,
- * así que la frecuencia no afecta la completitud del historial.
+ * Mirrors the AzuraCast playback history into the local table. The query
+ * window overlaps between runs and the insert is idempotent, so the frequency
+ * does not affect how complete the stored history ends up being.
  */
 export function registerPlaybackHistoryJob() {
   cron.schedule(
