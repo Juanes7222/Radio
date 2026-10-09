@@ -178,18 +178,25 @@ export function minuteClause(minute: number): string {
 }
 
 /**
- * Full spoken time: "Son las nueve y cuarenta y dos de la noche".
+ * Full spoken time as a clause: "son las nueve y cuarenta y dos de la noche".
  *
  * The verb agrees with the hour, which is what makes the sentence sound spoken
  * rather than read: Spanish uses "es la una" but "son las dos" onward, and
  * twelve behaves like a plural.
+ *
+ * Always lowercase. The shipped templates interpolate this clause in two
+ * different positions and only one of them can be right: after a comma ("En
+ * este momento, {{time_text}}") it must stay lowercase, at the start of a
+ * sentence ("{{time_sentence}}.") it must be capitalized. Midnight used to be
+ * the one hour that returned "Es medianoche", which satisfied the second
+ * template and broke the first. Use `timePhraseSentence` for that position.
  */
 export function timePhrase(hour24: number, minute: number): string {
   const hour = normalizeHour(hour24);
   const minuteValue = normalizeMinute(minute);
 
   if (hour === 0 && minuteValue === 0) {
-    return "Es medianoche";
+    return "es medianoche";
   }
 
   const twelve = to12Hour(hour);
@@ -202,6 +209,15 @@ export function timePhrase(hour24: number, minute: number): string {
   const article = isSingular ? "la" : "las";
 
   return `${verb} ${article} ${hourName} ${clause} ${period}`;
+}
+
+/**
+ * The same clause capitalized, for the template that opens the announcement
+ * with it: "Son las nueve y cuarenta y dos de la noche".
+ */
+export function timePhraseSentence(hour24: number, minute: number): string {
+  const clause = timePhrase(hour24, minute);
+  return clause.charAt(0).toUpperCase() + clause.slice(1);
 }
 
 /**
@@ -252,6 +268,7 @@ export function buildTemplateVariables(
     period: periodWord(hour24),
     period_greeting: greetingPeriod(hour24),
     time_text: timePhrase(hour24, minute),
+    time_sentence: timePhraseSentence(hour24, minute),
     time_bare: timePhraseBare(hour24, minute),
     station_name: config.locutor.stationName,
     day: dayName(dayIndex),

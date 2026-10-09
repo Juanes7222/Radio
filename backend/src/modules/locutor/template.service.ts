@@ -9,6 +9,7 @@ import {
   periodWord,
   hourWord,
   to12Hour,
+  timePhraseSentence,
 } from "./timePhrase.service";
 
 /**
@@ -88,7 +89,13 @@ export function renderTemplate(template: string, variables: RenderVariables = {}
   for (const [key, value] of Object.entries(variables)) {
     if (value === undefined || value === null || value === "") continue;
     if (key === "hour24" || key === "minutes") continue;
-    if (key === "hour_text" || key === "minutes_text" || key === "time_text" || key === "time_bare") {
+    if (
+      key === "hour_text" ||
+      key === "minutes_text" ||
+      key === "time_text" ||
+      key === "time_sentence" ||
+      key === "time_bare"
+    ) {
       continue;
     }
     merged[key] = String(value);
@@ -124,5 +131,6 @@ export {
   periodWord,
   hourWord,
   to12Hour,
+  timePhraseSentence,
   config as templateConfig,
 };

@@ -228,11 +228,12 @@ export default function TemplateEditor() {
                 className="border-border bg-card"
               />
               <p className="text-xs text-faint">
-                Variables: {'{{time_text}}'}, {'{{time_bare}}'}, {'{{hour_text}}'}, {'{{minutes_text}}'}, {'{{period}}'}, {'{{station_name}}'}, {'{{day}}'}, {'{{date}}'}, {'{{period_greeting}}'}
+                Variables: {'{{time_text}}'}, {'{{time_sentence}}'}, {'{{time_bare}}'}, {'{{hour_text}}'}, {'{{minutes_text}}'}, {'{{period}}'}, {'{{station_name}}'}, {'{{day}}'}, {'{{date}}'}, {'{{period_greeting}}'}
               </p>
               <p className="text-xs text-faint">
                 Usa {'{{time_text}}'} para anunciar la hora y el minuto: dice "son las nueve y cuarenta
-                y dos de la noche". {'{{hour_text}}'} solo da la hora, sin minutos.
+                y dos de la noche". {'{{time_sentence}}'} es lo mismo con la inicial en mayúscula, para
+                cuando la frase abre el aviso. {'{{hour_text}}'} solo da la hora, sin minutos.
               </p>
               <TemplatePreview
                 template={editingTemplate.textTemplate}

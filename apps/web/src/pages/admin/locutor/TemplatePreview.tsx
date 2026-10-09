@@ -20,11 +20,11 @@ const SUGGESTIONS: { label: string; template: string }[] = [
   },
   {
     label: 'Corta y cálida',
-    template: 'Te acompañamos en {{station_name}}. {{time_text}}.',
+    template: 'Te acompañamos en {{station_name}}. {{time_sentence}}.',
   },
   {
     label: 'Solo la hora, sin repetir la marca',
-    template: 'Estás en {{station_name}}. {{time_text}}.',
+    template: 'Estás en {{station_name}}. {{time_sentence}}.',
   },
 ];
 
