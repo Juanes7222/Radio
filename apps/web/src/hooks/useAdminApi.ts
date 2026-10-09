@@ -22,6 +22,11 @@ import type {
   LocutorTemplate,
   LocutorTemplateInput,
   LocutorTemplatePreviewSample,
+  PlaybackAudioList,
+  PlaybackAudioQuery,
+  PlaybackEventList,
+  PlaybackFilterOptions,
+  PlaybackLogQuery,
   TtsBalance,
   TtsProviderId,
   ManagedAdminUser,
@@ -273,6 +278,33 @@ export function useAdminApi() {
       request<BibleReadingHistoryEntry[]>({
         url: '/admin-api/rotations/history',
         params: { limit },
+      }),
+    [request]
+  );
+
+  // ── Historial de reproducción ──────────────────────────────────────────
+  const getPlaybackLog = useCallback(
+    (query: PlaybackLogQuery) =>
+      request<PlaybackEventList>({
+        url: '/admin-api/playback/log',
+        params: query,
+      }),
+    [request]
+  );
+
+  const getPlaybackAudios = useCallback(
+    (query: PlaybackAudioQuery) =>
+      request<PlaybackAudioList>({
+        url: '/admin-api/playback/audios',
+        params: query,
+      }),
+    [request]
+  );
+
+  const getPlaybackFilters = useCallback(
+    () =>
+      request<PlaybackFilterOptions>({
+        url: '/admin-api/playback/filters',
       }),
     [request]
   );
@@ -1246,6 +1278,9 @@ export function useAdminApi() {
     checkProgramSlot,
     syncProgram,
     getReadingHistory,
+    getPlaybackLog,
+    getPlaybackAudios,
+    getPlaybackFilters,
     getFeedbackMessages,
     updateFeedbackStatus,
     markFeedbackRead,
