@@ -143,7 +143,12 @@ export default function AdminLogs() {
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const followRef = useRef(live && order === "desc");
-  followRef.current = live && order === "desc";
+  // Mirrored in an effect rather than during render: a ref written while
+  // rendering is a side effect React may discard or double-apply. Declared
+  // before the loading effects so they already read the current value.
+  useEffect(() => {
+    followRef.current = live && order === "desc";
+  }, [live, order]);
 
   // Newest timestamp seen for the current filter set. It drives `since` in
   // live polling/SSE so the live effect never depends on `rows`: depending
@@ -206,10 +211,12 @@ export default function AdminLogs() {
 
   // initial + when filters change
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSources();
   }, [loadSources]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadLogs();
   }, [loadLogs]);
 
@@ -312,8 +319,10 @@ export default function AdminLogs() {
                   latestTsRef.current = entry.ts;
                 }
                 if (followRef.current && viewportRef.current && viewportRef.current.scrollTop < 40) viewportRef.current.scrollTop = 0;
-              } catch {}
-            }
+} catch {
+                  // Evento SSE malformado: se descarta y el stream sigue abierto.
+                }
+              }
           }
         }
       } catch (err) {

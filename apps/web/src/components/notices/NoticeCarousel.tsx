@@ -55,9 +55,13 @@ export function NoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
     setSelectedIndex(emblaApi.selectedScrollSnap());
   }, [emblaApi]);
 
+  // Seed React state from embla on subscribe. Reading `selectedScrollSnap()`
+  // during render instead would be the same stale value plus a render-phase
+  // read of an external system.
   useEffect(() => {
     if (!emblaApi) return;
     emblaApi.on("select", onSelect);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     onSelect();
   }, [emblaApi, onSelect]);
 
@@ -77,7 +81,9 @@ export function NoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
       const v = inlineVideoRefs.current.get(idx);
       const t = v ? v.currentTime : 0;
       const wasPlaying = v ? !v.paused && !v.ended : false;
-      if (v) try { v.pause(); } catch {}
+      if (v) try { v.pause(); } catch {
+        // El elemento inline ya se está desmontando; el lightbox toma el relevo.
+      }
       setLightbox({ src, type: "video", poster, initialTime: t, autoPlay: wasPlaying, sourceIdx: idx });
     } else {
       setLightbox({ src, type: "image", poster: null, initialTime: 0, autoPlay: false, sourceIdx: idx });
@@ -91,7 +97,9 @@ export function NoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
       try {
         v.currentTime = currentTime;
         if (wasPlaying) void v.play().catch(() => {});
-      } catch {}
+      } catch {
+        // Sin metadata no hay a dónde saltar; el lightbox se cierra igual.
+      }
     }
   };
 
@@ -110,7 +118,9 @@ export function NoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
         const v = singleVideoRef.current;
         const t = v ? v.currentTime : 0;
         const wasPlaying = v ? !v.paused && !v.ended : false;
-        if (v) try { v.pause(); } catch {}
+        if (v) try { v.pause(); } catch {
+          // El elemento inline ya se está desmontando; el lightbox toma el relevo.
+        }
         setSingleLightbox({ src, type: "video", poster, initialTime: t, autoPlay: wasPlaying });
       } else {
         setSingleLightbox({ src, type: "image", poster: null, initialTime: 0, autoPlay: false });
@@ -123,7 +133,9 @@ export function NoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
         try {
           v.currentTime = currentTime;
           if (wasPlaying) void v.play().catch(() => {});
-        } catch {}
+        } catch {
+          // Sin metadata no hay a dónde saltar; el lightbox se cierra igual.
+        }
       }
     };
 

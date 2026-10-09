@@ -86,7 +86,10 @@ export function DjAssignments({ streamers }: { streamers: Streamer[] }) {
       .finally(() => setLoading(false));
   }, [getDjs]);
 
+  // Fetch on mount and whenever the loader identity changes; the `.then` chain
+  // is the deliberate choice recorded in docs/frontend-context.md.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
 

@@ -133,12 +133,20 @@ export function NoticeFormDialog({ notice, zones, onClose, onSaved }: NoticeForm
     }
   }, [getNoticeVideos]);
 
+  // Load each library when its dialog opens; the trigger is a click, so this is
+  // the open event of an uncontrolled section, not a mount-time fetch.
   useEffect(() => {
-    if (imageLibraryOpen) void loadImageLibrary();
+    if (imageLibraryOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void loadImageLibrary();
+    }
   }, [imageLibraryOpen, loadImageLibrary]);
 
   useEffect(() => {
-    if (videoLibraryOpen) void loadVideoLibrary();
+    if (videoLibraryOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void loadVideoLibrary();
+    }
   }, [videoLibraryOpen, loadVideoLibrary]);
 
   const handleImageUpload = async (file: File): Promise<string | null> => {

@@ -14,6 +14,11 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  // Whether the analyser exists is decided once, when the graph is built, and
+  // the dial in StationConsole branches on it. Publishing it as state keeps
+  // that read out of render: a ref read there does not subscribe, so the
+  // branch would only be correct while some unrelated update forced a repaint.
+  const [hasAnalyser, setHasAnalyser] = useState(false);
 
   // Read once so the audio element and the initial UI state agree on the volume.
   const [initialVolume] = useState(readVolume);
@@ -191,6 +196,7 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
       analyser.connect(audioContext.destination);
       audioContextRef.current = audioContext;
       analyserRef.current = analyser;
+      setHasAnalyser(true);
     } catch { /* Safari may fail silently; audio still works without visualiser */ }
   }, []);
 
@@ -310,6 +316,7 @@ export function useAudioPlayer({ streamUrl, autoplay = true }: UseAudioPlayerPro
   return {
     audioRef,
     analyserRef,
+    hasAnalyser,
     state,
     reconnectAttempt,
     play,

@@ -75,11 +75,11 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanent
   const imageSrc = notice ? resolveNoticeMediaSrc(notice.imageUrl) : null;
   const isSingleImage = !hasGallery && !videoSrc && !!imageSrc;
 
+  // The ratio is only meaningful for a single image, so it is gated where it is
+  // read instead of being cleared from an effect. That also keeps a previous
+  // notice's ratio out of the layout while the new image is still loading.
   useEffect(() => {
-    if (!isSingleImage || !imageSrc) {
-      setNaturalRatio(null);
-      return;
-    }
+    if (!isSingleImage || !imageSrc) return;
     let cancelled = false;
     const img = new Image();
     img.onload = () => {
@@ -99,7 +99,7 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanent
   const meta = VARIANT_META[notice.variant] ?? VARIANT_META.info;
   const Icon = meta.icon;
 
-  const isPortrait = naturalRatio !== null && naturalRatio < 0.92;
+  const isPortrait = isSingleImage && naturalRatio !== null && naturalRatio < 0.92;
   // width adapts: portrait gets wider card to allow side-by-side, landscape stays compact
   const cardMaxWidth = isPortrait ? "max-w-[860px]" : "max-w-[620px]";
   const showSingleMedia = !hasGallery && (videoSrc || imageSrc);
@@ -221,7 +221,9 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanent
                             const v = singleVideoRef.current;
                             const t = v ? v.currentTime : 0;
                             const wasPlaying = v ? !v.paused && !v.ended : false;
-                            if (v) try { v.pause(); } catch {}
+                            if (v) try { v.pause(); } catch {
+                              // El inline ya se desmonta; el lightbox toma el relevo.
+                            }
                             setLightbox({ src: videoSrc, type: "video", poster: posterSrc, initialTime: t, autoPlay: wasPlaying });
                           }}
                           className="absolute bottom-3 right-3 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
@@ -308,7 +310,9 @@ export function NoticeIntrusiveModal({ notice, viewCount, onDismiss, onPermanent
             try {
               v.currentTime = t;
               if (wasPlaying) void v.play().catch(() => {});
-            } catch {}
+            } catch {
+              // Sin metadata no hay a dónde saltar; el inline reinicia desde 0.
+            }
           }
         }}
       />

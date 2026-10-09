@@ -46,6 +46,7 @@ interface StationConsoleProps {
   error: string | null;
   playerState: PlayerState;
   analyserRef: RefObject<AnalyserNode | null>;
+  hasAnalyser: boolean;
   reconnectAttempt: number;
   onTogglePlay: () => void;
   onSetVolume: (v: number) => void;
@@ -82,6 +83,7 @@ export function StationConsole({
   error,
   playerState,
   analyserRef,
+  hasAnalyser,
   reconnectAttempt,
   onTogglePlay,
   onSetVolume,
@@ -289,7 +291,7 @@ export function StationConsole({
                 {/* Halo Dial de Luz — único indicador vivo, sin duplicar botón */}
                 {playerState.isPlaying && !shouldReduceMotion && (
                   <>
-                    {analyserRef.current ? (
+                    {hasAnalyser ? (
                       <>
                         <div
                           className="absolute -inset-5 rounded-full border border-primary/30 pointer-events-none transition-transform duration-100 ease-out will-change-transform"

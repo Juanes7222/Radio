@@ -75,7 +75,10 @@ export default function AdminSchedule() {
     void load();
   }, [load]);
 
+  // Initial fetch plus the clock tick; the `.then` chain is the deliberate
+  // choice recorded in docs/frontend-context.md.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
     const id = setInterval(() => setNow(Date.now() / 1000), 30000);
     return () => clearInterval(id);

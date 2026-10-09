@@ -72,7 +72,9 @@ export function NoticeMediaField({
       if (prevPreviewRef.current.startsWith("blob:")) {
         try {
           URL.revokeObjectURL(prevPreviewRef.current);
-        } catch {}
+        } catch {
+          // La URL ya expiró: el blob lo libera el recolector, no hay nada que hacer.
+        }
       }
     }
     prevPreviewRef.current = localPreview;
@@ -88,7 +90,9 @@ export function NoticeMediaField({
       if (prevPreviewRef.current?.startsWith("blob:")) {
         try {
           URL.revokeObjectURL(prevPreviewRef.current);
-        } catch {}
+        } catch {
+          // Igual que arriba: una URL ya liberada no es un error que interese propagar.
+        }
       }
     };
   }, []);
@@ -99,7 +103,9 @@ export function NoticeMediaField({
     if (localPreview?.startsWith("blob:")) {
       try {
         URL.revokeObjectURL(localPreview);
-      } catch {}
+      } catch {
+        // Reemplazar la vista previa no depende de que la URL siga viva.
+      }
     }
     const preview = URL.createObjectURL(file);
     onLocalPreviewChange(preview);
@@ -109,7 +115,9 @@ export function NoticeMediaField({
       // Cleanup blob preview after successful upload
       try {
         URL.revokeObjectURL(preview);
-      } catch {}
+      } catch {
+        // La subida ya terminó; la URL quedó huérfana como mucho.
+      }
       onLocalPreviewChange(null);
     } else {
       // On failure, keep preview for retry but will be revoked on next file or clear
@@ -136,7 +144,9 @@ export function NoticeMediaField({
                 if (localPreview?.startsWith("blob:")) {
                   try {
                     URL.revokeObjectURL(localPreview);
-                  } catch {}
+                  } catch {
+                    // Borrar la vista previa no depende de que la URL siga viva.
+                  }
                 }
                 onChange("");
                 onLocalPreviewChange(null);
@@ -168,7 +178,9 @@ export function NoticeMediaField({
             if (localPreview?.startsWith("blob:")) {
               try {
                 URL.revokeObjectURL(localPreview);
-              } catch {}
+              } catch {
+                // Escribir la URL a mano no depende de que la vista previa siga viva.
+              }
             }
             onChange(e.target.value);
             onLocalPreviewChange(null);

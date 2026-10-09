@@ -40,7 +40,9 @@ function hasSeenModalThisSession(id: string): boolean {
 }
 
 function markModalSession(id: string): void {
-  try { sessionStorage.setItem(`radio:notice:modal:session:${id}`, '1'); } catch {}
+  try { sessionStorage.setItem(`radio:notice:modal:session:${id}`, '1'); } catch {
+    // Sin storage el modal puede reaparecer en esta pestaña; es preferible a bloquearlo.
+  }
 }
 
 export function NoticeOverlay() {
@@ -88,9 +90,14 @@ export function NoticeOverlay() {
       } else if (toasts.length > 0 && !current && sessionModal) {
         // Toast exists but modal is active — defer toast until modal closes
       }
-    } catch {}
+    } catch {
+      // Fallar el alta de avisos no puede interrumpir la emisión en la web pública.
+    }
   }, [current, modalNotice]);
 
+  // Public notices are fetched once on mount; a failure is swallowed on purpose
+  // so the overlay never interferes with playback.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void fetchNotices(); }, [fetchNotices]);
 
   // Expiration progress bar (advancing line) — toast only
@@ -109,7 +116,7 @@ export function NoticeOverlay() {
     return () => window.clearInterval(id);
   }, [current]);
 
-  const handleDismissToast = () => {
+  const handleDismissToast = useCallback(() => {
     if (!current) return;
     const remaining = notices.filter((n) => n.id !== current.id && shouldShowNotice(n.id, n.maxDisplaysPerUser, n.dismissible));
     setNotices(remaining);
@@ -118,7 +125,7 @@ export function NoticeOverlay() {
       setCurrent(next);
       bumpNoticeView(next.id);
     } else setCurrent(null);
-  };
+  }, [current, notices]);
 
   const handlePermanentDismissToast = () => {
     if (!current) return;
@@ -177,7 +184,7 @@ export function NoticeOverlay() {
     if (isFlick || isFar) {
       handleDismissToast();
     }
-  }, []);
+  }, [handleDismissToast]);
 
   return (
     <>
@@ -203,7 +210,9 @@ export function NoticeOverlay() {
             try {
               v.currentTime = t;
               if (wasPlaying) void v.play().catch(() => {});
-            } catch {}
+            } catch {
+              // Sin metadata no hay a dónde saltar; el toast reinicia desde 0.
+            }
           }
         }}
       />
@@ -262,7 +271,9 @@ export function NoticeOverlay() {
                       const v = toastVideoRef.current;
                       const t = v ? v.currentTime : 0;
                       const wasPlaying = v ? !v.paused && !v.ended : false;
-                      if (v) try { v.pause(); } catch {}
+                      if (v) try { v.pause(); } catch {
+                        // El toast queda oculto detrás del lightbox; no hay nada que pausar.
+                      }
                       setLightbox({ src: videoSrc, type: "video", poster: posterSrc, initialTime: t, autoPlay: wasPlaying });
                     }}
                     className="absolute bottom-2 right-2 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"

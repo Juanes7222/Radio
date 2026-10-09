@@ -152,7 +152,10 @@ function FacebookLiveControl() {
     }
   }, [getLiveStatus]);
 
+  // First poll on mount, then every 30s; the `.then` chain is the deliberate
+  // choice recorded in docs/frontend-context.md.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadLiveStatus();
     const id = setInterval(loadLiveStatus, 30000);
     return () => clearInterval(id);

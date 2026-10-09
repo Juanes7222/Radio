@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { X, Maximize2 } from "lucide-react";
 
@@ -19,6 +19,22 @@ export function MediaLightbox({ open, src, type, poster, alt, initialTime, autoP
   const closeRef = useRef<HTMLButtonElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Declared above the key handler because the Escape listener closes over it:
+  // when it was a plain function below, the effect subscribed on the first
+  // render only, so ESC reported the `type`/`onCloseWithTime` of that render
+  // rather than the ones currently on screen.
+  const handleClose = useCallback(() => {
+    if (type === "video" && videoRef.current && onCloseWithTime) {
+      const t = videoRef.current.currentTime;
+      const wasPlaying = !videoRef.current.paused;
+      try { videoRef.current.pause(); } catch {
+      // El elemento puede estar ya liberado; el tiempo se reporta igual.
+    }
+      onCloseWithTime(t, wasPlaying);
+    }
+    onClose();
+  }, [type, onCloseWithTime, onClose]);
+
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -33,7 +49,7 @@ export function MediaLightbox({ open, src, type, poster, alt, initialTime, autoP
       window.removeEventListener("keydown", onKey);
       window.clearTimeout(t);
     };
-  }, [open, onClose]);
+  }, [open, handleClose]);
 
   // seek to initialTime when video metadata ready
   useEffect(() => {
@@ -43,21 +59,13 @@ export function MediaLightbox({ open, src, type, poster, alt, initialTime, autoP
       try {
         v.currentTime = initialTime;
         if (autoPlay) void v.play().catch(() => {});
-      } catch {}
+      } catch {
+        // Sin metadata todavía no hay a dónde saltar; el reproductor arranca en 0.
+      }
     };
     if (v.readyState >= 1) seek();
     else v.addEventListener("loadedmetadata", seek, { once: true });
   }, [open, type, initialTime, autoPlay]);
-
-  const handleClose = () => {
-    if (type === "video" && videoRef.current && onCloseWithTime) {
-      const t = videoRef.current.currentTime;
-      const wasPlaying = !videoRef.current.paused;
-      try { videoRef.current.pause(); } catch {}
-      onCloseWithTime(t, wasPlaying);
-    }
-    onClose();
-  };
 
   if (!src) return null;
 

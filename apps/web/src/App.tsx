@@ -28,6 +28,7 @@ function App() {
     clearError,
     reconnectAttempt,
     analyserRef,
+    hasAnalyser,
     liveUrl,
     quality,
     sleepTimer,
@@ -61,6 +62,7 @@ function App() {
           error={error}
           playerState={playerState}
           analyserRef={analyserRef}
+          hasAnalyser={hasAnalyser}
           reconnectAttempt={reconnectAttempt}
           onTogglePlay={togglePlay}
           onSetVolume={setVolume}

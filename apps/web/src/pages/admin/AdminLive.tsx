@@ -79,7 +79,21 @@ export default function AdminLive() {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState<string>('');
   const [override, setOverride] = useState(false);
-  const [phase, setPhase] = useState<Phase>('idle');
+  /**
+   * The WebSocket handlers are registered once per connection, so they close
+   * over the `phase` of the render that opened it — which is still
+   * 'connecting'. Reading `phase` there made both the reconnect and the
+   * error branch of `onclose` unreachable, and an unexpected disconnect while
+   * live killed the stream silently. The ref carries the live phase instead,
+   * and is written together with the state so a handler that runs in the same
+   * tick already sees the new value.
+   */
+  const [phase, setPhaseState] = useState<Phase>('idle');
+  const phaseRef = useRef<Phase>('idle');
+  const setPhase = useCallback((next: Phase) => {
+    phaseRef.current = next;
+    setPhaseState(next);
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [level, setLevel] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -94,6 +108,12 @@ export default function AdminLive() {
   const reconnectsRef = useRef(0);
   const intentionalStopRef = useRef(false);
   const liveSinceRef = useRef<number>(0);
+  /**
+   * The retry runs from a timer that outlives the render that opened the
+   * socket, so it must reach the current `connectAndGoLive` rather than the
+   * one captured back then, which also carried the previous `token`.
+   */
+  const connectRef = useRef<((streamerUsername: string, useOverride: boolean) => void) | null>(null);
 
   const refreshStatus = useCallback(() => {
     getRelayStatus()
@@ -101,8 +121,11 @@ export default function AdminLive() {
       .catch(() => undefined);
   }, [getRelayStatus]);
 
+  // The relay has to be polled from the moment the page opens, and `loading`
+  // has to be raised before the request or the panel renders an empty cabin.
   useEffect(() => {
     if (!canTransmit) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     getMyLive()
       .then((res) => {
@@ -234,7 +257,7 @@ export default function AdminLive() {
           if (recorder && recorder.state === 'inactive') {
             try {
               recorder.start(1000);
-            } catch (err) {
+            } catch {
               setError('No se pudo iniciar la captura de audio.');
               setPhase('error');
             }
@@ -253,7 +276,7 @@ export default function AdminLive() {
       };
 
       ws.onerror = () => {
-        if (phase !== 'live') {
+        if (phaseRef.current !== 'live') {
           setError('No se pudo conectar con el servidor de transmisión.');
           setPhase('error');
         }
@@ -266,12 +289,13 @@ export default function AdminLive() {
         }
         // Corte inesperado en vivo: reintenta dentro de la ventana de gracia
         // del servidor para no cortar la señal al aire.
-        if (phase === 'live' && reconnectsRef.current < MAX_RECONNECTS) {
+        const live = phaseRef.current === 'live';
+        if (live && reconnectsRef.current < MAX_RECONNECTS) {
           reconnectsRef.current += 1;
           setTimeout(() => {
-            if (wsRef.current === ws) connectAndGoLive(streamerUsername, useOverride);
+            if (wsRef.current === ws) connectRef.current?.(streamerUsername, useOverride);
           }, 2000);
-        } else if (phase === 'live') {
+        } else if (live) {
           setError('Se perdió la conexión con el servidor.');
           setPhase('error');
           cleanup();
@@ -279,8 +303,12 @@ export default function AdminLive() {
         }
       };
     },
-    [token, phase, cleanup, refreshStatus]
+    [token, cleanup, refreshStatus, setPhase]
   );
+
+  useEffect(() => {
+    connectRef.current = connectAndGoLive;
+  }, [connectAndGoLive]);
 
   const handleStart = async () => {
     if (!selected) {

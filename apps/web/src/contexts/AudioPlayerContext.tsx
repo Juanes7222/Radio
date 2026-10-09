@@ -23,6 +23,7 @@ export interface AudioPlayerContextType {
   clearError: () => void;
   reconnectAttempt: number;
   analyserRef: React.MutableRefObject<AnalyserNode | null>;
+  hasAnalyser: boolean;
   liveUrl: string | null;
   sleepTimer: SleepTimerReturn;
   showRequests: boolean;
@@ -48,6 +49,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const {
     analyserRef,
+    hasAnalyser,
     state: playerState,
     togglePlay,
     setVolume,
@@ -88,6 +90,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     clearError,
     reconnectAttempt,
     analyserRef,
+    hasAnalyser,
     liveUrl,
     sleepTimer,
     showRequests,

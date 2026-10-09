@@ -17,7 +17,7 @@ function splitTrailingPunct(url: string): { clean: string; trail: string } {
   return { clean: url.slice(0, -trail.length), trail };
 }
 
-export function autolinkParts(text: string): Array<{ type: "text" | "link"; content: string; href?: string; trail?: string }> {
+function autolinkParts(text: string): Array<{ type: "text" | "link"; content: string; href?: string; trail?: string }> {
   const parts: Array<{ type: "text" | "link"; content: string; href?: string; trail?: string }> = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
