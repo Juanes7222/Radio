@@ -5,6 +5,7 @@ import { rescheduleAnnouncements } from "../locutor/playback.job";
 import { recoverStaleJobs } from "../workers/jobDispatcher";
 import { runProgramNotify } from "../schedule/programNotify.job";
 import { captureListenerSnapshot } from "../azuracast/listenerHistory.service";
+import { capturePlaybackHistory } from "../playback/playbackHistory";
 import { runAllActiveRotations } from "../rotation/rotation.service";
 import { updateDbIpDatabase, updateGeoIpDatabase } from "../devices/geoipUpdate.service";
 import { cleanupOrphanNoticeMedia } from "../notices/media/media.cleanup";
@@ -19,6 +20,7 @@ export type SystemJobKey =
   | "job-recovery"
   | "program-notify"
   | "listener-sampling"
+  | "playback-capture"
   | "rotations"
   | "geoip-update"
   | "notice-media-cleanup"
@@ -93,6 +95,13 @@ export const SYSTEM_JOB_CATALOG: SystemJobMeta[] = [
     requiresConfirm: false,
   },
   {
+    key: "playback-capture",
+    label: "Historial de reproducción",
+    description: "Sincroniza el historial de reproducción de AzuraCast con la base de datos local.",
+    schedule: "cada 5 min",
+    requiresConfirm: false,
+  },
+  {
     key: "rotations",
     label: "Rotaciones de playlists",
     description: "Ejecuta todas las rotaciones activas y reconstruye sus playlists destino.",
@@ -138,6 +147,7 @@ export const SYSTEM_JOB_RUNNERS: Record<SystemJobKey, () => Promise<unknown>> = 
   "job-recovery": recoverStaleJobs,
   "program-notify": runProgramNotify,
   "listener-sampling": captureListenerSnapshot,
+  "playback-capture": capturePlaybackHistory,
   rotations: runAllActiveRotations,
   "geoip-update": runGeoIpUpdate,
   "notice-media-cleanup": cleanupOrphanNoticeMedia,
