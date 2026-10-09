@@ -23,7 +23,7 @@ router.get(
   })
 );
 
-// GET /admin-api/playback/audios?from&to&playlist&search&page&limit&order
+// GET /admin-api/playback/audios?from&to&playlist&search&automated&page&limit&order
 router.get(
   "/audios",
   requirePermission("dashboard"),
