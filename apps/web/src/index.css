@@ -146,6 +146,94 @@
   }
 }
 
+/* ─── Header — the tuning scale ─────────────────────────────────────────
+   The bottom border the header already had is a ruled scale, and the
+   section you are on is the lit segment sitting on it. Same gesture as
+   the 2px signal hairline in StationConsole and MiniPlayer, so the bar
+   speaks the station's language instead of lining up borrowed glyphs.
+
+   Destinations are words and come from PUBLIC_DESTINATIONS, the same
+   source the drawer and the footer read, and one hairline is the whole
+   distinction between where you can go and what the station can do. */
+
+.header-nav,
+.header-actions {
+  display: flex;
+  align-items: stretch;
+}
+
+.header-nav {
+  gap: 1.5rem;
+}
+
+/* The hairline carries the navigation/action split, so neither group
+   needs a chip, a pill or a second colour to be told apart. */
+.header-actions {
+  gap: 1.25rem;
+  margin-left: 1.5rem;
+  padding-left: 1.5rem;
+  border-left: 1px solid hsl(var(--border) / 0.6);
+}
+
+.header-nav__link,
+.header-actions__item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: hsl(var(--muted-foreground));
+  transition: color 140ms var(--ease-out);
+}
+
+.header-nav__link::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  /* Straddles the header's 1px bottom border — half in the bar, half in
+     the rule — so the segment reads as part of the scale rather than as an
+     underline floating above it. */
+  bottom: -1px;
+  height: 2px;
+  background-color: transparent;
+  transition: background-color 140ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .header-nav__link:hover {
+    color: hsl(var(--foreground));
+  }
+  /* Faint while merely hovered: the segment is the current-section mark,
+     and dimming it reserves the lit state for where you actually are. */
+  .header-nav__link:hover::after {
+    background-color: hsl(var(--primary) / 0.35);
+  }
+  .header-actions__item:hover {
+    color: hsl(var(--foreground));
+  }
+}
+
+.header-nav__link[aria-current='page'] {
+  color: hsl(var(--foreground));
+}
+.header-nav__link[aria-current='page']::after {
+  background-color: hsl(var(--primary));
+}
+
+.header-nav__link:focus-visible,
+.header-actions__item:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: -2px;
+}
+
+/* Full-height rows shrink away from the scale when pressed, so they opt out
+   of the global press-scale the same way .nav-row does in the drawer. */
+button.header-actions__item:active:not(:disabled) {
+  transform: none;
+}
+
 /* ─── Mobile nav drawer — transmitter faceplate ────────────────────────
    The station's mark is a chrome ribbon microphone, so the drawer is a
    panel of hardware rather than another dark sheet: a surface one step
