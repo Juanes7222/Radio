@@ -16,6 +16,7 @@ import {
 import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import TemplatePreview from './TemplatePreview';
 import { useAdminApi } from '@/hooks/useAdminApi';
+import { describeRequestError } from '@/lib/apiErrors';
 import { toast } from 'sonner';
 import type { LocutorTemplate, LocutorTemplateInput } from '@radio/types';
 
@@ -113,8 +114,8 @@ export default function TemplateEditor() {
       await deleteLocutorTemplate(id);
       await loadTemplates();
       toast.success('Plantilla eliminada');
-    } catch {
-      setError('Error al eliminar la plantilla.');
+    } catch (err) {
+      setError(describeRequestError(err));
     } finally {
       setDeletingId(null);
     }

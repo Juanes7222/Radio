@@ -6,6 +6,7 @@ import { refreshElevenLabsBalance } from "./tts/elevenLabs.provider";
 import { getTemplateForHour, renderTemplate } from "./template.service";
 import { getAudioStats } from "./timeSlotPlanner.service";
 import {
+  deleteGeneratedAudios,
   getAudioCountByStatus,
   generateOrReuseAudio,
   scheduleAudioForDate,
@@ -23,6 +24,21 @@ import { requireAuth, requirePermission } from "../auth/auth.middleware";
 const router = Router();
 router.use(requireAuth, requirePermission("locutor"));
 const MEDIA_DIR = config.locutor.mediaDir;
+
+/** Rows the bank page can show, and therefore the largest selection it can send. */
+const AUDIO_LIST_LIMIT = 100;
+
+function parseAudioIds(body: unknown): string[] | null {
+  const ids = (body as { ids?: unknown })?.ids;
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > AUDIO_LIST_LIMIT) return null;
+
+  const normalized = new Set<string>();
+  for (const id of ids) {
+    if (typeof id !== "string" || id.trim().length === 0) return null;
+    normalized.add(id);
+  }
+  return [...normalized];
+}
 
 function getGroupForHour(hour: number): "morning" | "afternoon" | "evening" | "night" {
   if (hour >= 6 && hour <= 11) return "morning";
@@ -113,7 +129,7 @@ router.get(
       // it fails when that table lags behind the code in production.
       const audios = await prisma.generatedAudio.findMany({
         orderBy: { generatedAt: "desc" },
-        take: 100,
+        take: AUDIO_LIST_LIMIT,
         select: {
           id: true,
           filename: true,
@@ -253,10 +269,31 @@ router.get(
 router.delete(
   "/audios/:id",
   asyncHandler(async (req, res) => {
-    await prisma.generatedAudio.delete({
-      where: { id: String(req.params.id) },
-    });
-    res.json({ message: "Audio deleted" });
+    const id = String(req.params.id);
+
+    // Read before deleting: deleting a missing row raises P2025, which the error
+    // handler would report as an opaque 500 instead of a 404.
+    const audio = await prisma.generatedAudio.findUnique({ where: { id } });
+
+    if (!audio) {
+      throw new AppError(404, "Audio not found");
+    }
+
+    const result = await deleteGeneratedAudios([id]);
+    res.json({ message: "Audio deleted", ...result });
+  })
+);
+
+router.post(
+  "/audios/bulk/delete",
+  asyncHandler(async (req, res) => {
+    const ids = parseAudioIds(req.body);
+
+    if (!ids) {
+      throw new AppError(400, `Selecciona entre 1 y ${AUDIO_LIST_LIMIT} audios.`);
+    }
+
+    res.json(await deleteGeneratedAudios(ids));
   })
 );
 

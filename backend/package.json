@@ -1,5 +1,5 @@
 {
-  "name": "radio-admin-backend",
+  "name": "@radio/backend",
   "version": "1.0.0",
   "description": "Intermediario seguro entre el panel admin React y AzuraCast",
   "main": "dist/index.js",

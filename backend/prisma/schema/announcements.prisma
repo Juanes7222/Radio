@@ -61,7 +61,7 @@ model GeneratedAudio {
 model AudioSchedule {
   id              String   @id @default(uuid())
   audioId         String   @map("audio_id")
-  audio           GeneratedAudio @relation(fields: [audioId], references: [id])
+  audio           GeneratedAudio @relation(fields: [audioId], references: [id], onDelete: Cascade)
 
   // Target date and hour for playback.
   scheduledDate   DateTime @map("scheduled_date") // Date only

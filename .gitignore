@@ -158,5 +158,5 @@ generated/
 build/
 
 graphify-out/
-# SDD scratch: task briefs, reports, review packages and the progress ledger
-.superpowers/
+
+.superpowers

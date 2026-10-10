@@ -1,4 +1,5 @@
 import path from "path";
+import { unlink } from "fs/promises";
 import { prisma } from "../../infrastructure/database/prisma";
 import { preferredProviderId, synthesize } from "./tts.service";
 import { getTemplateForHour, renderTemplate } from "./template.service";
@@ -7,6 +8,7 @@ import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
 import { getStationDayStart, getStationTime } from "../../shared/utils/date";
 import type { AnnouncementTemplate } from "@prisma/client";
+import type { LocutorBulkDeleteResult } from "@radio/types";
 import type { TimeSlotGroup } from "./timeSlotPlanner.service";
 
 const MEDIA_DIR = config.locutor.mediaDir;
@@ -281,4 +283,43 @@ export async function getAudioCountByStatus(): Promise<Record<string, number>> {
     counts[row.status] = row._count.id;
   }
   return counts;
+}
+
+/**
+ * Removes audios from the bank together with their files.
+ *
+ * Ids that no longer exist are skipped instead of failing: the panel fetched its
+ * list before the click, so a stale id must not block deleting the rest.
+ */
+export async function deleteGeneratedAudios(ids: string[]): Promise<LocutorBulkDeleteResult> {
+  const existing = await prisma.generatedAudio.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, filepath: true },
+  });
+
+  if (existing.length > 0) {
+    await prisma.generatedAudio.deleteMany({ where: { id: { in: ids } } });
+  }
+
+  // The row goes first: an orphaned mp3 is inert, while a row pointing at a
+  // missing file would be handed to findReusableAudio and break that hour.
+  const removed = await Promise.all(
+    existing.map((audio) =>
+      unlink(audio.filepath)
+        .then(() => true)
+        .catch((err: NodeJS.ErrnoException) => {
+          logger.warn("AudioGeneration", "Audio row deleted but its file could not be removed", {
+            audioId: audio.id,
+            filepath: audio.filepath,
+            error: err.message,
+          });
+          return false;
+        })
+    )
+  );
+
+  return {
+    count: existing.length,
+    filesFailed: removed.filter((ok: boolean) => !ok).length,
+  };
 }
