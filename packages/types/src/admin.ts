@@ -370,6 +370,13 @@ export interface LocutorAudio {
   template: { name: string; type: string } | null;
 }
 
+export interface LocutorBulkDeleteResult {
+  /** Audios actually removed. Ids that no longer existed are not counted. */
+  count: number;
+  /** Rows deleted whose mp3 is still on disk, so the operator knows the space is not free yet. */
+  filesFailed: number;
+}
+
 /** Entry of the TTS generation log */
 export interface LocutorGenerationLog {
   id: string;

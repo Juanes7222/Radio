@@ -100,6 +100,26 @@ export function useAzuraCast({
     const RECONNECT_DELAYS = [5000, 10000, 15000, 30000, 60000];
 
     const setupRealTime = (shortcode: string) => {
+      // Re-entry guard. Both a reconnect timer and a slow-poll upgrade can reach
+      // this function, so teardown of the previous transport belongs here rather
+      // than being duplicated at each call site.
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+      }
+      if (fallbackInterval) {
+        clearInterval(fallbackInterval);
+        fallbackInterval = null;
+      }
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+
       let baseUrl = apiBaseUrl;
       if (!baseUrl && typeof window !== 'undefined') {
         baseUrl = window.location.origin;
@@ -140,19 +160,13 @@ export function useAzuraCast({
         eventSource.onerror = () => {
           eventSource?.close();
           fetchNowPlaying();
-          
+
           if (!fallbackInterval) {
             fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 10000));
           }
-          
+
           const delay = RECONNECT_DELAYS[Math.min(retryCount++, RECONNECT_DELAYS.length - 1)];
-          reconnectTimeout = setTimeout(() => {
-            if (fallbackInterval) {
-              clearInterval(fallbackInterval);
-              fallbackInterval = null;
-            }
-            setupRealTime(shortcode);
-          }, delay);
+          reconnectTimeout = setTimeout(() => setupRealTime(shortcode), delay);
         };
       } else if (typeof WebSocket !== 'undefined') {
         const wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws';
@@ -193,19 +207,13 @@ export function useAzuraCast({
 
         ws.onclose = () => {
           fetchNowPlaying();
-          
+
           if (!fallbackInterval) {
             fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 10000));
           }
-          
+
           const delay = RECONNECT_DELAYS[Math.min(retryCount++, RECONNECT_DELAYS.length - 1)];
-          reconnectTimeout = setTimeout(() => {
-            if (fallbackInterval) {
-              clearInterval(fallbackInterval);
-              fallbackInterval = null;
-            }
-            setupRealTime(shortcode);
-          }, delay);
+          reconnectTimeout = setTimeout(() => setupRealTime(shortcode), delay);
         };
       } else {
         fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 10000));
@@ -215,9 +223,18 @@ export function useAzuraCast({
     fetchNowPlaying().then((initialData) => {
       if (initialData?.station?.shortcode) {
         setupRealTime(initialData.station.shortcode);
-      } else {
-        fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 60000));
+        return;
       }
+
+      // Cold start on a slow or flaky network. Poll slowly, and upgrade to the
+      // realtime connection the moment the station answers. Without the upgrade
+      // a bad first request pins the whole session to the coarse interval, so
+      // now-playing would stay 60s stale even after the network recovered.
+      fallbackInterval = setInterval(() => {
+        void fetchNowPlaying().then((fresh) => {
+          if (fresh?.station?.shortcode) setupRealTime(fresh.station.shortcode);
+        });
+      }, Math.max(pollInterval, 60000));
     });
 
     return () => {

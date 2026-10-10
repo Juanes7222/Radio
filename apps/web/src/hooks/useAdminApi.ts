@@ -13,6 +13,7 @@ import type {
   LocutorAudio,
   LocutorAnnouncementSettings,
   LocutorAnnouncementSettingsPatch,
+  LocutorBulkDeleteResult,
   LocutorDayAnalysis,
   LocutorLiveState,
   LocutorPersistedSlot,
@@ -816,6 +817,16 @@ export function useAdminApi() {
     [request]
   );
 
+  const bulkDeleteLocutorAudios = useCallback(
+    (ids: string[]) =>
+      request<LocutorBulkDeleteResult>({
+        method: 'POST',
+        url: '/admin-api/locutor/audios/bulk/delete',
+        data: { ids },
+      }),
+    [request]
+  );
+
   const generateLocutorAudio = useCallback(
     (templateId: string) =>
       request({
@@ -1314,6 +1325,7 @@ export function useAdminApi() {
     deleteLocutorTemplate,
     getLocutorAudios,
     deleteLocutorAudio,
+  bulkDeleteLocutorAudios,
     generateLocutorAudio,
     previewLocutorTemplate,
     getAnnouncementSettings,
