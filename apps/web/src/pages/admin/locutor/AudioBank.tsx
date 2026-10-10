@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, RefreshCw, Play, Square, Trash2, FileAudio, Eraser } from 'lucide-react';
+import { AlertTriangle, Library, RefreshCw, Play, Square, Trash2, FileAudio, Eraser } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -20,6 +20,7 @@ import { apiUrl } from '@/config';
 import axios from 'axios';
 import { toast } from 'sonner';
 import type { LocutorAudio } from '@radio/types';
+import { Section } from './Section';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
   ready: { label: 'Listo', color: 'bg-success/10 text-success border-success/25', dot: 'bg-success' },
@@ -203,15 +204,11 @@ export default function AudioBank() {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* The counts sit above the table because they decide what the operator
-            does next: ready audios are reusable, the rest only occupy disk. */}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
-          <BankCount label="Listos" value={audios.filter((a) => a.status === 'ready').length} tone="text-success" />
-          <BankCount label="Pendientes" value={audios.filter((a) => a.status === 'pending').length} tone="text-warning" />
-          <BankCount label="Con error" value={audios.filter((a) => a.status === 'error').length} tone="text-destructive" />
-        </div>
+    <Section
+      title="Banco de audios"
+      description="Cada locución ya generada. El sistema solo reutiliza las que están listas, así que borrar una es la forma de forzar una nueva."
+      icon={Library}
+      actions={
         <Button
           variant="outline"
           size="sm"
@@ -222,7 +219,19 @@ export default function AudioBank() {
           <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
           Actualizar
         </Button>
+      }
+    >
+      {/* The counts lead because they decide what the operator does next:
+          ready audios are reusable, the rest only occupy disk. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <BankCount label="Listos" value={audios.filter((a) => a.status === 'ready').length} tone="text-success" />
+        <BankCount label="Pendientes" value={audios.filter((a) => a.status === 'pending').length} tone="text-warning" />
+        <BankCount label="Con error" value={audios.filter((a) => a.status === 'error').length} tone="text-destructive" />
+        <span className="font-mono text-[11px] text-faint">
+          {audios.length} en total
+        </span>
       </div>
+
       <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <AnimatePresence>
           {selectedCount > 0 && (
@@ -465,6 +474,6 @@ export default function AudioBank() {
           void handleBulkDelete();
         }}
       />
-    </div>
+    </Section>
   );
 }

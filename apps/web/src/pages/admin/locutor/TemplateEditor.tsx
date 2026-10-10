@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, Pencil, Plus, Trash2, Wand2, X } from 'lucide-react';
+import { AlertTriangle, NotebookPen, Pencil, Plus, Trash2, Wand2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,7 +18,7 @@ import { useAdminApi } from '@/hooks/useAdminApi';
 import { describeRequestError } from '@/lib/apiErrors';
 import { toast } from 'sonner';
 import type { LocutorTemplate, LocutorTemplateInput } from '@radio/types';
-import { EmptyNote } from './Section';
+import { EmptyNote, Section } from './Section';
 
 const EMPTY_TEMPLATE: LocutorTemplateInput = {
   type: 'hourly',
@@ -151,20 +151,24 @@ export default function TemplateEditor() {
   }, []);
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-end gap-2">
+    <Section
+      title="Plantillas de anuncios"
+      description="El texto que se sintetiza. Las variables se reemplazan por la hora y por el nombre de la estación en cada locución."
+      icon={NotebookPen}
+      actions={
         <Button size="sm" className="gap-1.5" onClick={() => setEditingTemplate({ ...EMPTY_TEMPLATE })}>
           <Plus className="size-4" />
           Nueva plantilla
         </Button>
-      </div>
-
-      {error && (
-        <p className="flex items-center gap-2 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          <AlertTriangle className="size-4 shrink-0" />
-          {error}
-        </p>
-      )}
+      }
+    >
+      <div className="space-y-3">
+        {error && (
+          <p className="flex items-center gap-2 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertTriangle className="size-4 shrink-0" />
+            {error}
+          </p>
+        )}
 
       {editingTemplate && (
         <form onSubmit={handleSave} className="space-y-4 rounded-xl border border-primary/25 bg-sunken/40 p-4">
@@ -368,17 +372,18 @@ export default function TemplateEditor() {
             </li>
           ))}
         </ul>
-      )}
+        )}
 
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        onOpenChange={(open) => !open && setPendingDelete(null)}
-        title={pendingDelete ? `¿Eliminar la plantilla "${pendingDelete.name}"?` : 'Eliminar plantilla'}
-        description="Esta acción no se puede deshacer."
-        confirmLabel="Eliminar"
-        loading={deletingId !== null}
-        onConfirm={() => pendingDelete && void handleDelete(pendingDelete.id)}
-      />
-    </div>
+        <ConfirmDialog
+          open={pendingDelete !== null}
+          onOpenChange={(open) => !open && setPendingDelete(null)}
+          title={pendingDelete ? `¿Eliminar la plantilla "${pendingDelete.name}"?` : 'Eliminar plantilla'}
+          description="Esta acción no se puede deshacer."
+          confirmLabel="Eliminar"
+          loading={deletingId !== null}
+          onConfirm={() => pendingDelete && void handleDelete(pendingDelete.id)}
+        />
+      </div>
+    </Section>
   );
 }

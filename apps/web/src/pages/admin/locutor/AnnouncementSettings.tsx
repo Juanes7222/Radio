@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Clock3,
   History,
+  Megaphone,
   Radio,
   RefreshCw,
   Repeat,
@@ -27,7 +28,7 @@ import type {
   LocutorRunLogEntry,
 } from '@radio/types';
 import { DayRail } from './DayRail';
-import { EmptyNote } from './Section';
+import { EmptyNote, Section } from './Section';
 
 /**
  * Configuración de los avisos de hora.
@@ -146,6 +147,87 @@ function GuardRow({
           {label}
         </Label>
         <p className="mt-0.5 text-xs leading-snug text-faint">{hint}</p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The one thing this panel must not let the operator miss is whether the
+ * locutor is allowed to speak right now, so the reason carries the colour
+ * rather than the surrounding box. `tally` stays reserved for a person on air.
+ */
+function VerdictCard({
+  settings,
+  liveState,
+}: {
+  settings: LocutorAnnouncementSettings;
+  liveState: LocutorLiveState | null;
+}) {
+  const reason = liveState ? REASON[liveState.reason] : null;
+
+  const lampTone = !settings.enabled
+    ? 'bg-faint/40'
+    : reason
+      ? DOT_TONE[reason.tone]
+      : 'bg-faint/40';
+
+  const labelTone = !settings.enabled
+    ? 'text-muted-foreground'
+    : reason?.tone === 'tally'
+      ? 'text-tally'
+      : reason?.tone === 'success'
+        ? 'text-success'
+        : reason?.tone === 'warning'
+          ? 'text-warning'
+          : 'text-foreground';
+
+  return (
+    <div
+      className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl border p-4 ${
+        settings.enabled && reason?.tone === 'success'
+          ? 'border-success/25 bg-success/5'
+          : 'border-border bg-card'
+      }`}
+    >
+      <span aria-hidden className={`size-2.5 shrink-0 rounded-full ${lampTone}`} />
+      <div className="min-w-0">
+        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+          ¿Se emitiría ahora mismo?
+        </p>
+        <p className={`mt-0.5 text-sm font-medium ${labelTone}`}>
+          {!settings.enabled ? 'Avisos desactivados' : (reason?.label ?? 'Consultando...')}
+        </p>
+        {liveState?.detail && (
+          <p className="mt-0.5 truncate text-xs text-faint" title={liveState.detail}>
+            {liveState.detail}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AirFreeCard({
+  analysis,
+  freeMinutes,
+}: {
+  analysis: LocutorDayAnalysis | null;
+  freeMinutes: number;
+}) {
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-border bg-card p-4">
+      <Clock3 className="size-5 shrink-0 text-primary" />
+      <div className="min-w-0">
+        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">Aire libre hoy</p>
+        <p className="mt-0.5 text-sm font-medium tabular-nums text-foreground">
+          {formatDuration(freeMinutes)}
+        </p>
+        <p className="mt-0.5 truncate text-xs text-faint">
+          {analysis?.currentProgram
+            ? `En curso: ${analysis.currentProgram.title}`
+            : 'Sin programa en curso según la programación'}
+        </p>
       </div>
     </div>
   );
@@ -274,7 +356,6 @@ export default function AnnouncementSettingsPanel() {
     );
   }
 
-  const reason = liveState ? REASON[liveState.reason] : null;
   const slots = preview?.slots ?? [];
   const freeMinutes = analysis?.freeMinutes ?? 0;
 
@@ -287,105 +368,50 @@ export default function AnnouncementSettingsPanel() {
         </p>
       )}
 
-      {/* Verdict first: enabled, and whether it may speak at this instant. */}
-      <div className="flex flex-wrap items-stretch gap-3">
-        <div
-          className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl border p-4 ${
-            settings.enabled
-              ? reason?.tone === 'success'
-                ? 'border-success/25 bg-success/5'
-                : 'border-border bg-card'
-              : 'border-border bg-card'
-          }`}
-        >
-          <span
-            aria-hidden
-            className={`size-2.5 shrink-0 rounded-full ${
-              !settings.enabled
-                ? 'bg-faint/40'
-                : reason
-                  ? DOT_TONE[reason.tone]
-                  : 'bg-faint/40'
-            }`}
+      <Section
+        title="Programación de hoy"
+        description="El aire libre sale de la programación real. Un aviso solo se emite si cae dentro de una ventana libre y nunca hay una persona transmitiendo."
+        icon={Megaphone}
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => void rebuild()}
+            disabled={rebuilding}
+          >
+            <RefreshCw className={`size-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
+            Reconstruir plan
+          </Button>
+        }
+      >
+        <div className="flex flex-wrap items-stretch gap-3">
+          <VerdictCard settings={settings} liveState={liveState} />
+          <AirFreeCard analysis={analysis} freeMinutes={freeMinutes} />
+        </div>
+
+        {liveState?.liveStreamer && (
+          <p className="flex items-start gap-2 rounded-lg border border-tally/30 bg-tally/10 px-3 py-2 text-sm text-foreground">
+            <Radio className="mt-0.5 size-4 shrink-0 text-tally" />
+            <span>
+              <span className="font-medium text-tally">{liveState.liveStreamer}</span> está
+              transmitiendo en vivo. Los avisos esperan y no se interrumpe la transmisión.
+            </span>
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+          <Switch
+            id="announcements-enabled"
+            checked={settings.enabled}
+            onCheckedChange={() => void toggle()}
+            aria-label="Activar avisos de hora"
           />
-          <div className="min-w-0">
-            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
-              ¿Se emitiría ahora mismo?
-            </p>
-            <p
-              className={`mt-0.5 text-sm font-medium ${
-                !settings.enabled
-                  ? 'text-muted-foreground'
-                  : reason?.tone === 'tally'
-                    ? 'text-tally'
-                    : reason?.tone === 'success'
-                      ? 'text-success'
-                      : reason?.tone === 'warning'
-                        ? 'text-warning'
-                        : 'text-foreground'
-              }`}
-            >
-              {!settings.enabled
-                ? 'Avisos desactivados'
-                : (reason?.label ?? 'Consultando...')}
-            </p>
-            {liveState?.detail && (
-              <p className="mt-0.5 truncate text-xs text-faint" title={liveState.detail}>
-                {liveState.detail}
-              </p>
-            )}
-          </div>
+          <Label htmlFor="announcements-enabled" className="text-sm text-foreground">
+            {settings.enabled ? 'Avisos activos' : 'Avisos desactivados'}
+          </Label>
         </div>
-
-        <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-border bg-card p-4">
-          <Clock3 className="size-5 shrink-0 text-primary" />
-          <div className="min-w-0">
-            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
-              Aire libre hoy
-            </p>
-            <p className="mt-0.5 text-sm font-medium tabular-nums text-foreground">
-              {formatDuration(freeMinutes)}
-            </p>
-            <p className="mt-0.5 truncate text-xs text-faint">
-              {analysis?.currentProgram
-                ? `En curso: ${analysis.currentProgram.title}`
-                : 'Sin programa en curso según la programación'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-        <Switch
-          id="announcements-enabled"
-          checked={settings.enabled}
-          onCheckedChange={() => void toggle()}
-          aria-label="Activar avisos de hora"
-        />
-        <Label htmlFor="announcements-enabled" className="text-sm text-foreground">
-          {settings.enabled ? 'Avisos activos' : 'Avisos desactivados'}
-        </Label>
-        <Button
-          variant="outline"
-          size="sm"
-          className="ml-auto gap-2"
-          onClick={() => void rebuild()}
-          disabled={rebuilding}
-        >
-          <RefreshCw className={`size-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
-          Reconstruir plan
-        </Button>
-      </div>
-
-      {liveState?.liveStreamer && (
-        <p className="flex items-start gap-2 rounded-lg border border-tally/30 bg-tally/10 px-3 py-2 text-sm text-foreground">
-          <Radio className="mt-0.5 size-4 shrink-0 text-tally" />
-          <span>
-            <span className="font-medium text-tally">{liveState.liveStreamer}</span> está
-            transmitiendo en vivo. Los avisos esperan y no se interrumpe la transmisión.
-          </span>
-        </p>
-      )}
+      </Section>
 
       {/* The day as one object. This replaces the free-window badges, the
           blocking-program badges and the proposed-slot badges, which were the

@@ -179,7 +179,7 @@ export default function StatusDashboard() {
 
   if (error && !status) {
     return (
-      <Section eyebrow="Estado" title="Motor de voz" description={error} icon={Cpu}>
+      <Section title="Motor de voz" description={error} icon={Cpu}>
         <EmptyNote
           action={
             <Button variant="outline" size="sm" onClick={() => void loadStatus()}>
@@ -195,7 +195,7 @@ export default function StatusDashboard() {
 
   if (!status) {
     return (
-      <Section eyebrow="Estado" title="Motor de voz" description="Consultando el motor activo." icon={Cpu}>
+      <Section title="Motor de voz" description="Consultando el motor activo." icon={Cpu}>
         <div className="h-24 animate-pulse rounded-xl bg-sunken" />
       </Section>
     );
@@ -209,7 +209,6 @@ export default function StatusDashboard() {
 
   return (
     <Section
-      eyebrow="Estado"
       title="Motor de voz"
       description="Qué motor responde hoy y cuánto le queda para seguir respondiendo."
       icon={Cpu}
