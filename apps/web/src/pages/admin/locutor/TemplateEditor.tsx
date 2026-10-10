@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2, Wand2, X } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertTriangle, Pencil, Plus, Trash2, Wand2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
@@ -13,12 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import TemplatePreview from './TemplatePreview';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { describeRequestError } from '@/lib/apiErrors';
 import { toast } from 'sonner';
 import type { LocutorTemplate, LocutorTemplateInput } from '@radio/types';
+import { EmptyNote } from './Section';
 
 const EMPTY_TEMPLATE: LocutorTemplateInput = {
   type: 'hourly',
@@ -57,10 +57,13 @@ const TYPE_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 export default function TemplateEditor() {
-  const { getLocutorTemplates, saveLocutorTemplate, deleteLocutorTemplate, generateLocutorAudio } = useAdminApi();
+  const { getLocutorTemplates, saveLocutorTemplate, deleteLocutorTemplate, generateLocutorAudio } =
+    useAdminApi();
 
   const [templates, setTemplates] = useState<LocutorTemplate[]>([]);
-  const [editingTemplate, setEditingTemplate] = useState<LocutorTemplate | LocutorTemplateInput | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<LocutorTemplate | LocutorTemplateInput | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -78,7 +81,7 @@ export default function TemplateEditor() {
         setTemplates(result.data);
         setError(null);
       } else {
-        setError('Error al cargar las plantillas.');
+        setError('No se pudieron cargar las plantillas.');
       }
     } finally {
       setLoading(false);
@@ -100,8 +103,8 @@ export default function TemplateEditor() {
       setEditingTemplate(null);
       await loadTemplates();
       toast.success(id ? 'Plantilla actualizada' : 'Plantilla creada');
-    } catch {
-      setError('Error al guardar la plantilla.');
+    } catch (err) {
+      setError(describeRequestError(err));
     } finally {
       setSaving(false);
     }
@@ -126,8 +129,8 @@ export default function TemplateEditor() {
     try {
       await generateLocutorAudio(id);
       toast.success('Generación iniciada. Revisa el banco de audios.');
-    } catch {
-      setError('Error al iniciar la generación.');
+    } catch (err) {
+      setError(describeRequestError(err));
     } finally {
       setGeneratingId(null);
     }
@@ -148,189 +151,224 @@ export default function TemplateEditor() {
   }, []);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Plantillas de Anuncios</CardTitle>
-          <Button size="sm" className="gap-1.5" onClick={() => setEditingTemplate({ ...EMPTY_TEMPLATE })}>
-            <Plus className="w-4 h-4" />
-            Nueva plantilla
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {error && <p className="text-sm text-destructive mb-4">{error}</p>}
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button size="sm" className="gap-1.5" onClick={() => setEditingTemplate({ ...EMPTY_TEMPLATE })}>
+          <Plus className="size-4" />
+          Nueva plantilla
+        </Button>
+      </div>
 
-        {editingTemplate && (
-          <form onSubmit={handleSave} className="mb-6 p-4 rounded-lg bg-sunken border border-border space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-faint">Nombre</label>
-                <Input
-                  type="text"
-                  required
-                  value={editingTemplate.name}
-                  onChange={(e) => setField('name', e.target.value)}
-                  placeholder="Ej: Anuncio de la hora"
-                  className="border-border bg-card"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-faint">Tipo</label>
-                <Select value={editingTemplate.type} onValueChange={(v) => setField('type', v)}>
-                  <SelectTrigger className="w-full border-border bg-card">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TYPE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-faint">Voz</label>
-                <Select value={editingTemplate.voice} onValueChange={(v) => setField('voice', v)}>
-                  <SelectTrigger className="w-full border-border bg-card">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VOICE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-faint">{VOICE_HINT}</p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-faint">
-                  Velocidad: <span className="text-foreground">{editingTemplate.speed.toFixed(2)}</span>
-                </label>
-                <Slider
-                  value={[editingTemplate.speed]}
-                  onValueChange={([v]) => setField('speed', v)}
-                  min={0.7}
-                  max={1.2}
-                  step={0.05}
-                  className="mt-3"
-                />
-                <p className="text-xs text-faint">
-                  Rango admitido por los dos motores. 1.00 es el ritmo natural.
-                </p>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-faint">Plantilla de texto</label>
-              <Textarea
+      {error && (
+        <p className="flex items-center gap-2 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <AlertTriangle className="size-4 shrink-0" />
+          {error}
+        </p>
+      )}
+
+      {editingTemplate && (
+        <form onSubmit={handleSave} className="space-y-4 rounded-xl border border-primary/25 bg-sunken/40 p-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Nombre</label>
+              <Input
+                type="text"
                 required
-                rows={3}
-                value={editingTemplate.textTemplate}
-                onChange={(e) => setField('textTemplate', e.target.value)}
+                value={editingTemplate.name}
+                onChange={(e) => setField('name', e.target.value)}
+                placeholder="Ej: Anuncio de la hora"
                 className="border-border bg-card"
               />
-              <p className="text-xs text-faint">
-                Variables: {'{{time_text}}'}, {'{{time_sentence}}'}, {'{{time_bare}}'}, {'{{hour_text}}'}, {'{{minutes_text}}'}, {'{{period}}'}, {'{{station_name}}'}, {'{{day}}'}, {'{{date}}'}, {'{{period_greeting}}'}
-              </p>
-              <p className="text-xs text-faint">
-                Usa {'{{time_text}}'} para anunciar la hora y el minuto: dice "son las nueve y cuarenta
-                y dos de la noche". {'{{time_sentence}}'} es lo mismo con la inicial en mayúscula, para
-                cuando la frase abre el aviso. {'{{hour_text}}'} solo da la hora, sin minutos.
-              </p>
-              <TemplatePreview
-                template={editingTemplate.textTemplate}
-                templateId={'id' in editingTemplate ? editingTemplate.id : null}
-              />
             </div>
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={editingTemplate.active}
-                  onChange={(e) => setField('active', e.target.checked)}
-                  className="w-4 h-4 accent-primary"
-                />
-                Activa (usada por el job automático)
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Tipo</label>
+              <Select value={editingTemplate.type} onValueChange={(v) => setField('type', v)}>
+                <SelectTrigger className="w-full border-border bg-card">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Voz</label>
+              <Select value={editingTemplate.voice} onValueChange={(v) => setField('voice', v)}>
+                <SelectTrigger className="w-full border-border bg-card">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {VOICE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs leading-snug text-faint">{VOICE_HINT}</p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground">
+                Velocidad{' '}
+                <span className="font-mono tabular-nums text-primary">
+                  {editingTemplate.speed.toFixed(2)}
+                </span>
               </label>
-              <div className="flex gap-2">
-                <Button type="button" variant="ghost" size="sm" onClick={() => setEditingTemplate(null)}>
-                  <X className="w-3.5 h-3.5 mr-1" />
-                  Cancelar
+              <Slider
+                value={[editingTemplate.speed]}
+                onValueChange={([v]) => setField('speed', v)}
+                min={0.7}
+                max={1.2}
+                step={0.05}
+                className="mt-3"
+              />
+              <p className="text-xs leading-snug text-faint">
+                Rango admitido por los dos motores. 1.00 es el ritmo natural.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Plantilla de texto</label>
+            <Textarea
+              required
+              rows={3}
+              value={editingTemplate.textTemplate}
+              onChange={(e) => setField('textTemplate', e.target.value)}
+              className="border-border bg-card"
+            />
+            <p className="text-xs leading-snug text-faint">
+              Variables: {'{{time_text}}'}, {'{{time_sentence}}'}, {'{{time_bare}}'},{' '}
+              {'{{hour_text}}'}, {'{{minutes_text}}'}, {'{{period}}'}, {'{{station_name}}'},{' '}
+              {'{{day}}'}, {'{{date}}'}, {'{{period_greeting}}'}
+            </p>
+            <p className="text-xs leading-snug text-faint">
+              Usa <span className="font-mono text-muted-foreground">{'{{time_text}}'}</span> para
+              anunciar la hora y el minuto: dice "son las nueve y cuarenta y dos de la noche".{' '}
+              <span className="font-mono text-muted-foreground">{'{{time_sentence}}'}</span> es lo
+              mismo con la inicial en mayúscula, para cuando la frase abre el aviso.
+            </p>
+            <TemplatePreview
+              template={editingTemplate.textTemplate}
+              templateId={'id' in editingTemplate ? editingTemplate.id : null}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <Checkbox
+                checked={editingTemplate.active}
+                onCheckedChange={(checked) => setField('active', checked === true)}
+                aria-label="Usada por el job automático"
+              />
+              Activa, usada por el job automático
+            </label>
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setEditingTemplate(null)}>
+                <X className="mr-1 size-3.5" />
+                Cancelar
+              </Button>
+              <Button type="submit" size="sm" disabled={saving}>
+                {saving ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      )}
+
+      {loading ? (
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-20 animate-pulse rounded-xl bg-sunken" />
+          ))}
+        </div>
+      ) : templates.length === 0 ? (
+        <EmptyNote
+          action={
+            <Button size="sm" className="gap-1.5" onClick={() => setEditingTemplate({ ...EMPTY_TEMPLATE })}>
+              <Plus className="size-4" />
+              Nueva plantilla
+            </Button>
+          }
+        >
+          No hay plantillas creadas. Una plantilla es el texto que el locutor dice al llegar a la hora.
+        </EmptyNote>
+      ) : (
+        <ul className="space-y-2">
+          {templates.map((t) => (
+            <li
+              key={t.id}
+              className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card p-4"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* The left edge carries the state the job cares about, so an
+                      inactive template is findable without reading the badge. */}
+                  <span
+                    aria-hidden
+                    className={`h-4 w-0.5 shrink-0 rounded-full ${t.active ? 'bg-primary' : 'bg-border'}`}
+                  />
+                  <p className={`text-sm font-semibold ${t.active ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    {t.name}
+                  </p>
+                  <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                    {TYPE_LABELS[t.type] ?? t.type}
+                  </span>
+                  {!t.active && (
+                    <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Inactiva
+                    </span>
+                  )}
+                </div>
+
+                <p className="mt-2 border-l-2 border-border pl-3 text-sm leading-relaxed text-foreground/90">
+                  {t.textTemplate}
+                </p>
+
+                <p className="mt-2 font-mono text-[11px] text-faint">
+                  {VOICE_LABELS[t.voice] ?? t.voice} · velocidad {t.speed.toFixed(2)}
+                </p>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleGenerate(t.id)}
+                  disabled={generatingId === t.id}
+                  className="gap-1.5 text-xs"
+                >
+                  <Wand2 className={`size-3.5 ${generatingId === t.id ? 'animate-pulse' : ''}`} />
+                  {generatingId === t.id ? 'Generando...' : 'Generar test'}
                 </Button>
-                <Button type="submit" size="sm" disabled={saving}>
-                  {saving ? 'Guardando...' : 'Guardar'}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setEditingTemplate(t)}
+                  title="Editar"
+                >
+                  <Pencil className="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setPendingDelete(t)}
+                  disabled={deletingId === t.id}
+                  title="Eliminar"
+                >
+                  <Trash2 className="size-4" />
                 </Button>
               </div>
-            </div>
-          </form>
-        )}
-
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-14 rounded-lg animate-pulse bg-sunken" />
-            ))}
-          </div>
-        ) : templates.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">No hay plantillas creadas.</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {templates.map((t) => (
-              <li key={t.id} className="py-4 flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-medium text-foreground">
-                      {t.name}
-                    </p>
-                    <Badge variant="outline" className="text-xs text-muted-foreground border-border">
-                      {TYPE_LABELS[t.type] ?? t.type}
-                    </Badge>
-                    {!t.active && (
-                      <Badge variant="secondary" className="text-xs">Inactiva</Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground italic mt-1 truncate max-w-xl" title={t.textTemplate}>
-                    {t.textTemplate}
-                  </p>
-                  <p className="text-xs text-faint mt-1">
-                    {VOICE_LABELS[t.voice] ?? t.voice} · velocidad {t.speed.toFixed(2)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void handleGenerate(t.id)}
-                    disabled={generatingId === t.id}
-                    className="gap-1.5 text-primary hover:text-primary/80 text-xs"
-                  >
-                    <Wand2 className={`w-3.5 h-3.5 ${generatingId === t.id ? 'animate-pulse' : ''}`} />
-                    {generatingId === t.id ? 'Generando...' : 'Generar test'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-8 h-8 text-muted-foreground hover:text-foreground"
-                    onClick={() => setEditingTemplate(t)}
-                    title="Editar"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-8 h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setPendingDelete(t)}
-                    disabled={deletingId === t.id}
-                    title="Eliminar"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <ConfirmDialog
         open={pendingDelete !== null}
@@ -341,6 +379,6 @@ export default function TemplateEditor() {
         loading={deletingId !== null}
         onConfirm={() => pendingDelete && void handleDelete(pendingDelete.id)}
       />
-    </Card>
+    </div>
   );
 }

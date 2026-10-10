@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Radio, RefreshCw, Clock3, ShieldCheck, ListChecks, Eye } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  AlertTriangle,
+  Ban,
+  CheckCircle2,
+  Clock3,
+  History,
+  Radio,
+  RefreshCw,
+  Repeat,
+  ShieldCheck,
+  SlidersHorizontal,
+  Volume2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -10,11 +20,14 @@ import { useAdminApi } from '@/hooks/useAdminApi';
 import { toast } from 'sonner';
 import type {
   LocutorAnnouncementSettings,
+  LocutorAnnouncementReason,
   LocutorDayAnalysis,
   LocutorLiveState,
   LocutorPlanPreview,
   LocutorRunLogEntry,
 } from '@radio/types';
+import { DayRail } from './DayRail';
+import { EmptyNote } from './Section';
 
 /**
  * Configuración de los avisos de hora.
@@ -25,20 +38,35 @@ import type {
  * sin cortar nunca un programa.
  */
 
-const REASON_LABELS: Record<string, string> = {
-  ok: 'Se puede emitir',
-  live_streamer: 'Persona transmitiendo en vivo',
-  scheduled_program: 'Hay un programa en curso',
-  unknown: 'Estado desconocido',
+type Tone = 'success' | 'warning' | 'info' | 'tally' | 'muted';
+
+/**
+ * The one thing this zone must not let the operator miss is whether the
+ * locutor is allowed to speak right now, so the reason carries the colour
+ * rather than the surrounding box. `tally` stays reserved for a person on air.
+ */
+const REASON: Record<LocutorAnnouncementReason, { label: string; tone: Tone }> = {
+  ok: { label: 'Se puede emitir ahora', tone: 'success' },
+  live_streamer: { label: 'Persona transmitiendo en vivo', tone: 'tally' },
+  scheduled_program: { label: 'Hay un programa en curso', tone: 'warning' },
+  unknown: { label: 'Estado desconocido', tone: 'warning' },
 };
 
-const OUTCOME_LABELS: Record<string, string> = {
-  blocked_live_streamer: 'Bloqueado: persona en vivo',
-  blocked_scheduled_program: 'Bloqueado: programa en curso',
-  blocked_unknown: 'Bloqueado: estado desconocido',
-  attempted: 'Intento',
-  played: 'Reproducido',
-  failed: 'Falló',
+const OUTCOME: Record<string, { label: string; tone: Tone }> = {
+  blocked_live_streamer: { label: 'Bloqueado: persona en vivo', tone: 'tally' },
+  blocked_scheduled_program: { label: 'Bloqueado: programa en curso', tone: 'warning' },
+  blocked_unknown: { label: 'Bloqueado: estado desconocido', tone: 'warning' },
+  attempted: { label: 'Intento', tone: 'info' },
+  played: { label: 'Reproducido', tone: 'success' },
+  failed: { label: 'Falló', tone: 'tally' },
+};
+
+const DOT_TONE: Record<Tone, string> = {
+  success: 'bg-success',
+  warning: 'bg-warning',
+  info: 'bg-info',
+  tally: 'bg-tally',
+  muted: 'bg-faint/50',
 };
 
 function formatDuration(minutes: number): string {
@@ -49,18 +77,76 @@ function formatDuration(minutes: number): string {
   return `${hours} h ${rest} min`;
 }
 
-interface FieldProps {
+/**
+ * A labelled number. The unit lives in the label rather than as a suffix inside
+ * the field, so the value stays a plain editable number and the hint keeps
+ * explaining the consequence instead of restating the unit.
+ */
+function NumberField({
+  label,
+  unit,
+  hint,
+  value,
+  min,
+  max,
+  step,
+  disabled,
+  onChange,
+}: {
   label: string;
-  hint?: string;
-  children: React.ReactNode;
-}
-
-function Field({ label, hint, children }: FieldProps) {
+  unit: string;
+  hint: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  disabled: boolean;
+  onChange: (value: number) => void;
+}) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-foreground">{label}</Label>
-      {children}
-      {hint && <p className="text-xs text-faint">{hint}</p>}
+      <Label className="text-xs text-foreground">
+        {label} <span className="text-faint">({unit})</span>
+      </Label>
+      <Input
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+      <p className="text-xs leading-snug text-faint">{hint}</p>
+    </div>
+  );
+}
+
+function GuardRow({
+  id,
+  label,
+  hint,
+  checked,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  hint: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
+      <Switch id={id} checked={checked} disabled={disabled} onCheckedChange={onChange} className="mt-0.5" />
+      <div className="min-w-0">
+        <Label htmlFor={id} className="text-sm text-foreground">
+          {label}
+        </Label>
+        <p className="mt-0.5 text-xs leading-snug text-faint">{hint}</p>
+      </div>
     </div>
   );
 }
@@ -98,16 +184,13 @@ export default function AnnouncementSettingsPanel() {
 
     const [settingsResult, liveResult, analysisResult, previewResult, logResult] = result;
 
-    if (settingsResult.status === 'fulfilled') {
-      setSettings(settingsResult.value);
-    }
+    if (settingsResult.status === 'fulfilled') setSettings(settingsResult.value);
     if (liveResult.status === 'fulfilled') setLiveState(liveResult.value);
     if (analysisResult.status === 'fulfilled') setAnalysis(analysisResult.value);
     if (previewResult.status === 'fulfilled') setPreview(previewResult.value);
     if (logResult.status === 'fulfilled') setRunLog(logResult.value);
 
-    const anyFailure = result.some((entry) => entry.status === 'rejected');
-    setError(anyFailure ? 'No se pudo cargar toda la información del sistema.' : null);
+    setError(result.some((entry) => entry.status === 'rejected') ? 'No se pudo cargar toda la información.' : null);
   }, [
     getAnnouncementSettings,
     getAnnouncementLiveState,
@@ -182,361 +265,389 @@ export default function AnnouncementSettingsPanel() {
   }, [toggleAnnouncements, load]);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Cargando configuración de avisos...</p>;
+    return <div className="h-40 animate-pulse rounded-xl bg-sunken" />;
   }
 
   if (!settings) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-sm text-destructive">{error ?? 'No se pudo cargar la configuración.'}</p>
-        </CardContent>
-      </Card>
+      <EmptyNote>{error ?? 'No se pudo cargar la configuración de los avisos.'}</EmptyNote>
     );
   }
 
+  const reason = liveState ? REASON[liveState.reason] : null;
+  const slots = preview?.slots ?? [];
+  const freeMinutes = analysis?.freeMinutes ?? 0;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {error && (
-        <p className="text-sm text-warning border border-warning/20 bg-warning/10 rounded-md px-3 py-2">
+        <p className="flex items-center gap-2 rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-sm text-warning">
+          <AlertTriangle className="size-4 shrink-0" />
           {error}
         </p>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Radio className="w-4 h-4" />
-            Estado de los avisos de hora
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <Switch
-              id="announcements-enabled"
-              checked={settings.enabled}
-              onCheckedChange={() => void toggle()}
-              aria-label="Activar avisos de hora"
-            />
-            <Label htmlFor="announcements-enabled" className="text-sm">
-              {settings.enabled ? 'Avisos activos' : 'Avisos desactivados'}
-            </Label>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void rebuild()}
-              disabled={rebuilding}
-            >
-              <RefreshCw className={`w-4 h-4 ${rebuilding ? 'animate-spin' : ''}`} />
-              Reconstruir plan
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="rounded-md border border-border p-3">
-              <p className="text-xs text-faint flex items-center gap-1.5">
-                <Eye className="w-3.5 h-3.5" />
-                ¿Se emitiría ahora mismo?
-              </p>
-              <p className="text-sm mt-1">
-                {liveState ? REASON_LABELS[liveState.reason] ?? liveState.reason : 'Consultando...'}
-              </p>
-              {liveState && <p className="text-xs text-faint mt-1">{liveState.detail}</p>}
-            </div>
-
-            <div className="rounded-md border border-border p-3">
-              <p className="text-xs text-faint flex items-center gap-1.5">
-                <Clock3 className="w-3.5 h-3.5" />
-                Tiempo libre hoy
-              </p>
-              <p className="text-sm mt-1">
-                {analysis ? formatDuration(analysis.freeMinutes) : 'Consultando...'}
-              </p>
-              <p className="text-xs text-faint mt-1">
-                {analysis && analysis.currentProgram
-                  ? `En curso: ${analysis.currentProgram.title}`
-                  : 'Sin programa en curso según la programación'}
-              </p>
-            </div>
-          </div>
-
-          {liveState?.liveStreamer && (
-            <div className="rounded-md border border-tally/30 bg-tally/10 px-3 py-2">
-              <p className="text-sm text-foreground">
-                Hay una persona transmitiendo en vivo ({liveState.liveStreamer}). Los avisos no se
-                emitirán ni la interrumpiremos.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Ritmo de emisión</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Field
-              label="Avisos por hora de espacio libre"
-              hint="Se reparten entre las ventanas libres, no entre las 24 horas del día."
-            >
-              <Input
-                type="number"
-                min={1}
-                max={12}
-                value={settings.perHour}
-                disabled={saving}
-                onChange={(event) => void patch({ perHour: Number(event.target.value) })}
-              />
-            </Field>
-
-            <Field
-              label="Separación mínima entre avisos (minutos)"
-              hint="Evita dos avisos casi seguidos al inicio de una ventana."
-            >
-              <Input
-                type="number"
-                min={0}
-                max={180}
-                value={settings.minGapMinutes}
-                disabled={saving}
-                onChange={(event) => void patch({ minGapMinutes: Number(event.target.value) })}
-              />
-            </Field>
-
-            <Field
-              label="Margen respecto a los bordes de la ventana (minutos)"
-              hint="Un aviso pegado al programa puede pisar su entrada o su salida."
-            >
-              <Input
-                type="number"
-                min={0}
-                max={30}
-                value={settings.windowEdgeMarginMinutes}
-                disabled={saving}
-                onChange={(event) =>
-                  void patch({ windowEdgeMarginMinutes: Number(event.target.value) })
-                }
-              />
-            </Field>
-
-            <Field
-              label="Ventana libre mínima (minutos)"
-              hint="Descarta huecos demasiado cortos, como los que deja un bloque de seis minutos."
-            >
-              <Input
-                type="number"
-                min={1}
-                max={120}
-                value={settings.minWindowMinutes}
-                disabled={saving}
-                onChange={(event) => void patch({ minWindowMinutes: Number(event.target.value) })}
-              />
-            </Field>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Reintentos cuando hay un programa</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-xs text-faint">
-              Si al momento del aviso hay un programa sonando, el aviso no se pierde: se vuelve a
-              evaluar. Esto es lo que permite anunciarlo cuando la predica termina antes de lo
-              previsto.
+      {/* Verdict first: enabled, and whether it may speak at this instant. */}
+      <div className="flex flex-wrap items-stretch gap-3">
+        <div
+          className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl border p-4 ${
+            settings.enabled
+              ? reason?.tone === 'success'
+                ? 'border-success/25 bg-success/5'
+                : 'border-border bg-card'
+              : 'border-border bg-card'
+          }`}
+        >
+          <span
+            aria-hidden
+            className={`size-2.5 shrink-0 rounded-full ${
+              !settings.enabled
+                ? 'bg-faint/40'
+                : reason
+                  ? DOT_TONE[reason.tone]
+                  : 'bg-faint/40'
+            }`}
+          />
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+              ¿Se emitiría ahora mismo?
             </p>
-
-            <Field label="Cada cuánto reintentar (minutos)">
-              <Input
-                type="number"
-                min={1}
-                max={60}
-                value={settings.retryIntervalMinutes}
-                disabled={saving}
-                onChange={(event) =>
-                  void patch({ retryIntervalMinutes: Number(event.target.value) })
-                }
-              />
-            </Field>
-
-            <Field
-              label="Máximo de reintentos por aviso"
-              hint="Al agotarlos el aviso queda registrado como omitido, con el motivo."
+            <p
+              className={`mt-0.5 text-sm font-medium ${
+                !settings.enabled
+                  ? 'text-muted-foreground'
+                  : reason?.tone === 'tally'
+                    ? 'text-tally'
+                    : reason?.tone === 'success'
+                      ? 'text-success'
+                      : reason?.tone === 'warning'
+                        ? 'text-warning'
+                        : 'text-foreground'
+              }`}
             >
-              <Input
-                type="number"
-                min={0}
-                max={20}
-                value={settings.maxRetries}
-                disabled={saving}
-                onChange={(event) => void patch({ maxRetries: Number(event.target.value) })}
-              />
-            </Field>
+              {!settings.enabled
+                ? 'Avisos desactivados'
+                : (reason?.label ?? 'Consultando...')}
+            </p>
+            {liveState?.detail && (
+              <p className="mt-0.5 truncate text-xs text-faint" title={liveState.detail}>
+                {liveState.detail}
+              </p>
+            )}
+          </div>
+        </div>
 
-            <div className="rounded-md border border-border p-3 space-y-3">
-              <div className="flex items-start gap-3">
-                <Switch
-                  id="respect-live"
-                  checked={settings.respectLiveStreamer}
-                  disabled={saving}
-                  onCheckedChange={(checked) => void patch({ respectLiveStreamer: checked })}
-                  className="mt-0.5"
-                />
-                <div>
-                  <Label htmlFor="respect-live" className="text-sm">
-                    No interrumpir a quien está en vivo
-                  </Label>
-                  <p className="text-xs text-faint">
-                    Si un DJ se conecta, el aviso espera. Desactívalo solo si aceptas el riesgo de
-                    cortar la transmisión.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Switch
-                  id="respect-programs"
-                  checked={settings.respectScheduledPrograms}
-                  disabled={saving}
-                  onCheckedChange={(checked) => void patch({ respectScheduledPrograms: checked })}
-                  className="mt-0.5"
-                />
-                <div>
-                  <Label htmlFor="respect-programs" className="text-sm">
-                    No interrumpir ningún programa programado
-                  </Label>
-                  <p className="text-xs text-faint">
-                    Se comprueba contra la playlist que está sonando realmente, no contra el
-                    horario. Si un programa termina antes, el aviso sale.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-border bg-card p-4">
+          <Clock3 className="size-5 shrink-0 text-primary" />
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+              Aire libre hoy
+            </p>
+            <p className="mt-0.5 text-sm font-medium tabular-nums text-foreground">
+              {formatDuration(freeMinutes)}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-faint">
+              {analysis?.currentProgram
+                ? `En curso: ${analysis.currentProgram.title}`
+                : 'Sin programa en curso según la programación'}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4" />
-            Ventanas libres de hoy
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {analysis && analysis.freeWindows.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {analysis.freeWindows.map((window) => (
-                <Badge key={`${window.from}-${window.to}`} variant="outline" className="font-mono">
-                  {window.from} - {window.to} · {formatDuration(window.minutes)}
-                </Badge>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No hay ventanas libres con el tamaño mínimo actual.
-            </p>
-          )}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+        <Switch
+          id="announcements-enabled"
+          checked={settings.enabled}
+          onCheckedChange={() => void toggle()}
+          aria-label="Activar avisos de hora"
+        />
+        <Label htmlFor="announcements-enabled" className="text-sm text-foreground">
+          {settings.enabled ? 'Avisos activos' : 'Avisos desactivados'}
+        </Label>
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto gap-2"
+          onClick={() => void rebuild()}
+          disabled={rebuilding}
+        >
+          <RefreshCw className={`size-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
+          Reconstruir plan
+        </Button>
+      </div>
 
-          {analysis && analysis.busyIntervals.length > 0 && (
-            <div>
-              <p className="text-xs text-faint mb-2">Programas que bloquean los avisos</p>
-              <div className="flex flex-wrap gap-2">
-                {analysis.busyIntervals.map((interval) => (
-                  <Badge
-                    key={`${interval.from}-${interval.title}`}
-                    variant="outline"
-                    className="border-border text-muted-foreground"
-                  >
-                    {interval.from} - {interval.to} · {interval.title}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {liveState?.liveStreamer && (
+        <p className="flex items-start gap-2 rounded-lg border border-tally/30 bg-tally/10 px-3 py-2 text-sm text-foreground">
+          <Radio className="mt-0.5 size-4 shrink-0 text-tally" />
+          <span>
+            <span className="font-medium text-tally">{liveState.liveStreamer}</span> está
+            transmitiendo en vivo. Los avisos esperan y no se interrumpe la transmisión.
+          </span>
+        </p>
+      )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <ListChecks className="w-4 h-4" />
-              Plan propuesto para hoy
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {preview && preview.slotCount > 0 ? (
+      {/* The day as one object. This replaces the free-window badges, the
+          blocking-program badges and the proposed-slot badges, which were the
+          same 24 hours listed three times over. */}
+      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+            <ShieldCheck className="size-3" />
+            El día de hoy
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {slots.length > 0 ? (
               <>
-                <p className="text-sm text-muted-foreground mb-3">
-                  {preview.slotCount} avisos
-                  {preview.droppedByGap > 0 && `, ${preview.droppedByGap} descartados por separación`}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {preview.slots.map((slot) => (
-                    <Badge key={slot.minuteOfDay} variant="outline" className="font-mono">
-                      {slot.at}
-                    </Badge>
-                  ))}
-                </div>
+                <span className="font-semibold text-foreground">{slots.length}</span> avisos
+                propuestos
+                {preview && preview.droppedByGap > 0 && (
+                  <span className="text-faint">
+                    {' '}
+                    · {preview.droppedByGap} descartado{preview.droppedByGap === 1 ? '' : 's'} por
+                    separación
+                  </span>
+                )}
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                No hay avisos propuestos. Revisa las ventanas libres y el tamaño mínimo.
-              </p>
+              'Sin avisos propuestos todavía'
             )}
-          </CardContent>
-        </Card>
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Actividad reciente</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {runLog.length > 0 ? (
-              <ul className="space-y-2 max-h-72 overflow-y-auto">
-                {runLog.map((entry) => (
-                  <li key={entry.id} className="text-xs flex items-start gap-2">
-                    <span className="font-mono text-faint shrink-0">
-                      {new Date(entry.at).toLocaleTimeString('es-CO', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                    <span className="text-foreground">
-                      {OUTCOME_LABELS[entry.outcome] ?? entry.outcome}
-                      {entry.playingPlaylist && (
-                        <span className="text-faint"> · {entry.playingPlaylist}</span>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">Sin actividad registrada todavía.</p>
-            )}
-          </CardContent>
-        </Card>
+        {analysis && (analysis.freeWindows.length > 0 || analysis.busyIntervals.length > 0) ? (
+          <DayRail
+            freeWindows={analysis.freeWindows}
+            busyIntervals={analysis.busyIntervals}
+            slots={slots}
+            stationClock={liveState?.stationTime.clock}
+          />
+        ) : (
+          <EmptyNote>
+            No hay ventanas libres con el tamaño mínimo actual. Bájalo en <span className="text-foreground">Ventana libre mínima</span> o
+            revisa la programación.
+          </EmptyNote>
+        )}
+
+        {slots.length > 0 && (
+          <ul className="flex flex-wrap gap-1.5 border-t border-border pt-3">
+            {slots.map((slot) => (
+              <li
+                key={slot.minuteOfDay}
+                className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 font-mono text-xs tabular-nums text-primary"
+              >
+                {slot.at}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Audio</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Field label="Carpeta de bases musicales" hint="Si no existe, el aviso sale sin música.">
+      <div className="grid gap-3 xl:grid-cols-2">
+        {/* Rhythm: how the free air is spent. */}
+        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+            <SlidersHorizontal className="size-3" />
+            Ritmo de emisión
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <NumberField
+              label="Avisos por hora"
+              unit="de espacio libre"
+              hint="Se reparten entre las ventanas libres, no entre las 24 horas."
+              value={settings.perHour}
+              min={1}
+              max={12}
+              disabled={saving}
+              onChange={(perHour) => void patch({ perHour })}
+            />
+            <NumberField
+              label="Separación mínima"
+              unit="minutos"
+              hint="Evita dos avisos casi seguidos al inicio de una ventana."
+              value={settings.minGapMinutes}
+              min={0}
+              max={180}
+              disabled={saving}
+              onChange={(minGapMinutes) => void patch({ minGapMinutes })}
+            />
+            <NumberField
+              label="Margen en los bordes"
+              unit="minutos"
+              hint="Un aviso pegado al programa puede pisar su entrada o su salida."
+              value={settings.windowEdgeMarginMinutes}
+              min={0}
+              max={30}
+              disabled={saving}
+              onChange={(windowEdgeMarginMinutes) => void patch({ windowEdgeMarginMinutes })}
+            />
+            <NumberField
+              label="Ventana libre mínima"
+              unit="minutos"
+              hint="Descarta huecos demasiado cortos, como los de un bloque de seis minutos."
+              value={settings.minWindowMinutes}
+              min={1}
+              max={120}
+              disabled={saving}
+              onChange={(minWindowMinutes) => void patch({ minWindowMinutes })}
+            />
+          </div>
+        </div>
+
+        {/* Retries and guards: what happens when the moment is wrong. */}
+        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+            <Repeat className="size-3" />
+            Reintentos y protecciones
+          </p>
+          <p className="text-xs leading-snug text-faint">
+            Si al momento del aviso hay un programa sonando, el aviso no se pierde: se vuelve a
+            evaluar. Eso es lo que permite anunciarlo cuando la predica termina antes de lo previsto.
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <NumberField
+              label="Reintentar cada"
+              unit="minutos"
+              hint="Cada cuánto se vuelve a mirar si ya se puede emitir."
+              value={settings.retryIntervalMinutes}
+              min={1}
+              max={60}
+              disabled={saving}
+              onChange={(retryIntervalMinutes) => void patch({ retryIntervalMinutes })}
+            />
+            <NumberField
+              label="Máximo de reintentos"
+              unit="por aviso"
+              hint="Al agotarlos queda registrado como omitido, con el motivo."
+              value={settings.maxRetries}
+              min={0}
+              max={20}
+              disabled={saving}
+              onChange={(maxRetries) => void patch({ maxRetries })}
+            />
+          </div>
+
+          <div className="space-y-2 border-t border-border pt-3">
+            <GuardRow
+              id="respect-live"
+              label="No interrumpir a quien está en vivo"
+              hint="Si un DJ se conecta, el aviso espera. Desactívalo solo si aceptas cortar la transmisión."
+              checked={settings.respectLiveStreamer}
+              disabled={saving}
+              onChange={(respectLiveStreamer) => void patch({ respectLiveStreamer })}
+            />
+            <GuardRow
+              id="respect-programs"
+              label="No interrumpir ningún programa programado"
+              hint="Se comprueba contra la playlist que suena de verdad, no contra el horario."
+              checked={settings.respectScheduledPrograms}
+              disabled={saving}
+              onChange={(respectScheduledPrograms) => void patch({ respectScheduledPrograms })}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* The rundown of what is holding the schedule. Kept as a list because
+          the program titles are information the rail cannot carry. */}
+      {analysis && analysis.busyIntervals.length > 0 && (
+        <details className="group rounded-xl border border-border bg-card">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm text-foreground">
+            <Ban className="size-4 shrink-0 text-faint" />
+            <span className="font-medium">
+              {analysis.busyIntervals.length} programa
+              {analysis.busyIntervals.length === 1 ? '' : 's'} bloquean los avisos
+            </span>
+            <span className="ml-auto font-mono text-[11px] text-faint group-open:hidden">
+              ver lista
+            </span>
+          </summary>
+          <ul className="divide-y divide-border border-t border-border">
+            {analysis.busyIntervals.map((interval) => (
+              <li key={`${interval.from}-${interval.title}`} className="flex items-baseline gap-3 px-4 py-2">
+                <span className="shrink-0 font-mono text-xs tabular-nums text-faint">
+                  {interval.from} – {interval.to}
+                </span>
+                <span className="min-w-0 truncate text-sm text-foreground" title={interval.title}>
+                  {interval.title}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {/* Run log. The old version printed every entry the same way, so twelve
+          identical "Bloqueado: persona en vivo" lines read as noise; the outcome
+          now carries the colour that says whether anything went wrong. */}
+      <div className="rounded-xl border border-border bg-card">
+        <p className="flex items-center gap-1.5 px-4 pb-2 pt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+          <History className="size-3" />
+          Actividad reciente
+        </p>
+
+        {runLog.length === 0 ? (
+          <div className="px-4 pb-4">
+            <EmptyNote>El sistema todavía no ha registrado ningún intento.</EmptyNote>
+          </div>
+        ) : (
+          <ul className="max-h-72 divide-y divide-border overflow-y-auto border-t border-border">
+            {runLog.map((entry) => {
+              const outcome = OUTCOME[entry.outcome] ?? { label: entry.outcome, tone: 'muted' as Tone };
+              return (
+                <li key={entry.id} className="flex items-center gap-3 px-4 py-2">
+                  <span className="shrink-0 font-mono text-xs tabular-nums text-faint">
+                    {new Date(entry.at).toLocaleTimeString('es-CO', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                  <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DOT_TONE[outcome.tone]}`} />
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                    {outcome.label}
+                    {entry.playingPlaylist && (
+                      <span className="text-faint"> · {entry.playingPlaylist}</span>
+                    )}
+                  </span>
+                  {entry.outcome === 'played' ? (
+                    <CheckCircle2 className="size-3.5 shrink-0 text-success" />
+                  ) : entry.outcome === 'failed' ? (
+                    <AlertTriangle className="size-3.5 shrink-0 text-tally" />
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {/* Audio bed. */}
+      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+          <Volume2 className="size-3" />
+          Audio del aviso
+        </p>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-1.5 md:col-span-1">
+            <Label className="text-xs text-foreground">Carpeta de bases musicales</Label>
             <Input
               value={settings.bedsDir}
               disabled={saving}
               onChange={(event) => void patch({ bedsDir: event.target.value })}
             />
-          </Field>
+            <p className="text-xs leading-snug text-faint">Si no existe, el aviso sale sin música.</p>
+          </div>
 
-          <Field label="Volumen de la base">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-foreground">
+              Volumen de la base <span className="text-faint">(0 a 1)</span>
+            </Label>
             <Input
               type="number"
+              inputMode="decimal"
               step={0.05}
               min={0}
               max={1}
@@ -544,22 +655,26 @@ export default function AnnouncementSettingsPanel() {
               disabled={saving}
               onChange={(event) => void patch({ bedVolume: Number(event.target.value) })}
             />
-          </Field>
+            <p className="text-xs leading-snug text-faint">Qué tan fuerte entra la música bajo la voz.</p>
+          </div>
 
-          <Field label="Silencio final (segundos)" hint="Evita que Liquidsoap corte la pista.">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-foreground">
+              Silencio final <span className="text-faint">(segundos)</span>
+            </Label>
             <Input
               type="number"
+              inputMode="numeric"
               min={0}
               max={30}
               value={settings.trailingSilenceSeconds}
               disabled={saving}
-              onChange={(event) =>
-                void patch({ trailingSilenceSeconds: Number(event.target.value) })
-              }
+              onChange={(event) => void patch({ trailingSilenceSeconds: Number(event.target.value) })}
             />
-          </Field>
-        </CardContent>
-      </Card>
+            <p className="text-xs leading-snug text-faint">Evita que Liquidsoap corte la pista.</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

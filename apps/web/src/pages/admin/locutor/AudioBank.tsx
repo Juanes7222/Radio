@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Play, Square, Trash2, FileAudio, Eraser } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Play, Square, Trash2, FileAudio, Eraser } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
@@ -23,11 +21,11 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import type { LocutorAudio } from '@radio/types';
 
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  ready: { label: 'Listo', color: 'bg-success/10 text-success border-success/20' },
-  pending: { label: 'Pendiente', color: 'bg-warning/10 text-warning border-warning/20' },
-  error: { label: 'Error', color: 'bg-destructive/10 text-destructive border-destructive/20' },
-  expired: { label: 'Expirado', color: 'bg-faint/10 text-faint border-faint/20' },
+const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
+  ready: { label: 'Listo', color: 'bg-success/10 text-success border-success/25', dot: 'bg-success' },
+  pending: { label: 'Pendiente', color: 'bg-warning/10 text-warning border-warning/25', dot: 'bg-warning' },
+  error: { label: 'Error', color: 'bg-destructive/10 text-destructive border-destructive/25', dot: 'bg-destructive' },
+  expired: { label: 'Expirado', color: 'bg-muted text-faint border-border', dot: 'bg-faint/60' },
 };
 
 /**
@@ -53,9 +51,9 @@ function ProviderBadge({ provider }: { provider: string }) {
   if (!config) return null;
 
   return (
-    <Badge variant="outline" className={`mt-1 text-xs border ${config.color}`}>
+    <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] ${config.color}`}>
       {config.label}
-    </Badge>
+    </span>
   );
 }
 
@@ -64,6 +62,23 @@ function formatBytes(bytes: number | null): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function BankCount({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: string;
+}) {
+  return (
+    <p className="flex items-baseline gap-1.5">
+      <span className={`font-mono text-base font-semibold tabular-nums ${tone}`}>{value}</span>
+      <span className="text-xs text-faint">{label}</span>
+    </p>
+  );
 }
 
 export default function AudioBank() {
@@ -188,17 +203,27 @@ export default function AudioBank() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Banco de Audios</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => void loadAudios()} disabled={loading} className="gap-2 text-muted-foreground">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar
-          </Button>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* The counts sit above the table because they decide what the operator
+            does next: ready audios are reusable, the rest only occupy disk. */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+          <BankCount label="Listos" value={audios.filter((a) => a.status === 'ready').length} tone="text-success" />
+          <BankCount label="Pendientes" value={audios.filter((a) => a.status === 'pending').length} tone="text-warning" />
+          <BankCount label="Con error" value={audios.filter((a) => a.status === 'error').length} tone="text-destructive" />
         </div>
-      </CardHeader>
-      <CardContent>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void loadAudios()}
+          disabled={loading}
+          className="gap-2"
+        >
+          <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
+          Actualizar
+        </Button>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <AnimatePresence>
           {selectedCount > 0 && (
             <motion.div
@@ -254,11 +279,16 @@ export default function AudioBank() {
           )}
         </AnimatePresence>
 
-        {error && <p className="text-sm text-destructive mb-4">{error}</p>}
+        {error && (
+          <p className="mb-3 flex items-center gap-2 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertTriangle className="size-4 shrink-0" />
+            {error}
+          </p>
+        )}
 
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="hover:bg-transparent">
               <TableHead className="w-11 pl-4">
                 <Checkbox
                   checked={allSelected ? true : selectedCount > 0 ? 'indeterminate' : false}
@@ -268,12 +298,24 @@ export default function AudioBank() {
                   className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
               </TableHead>
-              <TableHead>Archivo</TableHead>
-              <TableHead>Texto generado</TableHead>
-              <TableHead>Voz</TableHead>
-              <TableHead>Duración</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Acciones</TableHead>
+              <TableHead className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+                Archivo
+              </TableHead>
+              <TableHead className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+                Texto generado
+              </TableHead>
+              <TableHead className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+                Voz
+              </TableHead>
+              <TableHead className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+                Duración
+              </TableHead>
+              <TableHead className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+                Estado
+              </TableHead>
+              <TableHead className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+                Acciones
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -287,14 +329,21 @@ export default function AudioBank() {
               ))
             ) : audios.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-10">
-                  <FileAudio className="w-8 h-8 mx-auto mb-2 text-faint opacity-50" />
+                <TableCell colSpan={7} className="py-12 text-center">
+                  <FileAudio className="mx-auto mb-2 size-8 text-faint opacity-50" />
                   <p className="text-sm text-muted-foreground">No hay audios generados</p>
+                  <p className="mt-0.5 text-xs text-faint">
+                    Genera uno desde una plantilla para ver la locución antes de que salga al aire.
+                  </p>
                 </TableCell>
               </TableRow>
             ) : (
               audios.map((audio) => {
-                const status = STATUS_CONFIG[audio.status] ?? { label: audio.status, color: 'bg-faint/10 text-faint border-faint/20' };
+                const status = STATUS_CONFIG[audio.status] ?? {
+                  label: audio.status,
+                  color: 'bg-muted text-faint border-border',
+                  dot: 'bg-faint/60',
+                };
                 const selected = selection.has(audio.id);
                 return (
                   <TableRow key={audio.id} className={selected ? 'bg-primary/5' : undefined}>
@@ -307,25 +356,41 @@ export default function AudioBank() {
                         className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                       />
                     </TableCell>
-                    <TableCell className="text-foreground max-w-48">
-                      <p className="truncate" title={audio.filename}>{audio.filename}</p>
-                      <p className="text-xs text-faint">{timeAgo(audio.generatedAt)}</p>
+                    {/* The filename is machine-generated noise; the text that was
+                        actually spoken is what the operator is checking, so it
+                        gets the readable cell and the name stays mono. */}
+                    <TableCell className="max-w-44">
+                      <p className="truncate font-mono text-xs text-faint" title={audio.filename}>
+                        {audio.filename}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {timeAgo(audio.generatedAt)}
+                      </p>
                     </TableCell>
-                    <TableCell className="text-muted-foreground max-w-xs truncate" title={audio.textRendered}>
-                      {audio.textRendered || '—'}
+                    <TableCell className="max-w-sm">
+                      <p className="line-clamp-2 text-foreground/90" title={audio.textRendered}>
+                        {audio.textRendered || '—'}
+                      </p>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      <p className="truncate" title={audio.voice}>{audio.voice}</p>
+                      <p className="truncate font-mono text-xs" title={audio.voice}>
+                        {audio.voice}
+                      </p>
                       <ProviderBadge provider={audio.provider} />
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      <span className="whitespace-nowrap">{formatClock((audio.durationMs ?? 0) / 1000)}</span>
-                      <span className="text-xs text-faint"> · {formatBytes(audio.fileSizeBytes)}</span>
+                    <TableCell>
+                      <span className="whitespace-nowrap font-mono text-xs tabular-nums text-foreground">
+                        {formatClock((audio.durationMs ?? 0) / 1000)}
+                      </span>
+                      <span className="ml-1 text-xs text-faint">{formatBytes(audio.fileSizeBytes)}</span>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={`text-xs border ${status.color}`}>
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs ${status.color}`}
+                      >
+                        <span aria-hidden className={`size-1.5 rounded-full ${status.dot}`} />
                         {status.label}
-                      </Badge>
+                      </span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -376,7 +441,7 @@ export default function AudioBank() {
             )}
           </TableBody>
         </Table>
-      </CardContent>
+      </div>
 
       <ConfirmDialog
         open={pendingDelete !== null}
@@ -400,6 +465,6 @@ export default function AudioBank() {
           void handleBulkDelete();
         }}
       />
-    </Card>
+    </div>
   );
 }
