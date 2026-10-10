@@ -19,5 +19,6 @@ export { default as AdminLogs } from './AdminLogs';
 export { default as AdminJobs } from './AdminJobs';
 export { default as AdminBackups } from './AdminBackups';
 export { default as AdminHealth } from './AdminHealth';
+export { default as AdminPlaybackHistory } from './AdminPlaybackHistory';
 export { default as AdminUsers } from './AdminUsers';
 export { default as AdminLive } from './AdminLive';

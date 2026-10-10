@@ -49,6 +49,7 @@ const AdminJobs = lazy(() => import('./pages/admin/AdminJobs.tsx'))
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers.tsx'))
 const AdminBackups = lazy(() => import('./pages/admin/AdminBackups.tsx'))
 const AdminHealth = lazy(() => import('./pages/admin/AdminHealth.tsx'))
+const AdminPlaybackHistory = lazy(() => import('./pages/admin/AdminPlaybackHistory.tsx'))
 const AdminLive = lazy(() => import('./pages/admin/AdminLive.tsx'))
 
 createRoot(document.getElementById('root')!).render(
@@ -101,6 +102,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="jobs" element={<AdminJobs />} />
                   <Route path="backups" element={<AdminBackups />} />
                   <Route path="health" element={<AdminHealth />} />
+                  <Route path="playback-history" element={<AdminPlaybackHistory />} />
                   <Route path="users" element={<AdminUsers />} />
                 </Route>
 

@@ -28,6 +28,7 @@ MessageSquare,
   DatabaseBackup,
   Users,
   HeartPulse,
+  History,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard' },
       { to: '/admin/health', label: 'Salud', icon: HeartPulse, permission: 'dashboard' },
+      { to: '/admin/playback-history', label: 'Historial de reproducción', icon: History, permission: 'dashboard' },
       { to: '/admin/schedule', label: 'Programación', icon: CalendarDays, permission: 'schedule' },
       { to: '/admin/schedule/categories', label: 'Tipos de programa', icon: Tags, permission: 'schedule.categories' },
       { to: '/admin/streaming', label: 'Streaming / DJs', icon: Mic2, permission: 'streaming' },
