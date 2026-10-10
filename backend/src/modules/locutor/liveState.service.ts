@@ -59,6 +59,18 @@ function sameName(a: string | null, b: string | null): boolean {
 }
 
 /**
+ * AzuraCast returns `streamer_name: ""` when the live port is taken but no DJ is
+ * authenticated, so a bare `typeof === "string"` check reads "nobody identified"
+ * as "someone is on air" and blocks every notice with a blank name. Blocking has
+ * to depend on an identifiable streamer, not on live being switched on.
+ */
+function readStreamerName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+/**
  * Índice de nombres de playlist que tienen horario asignado. Cualquier
  * playlist en este índice es un programa y bloquea los avisos mientras suena.
  *
@@ -134,8 +146,7 @@ export async function evaluateLiveState(
     };
   }
 
-  const streamerName =
-    typeof response.live?.streamer_name === "string" ? response.live.streamer_name : null;
+  const streamerName = readStreamerName(response.live?.streamer_name);
   const isLive = response.live?.is_live === true;
   const liveStreamer = isLive ? streamerName : null;
   const liveIsOwnAnnouncement = liveStreamer !== null && sameName(liveStreamer, ANNOUNCEMENT_STREAMER);
