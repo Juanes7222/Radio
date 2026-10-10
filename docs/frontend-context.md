@@ -178,6 +178,35 @@ driven by the same count, because one of them is the only thing visible all day.
   published again from the episode list if the admin left the upload dialog.
 - Sidebar nav is grouped into Emisión / Contenido / Audiencia sections;
   the topbar derives the page title from that same structure.
+- Playback history: `pages/admin/AdminPlaybackHistory.tsx`, route
+  `/admin/playback`, permission `dashboard`. It is two tabs over one shared
+  filter bar, not two pages: `log` (chronological log) and `audios`
+  (grouped by audio), and every filter except `order` applies to both, so the
+  filter state lives above the tab and switching tabs keeps it. The tab is a
+  segmented pair of buttons with `aria-pressed` rather than the shadcn Tabs
+  primitive, because it sits inside the filter card next to the selects.
+- The window presets are 7 / 30 / 55 days and **55 is the cap, not a
+  preference**: the backend rejects a wider window, so a wider preset would be
+  a 400. Default is 30.
+- **`to` is inclusive here.** The panel sends the last day the window covers,
+  not an exclusive bound, because `parseRange` in the backend derives the
+  exclusive limit itself. Naming tomorrow would cover one extra day and push
+  the 55 day preset over the retention cap.
+- Both keys are built with `stationDayKey` from `lib/format.ts` instead of
+  `toISOString().slice(0, 10)`, because the day has to be the station day and
+  not the UTC one. `formatMoment` in the same file hardcodes the same zone.
+- **Known debt: the frontend time zone is hardcoded to `America/Bogota` in
+  `stationDayKey` and `formatMoment`, while the backend uses
+  `config.locutor.timezone`.** They coincide today. If `TIMEZONE` stopped being
+  Bogotá the panel would request one window and display another. Left as-is on
+  purpose; fix it in one change that also exposes the station zone to the web
+  app, not piecemeal.
+- The page does **not** poll. It fetches on mount and whenever the admin
+  changes something, plus the explicit `refreshToken` bump behind the
+  "Actualizar" button. `loading` is derived from comparing `loadedKey` with the
+  key of the request in flight rather than kept as its own flag, and an
+  out-of-range page resets to 1 where the answer lands so the recovery costs no
+  extra request.
 - Data loaders use `.then` chains on purpose: react-hooks v7 flags
   setState reachable from functions invoked inside effects.
 - Pending design debt: migrate remaining pages off literal slate classes,

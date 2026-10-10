@@ -382,6 +382,60 @@ node dist/index.js   # then curl http://localhost:18888/health
   busy). Guarded by `requireAuth` + `requireSuperAdmin`; paths come from
   `src/config/backups.config.ts`, never from user input.
 
+## Playback history (Oct 2026)
+
+A local mirror of what the station actually emitted. AzuraCast answers about
+60 days of history over HTTP and nothing more; this module copies that window
+into SQLite so the panel can page, filter and aggregate it without asking
+AzuraCast for a 55 day range on every click.
+
+- Model `PlaybackEvent` (`playback_events`) en `prisma/schema/playback.prisma`,
+  migración `20261004000000_add_playback_events`. Módulo
+  `src/modules/playback/`: `playbackHistory.ts` (captura),
+  `playback.service.ts` (consultas y validación), `playback.routes.ts`,
+  `playback.job.ts` (cron).
+- **La metadata va copiada a la fila a propósito.** `title`, `artist`, `album`,
+  `playlist`, `streamer` y `durationSec` se guardan junto al evento y no se
+  resuelven contra la biblioteca: resolverlos exige paginar miles de archivos de
+  AzuraCast, y el historial se consulta mucho más veces que la biblioteca. El
+  índice por `song_id` existe solo para poder recuperar esa copia sin escanear la
+  tabla entera (1,75 ms frente a 41 ms medido).
+- **La ventana devuelta es semiabierta y la deriva `parseRange`.** El cliente
+  nombra el último día cubierto en `to`, no un límite exclusivo, y el servicio
+  es el único lugar que decide el tope. Toda ventana se mide en días de
+  estación, no en milisegundos: 55 días de estación abarcan 55 días más o menos
+  una hora según el cambio horario, y un tope en milisegundos haría inalcanzable
+  el borde de la retención en medio del calendario.
+- Endpoints (`requireAuth` + permiso `dashboard`, montados en
+  `/admin-api/playback`): `GET /log` (bitácora cronológica paginada),
+  `GET /audios` (agregado por `songId`, con `order=plays|recent|first`; la
+  metadata se toma del play más reciente de cada audio para que editar la ficha
+  dentro de la ventana no parta el contador) y `GET /filters` (los nombres de
+  playlist que aparecen en la tabla, con diez minutos de caché porque solo
+  llenan un desplegable).
+- Cron `playback.job.ts` cada 5 minutos en `config.locutor.timezone`, más la
+  corrida manual `playback-capture` de `systemJobs.registry.ts`, que aparece
+  en el panel de Jobs como "Historial de reproducción".
+- **La retención son 55 días y no 90 porque AzuraCast no tiene 90 días.**
+  Medido contra la estación: conserva alrededor de 60. Prometer más dejaría la
+  comprobación de cobertura insatisfecha para siempre, y cada corrida volvería
+  a recorrer días que la estación ya no puede servir. El piso de retención se
+  aplica en cada corrida con un `deleteMany` sobre `playedAt`.
+- **`azuracastShId` es la clave de idempotencia y por eso no hay cursor
+  guardado.** La ventana de cada corrida se solapa con la anterior a propósito
+  (`POLL_OVERLAP_MS`, diez minutos), así que el mismo evento llega más de una
+  vez; el índice único y el filtrado previo en `insertMissing` lo descartan.
+  Guardar un cursor para evitar el solapamiento sería peor: una corrida fallida
+  dejaría un hueco que nada cubre, mientras que el solapamiento se cura solo en
+  la siguiente corrida.
+- `fetchRange` descarta en el borde los registros sin `song.id` y cuenta cuántos
+  descartó. `toRow` normaliza el resto: el contrato de AzuraCast declara
+  `playlist`, `streamer` y `duration` como anulables aunque 17 689 registros
+  reales en 55 días nunca lo fueron, y un solo `null` crudo abortaría el
+  `createMany` del día entero. `SongHistory` en `packages/types/src` se mantiene
+  no anulable a propósito: propagar el `null` tocaría a todos los demás
+  consumidores del historial a cambio de proteger un caso que no ocurre.
+
 ## Suggested expectations for the agent
 
 - Identify the exact route, service, and Prisma files involved.
