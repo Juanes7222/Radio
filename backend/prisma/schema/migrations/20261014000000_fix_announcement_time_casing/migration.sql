@@ -1,15 +1,13 @@
--- Corrige la capitalizacion de la hora en las plantillas de ejemplo.
+-- Points the shipped templates at the time variable that matches where the
+-- clause lands in the sentence.
 --
--- {{time_text}} entrega la frase en minuscula porque casi todas las plantillas
--- la incrustan a mitad de oracion ("En este momento, {{time_text}}"), que es
--- donde minuscula es lo correcto. "Te acompanamos en {{station_name}}.
--- {{time_text}}." la coloca al principio de una oracion, y ahi sonaba a error:
--- "La Voz de la Verdad. son las diez y once de la noche."
+-- {{time_text}} is lowercase, which is right mid-sentence ("En este momento,
+-- {{time_text}}"). "Te acompanamos en {{station_name}}. {{time_text}}." puts it
+-- at the start of a sentence, where it read "La Voz de la Verdad. son las diez
+-- y once de la noche." Midnight was the only hour that came back capitalized, so
+-- that template was right for 23 hours and the other one for a single hour.
 --
--- {{time_sentence}} es la misma frase con la inicial en mayuscula, para esa
--- posicion. Antes la unica hora que devolvia mayuscula era la medianoche
--- ("Es medianoche"), de modo que "En este momento, Es medianoche" fallaba una
--- vez al dia y las otras 23 horas pasaban por filtros que nadie miraba.
+-- {{time_sentence}} is the same clause with the initial capitalized.
 
 INSERT INTO "announcement_templates"
   (id, type, name, text_template, voice, speed, active, created_at, updated_at)

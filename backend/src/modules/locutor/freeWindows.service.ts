@@ -59,12 +59,10 @@ export interface DayAnalysis {
 }
 
 /**
- * Minutos desde medianoche. `dayEnd` merece un caso aparte: la medianoche del
- * día siguiente se formatea como 00:00, y sin esto un programa que termina a
- * medianoche reportaba endMinute 0, se le restaba el minuto de borde y quedaba
- * en -1. `subtractBusy` descarta los intervalos con end <= 0, de modo que un
- * bloque de 22:00 a 24:00 desaparecía del horario y toda esa franja pasaba a
- * ser ventana libre, con avisos planificados encima de un programa en curso.
+ * `dayEnd` needs its own case: the next day's midnight formats as 00:00, so a
+ * program ending at midnight reported endMinute 0, the hour-boundary trim made
+ * it -1, and subtractBusy drops intervals ending at or before 0. A 22:00 to
+ * 24:00 block then vanished and its whole span read as free time.
  */
 function toStationMinute(instant: Date, dayEnd?: Date): number {
   if (dayEnd && instant.getTime() >= dayEnd.getTime()) return MINUTES_PER_DAY;

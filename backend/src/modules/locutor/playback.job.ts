@@ -187,10 +187,8 @@ async function runSlot(slotId: string): Promise<void> {
   const outcome = played ? "played" : "failed";
   const reason = played ? "Reproducido" : "No se pudo generar o reproducir el aviso";
 
-  // The bitácora is the audit trail for why an hour went unannounced, so the
-  // terminal states belong in it too. Recording only the blocked attempts left
-  // the table empty in exactly the case that matters most: the station was free,
-  // the notice was allowed to air, and it never sounded.
+  // Only the blocked branch used to write to the bitácora, leaving it empty in the
+  // case that matters most: the notice was allowed out and never sounded.
   await recordRun(slotId, outcome, reason);
   await settleSlot(slotId, outcome, reason);
 }

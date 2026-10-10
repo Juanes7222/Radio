@@ -107,12 +107,10 @@ export async function buildPlan(date: Date = new Date()): Promise<PlanResult> {
 
   const nowMinute = getStationTime(date).hour * 60 + getStationTime(date).minute;
 
-  // Cada ventana se recorta a su parte futura ANTES de muestrear. Muestrear
-  // sobre la ventana entera y descartar despues lo ya pasado dejaba dias sin
-  // aviso: una ventana abierta desde hace horas podia entregarle todos sus
-  // candidatos al pasado. Medido sobre 200 replanes, el 10% de los planes
-  // quedaban vacios cuando la ventana estaba dos tercios en el futuro y el 57%
-  // cuando estaba un cuarto en el futuro.
+  // Trim each window to its future before sampling. Sampling the whole window and
+  // dropping the past afterwards left the rest of the day unannounced whenever the
+  // window had been open for hours: over 200 replans, 57% of plans were empty with
+  // the window a quarter in the future, against 0% when it was entirely ahead.
   const usable = analysis.freeWindows
     .map((window) => ({
       startMinute: Math.max(window.startMinute, nowMinute + 2),

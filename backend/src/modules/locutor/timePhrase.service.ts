@@ -184,12 +184,9 @@ export function minuteClause(minute: number): string {
  * rather than read: Spanish uses "es la una" but "son las dos" onward, and
  * twelve behaves like a plural.
  *
- * Always lowercase. The shipped templates interpolate this clause in two
- * different positions and only one of them can be right: after a comma ("En
- * este momento, {{time_text}}") it must stay lowercase, at the start of a
- * sentence ("{{time_sentence}}.") it must be capitalized. Midnight used to be
- * the one hour that returned "Es medianoche", which satisfied the second
- * template and broke the first. Use `timePhraseSentence` for that position.
+ * Always lowercase: it is a clause for mid-sentence use. Templates that open the
+ * announcement with it need `timePhraseSentence`, since only one of the two
+ * positions can be spelled correctly.
  */
 export function timePhrase(hour24: number, minute: number): string {
   const hour = normalizeHour(hour24);
@@ -211,10 +208,7 @@ export function timePhrase(hour24: number, minute: number): string {
   return `${verb} ${article} ${hourName} ${clause} ${period}`;
 }
 
-/**
- * The same clause capitalized, for the template that opens the announcement
- * with it: "Son las nueve y cuarenta y dos de la noche".
- */
+/** `timePhrase` with the initial capitalized: "Son las nueve y cuarenta y dos". */
 export function timePhraseSentence(hour24: number, minute: number): string {
   const clause = timePhrase(hour24, minute);
   return clause.charAt(0).toUpperCase() + clause.slice(1);
