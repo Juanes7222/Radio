@@ -32,7 +32,7 @@ HEALTH_RETRIES="${HEALTH_RETRIES:-15}"
 HEALTH_INTERVAL="${HEALTH_INTERVAL:-5}"
 
 PNPM_BIN="${PNPM_BIN:-pnpm}"
-BACKEND_PACKAGE="radio-admin-backend"
+BACKEND_PACKAGE="@radio/backend"
 WEB_PACKAGE="@radio/web"
 INFISICAL_PACKAGE="@radio/infisical-config"
 TYPES_PACKAGE="@radio/types"
