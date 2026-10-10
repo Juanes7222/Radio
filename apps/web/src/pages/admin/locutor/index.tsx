@@ -51,8 +51,8 @@ export default function LocutorAdminPanel() {
   const [activeId, setActiveId] = useState(SECTIONS[0].id);
 
   return (
-    <div className="space-y-5">
-      <header className="space-y-1">
+    <div>
+      <header className="mb-5 space-y-1">
         <p className="font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-faint">
           Contenido · locutor
         </p>
@@ -72,7 +72,7 @@ export default function LocutorAdminPanel() {
           role="tabpanel"
           aria-labelledby={`rail-${section.id}`}
           hidden={section.id !== activeId}
-          className="rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="mt-4 rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           tabIndex={0}
         >
           {section.id === 'motor' && <StatusDashboard />}
