@@ -95,3 +95,18 @@ export function formatClock(secs: number): string {
   if (h > 0) return `${h}:${mm}:${ss}`;
   return `${mm}:${ss}`;
 }
+
+/**
+ * Station day key (YYYY-MM-DD in Bogotá) `offsetDays` away from now. The backend
+ * reads both history window bounds as station day keys and rejects anything else,
+ * and Bogotá has no daylight saving, so adding whole days of milliseconds shifts
+ * the station calendar by exactly one day per day.
+ */
+export function stationDayKey(offsetDays: number): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(Date.now() + offsetDays * 86_400_000));
+}

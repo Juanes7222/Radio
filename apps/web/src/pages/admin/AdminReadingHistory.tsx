@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAdminApi } from '@/hooks/useAdminApi';
-import { formatChapters } from '@/lib/format';
+import { formatChapters, stationDayKey } from '@/lib/format';
 import type { BibleReadingHistoryEntry } from '@radio/types';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -28,17 +28,6 @@ const MONTH_NAMES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
 ];
-
-/** Clave YYYY-MM-DD de un día en la zona horaria de la estación (Bogotá). */
-function bogotaKey(offsetDays: number): string {
-  const target = new Date(Date.now() + offsetDays * 86_400_000);
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Bogota',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(target);
-}
 
 /** "lunes, 15 de agosto" a partir de una clave YYYY-MM-DD. */
 function formatDateKey(dateKey: string): string {
@@ -120,12 +109,12 @@ export default function AdminReadingHistory() {
     return () => { cancelled = true; };
   }, [getReadingHistory]);
 
-  const todayKey = bogotaKey(0);
-  const yesterdayKey = bogotaKey(-1);
+  const todayKey = stationDayKey(0);
+  const yesterdayKey = stationDayKey(-1);
 
   const filtered = useMemo(() => {
     if (range === 'all') return entries;
-    const minKey = bogotaKey(-Number(range));
+    const minKey = stationDayKey(-Number(range));
     return entries.filter((entry) => entry.dateKey >= minKey);
   }, [entries, range]);
 

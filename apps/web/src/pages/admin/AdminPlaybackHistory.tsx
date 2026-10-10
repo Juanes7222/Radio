@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/table';
 import { AdminPagination } from '@/components/ui-custom/AdminPagination';
 import { useAdminApi } from '@/hooks/useAdminApi';
+import { formatClock, stationDayKey } from '@/lib/format';
 import type {
   PlaybackAudioOrder,
   PlaybackAudioRow,
@@ -46,21 +47,6 @@ const ORDER_OPTIONS: { value: PlaybackAudioOrder; label: string }[] = [
   { value: 'first', label: 'Reproducidos por primera vez' },
 ];
 
-/**
- * Station day key (YYYY-MM-DD in Bogotá) `offsetDays` away from now. The backend
- * reads both bounds as station day keys and rejects anything else, and Bogotá has
- * no daylight saving, so adding whole days of milliseconds shifts the station
- * calendar by exactly one day per day.
- */
-function dayKey(offsetDays: number): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Bogota',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(Date.now() + offsetDays * 86_400_000));
-}
-
 function formatMoment(iso: string): string {
   return new Intl.DateTimeFormat('es-CO', {
     timeZone: 'America/Bogota',
@@ -70,11 +56,6 @@ function formatMoment(iso: string): string {
     minute: '2-digit',
     hour12: false,
   }).format(new Date(iso));
-}
-
-function formatDuration(seconds: number): string {
-  const total = Math.round(seconds);
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
 export default function AdminPlaybackHistory() {
@@ -108,7 +89,7 @@ export default function AdminPlaybackHistory() {
   // day and push the 55 day preset over the retention cap.
   const range = useMemo(() => {
     const days = Number(windowDays);
-    return { from: dayKey(-(days - 1)), to: dayKey(0) };
+    return { from: stationDayKey(-(days - 1)), to: stationDayKey(0) };
   }, [windowDays]);
 
   const query = useMemo<PlaybackLogQuery>(
@@ -141,15 +122,30 @@ export default function AdminPlaybackHistory() {
     };
   }, [getPlaybackFilters, refreshToken]);
 
-  // The text is applied with a delay so a query is not fired per keystroke.
+  // The text is applied with a delay so a query is not fired per keystroke, and
+  // the page reset rides behind the same guard: clicking the field, typing a
+  // character and deleting it leaves the effective text untouched, so resetting
+  // the page there would throw away the page the admin was reading and fire an
+  // extra `page=1` request. `search` is a dependency only so the guard can read
+  // the applied text; re-running on it just re-arms the timer and returns early.
   useEffect(() => {
     const timer = setTimeout(() => {
-      setSearch(searchInput.trim());
+      const next = searchInput.trim();
+      if (next === search) return;
+      setSearch(next);
       setPage(1);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, search]);
 
+  /**
+   * Rows are replaced per response. `setPage` falls back to the first page when
+   * the answer says the requested page no longer exists: the backend does not
+   * clamp an out-of-range page, it answers `rows: []` with the real `total`, which
+   * would render the "nothing recorded" message while history does exist. It is
+   * done here, where the answer lands, instead of in a follow-up effect so the
+   * recovery costs no request with the stale page in between.
+   */
   useEffect(() => {
     let cancelled = false;
     const key = requestKey;
@@ -161,6 +157,7 @@ export default function AdminPlaybackHistory() {
           setLogRows(data.rows);
           setTotal(data.total);
           setTotalPages(data.totalPages);
+          setPage((current) => (current > data.totalPages ? 1 : current));
           setError(null);
           setLoadedKey(key);
         })
@@ -179,6 +176,7 @@ export default function AdminPlaybackHistory() {
           setAudioRows(data.rows);
           setTotal(data.total);
           setTotalPages(data.totalPages);
+          setPage((current) => (current > data.totalPages ? 1 : current));
           setError(null);
           setLoadedKey(key);
         })
@@ -241,7 +239,7 @@ export default function AdminPlaybackHistory() {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end flex-1">
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-faint">Periodo</span>
+              <span className="text-xs font-medium text-faint">Período</span>
               <Select value={windowDays} onValueChange={(value) => { setWindowDays(value); setPage(1); }}>
                 <SelectTrigger className="w-36">
                   <SelectValue />
@@ -372,7 +370,7 @@ export default function AdminPlaybackHistory() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right text-faint">
-                      {formatDuration(row.durationSec)}
+                      {formatClock(row.durationSec)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -408,7 +406,7 @@ export default function AdminPlaybackHistory() {
             </Table>
           )}
 
-          {total > 0 && (
+          {!loading && total > 0 && (
             <div className="mt-4">
               <AdminPagination
                 page={page}
