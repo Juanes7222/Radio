@@ -46,25 +46,51 @@ function toDate(unixSeconds: number): Date {
 }
 
 /**
- * Live spots and DJ talk arrive without metadata. A missing value is stored as
- * an empty string instead of undefined, because undefined in a createMany call
- * aborts the whole batch.
+ * Every AzuraCast history field is nullable in its own API declarations
+ * (`Api/NowPlaying/SongHistory` types `playlist` and `streamer` as `?string`
+ * and `duration` as `?float`) even though 17 689 records over 55 measured days
+ * never carried a null, a missing field or a missing song. The guards below
+ * exist because the contract allows it, not because it happens: one raw null
+ * reaching createMany aborts the whole batch of the day, the run logs a warn
+ * and the table stays empty for a day with nothing else pointing at it.
+ *
+ * `SongHistory` in `packages/types/src/azuracast.ts` is deliberately kept
+ * non-nullable: declaring these fields nullable there would spread `null` to
+ * every other consumer of the history (the public `song_history`, the admin
+ * emission queue, the public routes) to protect a case that never occurs.
+ * Narrowing at this boundary instead of widening the shared contract is why
+ * the asymmetry below is not an oversight.
+ *
+ * The three metadata fields are the ones a live spot or DJ talk arrives
+ * without, so they are the ones already known to be absent in practice; the
+ * other two go through the same guard only because the batch is all-or-nothing
+ * and there is no cost to being uniform.
  */
 function toText(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+/**
+ * A non-finite duration would store NaN or Infinity in an INTEGER column, which
+ * is a worse failure than a missing duration: the row survives and every later
+ * read of it is wrong. Zero is the safe default because it renders as an
+ * instant-length entry instead of breaking the column.
+ */
+function toDurationSec(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function toRow(record: SongHistory) {
   return {
     azuracastShId: record.sh_id,
     playedAt: toDate(record.played_at),
-    durationSec: record.duration,
+    durationSec: toDurationSec(record.duration),
     songId: record.song.id,
     title: toText(record.song.title),
     artist: toText(record.song.artist),
     album: toText(record.song.album),
-    playlist: record.playlist,
-    streamer: record.streamer,
+    playlist: toText(record.playlist),
+    streamer: toText(record.streamer),
     isRequest: record.is_request,
   };
 }
@@ -97,12 +123,38 @@ async function insertMissing(rows: ReturnType<typeof toRow>[]): Promise<number> 
   return fresh.length;
 }
 
+/**
+ * A record without a song id is dropped here, at the edge, instead of being left
+ * to abort the createMany: `song_id` is a NOT NULL column and the whole batch
+ * would be lost over one malformed row. Dropping it here keeps the loss to the
+ * single unusable record. The count is logged rather than swallowed so the
+ * discard is visible if the contract ever changes shape.
+ */
 async function fetchRange(from: Date, to: Date): Promise<SongHistory[]> {
   const { data } = await azuracastApi.get<SongHistory[]>(`/station/${STATION_ID}/history`, {
     params: { start: from.toISOString(), end: to.toISOString() },
     timeout: AZURACAST_REQUEST_TIMEOUT_MS,
   });
-  return Array.isArray(data) ? data : [];
+  if (!Array.isArray(data)) return [];
+
+  const records: SongHistory[] = [];
+  let discarded = 0;
+  for (const record of data) {
+    if (typeof record?.song?.id === "string" && record.song.id !== "") {
+      records.push(record);
+    } else {
+      discarded += 1;
+    }
+  }
+  if (discarded > 0) {
+    logger.warn("PlaybackHistory", "Discarded records without a song id", {
+      discarded,
+      received: data.length,
+      from: from.toISOString(),
+      to: to.toISOString(),
+    });
+  }
+  return records;
 }
 
 type CollectResult = {

@@ -75,9 +75,10 @@ export function createApp(): Express {
     // reload; without this, every poll writes a morgan line into the log the
     // panel reads.
     "/admin-api/feedback",
-    // The playback history panel polls with filters to keep the view fresh;
-    // without this, every poll writes a morgan line into the log the panel
-    // reads.
+    // The playback history page queries these paths with a wide window and a
+    // 55 day range whenever the admin opens it or changes a filter. Without
+    // this, each of those reads writes a morgan line into the PM2 file the
+    // panel itself reads.
     "/admin-api/playback",
   ];
   app.use(
