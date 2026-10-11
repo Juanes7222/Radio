@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Radio, Music, Wifi, RefreshCw, ExternalLink, SkipForward, RotateCcw, Eye, TrendingUp, VideoOff, Video } from 'lucide-react';
+import { Faceplate, FaceplateReading } from '@/components/admin/Faceplate';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -342,6 +343,57 @@ export default function AdminDashboard() {
           </Button>
         </div>
       </div>
+
+      {/* The panel's faceplate: the broadcast state at top-bar scale, with
+          the on-air voice as the verdict color carrier. The four-box stat
+          row it replaces made the operator assemble the headline from four
+          numbers of equal weight. */}
+      <Faceplate
+        lamp={
+          isOnline === null
+            ? 'bg-faint/40'
+            : isOnline && nowPlaying?.live?.is_live
+              ? 'bg-tally animate-tally'
+              : isOnline
+                ? 'bg-success'
+                : 'bg-destructive'
+        }
+        label="Estado de la señal"
+        verdict={
+          <span
+            className={
+              isOnline === null
+                ? 'text-muted-foreground'
+                : isOnline
+                  ? nowPlaying?.live?.is_live
+                    ? 'text-tally'
+                    : 'text-foreground'
+                  : 'text-destructive'
+            }
+          >
+            {isOnline === null
+              ? 'Consultando...'
+              : isOnline
+                ? nowPlaying?.live?.is_live
+                  ? `En vivo con ${nowPlaying?.live?.streamer_name ?? 'un streamer'}`
+                  : 'Automatización en línea'
+                : 'Estación fuera de línea'}
+          </span>
+        }
+        slots={[
+          <FaceplateReading key="song" label="Sonando">
+            <span className="max-w-[14rem] truncate" title={song?.title ?? undefined}>
+              {song?.title ?? '—'}
+            </span>
+          </FaceplateReading>,
+          <FaceplateReading key="listeners" label="Oyentes">
+            {nowPlaying?.listeners?.total ?? '—'}
+          </FaceplateReading>,
+          <FaceplateReading key="unique" label="Únicos 24h">
+            {nowPlaying?.listeners?.unique ?? '—'}
+          </FaceplateReading>,
+        ]}
+      />
 
       {/* Tarjetas de estadísticas */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

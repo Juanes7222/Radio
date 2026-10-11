@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { Faceplate, FaceplateReading } from '@/components/admin/Faceplate';
 import { API_BASE_URL } from '@/config';
 import type { DjAssignment, LiveRelayStatus } from '@radio/types';
 
@@ -394,22 +395,61 @@ export default function AdminLive() {
         </p>
       </div>
 
+      {/* The panel's faceplate: whether anyone is on air, before the cabina's
+          controls. The tally phase lights the lamp the same way the ON AIR
+          strip does; a relay held by someone else reads as held. */}
+      <Faceplate
+        lamp={
+          phase === 'live'
+            ? 'bg-tally animate-tally'
+            : phase === 'connecting'
+              ? 'bg-warning'
+              : relay?.active
+                ? 'bg-tally/60'
+                : 'bg-faint/40'
+        }
+        label="Cabina en vivo"
+        verdict={
+          <span
+            className={
+              phase === 'live'
+                ? 'text-tally'
+                : phase === 'connecting'
+                  ? 'text-warning'
+                  : relay?.active
+                    ? 'text-tally'
+                    : 'text-muted-foreground'
+            }
+          >
+            {phase === 'live'
+              ? `Estás al aire · ${formatElapsed(elapsed)}`
+              : phase === 'connecting'
+                ? 'Conectando al relevo...'
+                : relay?.active
+                  ? `${relay.streamerUsername} sostiene el aire`
+                  : 'Fuera del aire'}
+          </span>
+        }
+        slots={[
+          <FaceplateReading
+            key="slot"
+            label={current?.inSlot ? 'Franja' : 'Horario'}
+          >
+            {current?.inSlot && current.slotEndsAt
+              ? `Hasta ${current.slotEndsAt}`
+              : formatSlots(current)}
+          </FaceplateReading>,
+        ]}
+      />
+
       <Card className={phase === 'live' ? 'border-tally/50' : undefined}>
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Radio className={`h-5 w-5 ${phase === 'live' ? 'text-tally' : 'text-primary'}`} />
             Cabina en vivo
           </CardTitle>
-          {phase === 'live' ? (
-            <Badge variant="outline" className="border-tally/40 bg-tally/10 text-tally">
-              <span className="mr-1.5 inline-block h-2 w-2 animate-tally rounded-full bg-tally" />
-              EN VIVO · {formatElapsed(elapsed)}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
-              Fuera del aire
-            </Badge>
-          )}
+          {/* The state lives on the faceplate above; the header badge would say
+              it a second time. */}
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (

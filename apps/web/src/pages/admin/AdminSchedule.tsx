@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAdminApi } from '@/hooks/useAdminApi';
+import { Faceplate, FaceplateReading } from '@/components/admin/Faceplate';
 
 type ScheduleView = 'list' | 'week';
 
@@ -98,6 +99,33 @@ export default function AdminSchedule() {
 
   return (
     <div className="space-y-6">
+      {/* The panel's faceplate: what is on air right now, at top-bar scale.
+          It replaces the tri-color metric row, which asked the operator to
+          assemble today's answer from three same-weight boxes. */}
+      <Faceplate
+        lamp={active.length > 0 ? 'bg-tally animate-tally' : now === null ? 'bg-faint/40' : 'bg-faint/40'}
+        label="En curso ahora"
+        verdict={
+          <span className={active.length > 0 ? 'text-tally' : 'text-muted-foreground'}>
+            {active.length > 0
+              ? active[0].title
+              : loading
+                ? 'Consultando...'
+                : 'Nada al aire · la automatización sigue'}
+          </span>
+        }
+        slots={[
+          <FaceplateReading key="today" label={`Hoy · ${DAY_FULL[getBogotaDayOfWeek(new Date())]}`}>
+            {todayCount} bloques
+            <span className="ml-1.5 font-mono text-[10px] normal-case tracking-normal text-faint">Bogotá UTC-5</span>
+          </FaceplateReading>,
+          <FaceplateReading key="week" label="Semana">
+            {schedule.length} bloques
+            <span className="ml-1.5 font-mono text-[10px] normal-case tracking-normal text-faint">Lun—Dom</span>
+          </FaceplateReading>,
+        ]}
+      />
+
       {/* Header — consola de parrilla */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card">
         <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-primary/10 blur-[50px]" />

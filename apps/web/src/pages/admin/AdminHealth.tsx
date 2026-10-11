@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   ArrowUpRight,
   CheckCircle2,
-  HeartPulse,
   RefreshCw,
   Wrench,
 } from "lucide-react";
@@ -75,6 +74,8 @@ function CheckCard({ check }: { check: HealthCheckResult }) {
     </Card>
   );
 }
+
+import { Faceplate, FaceplateReading } from "@/components/admin/Faceplate";
 
 export default function AdminHealth() {
   const { getHealthOverview, runHealthCycle } = useAdminApi();
@@ -147,40 +148,49 @@ export default function AdminHealth() {
     );
   }
 
+  const aggregateLamp =
+    overview.status === "ok"
+      ? "bg-success"
+      : overview.status === "degraded"
+        ? "bg-warning"
+        : "bg-tally animate-tally";
+
   return (
     <div className="space-y-5">
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="relative flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
-          <div className="flex items-start gap-4">
-            <div className="grid size-12 place-items-center rounded-xl border border-border bg-sunken">
-              <HeartPulse className="size-6 text-primary" />
-            </div>
-            <div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-faint">
-                Centro de salud
-              </p>
-              <div className="mt-1 flex items-center gap-2">
-                <h1 className="text-xl font-semibold text-foreground">
-                  Estado {STATUS_STYLES[overview.status].label.toLowerCase()}
-                </h1>
-                <StatusBadge status={overview.status} />
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Última revisión: {formatDateTime(overview.checkedAt)}
-                {" · "}
-                {overview.openAlerts.length} alerta(s) abierta(s)
-              </p>
-            </div>
-          </div>
-          <Button size="sm" onClick={handleRun} disabled={running}>
-            {running ? (
-              <RefreshCw className="mr-2 size-4 animate-spin" />
-            ) : (
-              <Activity className="mr-2 size-4" />
-            )}
-            Revisar ahora
-          </Button>
+      {/* The panel's faceplate: the aggregate health verdict at top-bar scale,
+          with the run action attached like any unit's action row. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <Faceplate
+            lamp={aggregateLamp}
+            label="Centro de salud"
+            verdict={
+              <span
+                className={
+                  overview.status === "ok"
+                    ? "text-success"
+                    : overview.status === "degraded"
+                      ? "text-warning"
+                      : "text-tally"
+                }
+              >
+                Estado {STATUS_STYLES[overview.status].label.toLowerCase()}
+              </span>
+            }
+            slots={[
+              <FaceplateReading key="checked" label="Última revisión">
+                {formatDateTime(overview.checkedAt)}
+              </FaceplateReading>,
+              <FaceplateReading key="alerts" label="Alertas abiertas">
+                {overview.openAlerts.length}
+              </FaceplateReading>,
+            ]}
+          />
         </div>
+        <Button size="sm" className="shrink-0" onClick={handleRun} disabled={running}>
+          {running ? <RefreshCw className="mr-2 size-4 animate-spin" /> : <Activity className="mr-2 size-4" />}
+          Revisar ahora
+        </Button>
       </div>
 
       {overview.openAlerts.length > 0 && (
