@@ -42,6 +42,9 @@ const AdminNotificationPrograms = lazy(() => import('./pages/admin/AdminNotifica
 const AdminUpload = lazy(() => import('./pages/admin/AdminUpload.tsx'))
 const AdminLocutor = lazy(() => import('./pages/admin/locutor/index.tsx'))
 const AdminDevices = lazy(() => import('./pages/admin/AdminDevices.tsx'))
+const DeviceRegistrySection = lazy(() => import('./pages/admin/devices/DeviceRegistrySection.tsx'))
+const PushNotificationSection = lazy(() => import('./pages/admin/devices/PushNotificationSection.tsx'))
+const ZoneRecalcSection = lazy(() => import('./pages/admin/devices/ZoneRecalcSection.tsx'))
 const AdminNotices = lazy(() => import('./pages/admin/AdminNotices.tsx'))
 const AdminYouTube = lazy(() => import('./pages/admin/AdminYouTube.tsx'))
 const AdminLogs = lazy(() => import('./pages/admin/AdminLogs.tsx'))
@@ -95,7 +98,12 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="notification-programs" element={<AdminNotificationPrograms />} />
                   <Route path="upload" element={<AdminUpload />} />
                   <Route path="locutor" element={<AdminLocutor />} />
-                  <Route path="devices" element={<AdminDevices />} />
+                  <Route path="devices" element={<AdminDevices />}>
+                    <Route index element={<Navigate to="dispositivos" replace />} />
+                    <Route path="dispositivos" element={<DeviceRegistrySection />} />
+                    <Route path="notificaciones" element={<PushNotificationSection />} />
+                    <Route path="zonas" element={<ZoneRecalcSection />} />
+                  </Route>
                   <Route path="notices" element={<AdminNotices />} />
                   <Route path="youtube" element={<AdminYouTube />} />
                   <Route path="logs" element={<AdminLogs />} />
