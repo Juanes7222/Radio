@@ -3,9 +3,7 @@ import {
   AlertTriangle,
   Ban,
   CheckCircle2,
-  Clock3,
   History,
-  Megaphone,
   Radio,
   RefreshCw,
   Repeat,
@@ -13,10 +11,10 @@ import {
   SlidersHorizontal,
   Volume2,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { toast } from 'sonner';
 import type {
@@ -28,7 +26,7 @@ import type {
   LocutorRunLogEntry,
 } from '@radio/types';
 import { DayRail } from './DayRail';
-import { EmptyNote, Section } from './Section';
+import { EmptyNote, Section, Faceplate, FaceplateReading } from './Section';
 
 /**
  * Configuración de los avisos de hora.
@@ -70,6 +68,14 @@ const DOT_TONE: Record<Tone, string> = {
   muted: 'bg-faint/50',
 };
 
+const VERDICT_TEXT_TONE: Record<Tone, string> = {
+  success: 'text-success',
+  warning: 'text-warning',
+  info: 'text-info',
+  tally: 'text-tally',
+  muted: 'text-muted-foreground',
+};
+
 function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
@@ -82,6 +88,10 @@ function formatDuration(minutes: number): string {
  * A labelled number. The unit lives in the label rather than as a suffix inside
  * the field, so the value stays a plain editable number and the hint keeps
  * explaining the consequence instead of restating the unit.
+ *
+ * The field saves on blur, not on every keystroke: one PUT per field the
+ * operator actually touched, instead of a rain of requests and toasts while
+ * a number is being dialed in.
  */
 function NumberField({
   label,
@@ -92,7 +102,7 @@ function NumberField({
   max,
   step,
   disabled,
-  onChange,
+  onCommit,
 }: {
   label: string;
   unit: string;
@@ -102,8 +112,25 @@ function NumberField({
   max: number;
   step?: number;
   disabled: boolean;
-  onChange: (value: number) => void;
+  onCommit: (value: number) => void;
 }) {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  const commit = () => {
+    const parsed = Number(draft);
+    if (draft === '' || !Number.isFinite(parsed)) {
+      setDraft(String(value));
+      return;
+    }
+    const clamped = Math.min(max, Math.max(min, parsed));
+    setDraft(String(clamped));
+    if (clamped !== value) onCommit(clamped);
+  };
+
   return (
     <div className="space-y-1.5">
       <Label className="text-xs text-foreground">
@@ -115,9 +142,13 @@ function NumberField({
         min={min}
         max={max}
         step={step}
-        value={value}
+        value={draft}
         disabled={disabled}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
+        }}
       />
       <p className="text-xs leading-snug text-faint">{hint}</p>
     </div>
@@ -140,7 +171,7 @@ function GuardRow({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
+    <div className="flex items-start gap-3 py-2.5">
       <Switch id={id} checked={checked} disabled={disabled} onCheckedChange={onChange} className="mt-0.5" />
       <div className="min-w-0">
         <Label htmlFor={id} className="text-sm text-foreground">
@@ -152,63 +183,7 @@ function GuardRow({
   );
 }
 
-/**
- * The one thing this panel must not let the operator miss is whether the
- * locutor is allowed to speak right now, so the reason carries the colour
- * rather than the surrounding box. `tally` stays reserved for a person on air.
- */
-function VerdictCard({
-  settings,
-  liveState,
-}: {
-  settings: LocutorAnnouncementSettings;
-  liveState: LocutorLiveState | null;
-}) {
-  const reason = liveState ? REASON[liveState.reason] : null;
-
-  const lampTone = !settings.enabled
-    ? 'bg-faint/40'
-    : reason
-      ? DOT_TONE[reason.tone]
-      : 'bg-faint/40';
-
-  const labelTone = !settings.enabled
-    ? 'text-muted-foreground'
-    : reason?.tone === 'tally'
-      ? 'text-tally'
-      : reason?.tone === 'success'
-        ? 'text-success'
-        : reason?.tone === 'warning'
-          ? 'text-warning'
-          : 'text-foreground';
-
-  return (
-    <div
-      className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl border p-4 ${
-        settings.enabled && reason?.tone === 'success'
-          ? 'border-success/25 bg-success/5'
-          : 'border-border bg-card'
-      }`}
-    >
-      <span aria-hidden className={`size-2.5 shrink-0 rounded-full ${lampTone}`} />
-      <div className="min-w-0">
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
-          ¿Se emitiría ahora mismo?
-        </p>
-        <p className={`mt-0.5 text-sm font-medium ${labelTone}`}>
-          {!settings.enabled ? 'Avisos desactivados' : (reason?.label ?? 'Consultando...')}
-        </p>
-        {liveState?.detail && (
-          <p className="mt-0.5 truncate text-xs text-faint" title={liveState.detail}>
-            {liveState.detail}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AirFreeCard({
+function AirFreeReading({
   analysis,
   freeMinutes,
 }: {
@@ -216,20 +191,14 @@ function AirFreeCard({
   freeMinutes: number;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-border bg-card p-4">
-      <Clock3 className="size-5 shrink-0 text-primary" />
-      <div className="min-w-0">
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">Aire libre hoy</p>
-        <p className="mt-0.5 text-sm font-medium tabular-nums text-foreground">
-          {formatDuration(freeMinutes)}
-        </p>
-        <p className="mt-0.5 truncate text-xs text-faint">
-          {analysis?.currentProgram
-            ? `En curso: ${analysis.currentProgram.title}`
-            : 'Sin programa en curso según la programación'}
-        </p>
-      </div>
-    </div>
+    <FaceplateReading label="Aire libre hoy">
+      {formatDuration(freeMinutes)}
+      <span className="ml-1.5 font-mono text-[10px] normal-case tracking-normal text-faint">
+        {analysis && analysis.busyIntervals.length > 0
+          ? `${analysis.busyIntervals.length} programa${analysis.busyIntervals.length === 1 ? '' : 's'} bloqueando`
+          : 'programación sin bloqueos'}
+      </span>
+    </FaceplateReading>
   );
 }
 
@@ -243,6 +212,8 @@ export default function AnnouncementSettingsPanel() {
     getAnnouncementRunLog,
     rebuildAnnouncementPlan,
     toggleAnnouncements,
+    getLocutorTemplates,
+    previewLocutorTemplate,
   } = useAdminApi();
 
   const [settings, setSettings] = useState<LocutorAnnouncementSettings | null>(null);
@@ -250,6 +221,9 @@ export default function AnnouncementSettingsPanel() {
   const [analysis, setAnalysis] = useState<LocutorDayAnalysis | null>(null);
   const [preview, setPreview] = useState<LocutorPlanPreview | null>(null);
   const [runLog, setRunLog] = useState<LocutorRunLogEntry[]>([]);
+  /** The sentence the next slot will actually speak, from the same preview
+      the template editor uses. */
+  const [nextWords, setNextWords] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
@@ -295,6 +269,38 @@ export default function AnnouncementSettingsPanel() {
       cancelled = true;
     };
   }, [load]);
+
+  // The faceplate's hidden signature: the first active template speaks the
+  // hourly announcements, so its rendered first sample is the words the next
+  // slot will say, without spending a TTS call. Failing quietly keeps the
+  // faceplate honest without turning loading into noise.
+  const shouldLoadWords = settings !== null;
+  useEffect(() => {
+    if (!shouldLoadWords) {
+      setNextWords(null);
+      return;
+    }
+    let cancelled = false;
+
+    const loadWords = async () => {
+      const templates = await getLocutorTemplates().catch(() => null);
+      if (cancelled || !templates) return;
+      const template = templates.find((entry) => entry.active && entry.type === 'hourly');
+      if (!template) return;
+      try {
+        const data = await previewLocutorTemplate({ textTemplate: template.textTemplate });
+        if (cancelled) return;
+        setNextWords(data.samples[0]?.text ?? null);
+      } catch {
+        if (!cancelled) setNextWords(null);
+      }
+    };
+
+    void loadWords();
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldLoadWords, getLocutorTemplates, previewLocutorTemplate]);
 
   const patch = useCallback(
     async (changes: Parameters<typeof updateAnnouncementSettings>[0]) => {
@@ -358,9 +364,29 @@ export default function AnnouncementSettingsPanel() {
 
   const slots = preview?.slots ?? [];
   const freeMinutes = analysis?.freeMinutes ?? 0;
+  const nowSlot = slots.find((slot) => {
+    if (!liveState) return false;
+    const [hours, minutes] = liveState.stationTime.clock.split(':').map(Number);
+    return slot.minuteOfDay >= hours * 60 + minutes;
+  });
 
   return (
-    <div className="space-y-4">
+    <Section
+      title="Plan de hoy"
+      actions={
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => void rebuild()}
+          disabled={rebuilding}
+        >
+          <RefreshCw className={`size-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
+          Reconstruir plan
+        </Button>
+      }
+    >
+      <div className="space-y-4">
       {error && (
         <p className="flex items-center gap-2 rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-sm text-warning">
           <AlertTriangle className="size-4 shrink-0" />
@@ -368,54 +394,71 @@ export default function AnnouncementSettingsPanel() {
         </p>
       )}
 
-      <Section
-        title="Programación de hoy"
-        description="El aire libre sale de la programación real. Un aviso solo se emite si cae dentro de una ventana libre y nunca hay una persona transmitiendo."
-        icon={Megaphone}
-        actions={
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => void rebuild()}
-            disabled={rebuilding}
-          >
-            <RefreshCw className={`size-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
-            Reconstruir plan
-          </Button>
+      {/* The unit's faceplate: whether the locutor may speak, and the exact
+          words it would say next. The topbar's ON AIR strip is the same
+          gesture at a smaller scale. */}
+      <Faceplate
+        lamp={
+          !settings.enabled
+            ? 'bg-faint/40'
+            : liveState
+              ? DOT_TONE[REASON[liveState.reason].tone]
+              : 'bg-faint/40'
         }
-      >
-        <div className="flex flex-wrap items-stretch gap-3">
-          <VerdictCard settings={settings} liveState={liveState} />
-          <AirFreeCard analysis={analysis} freeMinutes={freeMinutes} />
-        </div>
+        label="Próximo aviso"
+        verdict={
+          <span
+            className={
+              !settings.enabled
+                ? 'text-muted-foreground'
+                : liveState
+                  ? VERDICT_TEXT_TONE[REASON[liveState.reason].tone]
+                  : 'text-foreground'
+            }
+          >
+            {!settings.enabled
+              ? 'Avisos desactivados'
+              : (liveState ? REASON[liveState.reason].label : 'Consultando...')}
+          </span>
+        }
+        slots={[
+          nextWords !== null && (
+            <FaceplateReading key="words" label="Dará la hora">
+              <span className="max-w-[26rem] truncate font-normal text-foreground/90" title={nextWords}>
+                {nextWords}
+              </span>
+            </FaceplateReading>
+          ),
+          <AirFreeReading key="air" analysis={analysis} freeMinutes={freeMinutes} />,
+        ].filter(Boolean) as React.ReactNode[]}
+      />
 
-        {liveState?.liveStreamer && (
-          <p className="flex items-start gap-2 rounded-lg border border-tally/30 bg-tally/10 px-3 py-2 text-sm text-foreground">
-            <Radio className="mt-0.5 size-4 shrink-0 text-tally" />
-            <span>
-              <span className="font-medium text-tally">{liveState.liveStreamer}</span> está
-              transmitiendo en vivo. Los avisos esperan y no se interrumpe la transmisión.
-            </span>
-          </p>
-        )}
+      {/* The main switch, directly under the faceplate it controls. */}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+        <Switch
+          id="announcements-enabled"
+          checked={settings.enabled}
+          onCheckedChange={() => void toggle()}
+          aria-label="Activar avisos de hora"
+        />
+        <Label htmlFor="announcements-enabled" className="text-sm text-foreground">
+          {settings.enabled ? 'Avisos activos' : 'Avisos desactivados'}
+        </Label>
+      </div>
 
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-          <Switch
-            id="announcements-enabled"
-            checked={settings.enabled}
-            onCheckedChange={() => void toggle()}
-            aria-label="Activar avisos de hora"
-          />
-          <Label htmlFor="announcements-enabled" className="text-sm text-foreground">
-            {settings.enabled ? 'Avisos activos' : 'Avisos desactivados'}
-          </Label>
-        </div>
-      </Section>
+      {liveState?.liveStreamer && (
+        <p className="flex items-start gap-2 rounded-lg border border-tally/30 bg-tally/10 px-3 py-2 text-sm text-foreground">
+          <Radio className="mt-0.5 size-4 shrink-0 text-tally" />
+          <span>
+            <span className="font-medium text-tally">{liveState.liveStreamer}</span> está
+            transmitiendo en vivo. Los avisos esperan y no se interrumpe la transmisión.
+          </span>
+        </p>
+      )}
 
-      {/* The day as one object. This replaces the free-window badges, the
-          blocking-program badges and the proposed-slot badges, which were the
-          same 24 hours listed three times over. */}
+      {/* The day as one object. Free windows, blocking programs and proposed
+          slots are all on the same axis; no second cloud of chips repeats
+          what the ticks already show. */}
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
@@ -434,6 +477,9 @@ export default function AnnouncementSettingsPanel() {
                     separación
                   </span>
                 )}
+                {nowSlot && (
+                  <span className="text-faint"> · el próximo cae a las {nowSlot.at}</span>
+                )}
               </>
             ) : (
               'Sin avisos propuestos todavía'
@@ -450,22 +496,9 @@ export default function AnnouncementSettingsPanel() {
           />
         ) : (
           <EmptyNote>
-            No hay ventanas libres con el tamaño mínimo actual. Bájalo en <span className="text-foreground">Ventana libre mínima</span> o
-            revisa la programación.
+            No hay ventanas libres con el tamaño mínimo actual. Bájalo en{' '}
+            <span className="text-foreground">Ventana libre mínima</span> o revisa la programación.
           </EmptyNote>
-        )}
-
-        {slots.length > 0 && (
-          <ul className="flex flex-wrap gap-1.5 border-t border-border pt-3">
-            {slots.map((slot) => (
-              <li
-                key={slot.minuteOfDay}
-                className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 font-mono text-xs tabular-nums text-primary"
-              >
-                {slot.at}
-              </li>
-            ))}
-          </ul>
         )}
       </div>
 
@@ -486,7 +519,7 @@ export default function AnnouncementSettingsPanel() {
               min={1}
               max={12}
               disabled={saving}
-              onChange={(perHour) => void patch({ perHour })}
+              onCommit={(perHour) => void patch({ perHour })}
             />
             <NumberField
               label="Separación mínima"
@@ -496,7 +529,7 @@ export default function AnnouncementSettingsPanel() {
               min={0}
               max={180}
               disabled={saving}
-              onChange={(minGapMinutes) => void patch({ minGapMinutes })}
+              onCommit={(minGapMinutes) => void patch({ minGapMinutes })}
             />
             <NumberField
               label="Margen en los bordes"
@@ -506,7 +539,7 @@ export default function AnnouncementSettingsPanel() {
               min={0}
               max={30}
               disabled={saving}
-              onChange={(windowEdgeMarginMinutes) => void patch({ windowEdgeMarginMinutes })}
+              onCommit={(windowEdgeMarginMinutes) => void patch({ windowEdgeMarginMinutes })}
             />
             <NumberField
               label="Ventana libre mínima"
@@ -516,7 +549,7 @@ export default function AnnouncementSettingsPanel() {
               min={1}
               max={120}
               disabled={saving}
-              onChange={(minWindowMinutes) => void patch({ minWindowMinutes })}
+              onCommit={(minWindowMinutes) => void patch({ minWindowMinutes })}
             />
           </div>
         </div>
@@ -541,7 +574,7 @@ export default function AnnouncementSettingsPanel() {
               min={1}
               max={60}
               disabled={saving}
-              onChange={(retryIntervalMinutes) => void patch({ retryIntervalMinutes })}
+              onCommit={(retryIntervalMinutes) => void patch({ retryIntervalMinutes })}
             />
             <NumberField
               label="Máximo de reintentos"
@@ -551,11 +584,11 @@ export default function AnnouncementSettingsPanel() {
               min={0}
               max={20}
               disabled={saving}
-              onChange={(maxRetries) => void patch({ maxRetries })}
+              onCommit={(maxRetries) => void patch({ maxRetries })}
             />
           </div>
 
-          <div className="space-y-2 border-t border-border pt-3">
+          <div className="space-y-1 border-t border-border pt-2">
             <GuardRow
               id="respect-live"
               label="No interrumpir a quien está en vivo"
@@ -605,9 +638,8 @@ export default function AnnouncementSettingsPanel() {
         </details>
       )}
 
-      {/* Run log. The old version printed every entry the same way, so twelve
-          identical "Bloqueado: persona en vivo" lines read as noise; the outcome
-          now carries the colour that says whether anything went wrong. */}
+      {/* The rundown of what actually happened. The outcome carries the colour
+          that says whether anything went wrong. */}
       <div className="rounded-xl border border-border bg-card">
         <p className="flex items-center gap-1.5 px-4 pb-2 pt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
           <History className="size-3" />
@@ -637,11 +669,12 @@ export default function AnnouncementSettingsPanel() {
                       <span className="text-faint"> · {entry.playingPlaylist}</span>
                     )}
                   </span>
-                  {entry.outcome === 'played' ? (
+                  {entry.outcome === 'played' && (
                     <CheckCircle2 className="size-3.5 shrink-0 text-success" />
-                  ) : entry.outcome === 'failed' ? (
+                  )}
+                  {entry.outcome === 'failed' && (
                     <AlertTriangle className="size-3.5 shrink-0 text-tally" />
-                  ) : null}
+                  )}
                 </li>
               );
             })}
@@ -657,7 +690,7 @@ export default function AnnouncementSettingsPanel() {
         </p>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-1.5 md:col-span-1">
+          <div className="space-y-1.5">
             <Label className="text-xs text-foreground">Carpeta de bases musicales</Label>
             <Input
               value={settings.bedsDir}
@@ -701,6 +734,7 @@ export default function AnnouncementSettingsPanel() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </Section>
   );
 }

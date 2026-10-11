@@ -56,8 +56,7 @@ export default function LocutorAdminPanel() {
         <p className="font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-faint">
           Contenido · locutor
         </p>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">Locutor virtual</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           La estación anuncia la hora por voz sintetizada. Estos son los motores que la hablan, las
           horas en las que puede hablar y el texto que dice.
         </p>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, NotebookPen, Pencil, Plus, Trash2, Wand2, X } from 'lucide-react';
+import { AlertTriangle, Pencil, Plus, Trash2, Wand2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -55,6 +55,19 @@ const VOICE_LABELS: Record<string, string> = Object.fromEntries(
 const TYPE_LABELS: Record<string, string> = Object.fromEntries(
   TYPE_OPTIONS.map((option) => [option.value, option.label])
 );
+
+const TEMPLATE_VARIABLES = [
+  'time_text',
+  'time_sentence',
+  'time_bare',
+  'hour_text',
+  'minutes_text',
+  'period',
+  'station_name',
+  'day',
+  'date',
+  'period_greeting',
+] as const;
 
 export default function TemplateEditor() {
   const { getLocutorTemplates, saveLocutorTemplate, deleteLocutorTemplate, generateLocutorAudio } =
@@ -154,7 +167,6 @@ export default function TemplateEditor() {
     <Section
       title="Plantillas de anuncios"
       description="El texto que se sintetiza. Las variables se reemplazan por la hora y por el nombre de la estación en cada locución."
-      icon={NotebookPen}
       actions={
         <Button size="sm" className="gap-1.5" onClick={() => setEditingTemplate({ ...EMPTY_TEMPLATE })}>
           <Plus className="size-4" />
@@ -245,17 +257,31 @@ export default function TemplateEditor() {
               onChange={(e) => setField('textTemplate', e.target.value)}
               className="border-border bg-card"
             />
-            <p className="text-xs leading-snug text-faint">
-              Variables: {'{{time_text}}'}, {'{{time_sentence}}'}, {'{{time_bare}}'},{' '}
-              {'{{hour_text}}'}, {'{{minutes_text}}'}, {'{{period}}'}, {'{{station_name}}'},{' '}
-              {'{{day}}'}, {'{{date}}'}, {'{{period_greeting}}'}
-            </p>
-            <p className="text-xs leading-snug text-faint">
-              Usa <span className="font-mono text-muted-foreground">{'{{time_text}}'}</span> para
-              anunciar la hora y el minuto: dice "son las nueve y cuarenta y dos de la noche".{' '}
-              <span className="font-mono text-muted-foreground">{'{{time_sentence}}'}</span> es lo
-              mismo con la inicial en mayúscula, para cuando la frase abre el aviso.
-            </p>
+            {/* Variables as mono chips that insert at the cursor: nobody
+                retypes {{time_sentence}} from memory, and the two hints that
+                explained the hard ones move into the chip titles. */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {TEMPLATE_VARIABLES.map((variable) => (
+                <button
+                  key={variable}
+                  type="button"
+                  onClick={() =>
+                    setField('textTemplate', `${editingTemplate.textTemplate}{{${variable}}}`)
+                  }
+                  title={
+                    variable === 'time_text'
+                      ? 'Hora y minuto: "son las nueve y cuarenta y dos de la noche".'
+                      : variable === 'time_sentence'
+                        ? 'Lo mismo con inicial en mayúscula, para cuando la frase abre el aviso.'
+                        : undefined
+                  }
+                  className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                >
+                  {`{{${variable}}}`}
+                </button>
+              ))}
+              <span className="text-xs text-faint">clic para insertar</span>
+            </div>
             <TemplatePreview
               template={editingTemplate.textTemplate}
               templateId={'id' in editingTemplate ? editingTemplate.id : null}

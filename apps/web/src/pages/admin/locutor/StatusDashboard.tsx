@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AudioLines, CalendarClock, Cpu, KeyRound, Mic, Radio } from 'lucide-react';
+import { KeyRound, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { toast } from 'sonner';
 import type { LocutorStatus, TtsKeyStatus, TtsProviderId } from '@radio/types';
-import { Section, Readout, EmptyNote } from './Section';
+import { Section, EmptyNote, Faceplate, FaceplateReading } from './Section';
 
 const PROVIDER_LABELS: Record<TtsProviderId, string> = {
   elevenlabs: 'ElevenLabs',
@@ -32,10 +32,33 @@ function formatDateTime(value: string | null): string {
 }
 
 /**
- * The character balance is the number that decides how many keys the station
- * needs: the free plan allows 10 000 characters a month and a 100-character
- * announcement spends about 100 of them. A bar makes "how much is left" a
- * glance instead of a subtraction, so it is drawn rather than printed.
+ * The unit's verdict lamp: lit green while ElevenLabs keys are free, warning
+ * amber while the fallback is carrying the voice, dark when nothing speaks.
+ */
+function engineLamp(status: LocutorStatus): string {
+  const { tts } = status;
+  if (tts.preferredProvider === 'elevenlabs' && tts.elevenLabs.availableKeys > 0) {
+    return 'bg-success';
+  }
+  if (tts.elevenLabs.configured) return 'bg-warning';
+  return 'bg-faint/40';
+}
+
+function engineVerdict(status: LocutorStatus): string {
+  const { tts } = status;
+  if (tts.preferredProvider === 'elevenlabs' && tts.elevenLabs.availableKeys > 0) {
+    return 'ElevenLabs responde hoy';
+  }
+  if (tts.elevenLabs.configured) {
+    return 'ElevenLabs sin keys: el motor de reserva Kokoro lleva la voz';
+  }
+  return 'Kokoro responde hoy: sin API keys configuradas';
+}
+
+/**
+ * Character balance as a drawn bar: "how much is left" becomes a glance
+ * instead of a subtraction. Same gesture as the panel's key table, so the
+ * two readouts of the same pool agree.
  */
 function CreditMeter({
   remaining,
@@ -44,87 +67,57 @@ function CreditMeter({
   remaining: number | null;
   limit: number | null;
 }) {
-  if (remaining === null || limit === null || limit <= 0) {
-    return (
-      <p className="text-xs text-faint">
-        El saldo se lee al pulsar <span className="text-foreground">Probar la voz</span> o cuando una
-        key se agota.
-      </p>
-    );
-  }
+  if (remaining === null || limit === null || limit <= 0) return null;
 
   const pct = Math.max(0, Math.min(100, (remaining / limit) * 100));
   const tone = pct > 40 ? 'bg-success' : pct > 15 ? 'bg-warning' : 'bg-destructive';
 
   return (
-    <div>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="font-mono text-sm tabular-nums text-foreground">
-          {remaining.toLocaleString('es-CO')}
-        </span>
-        <span className="font-mono text-[11px] tabular-nums text-faint">
-          de {limit.toLocaleString('es-CO')} caracteres
-        </span>
-      </div>
-      <div
-        role="meter"
-        aria-valuenow={Math.round(pct)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label="Caracteres restantes en el pool de keys"
-        className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border/60"
-      >
-        <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} />
-      </div>
+    <div
+      role="meter"
+      aria-valuenow={Math.round(pct)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label="Caracteres restantes en el pool de keys"
+      className="mt-1 h-1 overflow-hidden rounded-full bg-border/60"
+    >
+      <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} />
     </div>
   );
 }
 
 /**
- * One row per API key. The key itself never leaves the backend: only the last
- * four characters, enough to tell two accounts apart when one runs out of
- * credits and the other does not.
+ * One row per API key, printed as data rather than boxed. The key itself
+ * never leaves the backend: only the last four characters, enough to tell
+ * two accounts apart when one runs out of credits and the other does not.
  */
 function KeyRow({ keyStatus }: { keyStatus: TtsKeyStatus }) {
   const available = keyStatus.available;
+  const rowTone = available
+    ? 'text-success'
+    : keyStatus.blockReason === 'transient'
+      ? 'text-warning'
+      : 'text-destructive';
 
   return (
-    <li className="flex items-center justify-between gap-3 py-2">
-      <span className="flex min-w-0 items-center gap-2">
-        <span
-          aria-hidden
-          className={`size-1.5 shrink-0 rounded-full ${
-            available ? 'bg-success' : keyStatus.blockReason === 'transient' ? 'bg-warning' : 'bg-destructive'
-          }`}
-        />
-        <span className="font-mono text-xs text-foreground">{keyStatus.hint}</span>
-        {keyStatus.inFlight > 0 && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-info">
-            en uso
-          </span>
-        )}
+    <li className="flex items-baseline gap-3 py-2">
+      <span
+        aria-hidden
+        className={`size-1.5 shrink-0 translate-y-[-1px] self-center rounded-full ${
+          available ? 'bg-success' : keyStatus.blockReason === 'transient' ? 'bg-warning' : 'bg-destructive'
+        }`}
+      />
+      <span className="font-mono text-xs text-foreground">{keyStatus.hint}</span>
+      {keyStatus.inFlight > 0 && (
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-info">en uso</span>
+      )}
+      <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-faint">
+        {keyStatus.balance.remaining !== null &&
+          `${keyStatus.balance.remaining.toLocaleString('es-CO')} car`}
+        {keyStatus.blockedUntil && ` · hasta ${formatDateTime(keyStatus.blockedUntil)}`}
       </span>
-
-      <span className="flex shrink-0 items-center gap-2">
-        {keyStatus.balance.remaining !== null && (
-          <span className="font-mono text-[11px] tabular-nums text-faint">
-            {keyStatus.balance.remaining.toLocaleString('es-CO')}
-          </span>
-        )}
-        {keyStatus.blockedUntil && (
-          <span className="font-mono text-[11px] text-faint">
-            hasta {formatDateTime(keyStatus.blockedUntil)}
-          </span>
-        )}
-        <span
-          className={`text-[11px] ${
-            available ? 'text-success' : keyStatus.blockReason === 'transient' ? 'text-warning' : 'text-destructive'
-          }`}
-        >
-          {available
-            ? 'Libre'
-            : (KEY_BLOCK_LABELS[keyStatus.blockReason ?? ''] ?? 'Bloqueada')}
-        </span>
+      <span className={`shrink-0 text-[11px] ${rowTone}`}>
+        {available ? 'Libre' : (KEY_BLOCK_LABELS[keyStatus.blockReason ?? ''] ?? 'Bloqueada')}
       </span>
     </li>
   );
@@ -179,7 +172,7 @@ export default function StatusDashboard() {
 
   if (error && !status) {
     return (
-      <Section title="Motor de voz" description={error} icon={Cpu}>
+      <Section title="Motor de voz">
         <EmptyNote
           action={
             <Button variant="outline" size="sm" onClick={() => void loadStatus()}>
@@ -187,7 +180,7 @@ export default function StatusDashboard() {
             </Button>
           }
         >
-          El estado del motor no está disponible.
+          El estado del motor no está disponible. {error}
         </EmptyNote>
       </Section>
     );
@@ -195,23 +188,19 @@ export default function StatusDashboard() {
 
   if (!status) {
     return (
-      <Section title="Motor de voz" description="Consultando el motor activo." icon={Cpu}>
-        <div className="h-24 animate-pulse rounded-xl bg-sunken" />
+      <Section title="Motor de voz">
+        <div className="h-16 animate-pulse rounded-xl bg-sunken" />
       </Section>
     );
   }
 
   const { tts } = status;
-  const onElevenLabs = tts.preferredProvider === 'elevenlabs';
-  const usingFallback = !onElevenLabs && tts.elevenLabs.configured;
   const lastJob = status.last_job;
   const jobStatus = lastJob ? JOB_STATUS[lastJob.status] : null;
 
   return (
     <Section
       title="Motor de voz"
-      description="Qué motor responde hoy y cuánto le queda para seguir respondiendo."
-      icon={Cpu}
       actions={
         <Button variant="outline" size="sm" className="gap-2" onClick={() => void handleTest()} disabled={testing}>
           <Radio className={`size-3.5 ${testing ? 'animate-pulse' : ''}`} />
@@ -219,167 +208,128 @@ export default function StatusDashboard() {
         </Button>
       }
     >
-      <div className="grid gap-3 lg:grid-cols-3">
-        {/* Engine identity. This is the headline of the zone: the operator's
-            first question is which engine is speaking, and it used to be a
-            badge inside a card inside a card. */}
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-start gap-3">
-            <span
-              className={`grid size-10 shrink-0 place-items-center rounded-lg border ${
-                onElevenLabs
-                  ? 'border-success/25 bg-success/10 text-success'
-                  : usingFallback
-                    ? 'border-warning/25 bg-warning/10 text-warning'
-                    : 'border-info/25 bg-info/10 text-info'
-              }`}
-            >
-              <Mic className="size-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
-                Motor activo
+      <div className="space-y-4">
+        {/* The faceplate is the unit's headline: which engine speaks and how
+            much it has left, at one glance and at top-bar scale. */}
+        <Faceplate
+          lamp={engineLamp(status)}
+          label="Motor activo"
+          verdict={engineVerdict(status)}
+          slots={[
+            <FaceplateReading key="keys" label="Keys libres">
+              {tts.elevenLabs.configured
+                ? `${tts.elevenLabs.availableKeys} / ${tts.elevenLabs.keys.length}`
+                : '—'}
+            </FaceplateReading>,
+            <FaceplateReading key="balance" label="Última locución">
+              {tts.lastProvider ? PROVIDER_LABELS[tts.lastProvider] : '—'}
+            </FaceplateReading>,
+          ]}
+        />
+
+        {/* The same pool, drawn: the bar agrees with the key rows below it. */}
+        {tts.elevenLabs.configured && (
+          <div>
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+                <KeyRound className="size-3" />
+                Saldo del pool
               </p>
-              <p
-                className={`mt-0.5 text-lg font-semibold leading-tight ${
-                  onElevenLabs ? 'text-success' : usingFallback ? 'text-warning' : 'text-info'
-                }`}
-              >
-                {PROVIDER_LABELS[tts.preferredProvider]}
+              <span className="font-mono text-xs tabular-nums text-foreground">
+                {tts.elevenLabs.balance.remaining !== null
+                  ? `${tts.elevenLabs.balance.remaining.toLocaleString('es-CO')} / ${tts.elevenLabs.balance.characterLimit?.toLocaleString('es-CO') ?? '—'} car`
+                  : 'Se lee al probar la voz'}
+              </span>
+            </div>
+            <CreditMeter
+              remaining={tts.elevenLabs.balance.remaining}
+              limit={tts.elevenLabs.balance.characterLimit}
+            />
+            {tts.elevenLabs.balance.resetAt && (
+              <p className="mt-1.5 font-mono text-[11px] text-faint">
+                Reinicio de cuota {formatDateTime(tts.elevenLabs.balance.resetAt)} · modelo{' '}
+                {tts.elevenLabs.modelId}
               </p>
-            </div>
-          </div>
-
-          <dl className="mt-3 space-y-1.5 border-t border-border pt-3 text-xs">
-            <div className="flex justify-between gap-3">
-              <dt className="text-faint">Última locución</dt>
-              <dd className="truncate text-foreground">
-                {tts.lastProvider ? PROVIDER_LABELS[tts.lastProvider] : '—'}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-faint">Caídas al motor de reserva</dt>
-              <dd className={tts.fallbackCount > 0 ? 'text-warning' : 'text-foreground'}>
-                {tts.fallbackCount}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-faint">Kokoro (reserva)</dt>
-              <dd className={tts.kokoroReachable ? 'text-success' : 'text-faint'}>
-                {tts.kokoroReachable ? 'En línea' : 'Inactivo'}
-              </dd>
-            </div>
-          </dl>
-
-          {usingFallback && (
-            <p className="mt-3 rounded-md border border-warning/25 bg-warning/10 px-2.5 py-2 text-xs text-warning">
-              Sin keys de ElevenLabs disponibles: las locuciones salen del motor de reserva.
-            </p>
-          )}
-        </div>
-
-        {/* Credit balance and the key pool. */}
-        <div className="rounded-xl border border-border bg-card p-4 lg:col-span-2">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
-              <KeyRound className="size-3" />
-              Pool de keys
-            </p>
-            {!tts.elevenLabs.configured && (
-              <Badge variant="outline" className="border-border text-xs text-muted-foreground">
-                Sin configurar
-              </Badge>
             )}
           </div>
+        )}
 
-          {tts.elevenLabs.configured ? (
-            <>
-              <p className="mt-2 text-sm text-foreground">
-                <span className="font-semibold tabular-nums text-success">
-                  {tts.elevenLabs.availableKeys}
-                </span>{' '}
-                de {tts.elevenLabs.keys.length} keys libres
-                <span className="ml-2 font-mono text-[11px] text-faint">
-                  modelo {tts.elevenLabs.modelId}
-                </span>
-              </p>
+        {tts.elevenLabs.configured ? (
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+              Keys
+            </p>
+            <ul className="mt-1 divide-y divide-border border-y border-border">
+              {tts.elevenLabs.keys.map((keyStatus) => (
+                <KeyRow key={keyStatus.index} keyStatus={keyStatus} />
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <EmptyNote>
+            No hay API keys configuradas, así que todos los avisos usan el motor de reserva Kokoro.
+          </EmptyNote>
+        )}
 
-              <div className="mt-3">
-                <CreditMeter
-                  remaining={tts.elevenLabs.balance.remaining}
-                  limit={tts.elevenLabs.balance.characterLimit}
-                />
-              </div>
-
-              {tts.elevenLabs.balance.resetAt && (
-                <p className="mt-1.5 font-mono text-[11px] text-faint">
-                  Reinicio de cuota {formatDateTime(tts.elevenLabs.balance.resetAt)}
-                </p>
+        {/* The remaining readouts, printed as data on one ruled row instead of
+            two more boxes competing with the faceplate. */}
+        <dl className="grid gap-x-8 gap-y-3 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="min-w-0">
+            <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+              Audios en banco
+            </dt>
+            <dd className="mt-1 text-sm text-foreground">
+              {status.bank.ready}{' '}
+              <span className="text-muted-foreground">listos</span>, {status.bank.pending}{' '}
+              <span className="text-muted-foreground">pendientes</span>
+              {status.bank.error > 0 && (
+                <span className="text-destructive">, {status.bank.error} con error</span>
               )}
-
-              <ul className="mt-3 divide-y divide-border border-t border-border">
-                {tts.elevenLabs.keys.map((keyStatus) => (
-                  <KeyRow key={keyStatus.index} keyStatus={keyStatus} />
-                ))}
-              </ul>
-            </>
-          ) : (
-            <EmptyNote>
-              No hay API keys configuradas, así que todos los avisos usan el motor de reserva.
-            </EmptyNote>
-          )}
-        </div>
-      </div>
-
-      {/* The two remaining readouts sit on one row instead of two more boxes. */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
-          <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-sunken text-primary">
-            <AudioLines className="size-5" />
-          </span>
-          <Readout
-            label="Audios en banco"
-            value={
-              <>
-                {status.bank.ready}{' '}
-                <span className="font-normal text-muted-foreground">listos</span>,{' '}
-                {status.bank.pending}{' '}
-                <span className="font-normal text-muted-foreground">pendientes</span>
-              </>
-            }
-            hint={
-              status.bank.error > 0 ? (
-                <span className="text-destructive">{status.bank.error} con error</span>
-              ) : (
-                'Solo los listos se vuelven a usar.'
-              )
-            }
-          />
-        </div>
-
-        <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
-          <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-sunken text-primary">
-            <CalendarClock className="size-5" />
-          </span>
-          <Readout
-            label="Último job nocturno"
-            value={lastJob ? formatDateTime(lastJob.startedAt) : 'Nunca'}
-            hint={
-              lastJob && lastJob.audiosGenerated !== null ? (
-                <span className="flex items-center gap-2">
-                  {jobStatus && (
-                    <Badge variant="outline" className={`text-[11px] ${jobStatus.className}`}>
-                      {jobStatus.label}
-                    </Badge>
-                  )}
-                  <span className="font-mono">{lastJob.audiosGenerated} generados</span>
-                </span>
-              ) : (
-                'Genera las locuciones del día siguiente.'
-              )
-            }
-          />
-        </div>
+            </dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+              Último job nocturno
+            </dt>
+            <dd className="mt-1 flex flex-wrap items-center gap-2 text-sm text-foreground">
+              {lastJob ? formatDateTime(lastJob.startedAt) : 'Nunca'}
+              {jobStatus && (
+                <Badge variant="outline" className={`text-[11px] ${jobStatus.className}`}>
+                  {jobStatus.label}
+                </Badge>
+              )}
+            </dd>
+            <dd className="mt-0.5 text-xs text-faint">
+              {lastJob && lastJob.audiosGenerated !== null
+                ? `${lastJob.audiosGenerated} audios generados`
+                : 'Genera las locuciones del día siguiente.'}
+            </dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+              Caídas a reserva
+            </dt>
+            <dd
+              className={`mt-1 text-sm tabular-nums ${
+                tts.fallbackCount > 0 ? 'text-warning' : 'text-foreground'
+              }`}
+            >
+              {tts.fallbackCount}
+            </dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+              Kokoro (reserva)
+            </dt>
+            <dd
+              className={`mt-1 text-sm ${
+                tts.kokoroReachable ? 'text-success' : 'text-faint'
+              }`}
+            >
+              {tts.kokoroReachable ? 'En línea' : 'Inactivo'}
+            </dd>
+          </div>
+        </dl>
       </div>
     </Section>
   );

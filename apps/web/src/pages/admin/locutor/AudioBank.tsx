@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, Library, RefreshCw, Play, Square, Trash2, FileAudio, Eraser } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { AlertTriangle, RefreshCw, Play, Square, Trash2, FileAudio, Eraser } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -97,6 +97,9 @@ export default function AudioBank() {
   const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
+  /** Reflects the fixed player bar's audio element, so the table row keeps a
+      single small play button instead of one row growing tall. */
+  const playerRef = useRef<HTMLAudioElement | null>(null);
 
   const selectedCount = selection.size;
   const allSelected = audios.length > 0 && selectedCount === audios.length;
@@ -183,8 +186,13 @@ export default function AudioBank() {
   };
 
   const handlePlay = async (audio: LocutorAudio) => {
+    if (playingId === audio.id) {
+      playerRef.current?.pause();
+      setPlayingId(null);
+      return;
+    }
     if (audioUrls[audio.id]) {
-      setPlayingId(playingId === audio.id ? null : audio.id);
+      setPlayingId(audio.id);
       return;
     }
     setLoadingAudioId(audio.id);
@@ -207,7 +215,6 @@ export default function AudioBank() {
     <Section
       title="Banco de audios"
       description="Cada locución ya generada. El sistema solo reutiliza las que están listas, así que borrar una es la forma de forzar una nueva."
-      icon={Library}
       actions={
         <Button
           variant="outline"
@@ -404,33 +411,22 @@ export default function AudioBank() {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         {audio.status === 'ready' && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="w-8 h-8"
-                              onClick={() => void handlePlay(audio)}
-                              disabled={loadingAudioId === audio.id}
-                              title={playingId === audio.id ? 'Detener' : 'Reproducir'}
-                            >
-                              {loadingAudioId === audio.id ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                              ) : playingId === audio.id ? (
-                                <Square className="w-3.5 h-3.5" />
-                              ) : (
-                                <Play className="w-4 h-4" />
-                              )}
-                            </Button>
-                            {playingId === audio.id && audioUrls[audio.id] && (
-                              <audio
-                                src={audioUrls[audio.id]}
-                                controls
-                                autoPlay
-                                className="h-8 w-40"
-                                onEnded={() => setPlayingId(null)}
-                              />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="w-8 h-8"
+                            onClick={() => void handlePlay(audio)}
+                            disabled={loadingAudioId === audio.id}
+                            title={playingId === audio.id ? 'Detener' : 'Reproducir'}
+                          >
+                            {loadingAudioId === audio.id ? (
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : playingId === audio.id ? (
+                              <Square className="w-3.5 h-3.5" />
+                            ) : (
+                              <Play className="w-4 h-4" />
                             )}
-                          </>
+                          </Button>
                         )}
                         <Button
                           variant="ghost"
@@ -451,6 +447,47 @@ export default function AudioBank() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Fixed player bar. A docked native player keeps the table's column
+          widths steady while something plays; the inline player used to grow
+          its row and push the columns next to it. */}
+      {(() => {
+        const playing = audios.find((audio) => audio.id === playingId);
+        if (!playing || !audioUrls[playing.id]) return null;
+
+        return (
+          <div className="sticky bottom-0 z-10 mt-3 flex items-center gap-3 rounded-xl border border-primary/25 bg-card px-4 py-3 shadow-[0_-8px_24px_-12px_rgb(0_0_0/0.6)]">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0"
+              onClick={() => {
+                playerRef.current?.pause();
+                setPlayingId(null);
+              }}
+              aria-label="Detener"
+            >
+              <Square className="size-3.5" />
+            </Button>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs text-foreground" title={playing.textRendered}>
+                {playing.textRendered || playing.filename}
+              </p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+                Previsualizando · {formatClock((playing.durationMs ?? 0) / 1000)}
+              </p>
+            </div>
+            <audio
+              ref={playerRef}
+              src={audioUrls[playing.id]}
+              autoPlay
+              controls
+              className="h-8 w-56 shrink-0"
+              onEnded={() => setPlayingId(null)}
+            />
+          </div>
+        );
+      })()}
 
       <ConfirmDialog
         open={pendingDelete !== null}
