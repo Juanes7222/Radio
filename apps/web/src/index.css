@@ -141,7 +141,12 @@
     --faint: 218 12% 57%;
     --success: 152 48% 52%;
     --warning: 36 92% 56%;
-    --info: 199 85% 62%;
+    /* Informational state is parchment, not the public cyan. The console has
+       no cool hue left: amber, green and tally red are the only saturated
+       colours, so anything merely reported is warm, quiet and reads as paper
+       — enough chroma to stay apart from --faint's neutral grey, not enough
+       to compete with the signals the operator must not miss. */
+    --info: 44 24% 62%;
     --tally: 353 75% 55%;
   }
 }

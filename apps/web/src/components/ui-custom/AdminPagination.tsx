@@ -53,8 +53,8 @@ export function AdminPagination({ page, totalPages, onPageChange, label }: Admin
     cn('cursor-pointer select-none', disabled && 'pointer-events-none opacity-40');
 
   return (
-    <div className="flex items-center justify-between gap-3 flex-wrap mt-4 pt-4 border-t border-slate-700">
-      {label && <p className="text-xs text-slate-400">{label}</p>}
+    <div className="flex items-center justify-between gap-3 flex-wrap mt-4 pt-4 border-t border-border">
+      {label && <p className="text-xs text-faint">{label}</p>}
       <Pagination className="mx-0 w-auto">
         <PaginationContent>
           <PaginationItem>

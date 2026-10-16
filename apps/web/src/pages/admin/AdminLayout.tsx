@@ -249,6 +249,15 @@ export default function AdminLayout() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [sidebarOpen]);
 
+  // Radix mounts dialogs, sheets and selects on document.body, outside the
+  // themed subtree, so the console scope is mirrored on the body while the
+  // admin shell is mounted. Without it those overlays resolve the public
+  // indigo tokens and open as blue panels inside an amber console.
+  useEffect(() => {
+    document.body.classList.add('admin-theme');
+    return () => document.body.classList.remove('admin-theme');
+  }, []);
+
   if (!user) return <Navigate to="/admin/login" replace />;
 
   const handleLogout = () => {

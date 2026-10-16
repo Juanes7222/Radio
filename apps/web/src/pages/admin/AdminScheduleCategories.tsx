@@ -30,10 +30,12 @@ const ICON_OPTIONS: { value: string; label: string }[] = [
   { value: 'message', label: 'Mensaje' },
 ];
 
+// Category hues stay inside the console family: warm tones only, none of them
+// saturated enough to be mistaken for the on-air signals.
 const COLOR_PRESETS = [
   '#e8883a',
-  '#4f98a3',
-  '#a86fdf',
+  '#b5793f',
+  '#c2694f',
   '#6daa45',
   '#dd6974',
   '#e8af34',
@@ -44,7 +46,7 @@ const COLOR_PRESETS = [
 const emptyForm = {
   name: '',
   description: '',
-  color: '#4f98a3',
+  color: '#e8883a',
   icon: 'radio',
   keywords: '',
   isVisible: true,
