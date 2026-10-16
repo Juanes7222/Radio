@@ -25,7 +25,11 @@ const router = Router();
 
 // Short-lived in-memory TTL cache. Protects AzuraCast from polling storms
 // (e.g. many mobile clients losing their SSE at once) without going stale.
-const NOWPLAYING_CACHE_TTL_MS = 3_000;
+// 5s is the floor at which a fallback poll from a 10s client still hits the
+// cache rather than reaching AzuraCast. Raising it does not make now-playing
+// noticeably stale: the realtime SSE pushes every song change immediately, and
+// this cache only backs the polling fallback.
+const NOWPLAYING_CACHE_TTL_MS = 5_000;
 const SCHEDULE_CACHE_TTL_MS = 60_000;
 
 interface TimedCacheEntry {

@@ -96,6 +96,34 @@ The scope is deliberate: `station.mounts[].url` and `listen_url` are absolute
 too and address the ICEcast server, so reducing them would break playback. Only
 `/api/station/` is the media namespace the backend proxies.
 
+With the URL normalized the remaining failure is a plain 404: the station art
+route does not have most covers. `GET /api/station/:stationId/art/:artId` tries
+three candidate ids (`public.routes.ts`) and AzuraCast rejects all of them, so
+every song change spent several failed image requests.
+
+## Artwork is switched off (Oct 2026)
+
+`src/lib/artwork.ts` is the single decision point. `ARTWORK_ENABLED` is `false`
+and `resolveArtworkUrl` returns `null`, which is not a new state: the console,
+the mini player and the request dialog already fall back to `VinylDisc` or a
+plain icon when there is no cover. The reason is size and format — AzuraCast
+serves a full-resolution JPEG per track over a listener's mobile connection.
+
+Consumers must resolve through `resolveArtworkUrl` instead of reading `song.art`
+directly, otherwise the switch does not reach them. The shipped surfaces are
+`StationConsole`, `MiniPlayer`, `SongRequest`, `AdminDashboard` and
+`AdminRequests`; `tests/artwork/artwork-switch.test.ts` enforces both halves.
+
+Not covered, deliberately:
+
+- `RadioPlayer`, `MobilePlayerHero`, `SongInfo` and `SongHistory` are
+  `@deprecated Use StationConsole` with no importer, so they are tree-shaken out
+  of the bundle. They still read `song.art` directly; route them through the
+  resolver before un-deprecating any of them.
+- `AdminUpload` shows the cover of the file the admin just uploaded. It is a
+  verification affordance rather than a broadcast decoration, so it keeps
+  working.
+
 ## Suggested expectations for the agent
 
 - Identify the exact components, hooks, and styles involved.
@@ -111,23 +139,39 @@ prayer requests. `pages/OpinionesPage.tsx` is a public route with its own
 pages (the layout supplies only the health banner, the transition and the
 MiniPlayer).
 
-- **The form is a sheet of stationery, not a form.** One tall
-  `rounded-2xl border border-border bg-card` with no shadow, divided by
-  `border-border` hairlines. Inputs are borderless (`bg-transparent`) so the
-  ruled line is the only affordance; the hairline turns `text-destructive`
-  colour via `aria-invalid` when a field is wrong, and the error sentence sits
-  under it with `aria-live="polite"`. The letterhead row above the rules is the
-  one place `mono-meta` carries identity rather than data.
-- The motive is a **single-select line** of text options separated by `·`, not a
-  chip bank. `MotiveField` hides the radio inputs with `sr-only` and keeps the
-  focus ring on the visible label.
+- **The committed dark world stays; distinction comes from hierarchy.** The
+  sheet is the standard `bg-card`/`--border` surface, and every accent comes
+  from tokens that already existed (`--primary`, `--faint`,
+  `--muted-foreground`, `--destructive`). Two lighter-material iterations
+  (cream paper, then dark kraft with a gold lamp) were rejected: no light
+  surfaces in a fully dark app and no added color that fights the palette.
+  The gold/paper tokens were removed again from `:root`, `tailwind.config.js`
+  and `constants/theme.ts`.
+- **The motive options read as options since v3.** `MotiveField` renders them
+  as quiet pills (`min-h-11`, radio `sr-only` inside the visible label):
+  idle `border-border` + `text-muted-foreground`, hover `border-primary/40`,
+  selected `border-primary/60 bg-primary/10 text-primary` semibold.
+- Every ruled row carries a signal through the existing tokens: the hairline
+  is `border-border`, `focus-within` lights it `border-primary/60`, and
+  `aria-invalid` turns it `--destructive` with the error sentence in
+  `text-destructive` under the field (`aria-live="polite"`). Inputs stay
+  borderless with `placeholder:text-faint/70`; labels are the `mono-meta`
+  row only for counters, numeral and letterhead.
 - **`--tally` appears exactly once on this page**, in
-  `components/feedback/OnAirStamp.tsx`. The system reserves it for live state
-  and this is the only live moment: after a successful POST the form is replaced
-  by a vector seal (two concentric squares + lamp + `AL AIRE`) that draws itself
-  with `pathLength`. Do not reach for tally on any other part of a public page.
-- No eyebrow above the `h1`, no gradient text, no card shadows: the heading
-  carries its own weight. Copy is sober tuteo with no regionalisms.
+  `components/feedback/OnAirStamp.tsx` — after a successful POST the card
+  swaps its contents to the seal (two concentric squares + lamp + `AL AIRE`)
+  that draws itself with `pathLength`. Known debt: the public
+  `--destructive` (0 62.8% 30.6%) is dark over `--card`; the error signal relies
+  on the row border + the focused field — fixing the token belongs to the
+  whole site, not this surface.
+- No eyebrow above the `h1`, no gradient text; the heading still carries its
+  own weight. On desktop the page is two columns (`main` is `max-w-5xl`, grid
+  `lg:grid-cols-[minmax(0,1fr)_300px]` with the letterhead-stamped sheet at
+  ≤640px and a sticky memo of "Qué pasa con tu mensaje" beside it); on mobile
+  it stacks below. Copy is sober tuteo with no regionalisms: the form reads tú
+  ("Escribe aquí lo que quieras contarnos", "Si dejas un nombre o un
+  contacto, te respondemos"), except the consent sentence, where the first
+  person ("los datos que escriba aquí") is deliberate and shared with the app.
 - Client-side validation mirrors `validateFeedbackSubmission` in the backend
   (`packages/types/src/feedback.ts` exports `FEEDBACK_LIMITS` and
   `FEEDBACK_MIN_MENSAJE` so both sides read the same numbers). On failure the
@@ -138,11 +182,15 @@ MiniPlayer).
   using SSE: unlike prayer there is no stream service or one-shot ticket, and
   the inbox volume does not justify them.
 - Mobile mirrors it at `apps/mobile/app/feedback.tsx`, reached from a card in
-  the **Redes** tab rather than a sixth tab. Same content, mobile tokens
-  (Fraunces display instead of Instrument Serif). The stamp is rebuilt from
-  plain views because RN needs no SVG asset.
+  the **Redes** tab rather than a sixth tab. Same principles, native tokens:
+  glass sheet (`Colors.surface` + `surfaceBorder`), mono letterhead, hairline
+  rows with `borderGlass`/`danger` signals, motive as native pills (idle
+  `Colors.border`, selected `Colors.signal` + `signalMuted`, 40dp pill plus
+  hitSlop 4 = 48dp target), boxed soft inputs with dark keyboard and
+  `Colors.signal` selection, consent spring with the success-green check, and
+  indigo primary submit. Haptics kept; the stamp is rebuilt from plain views.
 - `apps/web/PRODUCT.md` records the product truth and
-  `apps/web/.impeccable/surfaces/` the surface direction contract.
+  `apps/web/.impeccable/surfaces/` the surface direction contract (now v3).
 
 ## Unread prayer answers (Oct 2026)
 

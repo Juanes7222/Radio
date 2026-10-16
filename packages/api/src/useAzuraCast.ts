@@ -136,11 +136,17 @@ export function useAzuraCast({
         const sseUrl = `${baseUrl}/api/live/nowplaying/sse?cf_connect=${cfConnectStr}`;
         eventSource = new EventSource(sseUrl);
 
-        eventSource.onopen = () => {
+        // Handlers go through addEventListener rather than the onopen/onmessage/
+        // onerror properties. React Native has no native EventSource, so mobile
+        // polyfills it with react-native-sse, whose class only exposes the
+        // listener API; assigning the properties creates inert fields that the
+        // library never reads, which left the stream silently delivering nothing
+        // and froze the screen on its first payload.
+        eventSource.addEventListener('open', () => {
           retryCount = 0;
-        };
+        });
 
-        eventSource.onmessage = (event) => {
+        eventSource.addEventListener('message', (event) => {
           if (!event.data) return;
           try {
             // Rewrite localhost URLs to avoid Mixed Content / CSP errors, only
@@ -159,9 +165,9 @@ export function useAzuraCast({
           } catch (e) {
             console.error('Error parsing SSE data:', e);
           }
-        };
+        });
 
-        eventSource.onerror = () => {
+        eventSource.addEventListener('error', () => {
           eventSource?.close();
           fetchNowPlaying();
 
@@ -171,7 +177,7 @@ export function useAzuraCast({
 
           const delay = RECONNECT_DELAYS[Math.min(retryCount++, RECONNECT_DELAYS.length - 1)];
           reconnectTimeout = setTimeout(() => setupRealTime(shortcode), delay);
-        };
+        });
       } else if (typeof WebSocket !== 'undefined') {
         const wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws';
         const hostPath = baseUrl.replace(/^https?:\/\//, '') || 'localhost:3000';
