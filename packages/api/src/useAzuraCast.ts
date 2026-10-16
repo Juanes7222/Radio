@@ -6,6 +6,7 @@ import {
   fetchScheduleCategories as fetchScheduleCategoriesApi,
   requestSong as requestSongApi,
   rewriteLocalhostUrls,
+  toSameOriginMediaUrls,
   type SongRequestResult,
 } from './api';
 import type {
@@ -17,6 +18,9 @@ import type {
 } from '@radio/types';
 
 export type { SongRequestResult } from './api';
+
+/** Shape of the realtime now-playing envelope pushed by AzuraCast over SSE and WS. */
+type RealtimeEnvelope = { pub?: { data?: { np?: NowPlayingData } } };
 
 export interface UseAzuraCastProps {
   apiBaseUrl?: string;
@@ -67,7 +71,7 @@ export function useAzuraCast({
       });
       let responseData = response.data;
       const urlBase = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      responseData = rewriteLocalhostUrls(responseData, urlBase);
+      responseData = toSameOriginMediaUrls(rewriteLocalhostUrls(responseData, urlBase), urlBase);
       setData(responseData);
       setError(null);
       return responseData;
@@ -146,7 +150,7 @@ export function useAzuraCast({
               ? raw.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl)
               : raw;
 
-            const parsed = JSON.parse(rewritten);
+            const parsed = toSameOriginMediaUrls<RealtimeEnvelope>(JSON.parse(rewritten), baseUrl);
             if (parsed?.pub?.data?.np) {
               setData(parsed.pub.data.np);
               setIsLoading(false);
@@ -190,7 +194,7 @@ export function useAzuraCast({
               ? raw.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl)
               : raw;
 
-            const parsed = JSON.parse(rewritten);
+            const parsed = toSameOriginMediaUrls<RealtimeEnvelope>(JSON.parse(rewritten), baseUrl);
             if (parsed?.pub?.data?.np) {
               setData(parsed.pub.data.np);
               setIsLoading(false);

@@ -11,7 +11,7 @@ import {
   type FeedbackCategory,
 } from '@radio/types';
 import { API_BASE_URL } from '@/config';
-import { AppFooter, Header } from '@/components/ui-custom';
+import { AppFooter } from '@/components/ui-custom';
 import { OnAirStamp } from '@/components/feedback/OnAirStamp';
 
 const CATEGORY_VALUES = Object.values(FEEDBACK_CATEGORIES);
@@ -243,8 +243,6 @@ export default function OpinionesPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header stationName="La Voz de la Verdad" />
-
       <main className="mx-auto w-full max-w-2xl px-4 pb-20 pt-12 sm:pt-16">
         <motion.header
           initial={{ opacity: 0, y: 14 }}

@@ -3,8 +3,19 @@ import type { PropsWithChildren } from 'react';
 
 /**
  * PageTransition — envoltorio para rutas públicas.
- * Usa clip-path inset para revelar sin mover layout,
- * + blur sutil para enmascarar el crossfade.
+ *
+ * Solo anima la entrada, a propósito. Una animación de salida exigiría
+ * `AnimatePresence mode="wait"` alrededor del Outlet, y ese modo retiene el
+ * árbol saliente mientras el <Outlet /> que lleva dentro ya resuelve a la ruta
+ * nueva: la página entrante se monta una vez dentro del envoltorio que se va
+ * (invisible, con el clip-path del exit encima) y otra vez de verdad al
+ * terminar la salida. Volver a Inicio montaba la consola entera dos veces y
+ * bloqueaba el hilo principal el doble, que es lo que se sentía como "tarda
+ * mucho". Sin exit no hay modo wait, no hay montaje doble y la entrada sola
+ * conserva la sensación de cambio de página.
+ *
+ * Opacidad y desplazamiento en lugar de clip-path: no obligan al contenedor a
+ * repintar y no dejan una capa de compositor huérfana al desmontar.
  * Respeta prefers-reduced-motion.
  */
 export function PageTransition({ children }: PropsWithChildren) {
@@ -16,20 +27,11 @@ export function PageTransition({ children }: PropsWithChildren) {
 
   return (
     <motion.div
-      initial={{ clipPath: 'inset(0 100% 0 0)', opacity: 0 }}
-      animate={{ clipPath: 'inset(0 0 0 0)', opacity: 1 }}
-      exit={{ clipPath: 'inset(0 0 100% 0)', opacity: 0 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, ease: [0.23, 1, 0.32, 1] }}
-      className="will-change-transform"
     >
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -6 }}
-        transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1], delay: 0.06 }}
-      >
-        {children}
-      </motion.div>
+      {children}
     </motion.div>
   );
 }

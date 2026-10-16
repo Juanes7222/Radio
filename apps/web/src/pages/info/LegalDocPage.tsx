@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router';
 import { Shield } from 'lucide-react';
-import { Header } from '@/components/ui-custom';
 import type { LegalDocument } from '@/legal/legal-docs';
 
 interface LegalDocPageProps {
@@ -81,8 +80,6 @@ function LegalSection({ heading, paragraphs, lists, after }: { heading: string; 
 export default function LegalDocPage({ doc }: LegalDocPageProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header stationName="La Voz de la Verdad" />
-
       <section className="relative px-4 pt-14 pb-12 text-center overflow-hidden bg-gradient-to-b from-secondary to-background">
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_hsl(var(--primary)_/_0.15)_0%,_transparent_65%)]" />
 

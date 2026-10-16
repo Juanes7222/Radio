@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Header, AppFooter } from '@/components/ui-custom';
+import { AppFooter } from '@/components/ui-custom';
 import { Radio, AlertCircle } from 'lucide-react';
 
 export default function MaintenancePage() {
@@ -9,10 +9,6 @@ export default function MaintenancePage() {
       
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[50%] bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.18)_0%,transparent_65%)]" />
-      </div>
-
-      <div className="relative z-10 border-b border-border/50">
-        <Header stationName="La Voz de la Verdad" />
       </div>
 
       <main className="flex-1 flex flex-col items-center justify-center p-4 py-8 md:p-8 lg:p-12 relative z-10 w-full mx-auto max-w-7xl">

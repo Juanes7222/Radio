@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { MapPin, BookOpen, Cross, Users, Flame } from 'lucide-react';
-import { Header } from '@/components/ui-custom';
 
 const beliefs = [
   {
@@ -29,8 +28,6 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
 
-      <Header stationName="La Voz de la Verdad" />
-      
       {/* Hero */}
       <section className="relative px-4 pt-14 pb-12 text-center overflow-hidden bg-gradient-to-b from-secondary/50 to-background">
         

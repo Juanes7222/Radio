@@ -2,7 +2,10 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "target": "ES2023",
-    "lib": ["ES2023"],
+    /* DOM is here for the test files: they exercise browser-facing workspace
+       code such as @radio/api, which reads window.location.origin. Without it
+       the suite can only cover code that never touches a browser global. */
+    "lib": ["ES2023", "DOM"],
     "module": "ESNext",
     "types": ["node"],
     "skipLibCheck": true,

@@ -1,7 +1,6 @@
-import { useState, useCallback, lazy, Suspense } from 'react';
+import { lazy, Suspense, useCallback } from 'react';
 import { StationConsole } from '@/components/player/StationConsole';
 import {
-  Header,
   DesktopSocialLinks,
   MobileSocialLinks,
   FacebookLivePlayer,
@@ -12,7 +11,6 @@ import { getSocialLinksWithLiveStatus } from '@/utils/socialLinks';
 import MaintenancePage from '@/pages/MaintenancePage';
 
 const SongRequest = lazy(() => import('@/components/player/SongRequest').then(m => ({ default: m.SongRequest })));
-const PrayerRequestDialog = lazy(() => import('@/components/prayer/PrayerRequestDialog').then(m => ({ default: m.PrayerRequestDialog })));
 const NoticeOverlay = lazy(() => import('@/components/notices/NoticeOverlay').then(m => ({ default: m.NoticeOverlay })) );
 
 function App() {
@@ -37,10 +35,6 @@ function App() {
     requestSong,
   } = useGlobalAudio();
 
-  const [showPrayer, setShowPrayer] = useState(false);
-  const openPrayer = useCallback(() => setShowPrayer(true), []);
-  const closePrayer = useCallback(() => setShowPrayer(false), []);
-
   const socialLinks = getSocialLinksWithLiveStatus(liveUrl);
 
   const closeRequests = useCallback(() => setShowRequests(false), [setShowRequests]);
@@ -53,8 +47,6 @@ function App() {
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-      <Header stationName={data?.station?.name} onOpenPrayer={openPrayer} />
-
       <main>
         <StationConsole
           stationData={data}
@@ -85,7 +77,6 @@ function App() {
 
       <Suspense fallback={null}>
         <SongRequest isOpen={showRequests} onClose={closeRequests} requestSong={requestSong} />
-        <PrayerRequestDialog isOpen={showPrayer} onClose={closePrayer} />
         <NoticeOverlay />
       </Suspense>
     </div>

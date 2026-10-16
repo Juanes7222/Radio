@@ -21,7 +21,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAzuraCast, mergeConsecutiveScheduleItems } from '@/hooks';
-import { Header } from '@/components/ui-custom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { apiUrl } from '@/config';
 import { formatChapters } from '@/lib/format';
@@ -532,7 +531,6 @@ export function ProgramacionPage() {
 
   return (
     <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
-        <Header stationName="La Voz de la Verdad" />
       <div className="max-w-2xl mx-auto px-5 py-14 sm:py-20">
 
         <motion.header

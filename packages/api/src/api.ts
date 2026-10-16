@@ -48,6 +48,46 @@ export function rewriteLocalhostUrls<T>(data: T, apiBaseUrl: string): T {
   ) as T;
 }
 
+/**
+ * Absolute AzuraCast media URLs, whatever origin they carry.
+ *
+ * Artwork arrives as an absolute URL built from the address the deployment
+ * happened to use (a LAN IP, a container hostname, a stale panel domain). None
+ * of those are reachable from a listener's browser, and on an HTTPS page an
+ * `http://` one is rejected twice: as mixed content, and by the site CSP
+ * (`img-src 'self' data: https: blob:`), which only ever allows the page's own
+ * scheme. The backend proxies `/api/station/*` already, so keeping just the
+ * path is enough — and it is the only rewrite that holds no matter how the
+ * station is configured.
+ *
+ * Scoped to `/api/station/` on purpose. `station.mounts[].url` and
+ * `listen_url` are absolute too and must stay that way: they address the
+ * ICEcast server, not this origin.
+ */
+const FOREIGN_MEDIA_URL = /https?:\/\/[^/"\\]+(\/api\/station\/[^"\\]*)/g;
+
+/**
+ * Re-points AzuraCast media URLs at the page origin.
+ *
+ * Applied after `rewriteLocalhostUrls`, which only covers loopback addresses.
+ * The payload is serialized so one pass covers every nested field; when the
+ * replacement changes nothing — the common case, since most deployments already
+ * report public URLs — the original object is returned untouched, which keeps
+ * the nowplaying poll and the realtime stream free of a needless round trip.
+ */
+export function toSameOriginMediaUrls<T>(data: T, apiBaseUrl: string): T {
+  const baseUrl = effectiveBaseUrl(apiBaseUrl);
+  if (!baseUrl) return data;
+  if (data === null || typeof data !== 'object') return data;
+  const serialized = JSON.stringify(data);
+  const rewritten = serialized.replace(
+    FOREIGN_MEDIA_URL,
+    (_match, path: string) => `${baseUrl}${path}`,
+  );
+  if (rewritten === serialized) return data;
+  return JSON.parse(rewritten) as T;
+}
+
 /** Extracts a typed array from a payload that may wrap it in `result`, `rows` or `data`. */
 function pickArray<T>(data: unknown, keys: string[]): T[] {
   if (Array.isArray(data)) return data as T[];
@@ -125,7 +165,7 @@ export async function fetchRequestableSongs(
     headers: { Accept: 'application/json' },
   });
 
-  const data = rewriteLocalhostUrls(response.data, apiBaseUrl);
+  const data = toSameOriginMediaUrls(rewriteLocalhostUrls(response.data, apiBaseUrl), apiBaseUrl);
   return pickArray<SongRequest>(data, ['result', 'rows', 'data']);
 }
 
@@ -137,7 +177,7 @@ export async function fetchSchedule(
       timeout: TIMEOUT_MS,
       headers: { Accept: 'application/json' },
     });
-    const data = rewriteLocalhostUrls(response.data, apiBaseUrl);
+    const data = toSameOriginMediaUrls(rewriteLocalhostUrls(response.data, apiBaseUrl), apiBaseUrl);
     return pickArray<ScheduleItem>(data, ['result', 'rows', 'data']);
   } catch {
     return null;

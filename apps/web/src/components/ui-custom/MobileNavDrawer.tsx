@@ -33,7 +33,7 @@ type AnalyserRef = React.MutableRefObject<AnalyserNode | null>;
 interface MobileNavDrawerProps {
   stationName: string;
   onOpenShare: () => void;
-  onOpenPrayer?: () => void;
+  onOpenPrayer: () => void;
 }
 
 /**
@@ -248,16 +248,14 @@ export function MobileNavDrawer({ stationName, onOpenShare, onOpenPrayer }: Mobi
                   Compartir la emisora
                 </button>
               </li>
-              {onOpenPrayer && (
-                <li>
-                  <button type="button" className="nav-row" onClick={() => { setOpen(false); onOpenPrayer(); }}>
-                    <span className="nav-row__lamp text-rose-400" aria-hidden>
-                      <Heart className="size-[18px]" />
-                    </span>
-                    Pedir una oración
-                  </button>
-                </li>
-              )}
+              <li>
+                <button type="button" className="nav-row" onClick={() => { setOpen(false); onOpenPrayer(); }}>
+                  <span className="nav-row__lamp text-rose-400" aria-hidden>
+                    <Heart className="size-[18px]" />
+                  </span>
+                  Pedir una oración
+                </button>
+              </li>
             </ul>
 
             <p className="nav-group-label mt-6">Documentos</p>

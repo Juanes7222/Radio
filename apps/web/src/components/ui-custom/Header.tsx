@@ -8,7 +8,13 @@ import { MobileNavDrawer } from './MobileNavDrawer';
 
 interface HeaderProps {
   stationName?: string;
-  onOpenPrayer?: () => void;
+  /**
+   * Required on purpose. It used to be optional and the action was rendered
+   * conditionally on it, so any page that mounted the header without the
+   * callback silently lost the prayer action. PublicLayout is the only owner
+   * of this chrome and always provides it.
+   */
+  onOpenPrayer: () => void;
 }
 
 export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: HeaderProps) {
@@ -75,11 +81,9 @@ export function Header({ stationName = 'La Voz de la Verdad', onOpenPrayer }: He
               <button type="button" className="header-actions__item" onClick={() => setShareOpen(true)}>
                 Compartir
               </button>
-              {onOpenPrayer && (
-                <button type="button" className="header-actions__item" onClick={onOpenPrayer}>
-                  Pedir oración
-                </button>
-              )}
+              <button type="button" className="header-actions__item" onClick={onOpenPrayer}>
+                Pedir oración
+              </button>
             </div>
           </div>
 

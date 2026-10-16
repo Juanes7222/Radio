@@ -45,6 +45,57 @@ of degrading into 404s. If a cross-origin setup is ever needed, add the dev
 origin to `ALLOWED_ORIGINS` in `backend/src/app.ts` (`http://localhost:5173`
 and `http://localhost:4173` are already there).
 
+## Public layout owns the chrome (Oct 2026)
+
+Every public route is an element of `<Route element={<PublicLayout />}>`, so
+`PublicLayout` is the only component that survives a navigation. It owns the
+persistent chrome: `StationHealthBanner`, `Header`, the `MiniPlayer` and the
+`PrayerRequestDialog`.
+
+- **`Header` must not be rendered by a page.** Each page used to mount its own,
+  and `onOpenPrayer` was optional, so "Pedir oración" — which is gated on that
+  callback in both the desktop nav and the mobile drawer — only existed on `/`,
+  and the dialog itself lived inside `App.tsx` so it unmounted on navigation.
+  The prop is required now, so a page-level `<Header />` fails to compile, and
+  `tests/routing/media-urls.test.ts` fails if one reappears.
+  `stationName` comes from `useGlobalAudio().data?.station?.name`, so the header
+  shows the live name instead of a hardcoded literal.
+- **`AppFooter` is still mounted per page.** Not unified in this change: the
+  inconsistency (`/programacion` and `/opiniones` have it, `/info/*` does not)
+  predates it and is a separate call.
+- **The route transition is entrance-only.** `AnimatePresence mode="wait"`
+  around `<Outlet />` cannot work as written: `mode="wait"` holds the exiting
+  child while the `<Outlet />` inside it already resolves to the incoming route,
+  so the incoming page mounts once inside the outgoing wrapper (hidden, with the
+  exit clip-path on top) and again for real when the exit ends. Returning to `/`
+  mounted the whole console twice and blocked the main thread twice, which is
+  what it felt like. `PageTransition` now animates only `initial`/`animate`. Do
+  not reintroduce an `exit` here without a different mechanism.
+- **The `Suspense` boundary sits around the `<Outlet />`, not around
+  `<Routes>`.** Route chunks are lazy, so a boundary above `Routes` replaced the
+  entire tree with a full-screen spinner, header and player included, and
+  rebuilt it when the chunk landed. `main.tsx` keeps its outer boundary for the
+  admin routes.
+- `syncDockState` returns the previous state object when neither the route nor
+  the dock flag moved. A fresh object with equal values is still a new value for
+  React, which is what made every scroll tick re-render the public tree.
+
+## AzuraCast media URLs (Oct 2026)
+
+Artwork reaches the browser as an absolute URL built from whatever origin the
+deployment used. The site CSP is `img-src 'self' data: https: blob:`, so an
+`http://` one — or any origin other than the page's — is blocked, and on HTTPS it
+is rejected as mixed content first.
+
+`toSameOriginMediaUrls` in `packages/api/src/api.ts` reduces any absolute URL
+whose path starts with `/api/station/` to the page origin. It runs after
+`rewriteLocalhostUrls` (which only knows loopback) in `fetchNowPlaying`,
+`fetchRequestableSongs`, `fetchSchedule` and the SSE/WebSocket handlers.
+
+The scope is deliberate: `station.mounts[].url` and `listen_url` are absolute
+too and address the ICEcast server, so reducing them would break playback. Only
+`/api/station/` is the media namespace the backend proxies.
+
 ## Suggested expectations for the agent
 
 - Identify the exact components, hooks, and styles involved.
