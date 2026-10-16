@@ -1,18 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Radio, Music, Wifi, RefreshCw, ExternalLink, SkipForward, RotateCcw, Eye, TrendingUp, VideoOff, Video } from 'lucide-react';
+import { Users, Radio, Music, Wifi, RefreshCw, SkipForward, RotateCcw, TrendingUp } from 'lucide-react';
 import { Faceplate, FaceplateReading } from '@/components/admin/Faceplate';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   ChartContainer,
   ChartLegend,
@@ -22,220 +15,19 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart';
 import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
+import StatCard from '@/components/admin/StatCard';
+import FacebookLiveControl from '@/components/admin/FacebookLiveControl';
+import ConnectedListenersCard from '@/components/admin/ConnectedListenersCard';
+import ListenerDetailDialog from '@/components/admin/ListenerDetailDialog';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { useStationStatus } from '@/hooks/useStationStatus';
-import { formatClock, formatDateTimeFull, formatDuration } from '@/lib/format';
+import { formatClock } from '@/lib/format';
 import type { ListenerDetail, ListenerHistoryPoint } from '@radio/types';
-
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  description?: string;
-  tone?: StatTone;
-}
-
-type StatTone = 'default' | 'primary' | 'live';
-
-const STAT_TONE_CLASSES: Record<StatTone, { value: string; chip: string; icon: string }> = {
-  default: { value: '', chip: 'bg-sunken', icon: 'text-muted-foreground' },
-  primary: { value: 'text-primary', chip: 'bg-primary/10', icon: 'text-primary' },
-  live: { value: 'text-tally', chip: 'bg-tally/10', icon: 'text-tally' },
-};
-
-function StatCard({ title, value, icon: Icon, description, tone = 'default' }: StatCardProps) {
-  const classes = STAT_TONE_CLASSES[tone];
-
-  return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className={`mt-1 text-3xl font-bold ${classes.value}`}>{value}</p>
-            {description && <p className="mt-1 text-xs text-faint">{description}</p>}
-          </div>
-          <div className={`rounded-md p-2.5 ${classes.chip}`}>
-            <Icon className={`h-5 w-5 ${classes.icon}`} />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ListenerDetailDialog({
-  listener,
-  onClose,
-}: {
-  listener: ListenerDetail | null;
-  onClose: () => void;
-}) {
-  return (
-    <Dialog open={listener !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Oyente conectado</DialogTitle>
-          <DialogDescription>Detalles de la conexión al stream.</DialogDescription>
-        </DialogHeader>
-        {listener && (
-          <div className="space-y-3 text-sm">
-            <div className="divide-y divide-border rounded-lg border border-border bg-sunken">
-              <DetailRow label="Dirección IP" value={listener.ip} monospace />
-              <DetailRow
-                label="Ubicación"
-                value={listener.location?.city
-                  ? `${listener.location.city}, ${listener.location.country}`
-                  : listener.mount_name}
-              />
-              {listener.location?.lat !== null && listener.location?.lon !== null && (
-                <DetailRow
-                  label="Coordenadas"
-                  value={`${listener.location?.lat}, ${listener.location?.lon}`}
-                  monospace
-                />
-              )}
-              <DetailRow label="Mount point" value={listener.mount_name} monospace />
-              <DetailRow
-                label="Conectado hace"
-                value={`${formatDuration(listener.connected_time)} · ${formatDateTimeFull(listener.connected_on * 1000)}`}
-              />
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-muted-foreground">User agent</p>
-              <p className="break-words rounded-lg border border-border bg-sunken p-3 text-xs text-foreground/90">
-                {listener.user_agent || '—'}
-              </p>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function DetailRow({ label, value, monospace = false }: { label: string; value: string; monospace?: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-4 px-3 py-2.5">
-      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
-      <span className={`break-all text-right text-xs ${monospace ? 'font-mono' : ''}`}>{value}</span>
-    </div>
-  );
-}
-
-const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 
 const LISTENER_CHART_CONFIG = {
   current: { label: 'Oyentes ahora', color: 'hsl(var(--primary))' },
   unique: { label: 'Únicos (24h)', color: 'hsl(var(--info))' },
 } satisfies ChartConfig;
-
-/**
- * Control de Facebook Live: permite desactivar el aviso y quitar el video embebido.
- */
-function FacebookLiveControl() {
-  const { getLiveStatus, clearLiveStatus } = useAdminApi();
-  const [liveActive, setLiveActive] = useState<boolean>(false);
-  const [liveUrl, setLiveUrl] = useState<string | null>(null);
-  const [liveLoading, setLiveLoading] = useState(true);
-  const [clearing, setClearing] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
-
-  const loadLiveStatus = useCallback(async () => {
-    try {
-      const res = await getLiveStatus();
-      setLiveActive(res.active);
-      setLiveUrl(res.url);
-    } catch {
-      // Silencio si falla el polling
-    } finally {
-      setLiveLoading(false);
-    }
-  }, [getLiveStatus]);
-
-  // First poll on mount, then every 30s; the `.then` chain is the deliberate
-  // choice recorded in docs/frontend-context.md.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadLiveStatus();
-    const id = setInterval(loadLiveStatus, 30000);
-    return () => clearInterval(id);
-  }, [loadLiveStatus]);
-
-  const handleClear = useCallback(async () => {
-    setClearing(true);
-    setFeedback(null);
-    try {
-      const res = await clearLiveStatus();
-      if (res.cleared) {
-        setLiveActive(false);
-        setLiveUrl(null);
-        setFeedback('Aviso de live desactivado. El video embebido ya no se muestra.');
-      } else {
-        setFeedback(res.message ?? 'No hay transmisión activa.');
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error al desactivar el aviso.';
-      setFeedback(msg);
-    } finally {
-      setClearing(false);
-    }
-  }, [clearLiveStatus]);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          {liveActive ? <Video className="h-4 w-4 text-tally" /> : <VideoOff className="h-4 w-4 text-muted-foreground" />}
-          Facebook Live
-          {liveActive ? (
-            <Badge variant="destructive" className="bg-tally text-white">EN VIVO</Badge>
-          ) : (
-            <Badge variant="secondary">Inactivo</Badge>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {liveLoading ? (
-          <div className="h-10 animate-pulse rounded-md bg-sunken" />
-        ) : liveActive ? (
-          <>
-            <p className="text-sm text-muted-foreground">
-              Hay una transmisión activa. El video embebido se está mostrando en la web y app.
-            </p>
-            {liveUrl && (
-              <p className="truncate rounded-md bg-sunken px-3 py-2 font-mono text-xs text-muted-foreground">
-                {liveUrl}
-              </p>
-            )}
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => void handleClear()}
-              disabled={clearing}
-              className="gap-2"
-            >
-              <VideoOff className="h-4 w-4" />
-              {clearing ? 'Desactivando...' : 'Desactivar aviso de live'}
-            </Button>
-            <p className="text-xs text-faint">Quita el video embebido y notifica a todos los clientes conectados.</p>
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-muted-foreground">No hay transmisión en vivo. El video embebido está oculto.</p>
-            <Button variant="outline" size="sm" onClick={() => void loadLiveStatus()} disabled={liveLoading} className="gap-2">
-              <RefreshCw className={`h-4 w-4 ${liveLoading ? 'animate-spin' : ''}`} />
-              Verificar estado
-            </Button>
-          </>
-        )}
-        {feedback && (
-          <p className="rounded-md bg-sunken px-3 py-2 text-xs text-muted-foreground">{feedback}</p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function AdminDashboard() {
   const { getStatus, getListeners, getListenerHistory, skipCurrentTrack, restartStation } = useAdminApi();
@@ -565,55 +357,7 @@ export default function AdminDashboard() {
 
       {/* Lista de oyentes conectados */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="h-4 w-4 text-primary" />
-                Oyentes conectados
-                <Badge variant="secondary">{listeners.length}</Badge>
-              </CardTitle>
-              <a
-                href={`${AZURACAST_URL}/station/1/reports/listeners`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-primary hover:underline"
-              >
-                Ver más <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {listeners.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No hay oyentes conectados en este momento.
-              </p>
-            ) : (
-              <div className="max-h-64 space-y-2 overflow-y-auto">
-                {listeners.map((l: ListenerDetail, i: number) => (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedListener(l)}
-                    className="group w-full rounded-lg bg-sunken p-2 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0">
-                        <p className="truncate font-mono text-xs">{l.ip}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {l.location?.city ? `${l.location.city}, ${l.location.country}` : l.mount_name}
-                        </p>
-                      </div>
-                      <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
-                        {formatDuration(l.connected_time)}
-                        <Eye className="h-3.5 w-3.5 text-faint transition-colors group-hover:text-primary" />
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <ConnectedListenersCard listeners={listeners} onSelectListener={setSelectedListener} />
       </motion.div>
 
       {/* Confirmaciones de acciones */}

@@ -160,4 +160,4 @@ build/
 graphify-out/
 
 .superpowers
-.gradle
+.gradle/
