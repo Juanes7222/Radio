@@ -394,6 +394,31 @@ if git diff --name-only "$BEFORE_HASH" "$AFTER_HASH" | grep -qE "scripts/nginx/"
   NGINX_CHANGED=true
 fi
 
+# sites-enabled can still carry radio.conf, the monolithic config from before
+# the modular refactor, on any server provisioned by an older setup.sh. Its
+# server blocks are already ignored as duplicates of the modular ones, but its
+# limit_conn directives name zones radio-global.conf no longer defines, and an
+# unresolved zone is registered with size 0, which aborts nginx -t with "zero
+# size shared memory zone" and leaves the running master unreloadable. The file
+# is server state rather than repo state, so drop it on every deploy instead of
+# only when scripts/nginx/ changed: that condition can be false on the very
+# deploy where nginx is still broken.
+prune_legacy_nginx_sites() {
+  local legacy="/etc/nginx/sites-enabled/radio.conf"
+  if [[ -e "$legacy" || -L "$legacy" ]]; then
+    rm -f "$legacy"
+    warn "  Removed legacy Nginx site $(basename "$legacy")"
+    return 0
+  fi
+  return 1
+}
+
+# Dropping the legacy site changes the effective config, so it has to go through
+# the same nginx -t and reload as a repo change instead of waiting for one.
+if prune_legacy_nginx_sites; then
+  NGINX_CHANGED=true
+fi
+
 if [[ "$NGINX_CHANGED" == "true" || "$FORCE_DEPLOY" == "true" ]]; then
   cp "$NGINX_CONF" "${NGINX_CONF}.bak"
 
