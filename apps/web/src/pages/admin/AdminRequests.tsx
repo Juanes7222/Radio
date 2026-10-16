@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import type { AdminSongRequest as SongRequest } from '@radio/types';
+import { resolveArtworkUrl } from '@/lib/artwork';
 
 const AZURACAST_URL = import.meta.env.VITE_STATION_URL || 'http://localhost';
 
@@ -248,7 +249,9 @@ export default function AdminRequests() {
           ) : (
             <div className="space-y-2.5">
               <AnimatePresence initial={false} mode="popLayout">
-                {requests.map((req, idx) => (
+                {requests.map((req, idx) => {
+                  const art = resolveArtworkUrl(req.song.art);
+                  return (
                   <motion.div
                     key={req.id}
                     layout={!shouldReduceMotion}
@@ -276,9 +279,9 @@ export default function AdminRequests() {
                     <div className="flex items-center gap-3 py-3 pl-4 pr-2 sm:gap-4 sm:pl-5 sm:pr-3">
                       {/* Carátula / disco */}
                       <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-card ring-1 ring-border">
-                        {req.song.art ? (
+                        {art ? (
                           <img
-                            src={req.song.art}
+                            src={art}
                             alt=""
                             className="h-full w-full object-cover"
                             loading="lazy"
@@ -332,7 +335,8 @@ export default function AdminRequests() {
                       </div>
                     </div>
                   </motion.div>
-                ))}
+                  );
+                })}
               </AnimatePresence>
             </div>
           )}

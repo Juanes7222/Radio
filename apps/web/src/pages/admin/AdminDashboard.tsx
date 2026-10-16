@@ -22,6 +22,7 @@ import ListenerDetailDialog from '@/components/admin/ListenerDetailDialog';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { useStationStatus } from '@/hooks/useStationStatus';
 import { formatClock } from '@/lib/format';
+import { resolveArtworkUrl } from '@/lib/artwork';
 import type { ListenerDetail, ListenerHistoryPoint } from '@radio/types';
 
 const LISTENER_CHART_CONFIG = {
@@ -91,6 +92,7 @@ export default function AdminDashboard() {
   }, [confirmAction, skipCurrentTrack, restartStation, loadData]);
 
   const song = nowPlaying?.now_playing?.song;
+  const dashboardArt = resolveArtworkUrl(song?.art);
   const elapsed = nowPlaying?.now_playing?.elapsed ?? 0;
   const duration = nowPlaying?.now_playing?.duration ?? 0;
   const progress = duration > 0 ? Math.min((elapsed / duration) * 100, 100) : 0;
@@ -243,9 +245,10 @@ export default function AdminDashboard() {
             ) : song ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-4">
-                  {song.art && (
+                  const dashboardArt = resolveArtworkUrl(song.art);
+                  {dashboardArt && (
                     <img
-                      src={song.art}
+                      src={dashboardArt}
                       alt={song.title}
                       className="h-16 w-16 shrink-0 rounded-lg object-cover bg-sunken"
                       loading="lazy"

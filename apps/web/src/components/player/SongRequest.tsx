@@ -12,6 +12,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import type { UseAzuraCastReturn } from '@/hooks';
 import { API_BASE_URL } from '@/config';
+import { resolveArtworkUrl } from '@/lib/artwork';
 
 interface SongRequestItem {
   request_id: string;
@@ -177,7 +178,9 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, requestS
               </div>
             ) : (
               <AnimatePresence>
-                {searchResults.map((item, index) => (
+                {searchResults.map((item, index) => {
+                  const art = resolveArtworkUrl(item.song.art);
+                  return (
                   <motion.div
                     key={item.request_id}
                     initial={{ opacity: 0, x: -8, scale: 0.98 }}
@@ -195,9 +198,9 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, requestS
                   >
                     {/* Carátula mini */}
                     <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                      {item.song.art ? (
+                      {art ? (
                         <img
-                          src={item.song.art}
+                          src={art}
                           alt={item.song.title}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -248,7 +251,8 @@ export const SongRequest = memo(function SongRequest({ isOpen, onClose, requestS
                       )}
                     </div>
                   </motion.div>
-                ))}
+                  );
+                })}
               </AnimatePresence>
             )}
           </div>

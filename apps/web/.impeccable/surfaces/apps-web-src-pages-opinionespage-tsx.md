@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 3
 slug: "apps-web-src-pages-opinionespage-tsx"
 primary_target: "apps/web/src/pages/OpinionesPage.tsx"
 related_targets: ["apps/mobile/app/feedback.tsx"]
@@ -25,46 +25,68 @@ Decisiones confirmadas por el usuario (no reabrir):
 - Voz clara y sobria: tuteo, sin regionalismos, sin diminutivos.
 - Ubicación en mobile: tarjeta dentro de la pestaña Redes, no sexta pestaña.
 
-## Direction contract
+## Direction contract (v3, oct 2026)
 
-THESIS: La página es una carta, no un formulario. La estación recibe
-correspondencia: el oyente escribe en una hoja y la entrega. El verbo es
-escribir, no "enviar un formulario". Lo que rechaza es el patrón de formulario
-genérico — cajas apiladas, píldoras de opción, tarjeta con botón al pie y un
-check de consentimiento perdido abajo.
+v1 era una hoja oscura de filetes tan callada que las opciones de motivo no
+se leían como opciones. Dos vueltas intermedias probaron material distinto
+(papel crema, luego kraft avec oro de lámpara) y el usuario las rechazó:
+ninguna superficie clara dentro de una app completamente oscura, y ningún
+color añadido que no combine. v3 queda así: la paleta del mundo público no
+cambia ni se amplía — la distinción entre elementos viene de jerarquía con
+los tokens existentes, no de un segundo acento.
 
-OWN-WORLD: El mundo visual ya está fijado y no se toca. Índigo profundo
-(`--background 222.2 84% 4.9%`), Instrument Serif para el saludo y para la
-confirmación, IBM Plex Sans Variable para etiquetas y cuerpo, IBM Plex Mono
-solo donde hay medición real: contador de caracteres, fecha de recepción y
-numerales de la secuencia. Un solo color de estado: `--tally 353 75% 58%`,
-reservado por el sistema a "al aire", y usado exactamente una vez, en el sello
-del éxito.
+THESIS: El formulario es la carta de la estación dentro del estudio nocturno
+índigo: `bg-card`, borde `--border`, filetes uniformes. Lo que la
+diferencia de v1 es que cada parte sabe decir qué es: el motivo es un grupo
+de píldoras legibles, cada fila enciende su filete en el primario cuando se
+le lee, y el memo lateral ordena lo que sucede después. Nada nuevo en el
+mapa de color: los acentos son `--primary` (índigo), `--faint`,
+`--muted-foreground` y `--destructive`; `--tally` sigue apareciendo una sola
+vez en esta página (OnAirStamp) y no se usa como acento.
 
-STORY: Que cualquiera puede hablar con la emisora sin entregar su identidad, y
-que hay alguien real al otro lado leyendo. La página promete exactamente lo que
-el backend cumple: llega a una bandeja, y no se publica.
+FORM:
+- Motivo: píldoras (`min-h-11`, radio completo) con radio `sr-only` dentro de
+  la etiqueta; idle: `border-border` + `text-muted-foreground`; hover:
+  `border-primary/40`; elegida: `border-primary/60 bg-primary/10
+  text-primary` semibold. El foco visible vive en la píldora.
+- Filas (Mensaje/Nombre/Contacto): label mono-meta en `text-faint`, contador
+  mono a la derecha, input sin caja, placeholder `text-faint/70`; el filete
+  de la fila es su señal: `focus-within:border-primary/60`,
+  `aria-invalid`→`border-destructive` con el texto de error en
+  `text-destructive` y `aria-live="polite"`.
+- Consentimiento: caja cuadrada `border-border`; marcada: primario con check;
+  error: `border-destructive`. El texto mantiene la primera persona
+  ("los datos que escriba aquí") y enlaza `/info/data-treatment`.
+- Botón: `bg-primary text-primary-foreground`, hover `/90`, spinner del
+  mismo tinte; acción y nombre coherentes ("Enviar mensaje"/"Enviando").
 
-FIRST VIEWPORT: Saludo en Instrument Serif a `clamp(2.2rem, 5vw, 3.5rem)`, con
-peso, sin degradado y sin eyebrow encima. Debajo, una entradilla de 65ch en
-`text-muted-foreground`. Debajo de la entradilla, la hoja: membrete en mono
-(nombre de la estación a la izquierda, "Cartago, Colombia" a la derecha) y
-filetes `border-border` de 1px que separan cada fila. La hoja no lleva sombra:
-solo borde. El botón de envío vive al pie de la hoja, alineado a la derecha.
+LAYOUT: `main` es `max-w-5xl`, grid `lg:grid-cols-[minmax(0,1fr)_300px]` con
+la hoja a la izquierda (cap `640px` a partir de `lg`) y el memo pegado y
+sticky a la derecha: los tres pasos reales numerados 01/02/03 en mono
+(numeración permitida: es una secuencia). En móvil se apila igual que v1.
 
-FORM: "La carta". Hoja única vertical, ruled rows, sin inputs en caja, sin
-píldoras, sin sombra. Posición en la lista de tres estructuras: la elegida por
-el usuario. Seed: sin concept-seed (superficie preciso, no página abierta).
+SUCCESS: la misma tarjeta cambia de contenido: sello rojo que se dibuja,
+"Ya está al aire" en Instrument Serif delante, y botón fantasma
+"escribir otro".
+
+MOBILE (apps/mobile/app/feedback.tsx): espejo nativo con los mismos
+principios: sheet de cristal (`Colors.surface` + `surfaceBorder`), membrete
+mono, filas hairline `borderGlass` con señales (borde `danger` con error),
+motivo como píldoras nativas (idle `Colors.border`, elegida
+`Colors.signal` + `signalMuted`, hitSlop 4 sobre una píldora de 40dp para
+llegar a 48), inputs en caja suave `surfaceDim` con teclado oscuro,
+consentimiento con spring y glyphs verde de éxito (v1), botón primario
+índigo y el memo de los tres pasos en el fondo tinta bajo la hoja. Haptics
+intactos. Sin tokens agregados.
 
 ## Unresolved
 
-- El sello de éxito y el medidor de caracteres son geometría vectorial
-  (ViewBox + `<rect>`/`<text>`), no ilustración rasterizada. Si en la revisión
-  se lee como disfraz, cae el sello y vuelve una tarjeta de confirmación.
-- Sin anti-abuso por IP: los docs del repo advierten que la lógica por IP detrás
-  de nginx colapsa. El endpoint público acepta POST sin límite de tasa. Es una
-  brecha conocida, no un olvido.
-
-FINISH: unreviewed and undocumented is unfinished; this build ends with the
-finish review, the verdict, DESIGN.md, and every shipping raster carrying its
-provenance
+- El rojo de error público es `--destructive 0 62.8% 30.6%`, bastante oscuro
+  sobre `--card`: la señal es tenue. Subirlo mejoraría contraste, pero es
+  un token compartido con todo el sitio; se documenta como deuda, no se
+  retoca en esta superficie.
+- Sin anti-abuso por IP: los docs del repo advierten que la lógica por IP
+  detrás de nginx colapsa. El endpoint público acepta POST sin límite de
+  tasa. Sigue siendo una brecha conocida, no un olvido.
+- El sello de éxito y el medidor de caracteres siguen siendo geometría
+  vectorial (ViewBox + `<rect>`/`<text>`), no ilustración rasterizada.

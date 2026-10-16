@@ -28,8 +28,9 @@ interface FieldErrors {
 
 /**
  * One ruled row of the sheet: a label, the control, and the hairline that
- * separates it from the next. The hairline doubles as the error signal,
- * which is why the border color is driven by the field state.
+ * separates it from the next. The hairline doubles as the error signal and
+ * lights in the primary while the field is being read to, which is why its
+ * color is driven by the field state.
  */
 function SheetRow({
   htmlFor,
@@ -45,7 +46,11 @@ function SheetRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-border px-5 pb-5 pt-4 sm:px-7 sm:pb-6">
+    <div
+      className={`border-b border-border px-5 pb-5 pt-4 transition-colors duration-200 sm:px-7 sm:pb-6 ${
+        error ? 'border-destructive' : 'focus-within:border-primary/60'
+      }`}
+    >
       <div className="flex items-baseline justify-between gap-4">
         <label
           htmlFor={htmlFor}
@@ -72,8 +77,9 @@ function SheetRow({
 }
 
 /**
- * The motive is a line of the letter, not a bank of options: four text
- * choices on a shared rule, with the selected one carrying the weight.
+ * The motive options deserve to be read as options: quiet pill buttons on the
+ * sheet's rule, where the selected one carries the primary — background tint,
+ * border and colored text — and an idle one earns the same ring on hover.
  */
 function MotiveField({
   value,
@@ -85,37 +91,31 @@ function MotiveField({
   disabled: boolean;
 }) {
   return (
-    <fieldset className="mt-3.5">
+    <fieldset className="mt-3">
       <legend className="sr-only">Motivo del mensaje</legend>
-      <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
-        {CATEGORY_VALUES.map((category, index) => {
+      <div className="flex flex-wrap gap-2">
+        {CATEGORY_VALUES.map((category) => {
           const selected = category === value;
           return (
-            <span key={category} className="flex items-center gap-1">
-              {index > 0 ? (
-                <span aria-hidden className="select-none text-border">
-                  ·
-                </span>
-              ) : null}
-              <label
-                className={`cursor-pointer rounded-sm px-1 py-1 text-sm transition-colors duration-150 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-card ${
-                  selected
-                    ? 'font-semibold text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                } ${disabled ? 'pointer-events-none opacity-60' : ''}`}
-              >
-                <input
-                  type="radio"
-                  name="categoria"
-                  value={category}
-                  checked={selected}
-                  disabled={disabled}
-                  onChange={() => onChange(category)}
-                  className="sr-only"
-                />
-                {FEEDBACK_CATEGORY_LABELS[category]}
-              </label>
-            </span>
+            <label
+              key={category}
+              className={`inline-flex min-h-11 cursor-pointer items-center rounded-full border px-4 text-sm transition-colors duration-150 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-card ${
+                selected
+                  ? 'border-primary/60 bg-primary/10 font-semibold text-primary'
+                  : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+              } ${disabled ? 'pointer-events-none opacity-60' : ''}`}
+            >
+              <input
+                type="radio"
+                name="categoria"
+                value={category}
+                checked={selected}
+                disabled={disabled}
+                onChange={() => onChange(category)}
+                className="sr-only"
+              />
+              {FEEDBACK_CATEGORY_LABELS[category]}
+            </label>
           );
         })}
       </div>
@@ -126,7 +126,7 @@ function MotiveField({
 /** What the reader can hold the station to. A real sequence, so it is numbered. */
 const AFTERMATH = [
   'Llega a la bandeja del equipo de la estación.',
-  'Si dejó un nombre o un contacto, le respondemos por ese medio.',
+  'Si dejas un nombre o un contacto, te respondemos por ese medio.',
   'No se publica en el sitio ni en la aplicación.',
 ];
 
@@ -173,7 +173,7 @@ export default function OpinionesPage() {
 
       const nextErrors: FieldErrors = {};
       if (trimmedMensaje.length < FEEDBACK_MIN_MENSAJE) {
-        nextErrors.mensaje = `Escriba un mensaje de al menos ${FEEDBACK_MIN_MENSAJE} caracteres.`;
+        nextErrors.mensaje = `Escribe un mensaje de al menos ${FEEDBACK_MIN_MENSAJE} caracteres.`;
       } else if (trimmedMensaje.length > FEEDBACK_LIMITS.mensaje) {
         nextErrors.mensaje = `El mensaje no puede superar ${FEEDBACK_LIMITS.mensaje} caracteres.`;
       }
@@ -184,7 +184,7 @@ export default function OpinionesPage() {
         nextErrors.contacto = `Máximo ${FEEDBACK_LIMITS.contacto} caracteres.`;
       }
       if (!acceptsDataTreatment) {
-        nextErrors.consent = 'Debe autorizar el tratamiento de sus datos para continuar.';
+        nextErrors.consent = 'Debes autorizar el tratamiento de tus datos para continuar.';
       }
 
       setErrors(nextErrors);
@@ -243,7 +243,7 @@ export default function OpinionesPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <main className="mx-auto w-full max-w-2xl px-4 pb-20 pt-12 sm:pt-16">
+      <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-12 sm:pt-16">
         <motion.header
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -251,254 +251,263 @@ export default function OpinionesPage() {
         >
           <h1 className="fluid-title pt-2">Escríbanos</h1>
           <p className="mt-5 max-w-[62ch] text-base leading-relaxed text-muted-foreground">
-            Sugerencias, felicitaciones, consultas y problemas con la emisión. Puede
+            Sugerencias, felicitaciones, consultas y problemas con la emisión. Puedes
             escribir firmado o sin dar ningún dato: el mensaje llega igual a la bandeja
             del equipo.
           </p>
         </motion.header>
 
-        <motion.section
-          aria-label="Formulario de opinión"
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-10 overflow-hidden rounded-2xl border border-border bg-card"
-        >
-          {status === 'sent' ? (
-            <div className="flex flex-col items-center px-6 py-14 text-center sm:px-10">
-              <OnAirStamp />
-              <h2
-                ref={confirmationRef}
-                tabIndex={-1}
-                className="display-serif mt-8 text-3xl outline-none"
-              >
-                Ya está al aire
-              </h2>
-              <p className="mt-3 max-w-[44ch] text-sm leading-relaxed text-muted-foreground">
-                {signedName
-                  ? `Gracias, ${signedName}. Su mensaje ya está en la bandeja del equipo.`
-                  : 'Su mensaje ya está en la bandeja del equipo.'}
-              </p>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="mt-8 inline-flex min-h-11 items-center rounded-lg border border-border bg-background px-5 text-sm font-semibold transition-[transform,border-color] duration-150 ease-out-expo hover:border-primary/40 active:scale-[0.97]"
-              >
-                Escribir otro mensaje
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} noValidate>
-              {/* Letterhead: sender identity, not a decorative kicker. */}
-              <div className="mono-meta flex items-baseline justify-between gap-4 px-5 pt-5 text-[11px] uppercase text-faint sm:px-7">
-                <span>La Voz de la Verdad</span>
-                <span>Cartago, Colombia</span>
-              </div>
-
-              <div className="border-b border-border px-5 pb-5 pt-4 sm:px-7 sm:pb-6">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
-                  Motivo
-                </span>
-                <MotiveField
-                  value={categoria}
-                  onChange={(next) => setCategoria(next)}
-                  disabled={sending}
-                />
-              </div>
-
-              <SheetRow
-                htmlFor={fieldIds.mensaje}
-                label="Mensaje"
-                hint={`${mensaje.length} / ${FEEDBACK_LIMITS.mensaje}`}
-                error={errors.mensaje}
-              >
-                <textarea
-                  id={fieldIds.mensaje}
-                  ref={mensajeRef}
-                  value={mensaje}
-                  onChange={(event) => {
-                    setMensaje(event.target.value);
-                    clearError('mensaje');
-                  }}
-                  disabled={sending}
-                  rows={6}
-                  maxLength={FEEDBACK_LIMITS.mensaje}
-                  aria-invalid={Boolean(errors.mensaje)}
-                  aria-describedby={
-                    errors.mensaje ? `${fieldIds.mensaje}-error` : undefined
-                  }
-                  placeholder="Escriba aquí lo que quiera contarnos."
-                  className={`mt-2 w-full resize-y bg-transparent text-[15px] leading-relaxed text-foreground placeholder:text-faint/70 focus:outline-none disabled:opacity-60 ${
-                    errors.mensaje ? 'text-destructive' : ''
-                  }`}
-                  style={{ fieldSizing: 'content' }}
-                />
-                {!errors.mensaje ? (
-                  <p className="mt-2 text-xs leading-relaxed text-faint">
-                    {remaining < 60
-                      ? `Quedan ${remaining} caracteres. ${MESSAGE_HINT}`
-                      : MESSAGE_HINT}
-                  </p>
-                ) : null}
-              </SheetRow>
-
-              <SheetRow
-                htmlFor={fieldIds.nombre}
-                label="Nombre (opcional)"
-                hint={`${nombre.length} / ${FEEDBACK_LIMITS.nombre}`}
-                error={errors.nombre}
-              >
-                <input
-                  id={fieldIds.nombre}
-                  ref={nombreRef}
-                  type="text"
-                  value={nombre}
-                  onChange={(event) => {
-                    setNombre(event.target.value);
-                    clearError('nombre');
-                  }}
-                  disabled={sending}
-                  maxLength={FEEDBACK_LIMITS.nombre}
-                  autoComplete="name"
-                  aria-invalid={Boolean(errors.nombre)}
-                  aria-describedby={errors.nombre ? `${fieldIds.nombre}-error` : undefined}
-                  placeholder="Con el que le saludemos"
-                  className={`mt-1 w-full bg-transparent py-1 text-[15px] text-foreground placeholder:text-faint/70 focus:outline-none disabled:opacity-60 ${
-                    errors.nombre ? 'text-destructive' : ''
-                  }`}
-                />
-              </SheetRow>
-
-              <SheetRow
-                htmlFor={fieldIds.contacto}
-                label="Contacto (opcional)"
-                hint={`${contacto.length} / ${FEEDBACK_LIMITS.contacto}`}
-                error={errors.contacto}
-              >
-                <input
-                  id={fieldIds.contacto}
-                  ref={contactoRef}
-                  type="text"
-                  value={contacto}
-                  onChange={(event) => {
-                    setContacto(event.target.value);
-                    clearError('contacto');
-                  }}
-                  disabled={sending}
-                  maxLength={FEEDBACK_LIMITS.contacto}
-                  autoComplete="email"
-                  inputMode="email"
-                  aria-invalid={Boolean(errors.contacto)}
-                  aria-describedby={
-                    errors.contacto ? `${fieldIds.contacto}-error` : undefined
-                  }
-                  placeholder="Correo o teléfono"
-                  className={`mt-1 w-full bg-transparent py-1 text-[15px] text-foreground placeholder:text-faint/70 focus:outline-none disabled:opacity-60 ${
-                    errors.contacto ? 'text-destructive' : ''
-                  }`}
-                />
-              </SheetRow>
-
-              <div className="px-5 pb-5 pt-4 sm:px-7 sm:pb-6">
-                <button
-                  type="button"
-                  ref={consentRef}
-                  id={fieldIds.consent}
-                  role="checkbox"
-                  aria-checked={acceptsDataTreatment}
-                  aria-invalid={Boolean(errors.consent)}
-                  aria-describedby={errors.consent ? `${fieldIds.consent}-error` : undefined}
-                  disabled={sending}
-                  onClick={() => {
-                    setAcceptsDataTreatment((previous) => !previous);
-                    clearError('consent');
-                  }}
-                  className="flex w-full cursor-pointer items-start gap-3 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-not-allowed disabled:opacity-60"
+        <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-12">
+          <motion.section
+            aria-label="Formulario de opinión"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="relative overflow-hidden rounded-2xl border border-border bg-card lg:max-w-[640px]"
+          >
+            {status === 'sent' ? (
+              <div className="flex flex-col items-center px-6 py-14 text-center sm:px-10">
+                <OnAirStamp />
+                <h2
+                  ref={confirmationRef}
+                  tabIndex={-1}
+                  className="display-serif mt-8 text-3xl outline-none"
                 >
-                  <span
-                    aria-hidden
-                    className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-[6px] border transition-colors duration-150 ${
-                      acceptsDataTreatment
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : errors.consent
-                          ? 'border-destructive'
-                          : 'border-border'
-                    }`}
-                  >
-                    {acceptsDataTreatment ? <Check className="h-3.5 w-3.5" /> : null}
-                  </span>
-                  <span className="text-xs leading-relaxed text-muted-foreground">
-                    Autorizo el tratamiento de los datos que escriba aquí, incluido mi
-                    nombre y mi contacto, para que la estación pueda responderme. Conozco
-                    la{' '}
-                    <Link
-                      to="/info/data-treatment"
-                      className="text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-                    >
-                      política de tratamiento de datos
-                    </Link>
-                    .
-                  </span>
-                </button>
-                {errors.consent ? (
-                  <p
-                    id={`${fieldIds.consent}-error`}
-                    role="status"
-                    className="mt-2 pl-8 text-xs leading-relaxed text-destructive"
-                  >
-                    {errors.consent}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="flex flex-col-reverse items-stretch gap-3 border-t border-border px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
-                <p
-                  role="status"
-                  aria-live="polite"
-                  className="text-xs leading-relaxed text-destructive"
-                >
-                  {submitError ?? ''}
+                  Ya está al aire
+                </h2>
+                <p className="mt-3 max-w-[44ch] text-sm leading-relaxed text-muted-foreground">
+                  {signedName
+                    ? `Gracias, ${signedName}. Tu mensaje ya está en la bandeja del equipo.`
+                    : 'Tu mensaje ya está en la bandeja del equipo.'}
                 </p>
                 <button
-                  type="submit"
-                  disabled={sending}
-                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground transition-[transform,opacity] duration-150 ease-out-expo hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  type="button"
+                  onClick={handleReset}
+                  className="mt-8 inline-flex min-h-11 items-center rounded-lg border border-border bg-background px-5 text-sm font-semibold transition-[transform,border-color] duration-150 ease-out-expo hover:border-primary/40 active:scale-[0.97]"
                 >
-                  {sending ? (
-                    <>
-                      <motion.span
-                        aria-hidden
-                        className="h-3.5 w-3.5 rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground"
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 0.9, ease: 'linear', repeat: Infinity }}
-                      />
-                      Enviando
-                    </>
-                  ) : (
-                    'Enviar mensaje'
-                  )}
+                  Escribir otro mensaje
                 </button>
               </div>
-            </form>
-          )}
-        </motion.section>
+            ) : (
+              <form onSubmit={handleSubmit} noValidate>
+                {/* Letterhead: sender identity, not a decorative kicker. */}
+                <div className="mono-meta flex items-baseline justify-between gap-4 px-5 pt-5 text-[11px] uppercase text-faint sm:px-7">
+                  <span>La Voz de la Verdad</span>
+                  <span className="shrink-0">Cartago, Colombia</span>
+                </div>
 
-        <section className="mt-14">
-          <h2 className="text-lg font-semibold tracking-tight">Qué pasa con su mensaje</h2>
-          <ol className="mt-5">
-            {AFTERMATH.map((step, index) => (
-              <li
-                key={step}
-                className="flex items-baseline gap-4 border-t border-border/60 py-3.5 first:border-t-0 first:pt-0"
-              >
-                <span className="font-mono text-xs tabular-nums text-faint">
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-                <span className="text-sm leading-relaxed text-muted-foreground">{step}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
+                <div className="border-b border-border px-5 pb-5 pt-4 transition-colors duration-200 focus-within:border-primary/60 sm:px-7 sm:pb-6">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
+                    Motivo
+                  </span>
+                  <MotiveField
+                    value={categoria}
+                    onChange={(next) => setCategoria(next)}
+                    disabled={sending}
+                  />
+                </div>
+
+                <SheetRow
+                  htmlFor={fieldIds.mensaje}
+                  label="Mensaje"
+                  hint={`${mensaje.length} / ${FEEDBACK_LIMITS.mensaje}`}
+                  error={errors.mensaje}
+                >
+                  <textarea
+                    id={fieldIds.mensaje}
+                    ref={mensajeRef}
+                    value={mensaje}
+                    onChange={(event) => {
+                      setMensaje(event.target.value);
+                      clearError('mensaje');
+                    }}
+                    disabled={sending}
+                    rows={6}
+                    maxLength={FEEDBACK_LIMITS.mensaje}
+                    aria-invalid={Boolean(errors.mensaje)}
+                    aria-describedby={
+                      errors.mensaje ? `${fieldIds.mensaje}-error` : undefined
+                    }
+                    placeholder="Escribe aquí lo que quieras contarnos."
+                    className={`mt-2 w-full resize-y bg-transparent text-[15px] leading-relaxed text-foreground placeholder:text-faint/70 focus:outline-none disabled:opacity-60 ${
+                      errors.mensaje ? 'text-destructive' : ''
+                    }`}
+                    style={{ fieldSizing: 'content' }}
+                  />
+                  {!errors.mensaje ? (
+                    <p className="mt-2 text-xs leading-relaxed text-faint">
+                      {remaining < 60
+                        ? `Quedan ${remaining} caracteres. ${MESSAGE_HINT}`
+                        : MESSAGE_HINT}
+                    </p>
+                  ) : null}
+                </SheetRow>
+
+                <SheetRow
+                  htmlFor={fieldIds.nombre}
+                  label="Nombre (opcional)"
+                  hint={`${nombre.length} / ${FEEDBACK_LIMITS.nombre}`}
+                  error={errors.nombre}
+                >
+                  <input
+                    id={fieldIds.nombre}
+                    ref={nombreRef}
+                    type="text"
+                    value={nombre}
+                    onChange={(event) => {
+                      setNombre(event.target.value);
+                      clearError('nombre');
+                    }}
+                    disabled={sending}
+                    maxLength={FEEDBACK_LIMITS.nombre}
+                    autoComplete="name"
+                    aria-invalid={Boolean(errors.nombre)}
+                    aria-describedby={errors.nombre ? `${fieldIds.nombre}-error` : undefined}
+                    placeholder="Con el que te saludemos"
+                    className={`mt-1 w-full bg-transparent py-1 text-[15px] text-foreground placeholder:text-faint/70 focus:outline-none disabled:opacity-60 ${
+                      errors.nombre ? 'text-destructive' : ''
+                    }`}
+                  />
+                </SheetRow>
+
+                <SheetRow
+                  htmlFor={fieldIds.contacto}
+                  label="Contacto (opcional)"
+                  hint={`${contacto.length} / ${FEEDBACK_LIMITS.contacto}`}
+                  error={errors.contacto}
+                >
+                  <input
+                    id={fieldIds.contacto}
+                    ref={contactoRef}
+                    type="text"
+                    value={contacto}
+                    onChange={(event) => {
+                      setContacto(event.target.value);
+                      clearError('contacto');
+                    }}
+                    disabled={sending}
+                    maxLength={FEEDBACK_LIMITS.contacto}
+                    autoComplete="email"
+                    inputMode="email"
+                    aria-invalid={Boolean(errors.contacto)}
+                    aria-describedby={
+                      errors.contacto ? `${fieldIds.contacto}-error` : undefined
+                    }
+                    placeholder="Correo o teléfono"
+                    className={`mt-1 w-full bg-transparent py-1 text-[15px] text-foreground placeholder:text-faint/70 focus:outline-none disabled:opacity-60 ${
+                      errors.contacto ? 'text-destructive' : ''
+                    }`}
+                  />
+                </SheetRow>
+
+                <div className="px-5 pb-5 pt-4 sm:px-7 sm:pb-6">
+                  <button
+                    type="button"
+                    ref={consentRef}
+                    id={fieldIds.consent}
+                    role="checkbox"
+                    aria-checked={acceptsDataTreatment}
+                    aria-invalid={Boolean(errors.consent)}
+                    aria-describedby={errors.consent ? `${fieldIds.consent}-error` : undefined}
+                    disabled={sending}
+                    onClick={() => {
+                      setAcceptsDataTreatment((previous) => !previous);
+                      clearError('consent');
+                    }}
+                    className="flex w-full cursor-pointer items-start gap-3 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span
+                      aria-hidden
+                      className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-[6px] border transition-colors duration-150 ${
+                        acceptsDataTreatment
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : errors.consent
+                            ? 'border-destructive'
+                            : 'border-border'
+                      }`}
+                    >
+                      {acceptsDataTreatment ? <Check className="h-3.5 w-3.5" /> : null}
+                    </span>
+                    <span className="text-xs leading-relaxed text-muted-foreground">
+                      Autorizo el tratamiento de los datos que escriba aquí, incluido mi
+                      nombre y mi contacto, para que la estación pueda responderme.
+                      Conozco la{' '}
+                      <Link
+                        to="/info/data-treatment"
+                        className="text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+                      >
+                        política de tratamiento de datos
+                      </Link>
+                      .
+                    </span>
+                  </button>
+                  {errors.consent ? (
+                    <p
+                      id={`${fieldIds.consent}-error`}
+                      role="status"
+                      className="mt-2 pl-8 text-xs leading-relaxed text-destructive"
+                    >
+                      {errors.consent}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-col-reverse items-stretch gap-3 border-t border-border px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    className="text-xs leading-relaxed text-destructive"
+                  >
+                    {submitError ?? ''}
+                  </p>
+                  <button
+                    type="submit"
+                    disabled={sending}
+                    className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground transition-[transform,opacity] duration-150 ease-out-expo hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {sending ? (
+                      <>
+                        <motion.span
+                          aria-hidden
+                          className="h-3.5 w-3.5 rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground"
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 0.9, ease: 'linear', repeat: Infinity }}
+                        />
+                        Enviando
+                      </>
+                    ) : (
+                      'Enviar mensaje'
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </motion.section>
+
+          {/* The memo pinned next to the sheet on the studio desk: what
+              actually happens after it is handed over. */}
+          <motion.aside
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="lg:sticky lg:top-16 lg:pt-1"
+          >
+            <h2 className="text-lg font-semibold tracking-tight">Qué pasa con tu mensaje</h2>
+            <ol className="mt-4">
+              {AFTERMATH.map((step, index) => (
+                <li
+                  key={step}
+                  className="flex items-baseline gap-4 border-t border-border/60 py-3.5 first:border-t-0 first:pt-0"
+                >
+                  <span className="font-mono text-xs tabular-nums text-faint">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span className="text-sm leading-relaxed text-muted-foreground">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </motion.aside>
+        </div>
       </main>
 
       <AppFooter stationName="La Voz de la Verdad" />

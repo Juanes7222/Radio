@@ -34,6 +34,7 @@ import type { NowPlayingData, StreamQuality, PlayerState } from '@radio/types';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { EmissionQueue } from './EmissionQueue';
 import { formatMediaTitle } from '@/lib/formatMedia';
+import { resolveArtworkUrl } from '@/lib/artwork';
 import { formatTime } from '@/lib/utils';
 import { VinylDisc } from '@/components/ui-custom/VinylDisc';
 import { ShareModal } from '../ui-custom/SharedModla';
@@ -111,7 +112,7 @@ export function StationConsole({
   const { title, artist, isPreaching } = formatMediaTitle(songData?.title ?? '', songData?.artist ?? '');
   const displayArtist = artist || null;
   const artworkLoadFailed = artworkErrorSongId === (songData?.id ?? null);
-  const artworkUrl = songData?.art && !artworkLoadFailed ? songData.art : null;
+  const artworkUrl = artworkLoadFailed ? null : resolveArtworkUrl(songData?.art);
 
   const currentSongKey = (() => {
     const s = stationData?.now_playing?.song;

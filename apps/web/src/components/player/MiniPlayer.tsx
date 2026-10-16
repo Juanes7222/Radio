@@ -5,6 +5,7 @@ import { ArrowUp, Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { VinylDisc } from '@/components/ui-custom/VinylDisc';
 import { formatMediaTitle } from '@/lib/formatMedia';
+import { resolveArtworkUrl } from '@/lib/artwork';
 import { formatTime } from '@/lib/utils';
 
 /** Matches the console disc rate so the two read as one instrument. */
@@ -109,7 +110,7 @@ export function MiniPlayer({ variant = 'bottom' }: MiniPlayerProps) {
   const hasProgress = duration > 0;
   const progressPct = hasProgress ? Math.min(100, Math.max(0, (elapsed / duration) * 100)) : 0;
   const isMuted = playerState.isMuted || playerState.volume === 0;
-  const art = song.art && failedArtSongId !== song.id ? song.art : null;
+  const art = failedArtSongId === song.id ? null : resolveArtworkUrl(song.art);
   const { title, artist } = formatMediaTitle(song.title, song.artist);
 
   const signalHairline = (
