@@ -120,6 +120,7 @@ DEPLOY_START="$(date '+%Y-%m-%d %H:%M:%S')"
 BACKUP_BACKEND=""
 BACKUP_WEB=""
 NGINX_RELOADED=false
+NGINX_BACKUP_DIR=""
 
 target_label() {
   local labels=()
@@ -167,9 +168,19 @@ rollback() {
       || { warn "  mv failed; removing orphaned backup..."; rm -rf "$BACKUP_WEB" || true; }
   fi
 
-  if [[ "$NGINX_RELOADED" == "true" ]] && [[ -f "${NGINX_CONF}.bak" ]]; then
+  if [[ -n "$NGINX_BACKUP_DIR" ]] && [[ -d "$NGINX_BACKUP_DIR" ]]; then
     warn "  Restoring Nginx configuration..."
-    cp "${NGINX_CONF}.bak" "$NGINX_CONF"
+    if [[ -f "${NGINX_CONF}.bak" ]]; then
+      cp "${NGINX_CONF}.bak" "$NGINX_CONF"
+    fi
+    if [[ -d "$NGINX_BACKUP_DIR/radio" ]]; then
+      rm -rf "$NGINX_RADIO_DIR"
+      cp -r "$NGINX_BACKUP_DIR/radio" "$NGINX_RADIO_DIR"
+    fi
+    if [[ -f "$NGINX_BACKUP_DIR/radio-global.conf" ]]; then
+      cp "$NGINX_BACKUP_DIR/radio-global.conf" "$NGINX_GLOBAL_CONF"
+    fi
+    rm -rf "$NGINX_BACKUP_DIR"
     nginx -t 2>/dev/null && systemctl reload nginx || true
   fi
 
@@ -386,14 +397,23 @@ fi
 if [[ "$NGINX_CHANGED" == "true" || "$FORCE_DEPLOY" == "true" ]]; then
   cp "$NGINX_CONF" "${NGINX_CONF}.bak"
 
+  # The entry point, the global conf and the whole domain/snippet tree are three
+  # separate targets, so nginx -t failing after this point would otherwise leave
+  # the two newer ones installed with no way back. Back all three up.
+  NGINX_BACKUP_DIR="$(mktemp -d)"
+  cp -r "$NGINX_RADIO_DIR" "$NGINX_BACKUP_DIR/radio" 2>/dev/null || true
+  [[ -f "$NGINX_GLOBAL_CONF" ]] && cp "$NGINX_GLOBAL_CONF" "$NGINX_BACKUP_DIR/radio-global.conf"
+
   [[ -f "$SCRIPTS_DIR/nginx/radio-global.conf" ]] && cp "$SCRIPTS_DIR/nginx/radio-global.conf" "$NGINX_GLOBAL_CONF"
   mkdir -p "$NGINX_RADIO_DIR"
+  # cp -r only overwrites: a snippet or domain dropped from scripts/nginx/ would
+  # survive here and keep being included by the entry point forever.
+  rm -rf "$NGINX_RADIO_DIR/domains" "$NGINX_RADIO_DIR/snippets"
   cp -r "$SCRIPTS_DIR/nginx/domains" "$SCRIPTS_DIR/nginx/snippets" "$NGINX_RADIO_DIR/"
   cp "$SCRIPTS_DIR/nginx/radio-site.conf" "$NGINX_CONF"
 
   nginx -t && systemctl reload nginx && NGINX_RELOADED=true || {
     error "Invalid Nginx configuration. Rolling back."
-    cp "${NGINX_CONF}.bak" "$NGINX_CONF"
     exit 1
   }
 else

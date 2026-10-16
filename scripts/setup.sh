@@ -185,6 +185,11 @@ NGINX
 
 ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/radio
 rm -f /etc/nginx/sites-enabled/default
+# radio.conf is the pre-modular monolithic config. Left enabled it re-declares
+# every server_name (nginx warns "conflicting server name ... ignored") and its
+# limit_conn directives reference zones the modular radio-global.conf no longer
+# defines, which aborts nginx -t with "zero size shared memory zone".
+rm -f /etc/nginx/sites-enabled/radio.conf
 nginx -t && systemctl reload nginx
 
 certbot certonly --nginx --non-interactive --agree-tos \
