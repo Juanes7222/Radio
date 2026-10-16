@@ -1,9 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import RNEventSource from 'react-native-sse';
-import {
-  STATION_SSE_LINE_ENDING,
-  withStationLineEnding,
-} from '../../../mobile/lib/ssePolyfill';
+import { STATION_SSE_LINE_ENDING, withStationLineEnding } from '../../lib/ssePolyfill';
 
 /**
  * Regression cover for the mobile now-playing stream.

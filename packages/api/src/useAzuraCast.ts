@@ -104,6 +104,7 @@ export function useAzuraCast({
     let retryCount = 0;
     let activeShortcode: string | null = null;
     let lastDataAt = Date.now();
+    let receivedFrames = 0;
     const RECONNECT_DELAYS = [5000, 10000, 15000, 30000, 60000];
     // A transport that stays open but stops emitting is indistinguishable from a
     // healthy one to every error path, so silence retires it on its own. The
@@ -168,10 +169,11 @@ export function useAzuraCast({
 
         eventSource.addEventListener('message', (event) => {
           if (!event.data) return;
+          const raw = event.data;
+          receivedFrames += 1;
           try {
             // Rewrite localhost URLs to avoid Mixed Content / CSP errors, only
             // when the payload actually contains them (production data does not).
-            const raw = event.data;
             const rewritten = raw.includes("localhost") || raw.includes("127.0.0.1")
               ? raw.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/g, baseUrl)
               : raw;
@@ -184,6 +186,9 @@ export function useAzuraCast({
               setError(null);
             }
           } catch (e) {
+            // TEMPORARY diagnostic: the offending frame decides whether this is
+            // a malformed stream frame or a boundary the parser cut wrong.
+            console.log('[SSE] unparsable frame #' + receivedFrames, 'length=', raw.length, 'payload=', JSON.stringify(raw.slice(0, 160)));
             console.error('Error parsing SSE data:', e);
           }
         });
