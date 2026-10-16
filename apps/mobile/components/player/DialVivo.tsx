@@ -143,21 +143,27 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size, progress, s
     opacity: haloOpacity.value,
   }));
 
-  // Thin SVG ring animated via strokeDashoffset (reanimated-driven prop). The
-  // gap keeps the authored 14dp at the dial size it was designed against and
-  // widens slightly with the disc instead of hugging it.
+  // Thin SVG ring around the disc. The gap keeps the authored 14dp at the dial
+  // size it was designed against and widens slightly with the disc instead of
+  // hugging it.
   const ringPadding = clamp(size * 0.05, 12, 18);
   const ringRadius = size / 2 + ringPadding;
   const ringSize = ringRadius * 2 + RING_STROKE;
   const ringCircumference = 2 * Math.PI * ringRadius;
+  // The dash LENGTH is animated, not the dash offset. strokeDashoffset slides the
+  // pattern along the path and renderers disagree on its direction: on Android
+  // it anchored the arc to the end of the path, so the ring filled backwards.
+  // A dash that starts at path position 0 and grows renders the same way
+  // everywhere, which also lets the rotation below fix the start at 12 o'clock.
   const ringAnimatedProps = useAnimatedProps(() => {
-    const dashOffset = ringCircumference * (1 - ringProgress.value);
-    return { strokeDashoffset: dashOffset };
+    const filled = ringCircumference * ringProgress.value;
+    return { strokeDasharray: [filled, ringCircumference] };
   });
+  const ringCenter = ringRadius + RING_STROKE / 2;
   const ringTrack = (
     <Circle
-      cx={ringRadius + RING_STROKE / 2}
-      cy={ringRadius + RING_STROKE / 2}
+      cx={ringCenter}
+      cy={ringCenter}
       r={ringRadius}
       fill="none"
       stroke="rgba(255,255,255,0.08)"
@@ -181,14 +187,16 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size, progress, s
         <Svg width={ringSize} height={ringSize}>
           {ringTrack}
           <AnimatedCircle
-            cx={ringRadius + RING_STROKE / 2}
-            cy={ringRadius + RING_STROKE / 2}
+            cx={ringCenter}
+            cy={ringCenter}
             r={ringRadius}
             fill="none"
             stroke={Colors.signalLight}
             strokeWidth={RING_STROKE}
             strokeLinecap="round"
+            strokeDashoffset={0}
             strokeDasharray={ringCircumference}
+            transform={`rotate(-90 ${ringCenter} ${ringCenter})`}
             animatedProps={ringAnimatedProps}
           />
         </Svg>

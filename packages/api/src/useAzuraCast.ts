@@ -100,8 +100,28 @@ export function useAzuraCast({
     let ws: WebSocket | null = null;
     let fallbackInterval: ReturnType<typeof setInterval> | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let idleTimer: ReturnType<typeof setInterval> | null = null;
     let retryCount = 0;
+    let activeShortcode: string | null = null;
+    let lastDataAt = Date.now();
     const RECONNECT_DELAYS = [5000, 10000, 15000, 30000, 60000];
+    // A transport that stays open but stops emitting is indistinguishable from a
+    // healthy one to every error path, so silence retires it on its own. The
+    // bound is generous on purpose: the station only pushes when now-playing
+    // changes, and a long track must not read as a dead stream. The cost of a
+    // false positive is one reconnect, never a wrong frame.
+    const IDLE_TIMEOUT_MS = 90_000;
+    const IDLE_CHECK_INTERVAL_MS = 15_000;
+
+    const markDataReceived = () => {
+      lastDataAt = Date.now();
+    };
+
+    const fetchAndMark = async (): Promise<NowPlayingData | null> => {
+      const fresh = await fetchNowPlaying();
+      if (fresh) markDataReceived();
+      return fresh;
+    };
 
     const setupRealTime = (shortcode: string) => {
       // Re-entry guard. Both a reconnect timer and a slow-poll upgrade can reach
@@ -158,6 +178,7 @@ export function useAzuraCast({
 
             const parsed = toSameOriginMediaUrls<RealtimeEnvelope>(JSON.parse(rewritten), baseUrl);
             if (parsed?.pub?.data?.np) {
+              markDataReceived();
               setData(parsed.pub.data.np);
               setIsLoading(false);
               setError(null);
@@ -168,15 +189,7 @@ export function useAzuraCast({
         });
 
         eventSource.addEventListener('error', () => {
-          eventSource?.close();
-          fetchNowPlaying();
-
-          if (!fallbackInterval) {
-            fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 10000));
-          }
-
-          const delay = RECONNECT_DELAYS[Math.min(retryCount++, RECONNECT_DELAYS.length - 1)];
-          reconnectTimeout = setTimeout(() => setupRealTime(shortcode), delay);
+          recoverTransport();
         });
       } else if (typeof WebSocket !== 'undefined') {
         const wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws';
@@ -202,6 +215,7 @@ export function useAzuraCast({
 
             const parsed = toSameOriginMediaUrls<RealtimeEnvelope>(JSON.parse(rewritten), baseUrl);
             if (parsed?.pub?.data?.np) {
+              markDataReceived();
               setData(parsed.pub.data.np);
               setIsLoading(false);
               setError(null);
@@ -216,23 +230,55 @@ export function useAzuraCast({
         };
 
         ws.onclose = () => {
-          fetchNowPlaying();
-
-          if (!fallbackInterval) {
-            fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 10000));
-          }
-
-          const delay = RECONNECT_DELAYS[Math.min(retryCount++, RECONNECT_DELAYS.length - 1)];
-          reconnectTimeout = setTimeout(() => setupRealTime(shortcode), delay);
+          recoverTransport();
         };
       } else {
-        fallbackInterval = setInterval(fetchNowPlaying, Math.max(pollInterval, 10000));
+        fallbackInterval = setInterval(fetchAndMark, Math.max(pollInterval, 10000));
       }
     };
 
-    fetchNowPlaying().then((initialData) => {
+    /**
+     * Single recovery path for every way the realtime transport can go away:
+     * a reported error, a closed socket, or a stream that simply stops
+     * emitting. Keeping them identical is what stops one of the paths from
+     * leaving the screen frozen while the others recover.
+     */
+    const recoverTransport = () => {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+
+      void fetchAndMark();
+
+      if (!fallbackInterval) {
+        fallbackInterval = setInterval(fetchAndMark, Math.max(pollInterval, 10000));
+      }
+
+      const shortcode = activeShortcode;
+      if (!shortcode) return;
+      const delay = RECONNECT_DELAYS[Math.min(retryCount++, RECONNECT_DELAYS.length - 1)];
+      reconnectTimeout = setTimeout(() => setupRealTime(shortcode), delay);
+    };
+
+    // Silence is a failure mode of its own: nothing errors, nothing arrives, and
+    // the player keeps rendering a stale song until the app is restarted.
+    idleTimer = setInterval(() => {
+      if (Date.now() - lastDataAt < IDLE_TIMEOUT_MS) return;
+      // Reset before recovering so the next tick cannot re-enter while the
+      // reconnect is still pending.
+      markDataReceived();
+      recoverTransport();
+    }, IDLE_CHECK_INTERVAL_MS);
+
+    fetchAndMark().then((initialData) => {
       if (initialData?.station?.shortcode) {
-        setupRealTime(initialData.station.shortcode);
+        activeShortcode = initialData.station.shortcode;
+        setupRealTime(activeShortcode);
         return;
       }
 
@@ -241,8 +287,11 @@ export function useAzuraCast({
       // a bad first request pins the whole session to the coarse interval, so
       // now-playing would stay 60s stale even after the network recovered.
       fallbackInterval = setInterval(() => {
-        void fetchNowPlaying().then((fresh) => {
-          if (fresh?.station?.shortcode) setupRealTime(fresh.station.shortcode);
+        void fetchAndMark().then((fresh) => {
+          if (fresh?.station?.shortcode) {
+            activeShortcode = fresh.station.shortcode;
+            setupRealTime(activeShortcode);
+          }
         });
       }, Math.max(pollInterval, 60000));
     });
@@ -252,6 +301,7 @@ export function useAzuraCast({
       if (ws) ws.close();
       if (fallbackInterval) clearInterval(fallbackInterval);
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (idleTimer) clearInterval(idleTimer);
     };
   }, [apiBaseUrl, enabled, fetchNowPlaying, pollInterval]);
 

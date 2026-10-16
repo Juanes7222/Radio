@@ -25,13 +25,14 @@ import { ensureNotificationChannels, registerDevice, updateFCMToken } from '@/li
 import { NoticeOverlay } from '@/components/NoticeOverlay';
 import { PerfOverlay } from '@/components/PerfOverlay';
 import { initPerf, markStartupStage } from '@/lib/perf';
-import EventSource from 'react-native-sse';
+import { StationEventSource } from '@/lib/ssePolyfill';
 
 // Polyfill global EventSource para useAzuraCast (packages/api usa EventSource global)
-// En RN no existe por defecto, react-native-sse lo provee
+// En RN no existe por defecto. Ver apps/mobile/lib/ssePolyfill.ts para por qué
+// esta implementación necesita fijar el fin de línea del stream.
 if (typeof globalThis.EventSource === 'undefined') {
-  (globalThis as unknown as { EventSource: typeof EventSource }).EventSource =
-    EventSource as unknown as typeof globalThis.EventSource;
+  (globalThis as unknown as { EventSource: typeof StationEventSource }).EventSource =
+    StationEventSource as unknown as typeof globalThis.EventSource;
 }
 
 SplashScreen.preventAutoHideAsync();
