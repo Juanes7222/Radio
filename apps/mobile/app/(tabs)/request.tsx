@@ -31,7 +31,7 @@ import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { Durations, Easings } from '@/constants/motion';
 import { formatMediaTitle } from '@/lib/formatMedia';
-import { scale } from '../../lib/responsive';
+import { useResponsive } from '@/lib/responsive';
 import { ShimmerBox } from '@/components/ui/Shimmer';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 
@@ -85,17 +85,20 @@ const SongRow = memo(function SongRow({
     setBtnScale(isSent ? 1.06 : 1);
   }, [isSent]);
 
+  const { scale } = useResponsive();
+  const artSize = scale(50);
+
   return (
     <Animated.View style={[styles.row, pressStyle]}>
       {item.song.art ? (
         <Image
           source={{ uri: item.song.art }}
-          style={styles.art}
+          style={[styles.art, { width: artSize, height: artSize }]}
           contentFit="cover"
           transition={150}
         />
       ) : (
-        <View style={[styles.art, styles.artFallback]} />
+        <View style={[styles.art, styles.artFallback, { width: artSize, height: artSize }]} />
       )}
 
       <View style={styles.info}>
@@ -563,7 +566,7 @@ const styles = StyleSheet.create({
   emptyActionText: { ...Typography.captionStrong, color: Colors.signal, fontSize: 13 },
   separator: { height: 1, backgroundColor: Colors.surfaceFaint, marginLeft: 66 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
-  art: { width: scale(50), height: scale(50), borderRadius: 10 },
+  art: { borderRadius: 10 },
   artFallback: { backgroundColor: Colors.surfaceSoft },
   info: { flex: 1 },
   preachingBadge: {

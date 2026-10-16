@@ -14,6 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, RadialGradient, LinearGradient, Stop } from 'react-native-svg';
 import { Colors, Shadows } from '@/constants/theme';
+import { clamp } from '@/lib/responsive';
 import { Motion, Spring } from '@/constants/motion';
 import DefaultAlbumArt from '../../assets/default-album-art.png';
 
@@ -29,7 +30,6 @@ interface DialVivoProps {
 }
 
 const GROOVE_COUNT = 18;
-const RING_PADDING = 14;
 const RING_STROKE = 3;
 const PROGRESS_EASE_MS = 900;
 
@@ -143,8 +143,11 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size, progress, s
     opacity: haloOpacity.value,
   }));
 
-  // Thin SVG ring animated via strokeDashoffset (reanimated-driven prop).
-  const ringRadius = size / 2 + RING_PADDING;
+  // Thin SVG ring animated via strokeDashoffset (reanimated-driven prop). The
+  // gap keeps the authored 14dp at the dial size it was designed against and
+  // widens slightly with the disc instead of hugging it.
+  const ringPadding = clamp(size * 0.05, 12, 18);
+  const ringRadius = size / 2 + ringPadding;
   const ringSize = ringRadius * 2 + RING_STROKE;
   const ringCircumference = 2 * Math.PI * ringRadius;
   const ringAnimatedProps = useAnimatedProps(() => {

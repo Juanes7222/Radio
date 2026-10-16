@@ -917,6 +917,7 @@ const styles = StyleSheet.create({
   viewToggleText: {
     ...Typography.bodyStrong,
     fontSize: 13,
+    color: TEXT_MUTED,
   },
   viewToggleTextActive: {
     color: Colors.textBright,

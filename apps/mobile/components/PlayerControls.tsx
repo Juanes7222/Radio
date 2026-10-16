@@ -12,20 +12,48 @@ import Animated, {
   withTiming,
   withSequence,
 } from 'react-native-reanimated';
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { Colors, Radii, Shadows } from '@/constants/theme';
-import { scale } from '@/lib/responsive';
+import { clamp, CONTENT_MAX_WIDTH, useResponsive } from '@/lib/responsive';
 import { Durations, Motion, Spring } from '@/constants/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-const PLAY_SIZE = 76;
 const BUFFER_STROKE = 2.5;
-const BUFFER_RADIUS = (PLAY_SIZE + BUFFER_STROKE * 2) / 2 - 1;
-const BUFFER_CIRCUMFERENCE = 2 * Math.PI * BUFFER_RADIUS;
-const BUFFER_ARC = BUFFER_CIRCUMFERENCE * 0.26;
+
+/** Glyph-to-button ratio authored at the 375dp baseline (34 over 76). */
+const PLAY_GLYPH_RATIO = 34 / 76;
+
+/**
+ * Footprint of the three controls at every window width. The floors keep the
+ * side buttons on the 44dp touch target even on 320dp phones (formerly ~39dp)
+ * and the ceilings stop the play button from swallowing the row on large
+ * phones, where the dial is capped and the proportions would invert.
+ */
+interface PlayerControlMetrics {
+  playSize: number;
+  playGlyphSize: number;
+  sideSize: number;
+  sideIconSize: number;
+  gap: number;
+}
+
+function usePlayerControlMetrics(): PlayerControlMetrics {
+  const { scale } = useResponsive();
+
+  return useMemo(() => {
+    const playSize = clamp(scale(76), 64, 92);
+    return {
+      playSize,
+      playGlyphSize: playSize * PLAY_GLYPH_RATIO,
+      sideSize: clamp(scale(46), 44, 50),
+      sideIconSize: clamp(scale(22), 20, 24),
+      gap: clamp(scale(40), 30, 46),
+    };
+  }, [scale]);
+}
 
 /**
  * Indeterminate arc drawn around the play button while the stream buffers.
@@ -33,7 +61,7 @@ const BUFFER_ARC = BUFFER_CIRCUMFERENCE * 0.26;
  * everywhere in the app, and it keeps the play affordance in place instead of
  * replacing it with a spinner.
  */
-function BufferingArc() {
+function BufferingArc({ playSize }: { playSize: number }) {
   const reduceMotion = useReducedMotion();
   const spin = useSharedValue(0);
 
@@ -51,24 +79,27 @@ function BufferingArc() {
     transform: [{ rotate: `${spin.value * 360}deg` }],
   }));
 
+  const radius = (playSize + BUFFER_STROKE * 2) / 2 - 1;
+  const size = playSize + BUFFER_STROKE * 2 + 2;
+  const circumference = 2 * Math.PI * radius;
+  const arcLength = circumference * 0.26;
+
   const arcProps = useAnimatedProps(() => ({
-    strokeDashoffset: BUFFER_CIRCUMFERENCE * (1 - spin.value),
+    strokeDashoffset: circumference * (1 - spin.value),
   }));
 
-  const size = scale(PLAY_SIZE) + BUFFER_STROKE * 2 + 2;
-
   return (
-    <Animated.View pointerEvents="none" style={[styles.bufferArc, spinStyle]}>
+    <Animated.View pointerEvents="none" style={[staticStyles.bufferArc, spinStyle]}>
       <Svg width={size} height={size}>
         <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
-          r={BUFFER_RADIUS}
+          r={radius}
           fill="none"
           stroke={Colors.textOnSignal}
           strokeWidth={BUFFER_STROKE}
           strokeLinecap="round"
-          strokeDasharray={BUFFER_ARC}
+          strokeDasharray={arcLength}
           animatedProps={arcProps}
         />
       </Svg>
@@ -81,7 +112,7 @@ function BufferingArc() {
  * pressed control in the app, and an instant glyph swap reads as a flicker; the
  * small scale ramp gives the change somewhere to come from.
  */
-function PlayPauseIcon({ isPlaying }: { isPlaying: boolean }) {
+function PlayPauseIcon({ isPlaying, glyphSize }: { isPlaying: boolean; glyphSize: number }) {
   const playOpacity = useSharedValue(isPlaying ? 0 : 1);
   const pauseOpacity = useSharedValue(isPlaying ? 1 : 0);
 
@@ -100,16 +131,25 @@ function PlayPauseIcon({ isPlaying }: { isPlaying: boolean }) {
     transform: [{ scale: 0.82 + pauseOpacity.value * 0.18 }],
   }));
 
+  // The play triangle reads optically off-centre inside the circle; the pause
+  // bars are symmetric and need no nudge.
+  const playNudge = glyphSize * (3 / 34);
+
   return (
-    <View style={styles.iconStack}>
+    <View
+      style={[
+        staticStyles.iconStack,
+        { width: glyphSize, height: glyphSize },
+      ]}
+    >
       <Animated.View
         pointerEvents="none"
-        style={[styles.iconLayer, styles.playIconLayer, playStyle]}
+        style={[staticStyles.iconLayer, { left: playNudge, right: -playNudge }, playStyle]}
       >
-        <Ionicons name="play" size={scale(34)} color={Colors.textOnSignal} />
+        <Ionicons name="play" size={glyphSize} color={Colors.textOnSignal} />
       </Animated.View>
-      <Animated.View pointerEvents="none" style={[styles.iconLayer, pauseStyle]}>
-        <Ionicons name="pause" size={scale(34)} color={Colors.textOnSignal} />
+      <Animated.View pointerEvents="none" style={[staticStyles.iconLayer, pauseStyle]}>
+        <Ionicons name="pause" size={glyphSize} color={Colors.textOnSignal} />
       </Animated.View>
     </View>
   );
@@ -132,6 +172,9 @@ function PlayerControlsImpl({
   onToggleFavorite,
   onShare,
 }: PlayerControlsProps) {
+  const metrics = usePlayerControlMetrics();
+  const styles = useMemo(() => createStyles(metrics), [metrics]);
+
   const favScale = useSharedValue(1);
   const favPressed = useSharedValue(0);
   const playPressed = useSharedValue(0);
@@ -198,7 +241,7 @@ function PlayerControlsImpl({
       >
         <Ionicons
           name={isFavorite ? 'heart' : 'heart-outline'}
-          size={scale(22)}
+          size={metrics.sideIconSize}
           color={isFavorite ? Colors.tally : Colors.textMuted}
         />
       </AnimatedPressable>
@@ -214,7 +257,11 @@ function PlayerControlsImpl({
         accessibilityHint={isPlaying ? 'Pausa la emisión en vivo' : 'Reanuda la emisión en vivo'}
         hitSlop={12}
       >
-        {isBuffering ? <BufferingArc /> : <PlayPauseIcon isPlaying={isPlaying} />}
+        {isBuffering ? (
+          <BufferingArc playSize={metrics.playSize} />
+        ) : (
+          <PlayPauseIcon isPlaying={isPlaying} glyphSize={metrics.playGlyphSize} />
+        )}
       </AnimatedPressable>
 
       <AnimatedPressable
@@ -227,7 +274,7 @@ function PlayerControlsImpl({
         accessibilityHint="Comparte un enlace a la aplicación"
         hitSlop={12}
       >
-        <Ionicons name="share-outline" size={scale(22)} color={Colors.textMuted} />
+        <Ionicons name="share-outline" size={metrics.sideIconSize} color={Colors.textMuted} />
       </AnimatedPressable>
     </View>
   );
@@ -235,40 +282,46 @@ function PlayerControlsImpl({
 
 export const PlayerControls = memo(PlayerControlsImpl);
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: scale(40),
-  },
-  sideButton: {
-    width: scale(46),
-    height: scale(46),
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.surfaceGlass,
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
-  },
-  playButton: {
-    width: scale(76),
-    height: scale(76),
-    borderRadius: Radii.full,
-    backgroundColor: Colors.signal,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.signal,
-  },
+function createStyles(metrics: PlayerControlMetrics) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: metrics.gap,
+      width: '100%',
+      maxWidth: CONTENT_MAX_WIDTH,
+      alignSelf: 'center',
+    },
+    sideButton: {
+      width: metrics.sideSize,
+      height: metrics.sideSize,
+      borderRadius: Radii.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: Colors.surfaceGlass,
+      borderWidth: 1,
+      borderColor: Colors.borderGlass,
+    },
+    playButton: {
+      width: metrics.playSize,
+      height: metrics.playSize,
+      borderRadius: Radii.full,
+      backgroundColor: Colors.signal,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...Shadows.signal,
+    },
+  });
+}
+
+const staticStyles = StyleSheet.create({
   bufferArc: {
     position: 'absolute',
     top: -(BUFFER_STROKE + 1),
     left: -(BUFFER_STROKE + 1),
   },
   iconStack: {
-    width: scale(34),
-    height: scale(34),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -281,7 +334,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // The play triangle reads optically off-centre inside the circle; the pause
-  // bars are symmetric and need no nudge.
-  playIconLayer: { left: scale(3), right: -scale(3) },
 });

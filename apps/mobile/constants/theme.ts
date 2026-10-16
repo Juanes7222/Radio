@@ -15,8 +15,6 @@ export const Colors = {
   backgroundAlt: '#0F172A', // slate-900 intermedio para gradientes (entre background y card)
   backgroundElevated: '#1F2937', // --card
   gradientDeep: '#181C25', // --surface-sunken
-  paper: '#FFF6E5',
-  paperMuted: '#F5E6C8',
 
   // ——— Surfaces (glass system sobre ink) ———
   // Glass se mantiene como overlay blanco translúcido; web usa bg-background/70 + backdrop-blur.

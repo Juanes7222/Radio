@@ -6,22 +6,27 @@ import {
   ActivityIndicator,
   Linking,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
+import { CONTENT_MAX_WIDTH, useResponsive } from '@/lib/responsive';
 
 interface FacebookLivePlayerProps {
   liveUrl: string | null;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PLAYER_WIDTH = SCREEN_WIDTH - 32;
-const PLAYER_HEIGHT = PLAYER_WIDTH * (9 / 16);
-
+/**
+ * The player fills its slot instead of computing a width from the raw window:
+ * it lives inside the padded centre section, so the old `SCREEN_WIDTH - 32`
+ * was 16dp wider than its container (the section pads 24 on each side) and
+ * overflowed horizontally on every phone. The measured width is only needed
+ * for the Facebook embed URL, which wants a pixel value.
+ */
 export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
   const [isLoading, setIsLoading] = useState(true);
+  const { width: screenWidth } = useResponsive();
+  const playerWidth = Math.min(screenWidth, CONTENT_MAX_WIDTH) - Spacing.lg * 2;
 
   if (!liveUrl) {
     return (
@@ -46,7 +51,7 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
         : url;
       return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(
         embedBase
-      )}&show_text=false&width=${Math.floor(PLAYER_WIDTH)}`;
+      )}&show_text=false&width=${Math.floor(playerWidth)}`;
     } catch (e) {
       console.error('Error parsing liveUrl:', e);
       return url;
@@ -104,8 +109,8 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   placeholderContainer: {
-    width: PLAYER_WIDTH,
-    height: PLAYER_HEIGHT + 40,
+    width: '100%',
+    aspectRatio: 16 / 9,
     borderRadius: 16,
     borderWidth: 2,
     borderStyle: 'dashed',
@@ -184,8 +189,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   playerContainer: {
-    width: PLAYER_WIDTH,
-    height: PLAYER_HEIGHT,
+    width: '100%',
+    aspectRatio: 16 / 9,
     backgroundColor: '#000',
     borderRadius: 16,
     overflow: 'hidden',

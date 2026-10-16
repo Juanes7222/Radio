@@ -11,12 +11,9 @@ import Animated, {
 import { Colors } from '@/constants/theme';
 import { Motion } from '@/constants/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { clamp, useResponsive } from '@/lib/responsive';
 
-const SIZE = 180;
 const STROKE = 3;
-const RADIUS = (SIZE - STROKE) / 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-const ARC_LENGTH = CIRCUMFERENCE * 0.26;
 
 /**
  * The "Conectando con la emisora…" state.
@@ -25,13 +22,17 @@ const ARC_LENGTH = CIRCUMFERENCE * 0.26;
  * breathing halo, using the same loop language as LiveDot and DialVivo: the
  * screen that says "we are reaching the station" is the first thing the app
  * shows, so it should already sound and look like the station rather than like
- * a generic spinner.
+ * a generic spinner. It follows the player dial with the same restraint: a
+ * gentle width scale inside bounds, so it never dwarfs a small phone nor
+ * disappears on a large one.
  *
  * Under Reduce Motion both loops stop and the arc stays as a static ring, which
  * still communicates the state without moving.
  */
 export function ConnectingDial() {
   const reduceMotion = useReducedMotion();
+  const { scale } = useResponsive();
+  const size = clamp(scale(180), 150, 200);
   const spin = useSharedValue(0);
   const halo = useSharedValue(0);
 
@@ -65,27 +66,38 @@ export function ConnectingDial() {
     opacity: 0.28 * (1 - halo.value),
   }));
 
+  const radius = (size - STROKE) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const arcLength = circumference * 0.26;
+
   return (
     <View
-      style={styles.wrap}
+      style={[styles.wrap, { width: size, height: size }]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
       {!reduceMotion && (
-        <Animated.View pointerEvents="none" style={[styles.halo, haloStyle]} />
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.halo,
+            { width: size, height: size, borderRadius: size / 2 },
+            haloStyle,
+          ]}
+        />
       )}
 
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, spinStyle]}>
-        <Svg width={SIZE} height={SIZE}>
+        <Svg width={size} height={size}>
           <Circle
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={RADIUS}
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
             fill="none"
             stroke={Colors.signal}
             strokeWidth={STROKE}
             strokeLinecap="round"
-            strokeDasharray={`${ARC_LENGTH} ${CIRCUMFERENCE - ARC_LENGTH}`}
+            strokeDasharray={`${arcLength} ${circumference - arcLength}`}
           />
         </Svg>
       </Animated.View>
@@ -94,12 +106,9 @@ export function ConnectingDial() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' },
+  wrap: { alignItems: 'center', justifyContent: 'center' },
   halo: {
     position: 'absolute',
-    width: SIZE,
-    height: SIZE,
-    borderRadius: SIZE / 2,
     backgroundColor: Colors.signal,
   },
 });

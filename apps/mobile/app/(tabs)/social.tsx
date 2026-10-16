@@ -20,8 +20,7 @@ import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { openExternalUrl } from '@/lib/externalLinks';
-
-import { scale } from '../../lib/responsive';
+import { useResponsive } from '@/lib/responsive';
 
 const STATION_DOMAIN = WEB_URL.replace(/^https?:\/\//, '').replace(/\/+$/, '');
 
@@ -65,6 +64,7 @@ export default function StationScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const router = useRouter();
   const { liveUrl } = useFacebookLive();
+  const { scale } = useResponsive();
 
   const socialLinks = SOCIAL_LINKS.map((link) =>
     link.id === 'facebook' && liveUrl
@@ -138,8 +138,8 @@ export default function StationScreen() {
               accessibilityLabel="Estamos en vivo"
               accessibilityHint="Abre la transmisión en Facebook y sales de la app"
             >
-              <View style={styles.liveDot}>
-                <View style={styles.liveDotInner} />
+              <View style={[styles.liveDot, { width: scale(36), height: scale(36) }]}>
+                <View style={[styles.liveDotInner, { width: scale(12), height: scale(12) }]} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.liveBannerTitle}>¡Estamos en vivo!</Text>
@@ -163,7 +163,7 @@ export default function StationScreen() {
                 accessibilityRole="link"
                 accessibilityLabel={`${link.label}. ${link.isLive ? 'En vivo ahora' : link.subtitle}`}
               >
-              <View style={[styles.iconCircle, { backgroundColor: link.color + '22' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: link.color + '22', width: scale(50), height: scale(50) }]}>
                 {link.isLive && <View style={styles.liveIndicator} />}
                 {link.icon === null
                   ? <FontAwesome name="spotify" size={26} color={link.color} />
@@ -194,7 +194,7 @@ export default function StationScreen() {
             accessibilityLabel="Escríbanos"
             accessibilityHint="Abre el formulario para enviar una opinión o una sugerencia"
           >
-            <View style={styles.writeIcon}>
+            <View style={[styles.writeIcon, { width: scale(44), height: scale(44) }]}>
               <Ionicons name="chatbubble-ellipses-outline" size={20} color={Colors.signal} />
             </View>
             <View style={styles.linkTextGroup}>
@@ -288,8 +288,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.signalGlow,
   },
   writeIcon: {
-    width: scale(44),
-    height: scale(44),
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -311,8 +309,6 @@ const styles = StyleSheet.create({
   },
 
   iconCircle: {
-    width: scale(50),
-    height: scale(50),
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -342,17 +338,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   liveDot: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: scale(18),
+    borderRadius: Radii.full,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   liveDotInner: {
-    width: scale(12),
-    height: scale(12),
-    borderRadius: scale(6),
+    borderRadius: Radii.full,
     backgroundColor: '#fff',
   },
   linkCardLive: {

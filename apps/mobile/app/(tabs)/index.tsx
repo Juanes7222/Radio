@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Alert,
   Linking,
-  ScrollView,
   Image,
   Share,
   useWindowDimensions,
@@ -60,9 +59,25 @@ import {
 } from '@/hooks/useFavoriteNotify';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { clamp, CONTENT_MAX_WIDTH } from '@/lib/responsive';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import { incrementPlayerRenders, markNowPlayingEvent } from '@/lib/perf';
 import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2-opt.png';
+
+/**
+ * Dial sizing. The disc is the hero, so it takes most of the width; the height
+ * term only binds on short phones, where shrinking it keeps the title and the
+ * controls within reach instead of pushing them below the fold. The ceiling
+ * stops it at a realistic phone size and the floor keeps it a hero on 320dp
+ * screens; everything between grows with the canvas.
+ */
+const DIAL_WIDTH_RATIO = 0.64;
+const DIAL_HEIGHT_RESERVE = 300;
+const DIAL_MIN_SIZE = 190;
+const DIAL_MAX_SIZE = 272;
+
+/** Logo authored at 168x72; it follows the screen width between two bounds. */
+const LOGO_ASPECT_RATIO = 168 / 72;
 
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
@@ -73,9 +88,15 @@ export default function PlayerScreen() {
   // value left the dial sized for the window the app happened to open in.
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const vinylSize = useMemo(
-    () => Math.min(screenWidth * 0.62, (screenHeight - 260) * 0.6, 232),
+    () =>
+      clamp(
+        Math.min(screenWidth * DIAL_WIDTH_RATIO, (screenHeight - DIAL_HEIGHT_RESERVE) * 0.62),
+        DIAL_MIN_SIZE,
+        DIAL_MAX_SIZE
+      ),
     [screenHeight, screenWidth]
   );
+  const logoWidth = clamp(screenWidth * 0.448, 150, 192);
 
   const [appActive, setAppActive] = useState(true);
   useEffect(() => {
@@ -367,7 +388,7 @@ const [showBible, setShowBible] = useState(false);
         style={StyleSheet.absoluteFill}
       />
 
-      <ScrollView
+      <Animated.ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
         onScroll={handleScroll}
@@ -394,7 +415,7 @@ const [showBible, setShowBible] = useState(false);
           <View>
             <Image
               source={LOGO}
-              style={styles.logo}
+              style={[styles.logo, { width: logoWidth, height: logoWidth / LOGO_ASPECT_RATIO }]}
               resizeMode="contain"
             />
           </View>
@@ -449,17 +470,19 @@ const [showBible, setShowBible] = useState(false);
 
           {nextUpSong && <NextUpCard song={nextUpSong} active={isFocused} />}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <View
         style={[styles.bannerOverlay, { top: insets.top + Spacing.sm }]}
         pointerEvents="box-none"
       >
-        <ConnectionBanner
-          reconnectAttempt={reconnectAttempt}
-          error={audioError}
-          metadataError={error && data ? 'Sin datos del servidor. La radio sigue sonando.' : null}
-        />
+        <View style={styles.bannerInner}>
+          <ConnectionBanner
+            reconnectAttempt={reconnectAttempt}
+            error={audioError}
+            metadataError={error && data ? 'Sin datos del servidor. La radio sigue sonando.' : null}
+          />
+        </View>
       </View>
 
       <View
@@ -583,7 +606,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: Spacing.lg,
     right: Spacing.lg,
+    alignItems: 'center',
     zIndex: 10,
+  },
+  bannerInner: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
   },
   bibleButton: {
     alignSelf: 'center',
@@ -607,8 +635,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   logo: {
-    width: 168,
-    height: 72,
     alignSelf: 'center',
     marginBottom: Spacing.sm,
   },
@@ -616,6 +642,9 @@ const styles = StyleSheet.create({
   centerSection: {
     alignItems: 'center',
     justifyContent: 'flex-start',
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,

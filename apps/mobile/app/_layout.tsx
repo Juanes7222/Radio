@@ -17,6 +17,7 @@ import {
 import { IBMPlexMono_500Medium } from '@expo-google-fonts/ibm-plex-mono';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { initTrackPlayer, PlaybackService } from '../service';
+import { Colors } from '@/constants/theme';
 import { FacebookLiveProvider } from '@/hooks/useFacebookLive';
 import { PrayerAnswersProvider } from '@/hooks/usePrayerAnswers';
 import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
@@ -114,7 +115,12 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <FacebookLiveProvider>
             <PrayerAnswersProvider>
-              <Stack screenOptions={{ headerShown: false }}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: Colors.background },
+                }}
+              >
                 <Stack.Screen name="(tabs)" />
               </Stack>
               <NoticeOverlay />
@@ -129,5 +135,9 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  // Opaque on purpose. Every navigator layer below this one is transparent by
+  // default, so an unpainted frame — react-native-screens detaching the outgoing
+  // tab before the incoming one attaches — falls through to the native window,
+  // which is white. This is the floor that keeps such a frame ink-coloured.
+  root: { flex: 1, backgroundColor: Colors.background },
 });

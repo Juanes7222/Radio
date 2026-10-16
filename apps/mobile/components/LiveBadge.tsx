@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { AppState, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   cancelAnimation,
@@ -10,17 +10,27 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Colors, Radii, Typography } from '@/constants/theme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { scale } from '@/lib/responsive';
+import { clamp, useResponsive } from '@/lib/responsive';
 
 const PULSE_MS = 900;
 
 interface LiveBadgeProps {
   listenersCount: number;
+  /**
+   * Drop the listener count when the row has no room for it. The top bar
+   * decides: "EN VIVO" is the message, the count is secondary, and on narrow
+   * phones keeping both pushes the quick actions against the screen edge.
+   */
+  showListeners: boolean;
 }
 
-export function LiveBadge({ listenersCount }: LiveBadgeProps) {
+export function LiveBadge({ listenersCount, showListeners }: LiveBadgeProps) {
   const reduceMotion = useReducedMotion();
   const pulse = useSharedValue(0);
+  const { scale } = useResponsive();
+
+  const dotSize = clamp(scale(8), 7, 9);
+  const styles = useMemo(() => createStyles(dotSize, scale), [dotSize, scale]);
 
   // Reanimated instead of the legacy Animated loop: it runs on the UI thread and
   // shares the app-wide reduced-motion source. The loop also has to stop when
@@ -60,11 +70,12 @@ export function LiveBadge({ listenersCount }: LiveBadgeProps) {
     opacity: 0.8 * (1 - pulse.value),
   }));
 
+  const countVisible = showListeners && listenersCount > 0;
   const formattedListeners = listenersCount > 999
     ? `${(listenersCount / 1000).toFixed(1)}k`
     : String(listenersCount);
   const accessibilityLabel =
-    listenersCount > 0
+    countVisible
       ? `En vivo, ${formattedListeners} ${listenersCount === 1 ? 'oyente' : 'oyentes'}`
       : 'En vivo';
 
@@ -85,7 +96,7 @@ export function LiveBadge({ listenersCount }: LiveBadgeProps) {
 
       <Text style={styles.liveLabel}>EN VIVO</Text>
 
-      {listenersCount > 0 && (
+      {countVisible && (
         <>
           <View style={styles.divider} />
           <Text style={styles.listenersText}>
@@ -97,49 +108,51 @@ export function LiveBadge({ listenersCount }: LiveBadgeProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    backgroundColor: Colors.tallyMuted,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.tallyGlow,
-  },
-  dotContainer: {
-    width: scale(8),
-    height: scale(8),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pulseDot: {
-    position: 'absolute',
-    width: scale(8),
-    height: scale(8),
-    borderRadius: scale(4),
-    backgroundColor: Colors.danger,
-  },
-  solidDot: {
-    width: scale(8),
-    height: scale(8),
-    borderRadius: scale(4),
-    backgroundColor: Colors.danger,
-  },
-  liveLabel: {
-    ...Typography.label,
-    color: Colors.danger,
-  },
-  divider: {
-    width: 1,
-    height: 12,
-    backgroundColor: Colors.tallyGlow,
-  },
-  listenersText: {
-    ...Typography.caption,
-    color: Colors.danger,
-    fontWeight: '600',
-  },
-});
+function createStyles(dotSize: number, scale: (size: number) => number) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: clamp(scale(7), 6, 8),
+      backgroundColor: Colors.tallyMuted,
+      paddingHorizontal: clamp(scale(14), 11, 16),
+      paddingVertical: clamp(scale(7), 6, 8),
+      borderRadius: Radii.full,
+      borderWidth: 1,
+      borderColor: Colors.tallyGlow,
+    },
+    dotContainer: {
+      width: dotSize,
+      height: dotSize,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pulseDot: {
+      position: 'absolute',
+      width: dotSize,
+      height: dotSize,
+      borderRadius: dotSize / 2,
+      backgroundColor: Colors.danger,
+    },
+    solidDot: {
+      width: dotSize,
+      height: dotSize,
+      borderRadius: dotSize / 2,
+      backgroundColor: Colors.danger,
+    },
+    liveLabel: {
+      ...Typography.label,
+      color: Colors.danger,
+    },
+    divider: {
+      width: 1,
+      height: clamp(scale(12), 10, 14),
+      backgroundColor: Colors.tallyGlow,
+    },
+    listenersText: {
+      ...Typography.caption,
+      color: Colors.danger,
+      fontWeight: '600',
+    },
+  });
+}

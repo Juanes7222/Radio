@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View, ScrollView, Pressable, StyleSheet, Dimensions, Text, Modal } from "react-native";
+import { View, ScrollView, Pressable, StyleSheet, Text, Modal, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "react-native";
 import Animated, { LinearTransition, Easing } from "react-native-reanimated";
@@ -30,7 +30,8 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
   const [resumeTime, setResumeTime] = useState(0);
   const previewPlayers = useRef<Map<number, import("expo-video").VideoPlayer>>(new Map());
   const openedIndexRef = useRef<number | null>(null);
-  const width = Dimensions.get("window").width - 32; // modal padding
+  const { width: windowWidth } = useWindowDimensions();
+  const width = windowWidth - 32; // modal padding
 
   useEffect(() => {
     if (items.length <= 1 || lightboxUri) return;

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -39,8 +39,6 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { getDeviceId } from '@/lib/device';
 import { openExternalUrl } from '@/lib/externalLinks';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
 const NAME_MAX_LENGTH = 50;
 const REQUEST_MAX_LENGTH = 500;
 const DRAFT_KEY = 'prayer_draft_v1';
@@ -55,6 +53,7 @@ export default function PrayerScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const router = useRouter();
+  const { height: screenHeight } = useWindowDimensions();
   const [name, setName] = useState('');
   const [request, setRequest] = useState('');
   const [acceptsDataTreatment, setAcceptsDataTreatment] = useState(false);
@@ -82,7 +81,9 @@ export default function PrayerScreen() {
   const requestRef = useRef<TextInput>(null);
   const draftLoadedRef = useRef(false);
 
-  const isSmallScreen = useMemo(() => SCREEN_HEIGHT < 700, []);
+  // Live height: the compact layout has to follow a window resize (split
+  // screen), not the size the app happened to open in.
+  const isSmallScreen = screenHeight < 700;
 
   useEffect(() => {
     AsyncStorage.getItem(DRAFT_KEY)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,8 +44,6 @@ import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { Durations, Easings, Spring } from '@/constants/motion';
 import { openExternalUrl } from '@/lib/externalLinks';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
 const CATEGORY_VALUES = Object.values(FEEDBACK_CATEGORIES);
 const DRAFT_KEY = 'feedback_draft_v1';
 
@@ -57,9 +55,10 @@ interface FeedbackFieldErrors {
 }
 
 /**
- * The same seal the site drops on the sheet: two concentric squares in tally
- * red and the station's word for being on the air. Built from plain views so
- * it needs no SVG asset and scales with the type ramp.
+ * The same seal the sheet drops when the message is delivered: two concentric
+ * squares in tally red and the station's word for being on the air. Tally red
+ * only ever means live. Built from plain views so it needs no SVG asset and
+ * scales with the type ramp.
  */
 function OnAirSeal() {
   return (
@@ -75,6 +74,7 @@ function OnAirSeal() {
 export default function FeedbackScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { height: screenHeight } = useWindowDimensions();
 
   const [categoria, setCategoria] = useState<FeedbackCategory>('SUGERENCIA');
   const [mensaje, setMensaje] = useState('');
@@ -92,7 +92,9 @@ export default function FeedbackScreen() {
   const contactoRef = useRef<TextInput>(null);
   const draftLoadedRef = useRef(false);
 
-  const isSmallScreen = useMemo(() => SCREEN_HEIGHT < 700, []);
+  // Live height: the compact layout has to follow a window resize (split
+  // screen), not the size the app happened to open in.
+  const isSmallScreen = screenHeight < 700;
   const remaining = FEEDBACK_LIMITS.mensaje - mensaje.length;
 
   // The consent checkbox is a legal gate, so its state change is the one the
@@ -268,272 +270,277 @@ export default function FeedbackScreen() {
         >
           <Text style={styles.lede}>
             Sugerencias, felicitaciones, consultas y problemas con la emisión. Puedes
-            firmar o dejar tu mensaje anónimo: llega igual a la bandeja del equipo.
+            escribir firmado o sin dar ningún dato: el mensaje llega igual a la bandeja
+            del equipo.
           </Text>
         </Animated.View>
 
-        {sent ? (
-          <Animated.View
-            entering={FadeInDown.duration(Durations.slow).easing(Easing.bezier(...Easings.enter))}
-            exiting={FadeOut.duration(Durations.fast).easing(Easing.bezier(...Easings.exit))}
-            style={styles.successCard}
-          >
-            <Animated.View
-              entering={ZoomIn.duration(Durations.normal).delay(120).easing(Easing.bezier(...Easings.spring))}
-              accessible={false}
-              importantForAccessibility="no-hide-descendants"
-            >
-              <OnAirSeal />
-            </Animated.View>
-            <Animated.Text
-              entering={FadeInDown.delay(220).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
-              style={styles.successTitle}
-            >
-              Ya está al aire
-            </Animated.Text>
-            <Animated.Text
-              entering={FadeInDown.delay(280).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
-              style={styles.successText}
-            >
-              {signedName
-                ? `Gracias, ${signedName}. Tu mensaje ya está en la bandeja del equipo.`
-                : 'Tu mensaje ya está en la bandeja del equipo.'}
-            </Animated.Text>
-            <Animated.View entering={FadeIn.delay(360).duration(Durations.normal)}>
-              <TouchableOpacity
-                onPress={handleReset}
-                style={styles.resetBtn}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="Escribir otro mensaje"
+        <Animated.View
+          entering={FadeInDown.delay(80).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+          style={styles.sheet}
+        >
+          {sent ? (
+            <View style={styles.successCard}>
+              <Animated.View
+                entering={ZoomIn.duration(Durations.normal).delay(120).easing(Easing.bezier(...Easings.spring))}
+                accessible={false}
+                importantForAccessibility="no-hide-descendants"
               >
-                <Text style={styles.resetBtnText}>Escribir otro mensaje</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          </Animated.View>
-        ) : (
-          <Animated.View
-            entering={FadeInDown.delay(80).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
-            style={styles.sheet}
-          >
-            {/* Motivo: una línea de opciones, como una línea del formulario */}
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Motivo</Text>
-              <View style={styles.categoryRow}>
-                {CATEGORY_VALUES.map((category, index) => {
-                  const selected = category === categoria;
-                  return (
-                    <View key={category} style={styles.categoryItem}>
-                      {index > 0 ? (
-                        <Text style={styles.categoryDot} accessibilityElementsHidden>
-                          ·
-                        </Text>
-                      ) : null}
+                <OnAirSeal />
+              </Animated.View>
+              <Animated.Text
+                entering={FadeInDown.delay(220).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+                exiting={FadeOut.duration(Durations.fast).easing(Easing.bezier(...Easings.exit))}
+                style={styles.successTitle}
+              >
+                Ya está al aire
+              </Animated.Text>
+              <Animated.Text
+                entering={FadeInDown.delay(280).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+                style={styles.successText}
+              >
+                {signedName
+                  ? `Gracias, ${signedName}. Tu mensaje ya está en la bandeja del equipo.`
+                  : 'Tu mensaje ya está en la bandeja del equipo.'}
+              </Animated.Text>
+              <Animated.View entering={FadeIn.delay(360).duration(Durations.normal)}>
+                <TouchableOpacity
+                  onPress={handleReset}
+                  style={styles.resetBtn}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Escribir otro mensaje"
+                >
+                  <Text style={styles.resetBtnText}>Escribir otro mensaje</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+          ) : (
+            <View accessibilityLabel="Formulario de opinión">
+              {/* Letterhead: the station's identity in measuring type, like the
+                  web sheet. */}
+              <View style={styles.letterhead}>
+                <Text style={styles.letterheadText}>La Voz de la Verdad</Text>
+                <Text style={styles.letterheadText}>Cartago, Colombia</Text>
+              </View>
+
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>Motivo</Text>
+                <View style={styles.chipRow}>
+                  {CATEGORY_VALUES.map((category) => {
+                    const selected = category === categoria;
+                    return (
                       <TouchableOpacity
+                        key={category}
                         onPress={() => {
                           Haptics.selectionAsync().catch(() => {});
                           setCategoria(category);
                         }}
                         disabled={loading}
                         activeOpacity={0.8}
+                        hitSlop={4}
                         accessibilityRole="radio"
                         accessibilityState={{ selected, disabled: loading }}
                         accessibilityLabel={FEEDBACK_CATEGORY_LABELS[category]}
+                        style={[styles.chip, selected ? styles.chipSelected : styles.chipIdle]}
                       >
                         <Text
-                          style={[
-                            styles.categoryLabel,
-                            selected ? styles.categoryLabelSelected : styles.categoryLabelIdle,
-                          ]}
+                          style={[styles.chipText, selected && styles.chipTextSelected]}
                         >
                           {FEEDBACK_CATEGORY_LABELS[category]}
                         </Text>
                       </TouchableOpacity>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-
-            <View style={styles.row}>
-              <View style={styles.rowLabelLine}>
-                <Text style={styles.rowLabel}>Mensaje</Text>
-                <Text style={styles.counter}>
-                  {mensaje.length}/{FEEDBACK_LIMITS.mensaje}
-                </Text>
-              </View>
-              <TextInput
-                ref={mensajeRef}
-                style={[
-                  styles.input,
-                  styles.textarea,
-                  isSmallScreen && styles.textareaSmall,
-                  fieldErrors.mensaje && styles.inputError,
-                ]}
-                placeholder="Escribe aquí lo que quieras contarnos."
-                placeholderTextColor={Colors.textMuted}
-                keyboardAppearance="dark"
-                value={mensaje}
-                onChangeText={(value) => {
-                  setMensaje(value);
-                  if (fieldErrors.mensaje) setFieldErrors((prev) => ({ ...prev, mensaje: undefined }));
-                }}
-                multiline
-                numberOfLines={isSmallScreen ? 4 : 6}
-                textAlignVertical="top"
-                maxLength={FEEDBACK_LIMITS.mensaje}
-                editable={!loading}
-                accessibilityLabel="Tu mensaje para la estación"
-              />
-              {fieldErrors.mensaje ? (
-                <Text style={styles.errorText} accessibilityLiveRegion="polite">
-                  {fieldErrors.mensaje}
-                </Text>
-              ) : (
-                <Text style={styles.hint}>
-                  {remaining < 60
-                    ? `Quedan ${remaining} caracteres.`
-                    : `Mínimo ${FEEDBACK_MIN_MENSAJE} caracteres.`}
-                </Text>
-              )}
-            </View>
-
-            <View style={styles.row}>
-              <View style={styles.rowLabelLine}>
-                <Text style={styles.rowLabel}>Nombre</Text>
-                <Text style={styles.optionalTag}>opcional</Text>
-              </View>
-              <TextInput
-                ref={nombreRef}
-                style={[styles.input, fieldErrors.nombre && styles.inputError]}
-                placeholder="Con el que le saludemos"
-                placeholderTextColor={Colors.textMuted}
-                keyboardAppearance="dark"
-                value={nombre}
-                onChangeText={(value) => {
-                  setNombre(value);
-                  if (fieldErrors.nombre) setFieldErrors((prev) => ({ ...prev, nombre: undefined }));
-                }}
-                maxLength={FEEDBACK_LIMITS.nombre}
-                editable={!loading}
-                autoComplete="name"
-                autoCapitalize="words"
-                returnKeyType="next"
-                onSubmitEditing={() => contactoRef.current?.focus()}
-                accessibilityLabel="Tu nombre"
-              />
-              {fieldErrors.nombre ? (
-                <Text style={styles.errorText} accessibilityLiveRegion="polite">
-                  {fieldErrors.nombre}
-                </Text>
-              ) : null}
-            </View>
-
-            <View style={styles.row}>
-              <View style={styles.rowLabelLine}>
-                <Text style={styles.rowLabel}>Contacto</Text>
-                <Text style={styles.optionalTag}>opcional</Text>
-              </View>
-              <TextInput
-                ref={contactoRef}
-                style={[styles.input, fieldErrors.contacto && styles.inputError]}
-                placeholder="Correo o teléfono"
-                placeholderTextColor={Colors.textMuted}
-                keyboardAppearance="dark"
-                value={contacto}
-                onChangeText={(value) => {
-                  setContacto(value);
-                  if (fieldErrors.contacto)
-                    setFieldErrors((prev) => ({ ...prev, contacto: undefined }));
-                }}
-                maxLength={FEEDBACK_LIMITS.contacto}
-                editable={!loading}
-                autoComplete="email"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                returnKeyType="done"
-                accessibilityLabel="Correo o teléfono de contacto"
-              />
-              {fieldErrors.contacto ? (
-                <Text style={styles.errorText} accessibilityLiveRegion="polite">
-                  {fieldErrors.contacto}
-                </Text>
-              ) : null}
-            </View>
-
-            <View style={styles.row}>
-              <TouchableOpacity
-                onPress={() => {
-                  setAcceptsDataTreatment((prev) => !prev);
-                  if (fieldErrors.consent)
-                    setFieldErrors((prev) => ({ ...prev, consent: undefined }));
-                }}
-                style={styles.consentRow}
-                activeOpacity={0.8}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: acceptsDataTreatment }}
-                accessibilityLabel="Autorizo el tratamiento de mis datos"
-              >
-                <View style={styles.consentIconWrap} accessible={false} importantForAccessibility="no-hide-descendants">
-                  <Animated.View style={consentIconStyle}>
-                    <Ionicons
-                      name={acceptsDataTreatment ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={20}
-                      color={acceptsDataTreatment ? Colors.success : Colors.textAltFaint}
-                    />
-                  </Animated.View>
+                    );
+                  })}
                 </View>
-                <Text style={styles.consentText}>
-                  Autorizo el tratamiento de los datos que escriba aquí, incluido mi nombre y
-                  mi contacto, para que la estación pueda responderme. Conozco la{' '}
-                  <Text
-                    style={styles.consentLink}
-                    onPress={(event) => {
-                      event.stopPropagation();
-                      openExternalUrl(legalUrl('data-treatment'));
-                    }}
-                  >
-                    política de tratamiento de datos
-                  </Text>
-                  .
-                </Text>
-              </TouchableOpacity>
-              {fieldErrors.consent ? (
-                <Text style={styles.errorText} accessibilityLiveRegion="polite">
-                  {fieldErrors.consent}
-                </Text>
-              ) : null}
-            </View>
+              </View>
 
-            <View style={styles.footer}>
-              <TouchableOpacity
-                onPress={handleSubmit}
-                disabled={loading}
-                style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel={loading ? 'Enviando mensaje' : 'Enviar mensaje'}
-                accessibilityState={{ disabled: loading, busy: loading }}
-                accessibilityHint="Envía tu mensaje a la bandeja del equipo"
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color={Colors.textOnSignal} />
+              <View style={[styles.row, fieldErrors.mensaje && styles.rowDanger]}>
+                <View style={styles.rowLabelLine}>
+                  <Text style={styles.rowLabel}>Mensaje</Text>
+                  <Text style={styles.counter}>
+                    {mensaje.length}/{FEEDBACK_LIMITS.mensaje}
+                  </Text>
+                </View>
+                <TextInput
+                  ref={mensajeRef}
+                  style={[
+                    styles.input,
+                    styles.textarea,
+                    isSmallScreen && styles.textareaSmall,
+                    fieldErrors.mensaje && styles.inputError,
+                  ]}
+                  placeholder="Escribe aquí lo que quieras contarnos."
+                  placeholderTextColor={Colors.textMuted}
+                  keyboardAppearance="dark"
+                  selectionColor={Colors.signal}
+                  cursorColor={Colors.signal}
+                  value={mensaje}
+                  onChangeText={(value) => {
+                    setMensaje(value);
+                    if (fieldErrors.mensaje) setFieldErrors((prev) => ({ ...prev, mensaje: undefined }));
+                  }}
+                  multiline
+                  numberOfLines={isSmallScreen ? 4 : 6}
+                  textAlignVertical="top"
+                  maxLength={FEEDBACK_LIMITS.mensaje}
+                  editable={!loading}
+                  accessibilityLabel="Tu mensaje para la estación"
+                />
+                {fieldErrors.mensaje ? (
+                  <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                    {fieldErrors.mensaje}
+                  </Text>
                 ) : (
-                  <>
-                    <Ionicons name="send" size={16} color={Colors.textOnSignal} />
-                    <Text style={styles.submitBtnText}>Enviar mensaje</Text>
-                  </>
+                  <Text style={styles.hint}>
+                    {remaining < 60
+                      ? `Quedan ${remaining} caracteres.`
+                      : `Mínimo ${FEEDBACK_MIN_MENSAJE} caracteres.`}
+                  </Text>
                 )}
-              </TouchableOpacity>
+              </View>
+
+              <View style={[styles.row, fieldErrors.nombre && styles.rowDanger]}>
+                <View style={styles.rowLabelLine}>
+                  <Text style={styles.rowLabel}>Nombre</Text>
+                  <Text style={styles.optionalTag}>opcional</Text>
+                </View>
+                <TextInput
+                  ref={nombreRef}
+                  style={[styles.input, fieldErrors.nombre && styles.inputError]}
+                  placeholder="Con el que te saludemos"
+                  placeholderTextColor={Colors.textMuted}
+                  keyboardAppearance="dark"
+                  selectionColor={Colors.signal}
+                  cursorColor={Colors.signal}
+                  value={nombre}
+                  onChangeText={(value) => {
+                    setNombre(value);
+                    if (fieldErrors.nombre) setFieldErrors((prev) => ({ ...prev, nombre: undefined }));
+                  }}
+                  maxLength={FEEDBACK_LIMITS.nombre}
+                  editable={!loading}
+                  autoComplete="name"
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                  onSubmitEditing={() => contactoRef.current?.focus()}
+                  accessibilityLabel="Tu nombre"
+                />
+                {fieldErrors.nombre ? (
+                  <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                    {fieldErrors.nombre}
+                  </Text>
+                ) : null}
+              </View>
+
+              <View style={[styles.row, fieldErrors.contacto && styles.rowDanger]}>
+                <View style={styles.rowLabelLine}>
+                  <Text style={styles.rowLabel}>Contacto</Text>
+                  <Text style={styles.optionalTag}>opcional</Text>
+                </View>
+                <TextInput
+                  ref={contactoRef}
+                  style={[styles.input, fieldErrors.contacto && styles.inputError]}
+                  placeholder="Correo o teléfono"
+                  placeholderTextColor={Colors.textMuted}
+                  keyboardAppearance="dark"
+                  selectionColor={Colors.signal}
+                  cursorColor={Colors.signal}
+                  value={contacto}
+                  onChangeText={(value) => {
+                    setContacto(value);
+                    if (fieldErrors.contacto)
+                      setFieldErrors((prev) => ({ ...prev, contacto: undefined }));
+                  }}
+                  maxLength={FEEDBACK_LIMITS.contacto}
+                  editable={!loading}
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  returnKeyType="done"
+                  accessibilityLabel="Correo o teléfono de contacto"
+                />
+                {fieldErrors.contacto ? (
+                  <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                    {fieldErrors.contacto}
+                  </Text>
+                ) : null}
+              </View>
+
+              <View style={styles.consentBlock}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setAcceptsDataTreatment((prev) => !prev);
+                    if (fieldErrors.consent)
+                      setFieldErrors((prev) => ({ ...prev, consent: undefined }));
+                  }}
+                  style={styles.consentRow}
+                  activeOpacity={0.8}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: acceptsDataTreatment }}
+                  accessibilityLabel="Autorizo el tratamiento de mis datos"
+                >
+                  <View style={styles.consentIconWrap} accessible={false} importantForAccessibility="no-hide-descendants">
+                    <Animated.View style={consentIconStyle}>
+                      <Ionicons
+                        name={acceptsDataTreatment ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={20}
+                        color={acceptsDataTreatment ? Colors.success : Colors.textAltFaint}
+                      />
+                    </Animated.View>
+                  </View>
+                  <Text style={styles.consentText}>
+                    Autorizo el tratamiento de los datos que escriba aquí, incluido mi nombre y
+                    mi contacto, para que la estación pueda responderme. Conozco la{' '}
+                    <Text
+                      style={styles.consentLink}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        openExternalUrl(legalUrl('data-treatment'));
+                      }}
+                    >
+                      política de tratamiento de datos
+                    </Text>
+                    .
+                  </Text>
+                </TouchableOpacity>
+                {fieldErrors.consent ? (
+                  <Text style={[styles.errorText, styles.consentError]} accessibilityLiveRegion="polite">
+                    {fieldErrors.consent}
+                  </Text>
+                ) : null}
+              </View>
+
+              <View style={styles.footer}>
+                <TouchableOpacity
+                  onPress={handleSubmit}
+                  disabled={loading}
+                  style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={loading ? 'Enviando mensaje' : 'Enviar mensaje'}
+                  accessibilityState={{ disabled: loading, busy: loading }}
+                  accessibilityHint="Envía tu mensaje a la bandeja del equipo"
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color={Colors.textOnSignal} />
+                  ) : (
+                    <Ionicons name="send" size={16} color={Colors.textOnSignal} />
+                  )}
+                  <Text style={styles.submitBtnText}>
+                    {loading ? 'Enviando' : 'Enviar mensaje'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </Animated.View>
-        )}
+          )}
+        </Animated.View>
 
         <Animated.View entering={FadeIn.delay(120).duration(Durations.normal)} style={styles.aftermath}>
           <Text style={styles.aftermathTitle}>Qué pasa con tu mensaje</Text>
           {[
             'Llega a la bandeja del equipo de la estación.',
-            'Si dejaste un nombre o un contacto, te respondemos por ese medio.',
+            'Si dejas un nombre o un contacto, te respondemos por ese medio.',
             'No se publica en el sitio ni en la aplicación.',
           ].map((step, index) => (
             <View key={step} style={styles.stepRow}>
@@ -564,17 +571,61 @@ const styles = StyleSheet.create({
     borderColor: Colors.surfaceBorder,
     overflow: 'hidden',
   },
-  row: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.md, gap: 6 },
-  rowLabelLine: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: Spacing.sm },
-  rowLabel: { ...Typography.eyebrow, color: Colors.textFaint },
+  successCard: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.lg },
+
+  letterhead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm + Spacing.xs,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderGlass,
+  },
+  letterheadText: {
+    ...Typography.mono,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+    color: Colors.textAltFaint,
+  },
+
+  row: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm + 2,
+    paddingBottom: Spacing.sm + 4,
+    gap: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderGlass,
+  },
+  rowDanger: { borderBottomColor: Colors.danger },
+  rowLabelLine: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  rowLabel: { ...Typography.label, color: Colors.textFaint, letterSpacing: 1.2, fontSize: 11 },
   optionalTag: { ...Typography.caption, color: Colors.textAltFaint, fontSize: 11 },
 
-  categoryRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 2 },
-  categoryItem: { flexDirection: 'row', alignItems: 'center' },
-  categoryDot: { ...Typography.body, color: Colors.border, marginHorizontal: 2 },
-  categoryLabel: { ...Typography.body, paddingVertical: 4 },
-  categoryLabelSelected: { color: Colors.text, fontWeight: '600' },
-  categoryLabelIdle: { color: Colors.textMuted },
+  // The motive options read as options: quiet pills, where the chosen one
+  // carries the signal indigo. Chips are transparent when idle so the sheet
+  // stays one clean surface.
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
+  chip: {
+    minHeight: 40,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    justifyContent: 'center',
+  },
+  chipIdle: { borderColor: Colors.border, backgroundColor: 'transparent' },
+  chipSelected: { borderColor: Colors.signal, backgroundColor: Colors.signalMuted },
+  chipText: { ...Typography.body, color: Colors.textMuted },
+  chipTextSelected: { ...Typography.bodyStrong, color: Colors.text },
 
   input: {
     ...Typography.body,
@@ -594,10 +645,16 @@ const styles = StyleSheet.create({
   hint: { ...Typography.caption, color: Colors.textAltFaint, fontSize: 11 },
   counter: { ...Typography.mono, color: Colors.textAltFaint },
 
+  consentBlock: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm + 2,
+    paddingBottom: Spacing.sm + 4,
+  },
   consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   consentIconWrap: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
   consentText: { ...Typography.caption, flex: 1, color: Colors.textMuted, lineHeight: 17 },
   consentLink: { color: Colors.signal, fontWeight: '600', textDecorationLine: 'underline' },
+  consentError: { marginTop: 6, paddingLeft: 30 },
 
   footer: {
     paddingHorizontal: Spacing.md,
@@ -617,7 +674,6 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText: { ...Typography.bodyStrong, color: Colors.textOnSignal },
 
-  successCard: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.lg },
   sealOuter: {
     width: 108,
     height: 108,
