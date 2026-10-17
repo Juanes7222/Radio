@@ -64,9 +64,10 @@ de la playlist destino.
 
 **Programas de bloque (noticias, lectura, y cualquier playlist que el dueño arme a
 mano en AzuraCast).** El backend sostiene el intro como primera media de la playlist y
-el outro como última, y deja la playlist en `sequential` + `merge` + `single_track`.
-AzuraCast fusiona y emite el bloque como una sola pista. Esto cubre el "pegado"
-pedido, cualquier número de archivos y también las playlists que hoy no pasan por el
+el outro como última, y deja la playlist en `sequential` + `single_track`. Si el bumper
+es `glued`, agrega también `merge` y AzuraCast fusiona el bloque en una sola pista; si
+no, los bumpers suenan como pistas separadas al principio y al final. Esto cubre ambos
+casos, cualquier número de archivos y también las playlists que hoy no pasan por el
 panel.
 
 ### Modelo de datos
@@ -86,6 +87,8 @@ model PlaylistBumper {
   // Copia local del audio, para poder re-subir si la media desaparece de AzuraCast
   introFile     String?  @map("intro_file")
   outroFile     String?  @map("outro_file")
+  // true = pegar el bloque con merge; false = bumpers como pistas separadas
+  glued         Boolean  @default(true)
   // Estado previo de la playlist, para poder revertirlo al deshabilitar o borrar
   priorBackendOptions String? @map("prior_backend_options")
   priorOrder          String? @map("prior_order")
@@ -110,10 +113,14 @@ idempotente. Lee `getPlaylistOrder(playlistId)` y deja la playlist en este estad
 1. El intro presente y con el menor peso; el outro presente y con el mayor. Si falta
    alguno en la membresía, lo re-agrega con `setFilePlaylists` sobre la media y luego
    aplica `setPlaylistOrder`.
-2. `backend_options` incluye `merge` y `single_track`, `order` es `sequential` y
-   `source` es `songs`. Se escribe con `updatePlaylist`.
+2. Si `glued` es true, `backend_options` incluye `merge` y `single_track`; si es false,
+   solo `single_track`. En ambos casos `order` es `sequential` y `source` es `songs`. Se
+   escribe con `updatePlaylist`.
 3. Registra el resultado en `lastSyncedAt` y devuelve advertencias legibles (por
    ejemplo, si la playlist no es `source: songs`, `merge` no aplica y hay que avisar).
+4. No es de una sola vez: otras partes del backend reescriben la membresía (la rotación
+   vacía y reconstruye su playlist cada noche a las 03:30, y los workers agregan noticias),
+   así que el orden de los bumpers se vuelve a fijar en cada corrida.
 
 Se apoya en un cron nuevo con la forma de `program.playback.job.ts:14`, cada 5
 minutos con `config.locutor.timezone`, más la corrida manual desde el panel de Jobs
@@ -163,13 +170,31 @@ de la estación (`backend/src/modules/azuracast/cleanup/folderCleanup.service.ts
 `merge` rompe justo eso: al fusionar el bloque en una sola pista, el historial registra
 una sola entrada y los `song_id` de los archivos individuales dejan de aparecer, así que
 `cleanupNewsFolder` no los reconoce como emitidos y la carpeta crece sin límite. Por eso
-**noticias no debe recibir `merge` sin rehacer antes esa detección**: o queda fuera de
-esta entrega, o entra junto con un cambio en la limpieza.
+**noticias no debe recibir `merge`**: va con `glued: false` (bumpers como pistas
+separadas), que conserva el historial por archivo y la limpieza. Rehacer esa limpieza es
+un cambio aparte y fuera de esta entrega.
 
 Conviene notar además que el contenido de noticias es una **carpeta**, no media sueltas.
 Aunque la playlist siga siendo `source: songs`, el orden relativo entre las media fijadas
 y las filas que aporta la carpeta es una de las cosas a verificar antes de sostener el
 pegado.
+
+## Los tres casos reales
+
+Buscando "lectura" quedó claro que los tres programas especiales no pasan por el mismo
+mecanismo, y el diseño tiene que reconocerlo:
+
+- **Prédicas.** Playlist hecha a mano, uno o pocos archivos. Es el caso limpio: bumpers
+  fijados y `glued: true`.
+- **Noticias.** Playlist alimentada por los workers desde la carpeta `NOTICIAS`, con la
+  limpieza por `song_id` descrita arriba. Va con `glued: false`: los bumpers suenan como
+  pistas separadas y el historial sigue registrando cada archivo, así que la limpieza no
+  se rompe. Es exactamente el respaldo que el dueño aceptó.
+- **Lectura.** Es la rotación bíblica (`backend/src/modules/rotation/`), no una playlist
+  quieta: `rotation.service.ts:179-203` **vacía la playlist destino y la reconstruye** en
+  cada corrida (03:30). Fijar los bumpers una sola vez no sirve, porque la siguiente
+  corrida los borra. Por eso la reconciliación es periódica y, si es `glued: true`,
+  reinserta intro y outro como primero y último después de cada reconstrucción.
 
 ## Decisiones tomadas
 
@@ -192,6 +217,12 @@ pegado.
 - **La franja la define AzuraCast.** El bumper no crea ni mueve `schedule_items`, que ya
   están puestos a mano. Si la playlist no tiene franja, la reconciliación lo reporta como
   advertencia, porque sin franja `single_track` no tiene dónde valer.
+- **El pegado es por playlist, no global (`glued`).** Se activa `merge` donde no rompe
+  nada (prédicas, lectura) y se deja en pistas separadas donde sí rompería algo (noticias,
+  por la limpieza). Respeta la preferencia del dueño sin sacrificar lo que ya funciona.
+- **La reconciliación es periódica, no de una sola vez.** La rotación y los workers
+  reescriben la membresía de sus playlists, así que el orden de los bumpers se vuelve a
+  fijar cada 5 minutos.
 
 ## Decisiones abiertas (para el dueño)
 
@@ -204,18 +235,20 @@ pegado.
   hoy se ve el título del archivo.
 - **Un solo intro/outro por playlist o un pool que rote.** Se propone uno de cada uno
   por simplicidad. Rotar requiere más de un archivo y una regla de rotación.
-- **Si noticias entra en esta entrega.** Con `merge` se rompe la limpieza por `song_id`
-  descrita arriba, así que o queda fuera, o se rehace la limpieza en el mismo cambio.
-- **De dónde sale el contenido de lectura.** Si es una carpeta como noticias o media
-  sueltas subidas a mano, porque cambia si el pin de bumpers puede fijar el orden.
-- **Si hay una estación de AzuraCast de prueba** para la verificación previa, o si se
-  hace sobre producción fuera de horario y con qué riesgo aceptado.
+- **Confirmar que noticias vaya en pistas separadas.** Es la única con una dependencia
+  externa (la limpieza por `song_id`); si el dueño prefiere pegado también ahí, entra
+  junto con un cambio a esa limpieza.
+- **Estación de verificación.** En este equipo no hay AzuraCast configurado y la emisora
+  es la real, así que no hay banco de pruebas: la verificación previa se hace sobre la
+  estación en vivo, fuera de horario y con una playlist desechable, y nada se enciende
+  hasta que esa prueba pase.
 
 ## Verificación previa obligatoria
 
-El diseño se apoya en comportamiento de AzuraCast que conviene confirmar contra la
-estación real antes de construir, con una playlist de prueba desechable y archivos
-cortos:
+El diseño se apoya en comportamiento de AzuraCast que hay que confirmar antes de
+construir. En este equipo no hay AzuraCast configurado y la emisora es la real, así que
+la prueba se hace en vivo, fuera de horario, con una playlist desechable de archivos
+cortos y silenciosos, sin tocar ninguna playlist en uso:
 
 - `merge` + `single_track` + `sequential` reproduce intro + contenido + outro como
   una sola pista continua, una vez, al inicio de la franja.
