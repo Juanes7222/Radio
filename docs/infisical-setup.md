@@ -30,7 +30,6 @@ Optional secrets that can also live in Infisical:
 - `ADMIN_WHITELIST`
 - `PUBLIC_URL`
 - `FRONTEND_URL`
-- `YOUTUBE_CHANNEL_IDS`
 - `PORT`
 - `WS_PORT`
 - `JOB_DISPATCH_INTERVAL_MS`
