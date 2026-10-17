@@ -1,0 +1,32 @@
+// Intro/outro pegados a la playlist de AzuraCast que emite un programa especial.
+// AzuraCast hace el pegado: el backend solo fija el orden de los bumpers dentro de la
+// playlist y, cuando `glued`, activa la opción `merge` que hace que el bloque se emita
+// como una sola pista.
+model PlaylistBumper {
+  id    String @id @default(uuid())
+  label String
+  // Playlist de AzuraCast que emite el programa. Una sola por playlist.
+  playlistId Int @unique @map("playlist_id")
+
+  // unique_id de la media ya subida a la biblioteca de AzuraCast
+  introMediaId String? @map("intro_media_id")
+  outroMediaId String? @map("outro_media_id")
+  // Copia local del audio, para volver a subirlo si la media se borra en AzuraCast
+  introFile    String? @map("intro_file")
+  outroFile    String? @map("outro_file")
+
+  // true = pegar el bloque con `merge`; false = bumpers como pistas separadas
+  glued Boolean @default(true)
+
+  // Estado previo de la playlist, para devolverlo al deshabilitar o borrar el bumper
+  priorBackendOptions String? @map("prior_backend_options")
+  priorOrder          String? @map("prior_order")
+
+  enabled      Boolean   @default(true)
+  lastSyncedAt DateTime? @map("last_synced_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("playlist_bumpers")
+}
