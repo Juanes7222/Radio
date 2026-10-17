@@ -41,6 +41,8 @@ export interface PlaylistDetail {
   order: string;
   is_enabled?: boolean;
   schedule_items?: PlaylistScheduleItem[];
+  /** Opciones de backend de AzuraCast: 'interrupt', 'single_track', 'merge'. */
+  backend_options?: string[];
 }
 
 /**
