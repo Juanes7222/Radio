@@ -124,6 +124,26 @@ Not covered, deliberately:
   verification affordance rather than a broadcast decoration, so it keeps
   working.
 
+## Intro y outro de programas (Oct 2026)
+
+`pages/admin/AdminBumpers.tsx`, ruta `/admin/bumpers`, permiso `programs` (se
+reutiliza, no hay permiso propio), entrada en la sección Contenido del menú junto
+a Programas.
+
+- Los inputs de archivo de cada fila viven en un **único ref indexado por
+  `bumper.id` y tipo** (`fileInputs.current[inputKey(id, kind)]`). Un ref por lado
+  declarado a nivel de componente se resuelve a la **última** fila montada: con dos
+  bumpers, "Subir intro" en el primero abría el input del segundo y el intro de un
+  programa reemplazaba el del otro. `tests/bumpers/upload-inputs.test.ts` fija esa
+  invariante; es una prueba de fuente, como las de `tests/perf/`.
+- El selector de "pegado" se elige **al crear** y avisa en el propio control de que
+  pegado no sirve para noticias, porque la fusión rompe la limpieza automática de la
+  carpeta. El panel no sondea: la advertencia y `lastSyncedAt` se mueven tras una
+  acción del admin o con el botón de reconciliar de la fila.
+- `hasIntro`/`hasOutro` vienen del id guardado; cuando una reconciliación no
+  consigue recuperar el archivo, el servicio limpia ese id a propósito para que el
+  panel deje de mostrar "listo".
+
 ## Suggested expectations for the agent
 
 - Identify the exact components, hooks, and styles involved.

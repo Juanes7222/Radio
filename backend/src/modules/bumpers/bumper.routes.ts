@@ -51,7 +51,10 @@ const assetUpload = multer({
   fileFilter: (_req, file, cb) => {
     const allowed = (PROGRAM_AUDIO_MIME_TYPES as readonly string[]).includes(file.mimetype);
     if (allowed) cb(null, true);
-    else cb(new Error(`Tipo de audio no permitido: ${file.mimetype}`));
+    // AppError, not a bare Error: the shared handler only maps a rejection of an
+    // unsupported type to 400 when it recognises it, and a raw Error would reach
+    // the client as a 500 for what is plainly a bad request.
+    else cb(new AppError(400, `Tipo de audio no permitido: ${file.mimetype}`));
   },
 });
 

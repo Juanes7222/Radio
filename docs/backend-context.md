@@ -436,6 +436,55 @@ AzuraCast for a 55 day range on every click.
   no anulable a propósito: propagar el `null` tocaría a todos los demás
   consumidores del historial a cambio de proteger un caso que no ocurre.
 
+## Intro y outro de programas especiales (Oct 2026)
+
+Un programa especial entra al aire con un intro y sale con un outro, sin importar
+cuántos archivos suenen adentro. Los de un solo archivo ya lo hacían por ffmpeg
+(`programs`); estos son los que son una playlist de N archivos.
+
+- Modelo `PlaylistBumper` (`playlist_bumpers`) en `prisma/schema/bumpers.prisma`.
+  Módulo `src/modules/bumpers/` con `bumper.constants.ts`,
+  `bumper.azuracast.service.ts`, `bumper.service.ts`, `bumper.routes.ts` y
+  `bumper.job.ts`. Reutiliza el permiso `programs`, no crea uno nuevo.
+- **AzuraCast hace el pegado, el backend solo ordena.** Una playlist con
+  `source: songs`, `order: sequential` y `backend_options` con `merge` +
+  `single_track` se emite fusionada en una sola pista: el generador de Liquidsoap
+  de AzuraCast escribe `merge_tracks(...)` cuando `StationPlaylist.backendMerge()`
+  es true, y `single_track` se traduce a `predicate.at_most(1, {ventana})`, o sea
+  "la playlist se selecciona una vez dentro de su franja", **no** "suena un solo
+  ítem". Por eso `merge` y `single_track` se escriben **juntos**:
+  `computeBumperOptions` solo los agrega cuando `glued` es true. Con `glued: false`
+  las opciones de la playlist quedan como el dueño las dejó, porque
+  `single_track` a secas recorta una franja de noticias a un solo archivo.
+- **La reconciliación es periódica, no de una vez.** `rotation.service.ts:179-203`
+  **vacía y reconstruye** la playlist destino cada noche a las 03:30, así que un
+  bumper fijado una sola vez desaparecería en la siguiente corrida. El cron corre
+  cada 5 min (`BUMPERS_SYNC_CRON`) y se registra **después** de la rotación en
+  `jobs/scheduler.ts`.
+- **`merge` rompe la limpieza de noticias.** Al fusionar, el historial registra una
+  sola entrada y los `song_id` de los archivos individuales dejan de aparecer, así
+  que `cleanupNewsFolder` (`azuracast/cleanup/folderCleanup.service.ts`) no los
+  reconoce como emitidos y la carpeta `NOTICIAS` crece sin límite. **Noticias debe
+  quedar con `glued: false`.** Rehacer esa detección es un cambio aparte.
+- **`priorBackendOptions === null` significa "sin snapshot"; `""` significa "la
+  playlist no tenía opciones".** El snapshot se toma en la reconciliación *antes*
+  de escribir las opciones, o no queda nada que devolver al deshabilitar o borrar.
+- Los bumpers viven en `<PROGRAMS_ROOT_FOLDER>/BUMPERS/`, fuera de las carpetas por
+  programa que recorre `programs-archive` y fuera de la ruta de noticias.
+- Guardas de `POST /`: la playlist debe existir, no puede ser
+  `AZURACAST_PLAYLIST_ID` (el contenido variado general: fusionarla uniría toda la
+  música del día), no puede ser la playlist de un `Program` (sus episodios ya se
+  pegan con ffmpeg) y no puede tener ya un bumper. Si `AZURACAST_PLAYLIST_ID` no es
+  un id válido la guarda queda inactiva y se avisa por log: no es una protección
+  silenciosa.
+- Endpoints en `/admin-api/bumpers` con `requireAuth` + permiso `programs`:
+  `GET /`, `POST /`, `PUT /:id` (acepta `label`, `enabled`, `glued` y `playlistId`),
+  `DELETE /:id`, `POST|DELETE /:id/assets/:kind`, `POST /:id/reconcile`. El PUT
+  devuelve la playlist anterior a su estado previo antes de enganchar la nueva.
+- La subida de un bumper es de 80 MB y va a disco (multer `diskStorage`); el
+  directorio temporal se limpia en **todos** los caminos de salida, incluidos los
+  rechazos del propio multer, que ya habían escrito el archivo.
+
 ## Suggested expectations for the agent
 
 - Identify the exact route, service, and Prisma files involved.
