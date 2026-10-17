@@ -54,8 +54,14 @@ export default function AdminBumpers() {
 
   const [pendingDelete, setPendingDelete] = useState<PlaylistBumper | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const introInput = useRef<HTMLInputElement>(null);
-  const outroInput = useRef<HTMLInputElement>(null);
+  // The rows are rendered from a list, so one ref per side would always resolve
+  // to the last mounted input and the upload of one bumper would land on another.
+  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const inputKey = useCallback(
+    (id: string, kind: 'intro' | 'outro') => `${id}:${kind}`,
+    []
+  );
 
   // Only the first load flips `loading`; a refresh after an action is covered by
   // `creating` and `busyId`. Setting it synchronously here would trip the
@@ -276,7 +282,9 @@ export default function AdminBumpers() {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <input
-                    ref={introInput}
+                    ref={(element) => {
+                      fileInputs.current[inputKey(bumper.id, 'intro')] = element;
+                    }}
                     type="file"
                     accept="audio/*"
                     className="hidden"
@@ -289,14 +297,16 @@ export default function AdminBumpers() {
                     variant="outline"
                     size="sm"
                     disabled={busy}
-                    onClick={() => introInput.current?.click()}
+                    onClick={() => fileInputs.current[inputKey(bumper.id, 'intro')]?.click()}
                   >
                     <Upload className="mr-2 h-4 w-4" />
                     Subir intro
                   </Button>
 
                   <input
-                    ref={outroInput}
+                    ref={(element) => {
+                      fileInputs.current[inputKey(bumper.id, 'outro')] = element;
+                    }}
                     type="file"
                     accept="audio/*"
                     className="hidden"
@@ -309,7 +319,7 @@ export default function AdminBumpers() {
                     variant="outline"
                     size="sm"
                     disabled={busy}
-                    onClick={() => outroInput.current?.click()}
+                    onClick={() => fileInputs.current[inputKey(bumper.id, 'outro')]?.click()}
                   >
                     <Upload className="mr-2 h-4 w-4" />
                     Subir outro

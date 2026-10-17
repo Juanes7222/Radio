@@ -25,6 +25,7 @@ export interface BumperPlaylistState {
   order: string;
   backendOptions: string[];
   hasSchedule: boolean;
+  isEnabled: boolean;
 }
 
 /** Reads the playlist state the bumpers depend on. */
@@ -36,6 +37,7 @@ export async function readPlaylistForBumper(playlistId: number): Promise<BumperP
     order: detail.order,
     backendOptions: detail.backend_options ?? [],
     hasSchedule: (detail.schedule_items ?? []).length > 0,
+    isEnabled: detail.is_enabled !== false,
   };
 }
 
@@ -102,19 +104,34 @@ export async function pinBumperMedia(
 }
 
 /**
- * Writes the backend options of a bumper playlist, keeping the options the admin
- * set by hand (`interrupt` and anything AzuraCast adds later). Only `merge` is
- * toggled, because it is the one that decides whether the block is glued.
+ * Decides the backend options of a bumper playlist, keeping the ones the admin
+ * set by hand (`interrupt` and whatever AzuraCast adds later).
+ *
+ * `single_track` only makes sense together with `merge`: merged, the block IS one
+ * track, and the window must not replay it. Without `merge` the playlist keeps the
+ * window semantics the station owner gave it — forcing `single_track` there would
+ * cut a news window down to a single file, which is the opposite of what a separate
+ * intro and outro are supposed to do.
+ */
+export function computeBumperOptions(current: string[], glued: boolean): string[] {
+  const options = current.filter(
+    (option) => option !== OPTION_SINGLE_TRACK && option !== OPTION_MERGE
+  );
+  if (glued) options.push(OPTION_SINGLE_TRACK, OPTION_MERGE);
+  return options;
+}
+
+/**
+ * Writes the backend options of a bumper playlist. Only `merge` and
+ * `single_track` are touched, because they are the ones that decide whether the
+ * block is glued and how many times it airs.
  */
 export async function applyBumperOptions(playlistId: number, glued: boolean): Promise<void> {
   const current = await readPlaylistForBumper(playlistId);
-  const options = current.backendOptions.filter(
-    (option) => option !== OPTION_SINGLE_TRACK && option !== OPTION_MERGE
-  );
-  options.push(OPTION_SINGLE_TRACK);
-  if (glued) options.push(OPTION_MERGE);
-
-  await updatePlaylist(playlistId, { order: "sequential", backend_options: options });
+  await updatePlaylist(playlistId, {
+    order: "sequential",
+    backend_options: computeBumperOptions(current.backendOptions, glued),
+  });
 }
 
 /**

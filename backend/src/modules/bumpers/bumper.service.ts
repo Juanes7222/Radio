@@ -78,6 +78,9 @@ function snapshotFrom(state: BumperPlaylistState): PlaylistSnapshot {
       `La playlist "${state.name}" no tiene franja horaria, así que el bumper no se emitirá por su cuenta.`
     );
   }
+  if (!state.isEnabled) {
+    warnings.push(`La playlist "${state.name}" está deshabilitada en AzuraCast.`);
+  }
 
   return { name: state.name, warning: warnings.length > 0 ? warnings.join(" ") : null };
 }
@@ -118,6 +121,17 @@ export async function findBumperRow(id: string): Promise<PlaylistBumperRow> {
 // ── Guards ──
 
 /**
+ * The id of the station's general content playlist, or null when the deployment
+ * does not declare a usable one. A null here means the guard that keeps `merge`
+ * away from the whole music day cannot work, so the admin has to be told instead
+ * of getting silent protection that is not there.
+ */
+export function generalPlaylistIdFrom(configured: string): number | null {
+  const parsed = Number.parseInt(configured, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
  * Rejects the playlists a bumper must never touch. The general content playlist
  * would be fused whole, which would glue a bumper to the entire music of the day,
  * and a playlist owned by a Program already gets its episodes glued with ffmpeg.
@@ -128,8 +142,15 @@ async function assertPlaylistIsAvailable(playlistId: number): Promise<BumperPlay
     throw new AppError(404, `No se encontró la playlist #${playlistId} en AzuraCast.`);
   }
 
-  const generalPlaylistId = Number.parseInt(config.azuracast.playlistId, 10);
-  if (Number.isInteger(generalPlaylistId) && generalPlaylistId === playlistId) {
+  const generalPlaylistId = generalPlaylistIdFrom(config.azuracast.playlistId);
+  if (generalPlaylistId === null) {
+    logger.warn(
+      "Bumpers",
+      "AZURACAST_PLAYLIST_ID is not a usable id, so the guard against merging the general content playlist is inactive",
+      { configured: config.azuracast.playlistId }
+    );
+  }
+  if (generalPlaylistId === playlistId) {
     throw new AppError(
       409,
       "Esa playlist es el contenido variado general de la estación: pegarle un intro y un outro fusionaría toda la música del día."
@@ -402,13 +423,20 @@ export async function reconcileBumper(id: string): Promise<ReconcileResult> {
   }
 
   // `merge` is only emitted for library-backed playlists, so there is nothing to
-  // pin against and touching the order would only confuse the panel.
+  // pin against and touching the order would only confuse the panel. A playlist
+  // the station owner turned off must be left alone too.
   if (state.source !== "songs") {
     return {
       ...empty,
       warnings: [
         `La playlist "${state.name}" no está basada en la biblioteca de audio, así que AzuraCast no puede fusionar el bloque.`,
       ],
+    };
+  }
+  if (!state.isEnabled) {
+    return {
+      ...empty,
+      warnings: [`La playlist "${state.name}" está deshabilitada en AzuraCast: no se toca.`],
     };
   }
 
@@ -418,17 +446,31 @@ export async function reconcileBumper(id: string): Promise<ReconcileResult> {
 
   for (const kind of BUMPER_ASSET_KINDS) {
     const mediaId = kind === "intro" ? introMediaId : outroMediaId;
-    if (!mediaId || (await mediaStillExists(mediaId))) continue;
-
     const fileName = kind === "intro" ? row.introFile : row.outroFile;
+    if (mediaId && (await mediaStillExists(mediaId))) continue;
+
     if (!fileName) {
-      warnings.push(MISSING_MEDIA_WARNING_KINDS[kind]);
+      if (mediaId) warnings.push(MISSING_MEDIA_WARNING_KINDS[kind]);
       continue;
     }
 
-    const uniqueId = await uploadBumperFile(row, fileName, kind);
-    if (kind === "intro") introMediaId = uniqueId;
-    else outroMediaId = uniqueId;
+    try {
+      const uniqueId = await uploadBumperFile(row, fileName, kind);
+      if (kind === "intro") introMediaId = uniqueId;
+      else outroMediaId = uniqueId;
+    } catch (err) {
+      // A local copy that cannot be read must not take the other side of the
+      // bumper down with it. The stored id is cleared so the panel stops claiming
+      // the file is in place, and the next run tries again because the copy is
+      // still recorded.
+      if (kind === "intro") introMediaId = null;
+      else outroMediaId = null;
+      warnings.push(
+        `No se pudo recuperar el ${kind} desde la copia local: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
   }
 
   // The snapshot has to be taken before the options are overwritten, or there is

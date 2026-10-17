@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import fs from "fs/promises";
 import multer from "multer";
 import os from "os";
@@ -27,15 +27,19 @@ const router = Router();
 
 router.use(requireAuth, requirePermission(BUMPER_PERMISSION));
 
+/** The scratch directory of the upload in flight, so it can always be removed. */
+type UploadRequest = Request & { bumperUploadDir?: string };
+
 /**
  * A bumper can be as long as a whole song, so it goes to disk instead of memory:
  * the same reason the program episodes do.
  */
 const assetUpload = multer({
   storage: multer.diskStorage({
-    destination: (_req, _file, cb) => {
+    destination: (req, _file, cb) => {
       const dir = path.join(os.tmpdir(), `radio-bumper-${randomUUID()}`);
       ensureDir(dir);
+      (req as UploadRequest).bumperUploadDir = dir;
       cb(null, dir);
     },
     filename: (_req, file, cb) => {
@@ -50,6 +54,27 @@ const assetUpload = multer({
     else cb(new Error(`Tipo de audio no permitido: ${file.mimetype}`));
   },
 });
+
+async function removeUploadDir(dir: string | undefined): Promise<void> {
+  if (!dir) return;
+  await fs.rm(dir, { recursive: true, force: true }).catch(() => undefined);
+}
+
+/**
+ * Runs the upload and always clears the scratch directory, including when multer
+ * itself rejects the file: the destination exists from the moment the first byte
+ * arrives, so an oversized or wrong-typed upload would otherwise leave a full
+ * copy of itself in the temp folder for good.
+ */
+function uploadBumperAudio(req: Request, res: Response, next: NextFunction): void {
+  assetUpload.single("audio")(req, res, (err?: unknown) => {
+    if (err) {
+      void removeUploadDir((req as UploadRequest).bumperUploadDir).then(() => next(err));
+      return;
+    }
+    next();
+  });
+}
 
 function parseKind(value: string): BumperAssetKind {
   if (!isBumperAssetKind(value)) {
@@ -66,8 +91,8 @@ function parseLabel(value: unknown): string {
 }
 
 function parsePlaylistId(value: unknown): number {
-  const parsed = typeof value === "number" ? value : Number.parseInt(String(value), 10);
-  if (!Number.isInteger(parsed)) {
+  const parsed = typeof value === "number" ? value : Number(String(value).trim());
+  if (!Number.isInteger(parsed) || parsed <= 0) {
     throw new AppError(400, "La playlist debe ser un número.");
   }
   return parsed;
@@ -79,12 +104,6 @@ function parseOptionalBoolean(value: unknown, field: string): boolean | undefine
     throw new AppError(400, `El campo "${field}" debe ser true o false.`);
   }
   return value;
-}
-
-/** Removes the scratch directory multer created for one upload. */
-async function removeUploadDir(uploadedPath: string): Promise<void> {
-  const dir = path.dirname(uploadedPath);
-  await fs.rm(dir, { recursive: true, force: true }).catch(() => undefined);
 }
 
 /**
@@ -160,20 +179,22 @@ router.delete(
  */
 router.post(
   "/:id/assets/:kind",
-  assetUpload.single("audio"),
+  uploadBumperAudio,
   asyncHandler(async (req: Request, res: Response) => {
-    const kind = parseKind(String(req.params.kind));
-    const uploaded = req.file;
-    if (!uploaded) {
-      throw new AppError(400, "Falta el archivo de audio.");
-    }
-
     try {
+      // Validating after the upload is on disk is fine as long as the cleanup
+      // covers every exit, including the rejections below.
+      const kind = parseKind(String(req.params.kind));
+      const uploaded = req.file;
+      if (!uploaded) {
+        throw new AppError(400, "Falta el archivo de audio.");
+      }
+
       res.json(
         await setBumperAsset(String(req.params.id), kind, uploaded.path, uploaded.originalname)
       );
     } finally {
-      await removeUploadDir(uploaded.path);
+      await removeUploadDir((req as UploadRequest).bumperUploadDir);
     }
   })
 );
