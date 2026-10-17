@@ -1093,6 +1093,30 @@ export interface WorkerJob {
   video: { title: string; videoId: string };
 }
 
+/** Destination of a channel: the news folder and playlist, or the general one. */
+export type YoutubeChannelCategory = "GENERAL" | "NEWS";
+
+/** Derived from the row's own dates, never stored. */
+export type YoutubeChannelState = "subscribed" | "expiring" | "failed" | "unverified";
+
+/** A channel the station watches, as the panel lists it. */
+export interface YouTubeChannelInfo {
+  channelId: string;
+  title: string;
+  category: YoutubeChannelCategory;
+  state: YoutubeChannelState;
+  lastNotifiedAt: string | null;
+  leaseExpiresAt: string | null;
+  subscriptionError: string | null;
+  feedEntryCount: number | null;
+  feedCheckedAt: string | null;
+  createdAt: string;
+}
+
+export interface YouTubeChannelListResponse {
+  channels: YouTubeChannelInfo[];
+}
+
 /** Retained backup bundle listed by the superadmin backups panel */
 export interface BackupBundle {
   name: string;
