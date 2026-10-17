@@ -6,6 +6,7 @@ import { registerJobRecovery } from "../modules/workers/jobRecovery.job";
 import { registerProgramNotifyJob } from "../modules/schedule/programNotify.job";
 import { registerListenerSamplingJob } from "../modules/azuracast/listenerHistory.job";
 import { registerRotationJob } from "../modules/rotation/rotation.job";
+import { registerBumperJob } from "../modules/bumpers/bumper.job";
 import { registerGeoIpUpdateJob } from "../modules/devices/geoipUpdate.job";
 import { registerNoticeMediaCleanupJob } from "../modules/notices/media/media.cleanup.job";
 import { registerHealthJob } from "../modules/health/health.job";
@@ -23,12 +24,15 @@ export function startScheduler() {
   registerListenerSamplingJob();
   registerPlaybackHistoryJob();
   registerRotationJob();
+  // After the rotation: it empties and rebuilds its playlist at 03:30, and the
+  // bumpers have to be put back on top of that rebuilt content.
+  registerBumperJob();
   registerGeoIpUpdateJob();
   registerNoticeMediaCleanupJob();
   registerHealthJob();
   registerProgramSyncJob();
   logger.info(
     "Scheduler",
-    "Jobs registered: Nightly (2:30 AM), Hourly Check (:45), Folder Cleanup (07:00, 13:00, 19:00), Playback (random announcements in safe hours), Job Recovery (every 5 min), Program Notify (every 5 min), Listener Sampling (every 5 min), Playback Capture (every 5 min), Rotations (3:30 AM), GeoIP Update (Tue/Fri 03:00), Notice Media Cleanup (04:15), Health Watchdog (every 2 min), Program Archive (every 5 min)"
+    "Jobs registered: Nightly (2:30 AM), Hourly Check (:45), Folder Cleanup (07:00, 13:00, 19:00), Playback (random announcements in safe hours), Job Recovery (every 5 min), Program Notify (every 5 min), Listener Sampling (every 5 min), Playback Capture (every 5 min), Rotations (3:30 AM), GeoIP Update (Tue/Fri 03:00), Notice Media Cleanup (04:15), Health Watchdog (every 2 min), Program Archive (every 5 min), Bumper Reconcile (every 5 min)"
   );
 }

@@ -11,6 +11,7 @@ import { updateDbIpDatabase, updateGeoIpDatabase } from "../devices/geoipUpdate.
 import { cleanupOrphanNoticeMedia } from "../notices/media/media.cleanup";
 import { runHealthCycle } from "../health/health.service";
 import { discardStaleDrafts, syncAllPrograms } from "../programs/program.episode.service";
+import { reconcileAllBumpers } from "../bumpers/bumper.service";
 
 export type SystemJobKey =
   | "nightly-generation"
@@ -25,7 +26,8 @@ export type SystemJobKey =
   | "geoip-update"
   | "notice-media-cleanup"
   | "health-watchdog"
-  | "programs-archive";
+  | "programs-archive"
+  | "bumpers-reconcile";
 
 export interface SystemJobMeta {
   key: SystemJobKey;
@@ -137,6 +139,14 @@ export const SYSTEM_JOB_CATALOG: SystemJobMeta[] = [
     schedule: "cada 5 min",
     requiresConfirm: false,
   },
+  {
+    key: "bumpers-reconcile",
+    label: "Reconciliar intro y outro",
+    description:
+      "Vuelve a fijar el intro y el outro de cada programa en su playlist de AzuraCast.",
+    schedule: "cada 5 min",
+    requiresConfirm: false,
+  },
 ];
 
 export const SYSTEM_JOB_RUNNERS: Record<SystemJobKey, () => Promise<unknown>> = {
@@ -153,6 +163,7 @@ export const SYSTEM_JOB_RUNNERS: Record<SystemJobKey, () => Promise<unknown>> = 
   "notice-media-cleanup": cleanupOrphanNoticeMedia,
   "health-watchdog": runHealthCycle,
   "programs-archive": runProgramsArchive,
+  "bumpers-reconcile": reconcileAllBumpers,
 };
 
 export function isSystemJobKey(value: string): value is SystemJobKey {
