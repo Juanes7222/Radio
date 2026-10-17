@@ -18,6 +18,7 @@ import bibleRouter from "./modules/bible/bible.routes";
 import locutorRouter from "./modules/locutor/locutor.routes";
 import announcementRouter from "./modules/locutor/announcement.routes";
 import youtubeRouter from "./modules/youtube/youtube.routes";
+import youtubeAdminRouter from "./modules/youtube/youtube.admin.routes";
 import workerAdminRouter from "./modules/workers/workerAdmin.routes";
 import releasesRouter from "./modules/workers/releases.routes";
 import prayerRouter from "./modules/prayer/prayer.routes";
@@ -136,6 +137,9 @@ export function createApp(): Express {
   app.use("/admin-api/live", liveAdminRouter);
   app.use("/admin-api/locutor", locutorRouter);
   app.use("/admin-api/locutor/announcement", announcementRouter);
+  // The admin router first: its router.use(requireAuth) would otherwise be able to
+  // shadow the webhook, which the hub calls without a session.
+  app.use("/admin-api/youtube", youtubeAdminRouter);
   app.use("/admin-api/youtube", youtubeRouter);
   app.use("/api/bible", bibleRouter);
   app.use("/admin-api/workers", workerAdminRouter);

@@ -7,6 +7,7 @@ import {
   markWorkerIdle,
 } from "./workerPool";
 import type { AssignJobMessage, JobDoneMessage, JobErrorMessage } from "./protocol.types";
+import { channelCategoryOf } from "../youtube/channel.service";
 
 const DEADLINE_MS = config.processing.jobDeadlineHours * 60 * 60 * 1000;
 const MAX_BACKOFF_MS = 60 * 60 * 1000; // 1 hour
@@ -72,10 +73,9 @@ export async function dispatchJobById(jobId: string): Promise<void> {
     },
   });
 
-  const isNewsChannel = config.youtube.noticeChanelIds.includes(video.channelId);
-  const playlistId = isNewsChannel
-    ? config.azuracast.newsPlaylistId
-    : config.azuracast.playlistId;
+  const category = await channelCategoryOf(video.channelId);
+  const playlistId =
+    category === "NEWS" ? config.azuracast.newsPlaylistId : config.azuracast.playlistId;
 
   const message: AssignJobMessage = {
     type: "assign_job",

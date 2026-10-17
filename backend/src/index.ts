@@ -13,7 +13,7 @@ async function bootstrap(): Promise<void> {
   const { startServer } = await import("./server");
   const { startWorkerServer } = await import("./modules/workers/workerServer");
   const { dispatchPendingJobs } = await import("./modules/workers/jobDispatcher");
-  const { subscribeToAllConfiguredChannels } = await import(
+  const { refreshChannelSubscriptions } = await import(
     "./modules/youtube/subscription.service"
   );
   const { config } = await import("./config");
@@ -29,7 +29,6 @@ async function bootstrap(): Promise<void> {
     });
   }
 
-  const YOUTUBE_RESUBSCRIBE_INTERVAL_MS = 20 * 60 * 60 * 1000;
   const JOB_DISPATCH_INTERVAL_MS = config.worker.jobDispatchIntervalMs;
 
   startScheduler();
@@ -40,8 +39,14 @@ async function bootstrap(): Promise<void> {
 
   setInterval(dispatchPendingJobs, JOB_DISPATCH_INTERVAL_MS);
 
-  await subscribeToAllConfiguredChannels();
-  setInterval(subscribeToAllConfiguredChannels, YOUTUBE_RESUBSCRIBE_INTERVAL_MS);
+  // Fire and forget: ingestion should not wait for the hub, and a station with no
+  // channel registered answers instantly. The cadence belongs to the cron; this
+  // pass only exists so a restart resumes the list without waiting six hours.
+  void refreshChannelSubscriptions().catch((err) => {
+    logger.error("Bootstrap", "Initial YouTube subscription refresh failed", {
+      error: String(err),
+    });
+  });
 
   server.timeout = 600_000;
   server.keepAliveTimeout = 600_000;

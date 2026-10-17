@@ -12,6 +12,7 @@ import { cleanupOrphanNoticeMedia } from "../notices/media/media.cleanup";
 import { runHealthCycle } from "../health/health.service";
 import { discardStaleDrafts, syncAllPrograms } from "../programs/program.episode.service";
 import { reconcileAllBumpers } from "../bumpers/bumper.service";
+import { refreshChannelSubscriptions } from "../youtube/subscription.service";
 
 export type SystemJobKey =
   | "nightly-generation"
@@ -27,7 +28,8 @@ export type SystemJobKey =
   | "notice-media-cleanup"
   | "health-watchdog"
   | "programs-archive"
-  | "bumpers-reconcile";
+  | "bumpers-reconcile"
+  | "youtube-subscriptions";
 
 export interface SystemJobMeta {
   key: SystemJobKey;
@@ -104,6 +106,13 @@ export const SYSTEM_JOB_CATALOG: SystemJobMeta[] = [
     requiresConfirm: false,
   },
   {
+    key: "youtube-subscriptions",
+    label: "Suscripciones de YouTube",
+    description: "Renueva el lease de cada canal de YouTube y vuelve a comprobar su feed.",
+    schedule: "cada 6 h",
+    requiresConfirm: false,
+  },
+  {
     key: "rotations",
     label: "Rotaciones de playlists",
     description: "Ejecuta todas las rotaciones activas y reconstruye sus playlists destino.",
@@ -164,6 +173,7 @@ export const SYSTEM_JOB_RUNNERS: Record<SystemJobKey, () => Promise<unknown>> = 
   "health-watchdog": runHealthCycle,
   "programs-archive": runProgramsArchive,
   "bumpers-reconcile": reconcileAllBumpers,
+  "youtube-subscriptions": refreshChannelSubscriptions,
 };
 
 export function isSystemJobKey(value: string): value is SystemJobKey {

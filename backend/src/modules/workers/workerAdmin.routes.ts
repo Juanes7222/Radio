@@ -6,6 +6,7 @@ import path from "path";
 import { getAllWorkers, markWorkerIdle } from "./workerPool";
 import { prisma } from "../../infrastructure/database/prisma";
 import { uploadMp3ToAzuracast } from "../azuracast/upload-mp3.service";
+import { channelCategoryOf } from "../youtube/channel.service";
 import { logger } from "../../shared/logger/logger";
 import { config } from "../../config";
 import { requireAuth, requirePermission } from "../auth/auth.middleware";
@@ -191,12 +192,12 @@ router.post(
     }
 
     const video = await prisma.youTubeVideo.findUnique({ where: { videoId: job.videoId } });
-    const isNewsChannel = config.youtube.noticeChanelIds.includes(video?.channelId ?? "");
+    const category = await channelCategoryOf(video?.channelId ?? "");
     const playlistId =
       req.body.playlistId ||
-      (isNewsChannel ? config.azuracast.newsPlaylistId : config.azuracast.playlistId) ||
+      (category === "NEWS" ? config.azuracast.newsPlaylistId : config.azuracast.playlistId) ||
       undefined;
-    const folder = isNewsChannel ? "NOTICIAS" : "CONTENIDO VARIADO";
+    const folder = category === "NEWS" ? "NOTICIAS" : "CONTENIDO VARIADO";
 
     const title = req.body.title || req.file.originalname;
     const artist = req.body.artist || "";
