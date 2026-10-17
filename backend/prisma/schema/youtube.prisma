@@ -16,11 +16,21 @@ model YouTubeVideo {
   jobs            ProcessingJob[]
 }
 
-model YouTubeSubscription {
-  id           String    @id @default(uuid())
-  channelId    String    @unique
-  subscribedAt DateTime  @default(now())
-  expiresAt    DateTime?
-  active       Boolean   @default(true)
-  updatedAt    DateTime  @updatedAt
+/// A YouTube channel the station watches. The row is the configuration, not a
+/// mirror of the .env: `category` picks the news or the general destination and
+/// `feedEntryCount` records what the public feed answered the last time it was
+/// checked. `null` means "never checked", which is not the same as zero entries.
+model YouTubeChannel {
+  id                String    @id @default(uuid())
+  channelId         String    @unique
+  title             String
+  category          String    @default("GENERAL")
+  subscribedAt      DateTime?
+  expiresAt         DateTime?
+  lastNotifiedAt    DateTime?
+  subscriptionError String?
+  feedEntryCount    Int?
+  feedCheckedAt     DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }

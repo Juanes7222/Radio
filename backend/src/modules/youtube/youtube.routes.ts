@@ -3,6 +3,7 @@ import { prisma } from "../../infrastructure/database/prisma";
 import { parseWebhookXml } from "../../shared/utils/xml-parser";
 import { logger } from "../../shared/logger/logger";
 import { config } from "../../config";
+import { markChannelNotified } from "./channel.service";
 
 const router = Router();
 
@@ -36,6 +37,22 @@ router.post("/webhook", async (req: Request, res: Response) => {
   const { videoId, channelId, title, publishedAt } = entry;
   logger.info("YouTubeRouter", "Webhook received", { videoId, channelId });
 
+  // A channel removed from the panel can still be pushed for the rest of its
+  // 24 hour lease. Creating a job for it would put content on air that the admin
+  // deliberately took off the list, so the notification is dropped instead. The
+  // 200 above stays: the hub must not retry a decision we already made.
+  const channel = await prisma.youTubeChannel.findUnique({
+    where: { channelId },
+    select: { id: true },
+  });
+  if (!channel) {
+    logger.warn("YouTubeRouter", "Notification from a channel that is not registered", {
+      videoId,
+      channelId,
+    });
+    return;
+  }
+
   const existing = await prisma.youTubeVideo.findUnique({ where: { videoId } });
   if (existing) {
     logger.info("YouTubeRouter", "Duplicate video, skipping", { videoId, status: existing.status });
@@ -45,6 +62,8 @@ router.post("/webhook", async (req: Request, res: Response) => {
   await prisma.youTubeVideo.create({
     data: { videoId, channelId, title, publishedAt, status: "RECEIVED", attempts: 0 },
   });
+
+  await markChannelNotified(channelId);
 
   await prisma.processingJob.create({
     data: {
