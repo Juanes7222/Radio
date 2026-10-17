@@ -32,6 +32,7 @@ import devicesAdminRouter from "./modules/devices/admin.routes";
 import listenerHistoryRouter from "./modules/azuracast/listenerHistory.routes";
 import rotationRouter from "./modules/rotation/rotation.routes";
 import programsRouter from "./modules/programs/program.routes";
+import bumpersRouter from "./modules/bumpers/bumper.routes";
 import noticesPublicRouter from "./modules/notices/public.routes";
 import noticesAdminRouter from "./modules/notices/admin.routes";
 import noticeImagesRouter from "./modules/notices/noticeImages.routes";
@@ -148,6 +149,7 @@ export function createApp(): Express {
   app.use("/admin-api/listeners", listenerHistoryRouter);
   app.use("/admin-api/rotations", rotationRouter);
   app.use("/admin-api/programs", programsRouter);
+  app.use("/admin-api/bumpers", bumpersRouter);
   app.use("/api/notices", noticesPublicRouter);
   app.use("/admin-api/notices", noticesAdminRouter);
   app.use("/admin-api/notices", noticeImagesRouter);
