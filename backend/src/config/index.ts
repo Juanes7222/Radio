@@ -11,6 +11,7 @@ import { logsConfig } from "./logs.config";
 import { liveConfig } from "./live.config";
 import { processingConfig } from "./processing.config";
 import { programsConfig } from "./programs.config";
+import { bumpersConfig } from "./bumpers.config";
 import { webhookConfig } from "./webhook.config";
 import { workersConfig } from "./workers.config";
 import { youtubeConfig } from "./youtube.config";
@@ -25,6 +26,7 @@ export const config = {
   worker: workersConfig,
   processing: processingConfig,
   programs: programsConfig,
+  bumpers: bumpersConfig,
   notifications: notificationsConfig,
   webhook: webhookConfig,
   logs: logsConfig,

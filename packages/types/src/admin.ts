@@ -87,6 +87,24 @@ export function hasAdminPermission(
   return permissions.includes(permission);
 }
 
+/** Intro/outro fijados a la playlist de AzuraCast que emite un programa especial. */
+export interface PlaylistBumper {
+  id: string;
+  label: string;
+  playlistId: number;
+  playlistName: string | null;
+  /** Advertencia legible cuando la playlist no admite el bumper tal cual. */
+  warning: string | null;
+  hasIntro: boolean;
+  hasOutro: boolean;
+  /** true = el bloque se emite fusionado con `merge`; false = pistas separadas. */
+  glued: boolean;
+  enabled: boolean;
+  lastSyncedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminUser {
   /** Correo de Google del administrador */
   email: string;
