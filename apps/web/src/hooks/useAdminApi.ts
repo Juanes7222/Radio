@@ -63,6 +63,9 @@ import type {
   NotificationProgram,
   WorkerJob,
   WorkerNodeInfo,
+  YouTubeChannelInfo,
+  YouTubeChannelListResponse,
+  YoutubeChannelCategory,
   AppNoticeList,
   AppNotice,
   AppNoticeInput,
@@ -1108,6 +1111,40 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Canales de YouTube ────────────────────────────────────────────────────────
+  const getYoutubeChannels = useCallback(
+    async () => (await request<YouTubeChannelListResponse>({ url: '/admin-api/youtube/channels' })).channels,
+    [request]
+  );
+
+  const addYoutubeChannel = useCallback(
+    (input: { channelId: string; title: string; category: YoutubeChannelCategory }) =>
+      request<YouTubeChannelInfo>({
+        method: 'POST',
+        url: '/admin-api/youtube/channels',
+        data: input,
+      }),
+    [request]
+  );
+
+  const removeYoutubeChannel = useCallback(
+    (channelId: string) =>
+      request<void>({
+        method: 'DELETE',
+        url: `/admin-api/youtube/channels/${encodeURIComponent(channelId)}`,
+      }),
+    [request]
+  );
+
+  const resubscribeYoutubeChannel = useCallback(
+    (channelId: string) =>
+      request<YouTubeChannelInfo>({
+        method: 'POST',
+        url: `/admin-api/youtube/channels/${encodeURIComponent(channelId)}/resubscribe`,
+      }),
+    [request]
+  );
+
   // ── Controles de estación ─────────────────────────────────────
   const skipCurrentTrack = useCallback(
     () => request({ method: 'POST', url: '/admin-api/station/backend/skip' }),
@@ -1422,6 +1459,10 @@ export function useAdminApi() {
     deleteNoticeVideo,
     getWorkers,
     getWorkerJobs,
+    getYoutubeChannels,
+    addYoutubeChannel,
+    removeYoutubeChannel,
+    resubscribeYoutubeChannel,
     getLogSources,
     getLogs,
     getLogsTail,
