@@ -34,6 +34,8 @@ import type {
   ManagedAdminUserInput,
   MediaFile,
   BibleReadingHistoryEntry,
+  BumperReconcileResult,
+  PlaylistBumper,
   FeedbackListResponse,
   FeedbackUpdatePayload,
   NotificationStats,
@@ -376,6 +378,60 @@ export function useAdminApi() {
   const clearProgramAsset = useCallback(
     (id: string, kind: 'intro' | 'outro') =>
       request<Program>({ method: 'DELETE', url: `/admin-api/programs/${id}/assets/${kind}` }),
+    [request]
+  );
+
+  // ── Intro y outro de los programas especiales ─────────────────────
+  const getBumpers = useCallback(
+    () => request<{ bumpers: PlaylistBumper[] }>({ url: '/admin-api/bumpers' }),
+    [request]
+  );
+
+  const createBumper = useCallback(
+    (data: { label: string; playlistId: number; glued: boolean }) =>
+      request<PlaylistBumper>({ method: 'POST', url: '/admin-api/bumpers', data }),
+    [request]
+  );
+
+  const updateBumper = useCallback(
+    (id: string, data: { label?: string; enabled?: boolean; glued?: boolean; playlistId?: number }) =>
+      request<PlaylistBumper>({ method: 'PUT', url: `/admin-api/bumpers/${id}`, data }),
+    [request]
+  );
+
+  const deleteBumper = useCallback(
+    (id: string) => request<void>({ method: 'DELETE', url: `/admin-api/bumpers/${id}` }),
+    [request]
+  );
+
+  const uploadBumperAsset = useCallback(
+    (id: string, kind: 'intro' | 'outro', file: File) => {
+      const form = new FormData();
+      form.append('audio', file);
+      return request<PlaylistBumper>({
+        method: 'POST',
+        url: `/admin-api/bumpers/${id}/assets/${kind}`,
+        data: form,
+        // Uploading to the station library plus the reconciliation round trip is
+        // well past the default request timeout.
+        timeout: PROGRAM_UPLOAD_TIMEOUT_MS,
+      });
+    },
+    [request]
+  );
+
+  const clearBumperAsset = useCallback(
+    (id: string, kind: 'intro' | 'outro') =>
+      request<PlaylistBumper>({ method: 'DELETE', url: `/admin-api/bumpers/${id}/assets/${kind}` }),
+    [request]
+  );
+
+  const reconcileBumper = useCallback(
+    (id: string) =>
+      request<{ result: BumperReconcileResult }>({
+        method: 'POST',
+        url: `/admin-api/bumpers/${id}/reconcile`,
+      }),
     [request]
   );
 
@@ -1277,6 +1333,13 @@ export function useAdminApi() {
     clearProgramArtwork,
     uploadProgramAsset,
     clearProgramAsset,
+    getBumpers,
+    createBumper,
+    updateBumper,
+    deleteBumper,
+    uploadBumperAsset,
+    clearBumperAsset,
+    reconcileBumper,
     getProgramEpisodes,
     prepareProgramEpisode,
     publishProgramEpisode,

@@ -105,6 +105,15 @@ export interface PlaylistBumper {
   updatedAt: string;
 }
 
+/** Qué hizo una reconciliación, para que el panel pueda contarlo sin adivinar. */
+export interface BumperReconcileResult {
+  id: string;
+  label: string;
+  warnings: string[];
+  pinnedIntro: boolean;
+  pinnedOutro: boolean;
+}
+
 export interface AdminUser {
   /** Correo de Google del administrador */
   email: string;

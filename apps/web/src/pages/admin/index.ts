@@ -4,6 +4,7 @@ export { default as AdminDashboard } from './AdminDashboard';
 export { default as AdminPlaylists } from './AdminPlaylists';
 export { default as AdminRotations } from './AdminRotations';
 export { default as AdminPrograms } from './AdminPrograms';
+export { default as AdminBumpers } from './AdminBumpers';
 export { default as AdminReadingHistory } from './AdminReadingHistory';
 export { default as AdminRequests } from './AdminRequests';
 export { default as AdminPrayerRequests } from './AdminPrayerRequests';

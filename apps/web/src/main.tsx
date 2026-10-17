@@ -31,6 +31,7 @@ const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard.tsx'))
 const AdminPlaylists = lazy(() => import('./pages/admin/AdminPlaylists.tsx'))
 const AdminRotations = lazy(() => import('./pages/admin/AdminRotations.tsx'))
 const AdminPrograms = lazy(() => import('./pages/admin/AdminPrograms.tsx'))
+const AdminBumpers = lazy(() => import('./pages/admin/AdminBumpers.tsx'))
 const AdminReadingHistory = lazy(() => import('./pages/admin/AdminReadingHistory.tsx'))
 const AdminRequests = lazy(() => import('./pages/admin/AdminRequests.tsx'))
 const AdminPrayerRequests = lazy(() => import('./pages/admin/AdminPrayerRequests.tsx'))
@@ -87,6 +88,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="playlists" element={<AdminPlaylists />} />
                   <Route path="rotations" element={<AdminRotations />} />
                   <Route path="programs" element={<AdminPrograms />} />
+                  <Route path="bumpers" element={<AdminBumpers />} />
                   <Route path="reading-history" element={<AdminReadingHistory />} />
                   <Route path="requests" element={<AdminRequests />} />
                   <Route path="prayer" element={<AdminPrayerRequests />} />
