@@ -1,0 +1,34 @@
+// Ajustes de la estación administrables desde el panel. Una fila por clave.
+// El tipo, el rango y la descripción viven en el catálogo de código, no aquí:
+// por eso agregar un ajuste no es una migración.
+model StationSetting {
+  /// Clave del catálogo, p.ej. "health.diskMinFreePercent".
+  key String @id
+
+  /// Texto. El catálogo declara el tipo y lo parsea al leer.
+  value String
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+  /// Correo del administrador que guardó el valor por última vez.
+  updatedBy String? @map("updated_by")
+
+  @@map("station_settings")
+}
+
+/// Quién cambió qué, para reconstruir por ejemplo por qué un umbral bajó.
+/// Una clave marcada `sensitive` en el catálogo guarda un marcador, no el valor.
+model StationSettingChange {
+  id String @id @default(uuid())
+
+  key           String
+  previousValue String? @map("previous_value")
+  newValue      String? @map("new_value")
+
+  changedBy String   @map("changed_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([key])
+
+  @@map("station_setting_changes")
+}
