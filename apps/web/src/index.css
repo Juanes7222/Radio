@@ -149,6 +149,16 @@
     --info: 44 24% 62%;
     --tally: 353 75% 55%;
   }
+
+  /* ─── Logbook theme ─────────────────────────────────────────────────
+     The logbook keeps the public cyan for informational entries. In a log
+     stream the cool hue is not decoration: it separates INFO rows from the
+     warm signal colours at a glance, and that scan pattern was already in
+     use before the console went fully warm. Scoped to the page so the rest
+     of the console keeps its parchment --info. */
+  .logs-theme {
+    --info: 199 85% 62%;
+  }
 }
 
 /* ─── Header — the tuning scale ─────────────────────────────────────────

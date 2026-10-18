@@ -368,7 +368,7 @@ export default function AdminLogs() {
   const maxHist = Math.max(1, ...hist.map((h) => h.count));
 
   return (
-    <div className="space-y-5">
+    <div className="logs-theme space-y-5">
       {/* ── Header: consola de emisión ────────────────────────── */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card">
         <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-[50px]" />

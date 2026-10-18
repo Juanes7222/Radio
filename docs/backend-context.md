@@ -485,6 +485,78 @@ cuántos archivos suenen adentro. Los de un solo archivo ya lo hacían por ffmpe
   directorio temporal se limpia en **todos** los caminos de salida, incluidos los
   rechazos del propio multer, que ya habían escrito el archivo.
 
+## Canales de YouTube desde el panel (Oct 2026)
+
+La lista de canales que sigue la estación se administra en el panel admin, no en
+el entorno. Es el primer paso de mover configuración a la base de datos.
+
+- **El feed público de YouTube ya no publica videos.** Medido el 16 de octubre
+  de 2026: `GET https://www.youtube.com/xml/feeds/videos.xml?channel_id=<X>`
+  responde `200` con los mismos 463 bytes para un canal real, para el canal de
+  ejemplo del proyecto y para un id inventado. Sin `<entry>` y sin
+  `<yt:channelId>`, o sea un stub que ignora el parámetro. El hub
+  `pubsubhubbub.appspot.com` sigue devolviendo `202` a una suscripción nueva, pero
+  ese `202` se emite antes de verificar el callback: dice que la petición se
+  aceptó, no que el topic tenga contenido. **La ingesta no recibe nada por
+  WebSub.** Si la tabla de jobs aparece vacía y ningún log dice nada raro, esto es
+  lo que está pasando.
+  La migración pendiente es a la **YouTube Data API v3**: con polling sobre la
+  playlist de subidas cuesta una sola API key (quota 10.000/día) y cabe en este
+  mismo objetivo de reducir variables; con Pub/Sub push cuesta un proyecto de
+  Google Cloud con cuenta de servicio y endpoint de push. No se ha elegido.
+- `YouTubeSubscription` pasó a llamarse `YouTubeChannel` (migración
+  `20261017000000_youtube_channels`, que crea, copia y borra: SQLite no renombra
+  preservando índices). Antes solo recibía un `upsert` al arrancar y nadie lo
+  leía; ahora es la configuración. Por eso la columna `active` desapareció:
+  "dar de baja un canal" borra la fila, no deja un tercer estado que el panel
+  tenga que explicar.
+- **`category` reemplaza a `YOUTUBE_CHANNEL_NOTICES`.** Es `GENERAL` o `NEWS` y
+  decide carpeta y playlist en los dos caminos de subida:
+  `workers/jobDispatcher.ts` elige la playlist y `workers/workerAdmin.routes.ts`
+  elige la carpeta, los dos con `channelCategoryOf()` de
+  `youtube/channel.service.ts`. Si divergieran, el video acabaría en la playlist
+  de una categoría y en la carpeta de la otra; `apps/web/tests/youtube` lo fija.
+- **`state` se deriva, no se guarda**: `failed` si hay `subscriptionError`,
+  `unverified` si nunca se comprobó el feed, `expiring` si el lease vence dentro
+  de `RESUBSCRIBE_MARGIN_MS` (6 h) y `subscribed` si no. Derivarlo evita que la
+  base contenga un estado que contradiga sus propias fechas, y el margen es el
+  mismo del cron para que el panel diga "por renovar" cuando el cron va a renovar.
+- **`feedEntryCount` es el autodiagnóstico**: `null` = nunca comprobado, `0` =
+  el feed respondió y no trae videos. El alta **no** se rechaza cuando el feed
+  viene vacío — un canal existe aunque YouTube no avise, y bloquearlo dejaría al
+  admin sin forma de registrarlo — sino que la fila queda con `0` y el panel lo
+  dice.
+- **La renovación es un cron, no un `setInterval`.**
+  `youtube/youtube.subscription.job.ts` corre `17 */6 * * *` (minuto 17 a
+  propósito: los demás jobs usan minutos redondos) contra un lease de 24 h, así
+  que quedan tres intentos antes de que expire de verdad. `index.ts` solo hace
+  una pasada sin `await` al arrancar, para que un reinicio no espere seis horas.
+  También está en `systemJobs.registry.ts` como `youtube-subscriptions`.
+- **Borrar un canal borra la fila primero y avisa al hub después.** El orden
+  inverso dejaría una fila que el hub ya no sirve y que nadie puede volver a
+  suscribir. Si el unsubscribe falla, la fila sigue borrada y el error va al log.
+  Los videos recibidos no se borran: son historial de emisión.
+- **El webhook descarta notificaciones de canales no registrados** (quedan en el
+  `YouTubeChannel`), porque el hub sigue empujando hasta 24 h después de borrar
+  el canal y sin esta guarda el material de un canal retirado se seguiría
+  emitiendo al aire. El `200` va antes de todo, así que el hub no reintenta.
+- `parseChannelId` vive en `youtube/channelId.ts` y no en el servicio: el backfill
+  lo necesita y este importa `config`, que lanza en el import si falta cualquier
+  variable requerida. Un script que solo escribe filas no debería arrastrar toda
+  la configuración.
+- **`YOUTUBE_CHANNEL_IDS` y `YOUTUBE_CHANNEL_NOTICES` se eliminaron**, junto con
+  `config/youtube.config.ts`. Antes de desplegar hay que correr **una vez**
+  `pnpm --filter @radio/backend youtube-channels:backfill`, que lee las dos
+  variables del entorno y escribe las filas; sin eso la ingesta se detiene en
+  silencio. Después se borran las dos de Infisical. `tests/youtube` falla si
+  alguna vuelve a aparecer fuera del backfill.
+- Endpoints en `/admin-api/youtube` con `requireAuth` + permiso `youtube`:
+  `GET /channels`, `POST /channels`, `DELETE /channels/:channelId`,
+  `POST /channels/:channelId/resubscribe`. El router de administración se
+  monta **antes** del webhook en `app.ts`: su `router.use(requireAuth)` podría
+  alcanzarlo y el hub llama sin sesión, lo que mataría la suscripción en
+  silencio.
+
 ## Suggested expectations for the agent
 
 - Identify the exact route, service, and Prisma files involved.

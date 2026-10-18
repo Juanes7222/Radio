@@ -144,6 +144,45 @@ a Programas.
   consigue recuperar el archivo, el servicio limpia ese id a propósito para que el
   panel deje de mostrar "listo".
 
+## Canales de YouTube en el panel (Oct 2026)
+
+`pages/admin/AdminYouTube.tsx`, ruta `/admin/youtube`, permiso `youtube` (se
+reutiliza). Los canales que la estación sigue se dan de alta, se quitan y se
+renuevan desde acá; antes eran dos variables de entorno.
+
+- **La página se lee como la cadena real**, en ese orden: canales, jobs de
+  procesamiento, workers conectados, despliegue de versión. El bloque de canales
+  va primero porque es el origen, y el dropzone de despliegue —el más técnico y
+  el que menos se toca— quedó al final. No hay pestañas: una pestaña esconde
+  justo lo que se vino a mirar.
+- **La tabla de jobs ES la lista de notificaciones recibidas.** El webhook crea
+  el `YouTubeVideo` y el `ProcessingJob` juntos, uno a uno, así que un listado
+  aparte de "últimas notificaciones" mostraría las mismas filas con menos
+  datos. Se llegó a escribir el endpoint `/notifications` y se quitó: la lista
+  que hacía falta y no había era el "por canal" (`lastNotifiedAt` en cada fila).
+- **`pages/admin/youtube/SilenceBar.tsx` es el único elemento expresivo de la
+  página**: una regla de 2 px cuyo relleno ámbar mide el silencio de cada canal
+  contra el más callado de la misma lista. Es decorativa (`aria-hidden`) porque
+  el "hace 6 d" de la fila y su `title` llevan el mismo dato; si la barra fuera
+  la única portadora, el color sería el único canal de información.
+  El `ratio` se mide contra el canal **más antiguo**, no contra ahora, para que
+  la comparación valga entre filas sin importar cuándo se pintó la lista.
+  Cuando todos los canales llevan el mismo tiempo en silencio, `span` es `0` y
+  todas las barras quedan llenas: colapsarlas todas a cero sería más dramático y
+  menos cierto.
+- **La página se partió en `pages/admin/youtube/`** (`ChannelList.tsx`,
+  `SilenceBar.tsx`, `WorkerDeployCard.tsx`) porque `AdminYouTube.tsx` iba camino
+  a 900 líneas. Solo se movió el bloque de despliegue, que es autocontenido; la
+  tabla de jobs y la de workers se quedaron donde estaban.
+- El formulario de alta es un `<form>` real, con `aria-invalid` y
+  `aria-describedby` apuntando al error. Quitar un canal pide confirmación con
+  un `AlertDialog` y su copy dice que los videos ya recibidos se conservan.
+- `tests/youtube/panel-wiring.test.ts` fija lo que no se ve en una captura: que
+  los dos caminos de subida leen la categoría de la misma fila, que el webhook
+  rechaza canales no registrados, que no queda ninguna lectura de las variables
+  retiradas fuera del backfill, y que `index.ts` ya no tiene el `setInterval` de
+  resuscripción.
+
 ## Suggested expectations for the agent
 
 - Identify the exact components, hooks, and styles involved.
