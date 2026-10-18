@@ -23,6 +23,27 @@ export function draftsFromSections(sections: StationSettingsSection[]): SettingD
   );
 }
 
+/**
+ * The drafts after a write that only covered one section.
+ *
+ * Re-seeding every draft from the response would throw away what the operator
+ * has typed in the sections beside it: their keys were not in the patch, so the
+ * server answers with the value it already had and it lands on top of a pending
+ * edit. Nothing announces that, and the field simply snaps back — which is
+ * invisible while there is only one section and is the whole reason sections
+ * carry their own save.
+ */
+export function draftsAfterSectionWrite(
+  current: SettingDrafts,
+  sections: StationSettingsSection[],
+  sectionId: string
+): SettingDrafts {
+  return {
+    ...current,
+    ...draftsFromSections(sections.filter((section) => section.id === sectionId)),
+  };
+}
+
 /** The single value an item shows inside its field. */
 export function draftFromValue(item: StationSettingValue): SettingDraft {
   if (typeof item.value === 'boolean') return item.value;

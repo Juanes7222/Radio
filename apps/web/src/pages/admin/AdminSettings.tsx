@@ -27,6 +27,7 @@ import { formatDateTime } from '@/lib/format';
 import SettingsSectionCard from './settings/SettingsSectionCard';
 import {
   dirtyPatchForSection,
+  draftsAfterSectionWrite,
   draftsFromSections,
   type SettingDraft,
   type SettingDrafts,
@@ -159,10 +160,30 @@ export default function AdminSettings() {
   const [changes, setChanges] = useState<StationSettingChange[]>([]);
   const [changesError, setChangesError] = useState<string | null>(null);
 
-  /** The response is the only thing that seeds the drafts. */
+  /** A load replaces every draft: the response is the only source of them. */
   const adopt = useCallback((response: StationSettingsResponse) => {
     setSections(response.sections);
     setDrafts(draftsFromSections(response.sections));
+  }, []);
+
+  /**
+   * A write only covered one section, so only that section's drafts are
+   * re-seeded from the answer. The rest keep whatever the operator has typed:
+   * their keys were not in the patch, so the response still holds the old value
+   * for them and re-seeding all of it would delete pending edits in the
+   * sections beside it without a word.
+   */
+  const adoptSection = useCallback(
+    (response: StationSettingsResponse, sectionId: string) => {
+      setSections(response.sections);
+      setDrafts((current) => draftsAfterSectionWrite(current, response.sections, sectionId));
+    },
+    []
+  );
+
+  /** Clears the error only when it belongs to the section about to be written. */
+  const clearSectionError = useCallback((sectionId: string) => {
+    setSectionError((current) => (current?.sectionId === sectionId ? null : current));
   }, []);
 
   const loadChanges = useCallback(
@@ -220,13 +241,13 @@ export default function AdminSettings() {
       if (keys.length === 0) return;
 
       setBusySectionId(section.id);
-      setSectionError(null);
+      clearSectionError(section.id);
       setNotice(null);
 
       updateSettings(patch).then(
         (response) => {
           setNotice(saveNotice(response, response.applied ?? keys));
-          adopt(response);
+          adoptSection(response, section.id);
           void loadChanges();
         },
         (err) => {
@@ -240,13 +261,13 @@ export default function AdminSettings() {
         }
       ).finally(() => setBusySectionId(null));
     },
-    [drafts, updateSettings, adopt, loadChanges]
+    [drafts, updateSettings, adoptSection, clearSectionError, loadChanges]
   );
 
   const handleReset = useCallback(
     (section: StationSettingsSection) => {
       setBusySectionId(section.id);
-      setSectionError(null);
+      clearSectionError(section.id);
       setNotice(null);
 
       resetSettings(section.items.map((item) => item.key)).then(
@@ -259,7 +280,7 @@ export default function AdminSettings() {
                   cleared.length === 1 ? 'ajuste' : 'ajustes'
                 } al valor del entorno.`
           );
-          adopt(response);
+          adoptSection(response, section.id);
           void loadChanges();
         },
         (err) => {
@@ -273,7 +294,7 @@ export default function AdminSettings() {
         setResetTargetId(null);
       });
     },
-    [resetSettings, adopt, loadChanges]
+    [resetSettings, adoptSection, clearSectionError, loadChanges]
   );
 
   const resetTarget = sections.find((section) => section.id === resetTargetId) ?? null;
