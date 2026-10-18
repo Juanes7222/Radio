@@ -1,11 +1,27 @@
 import { logger } from "../../shared/logger/logger";
-import { getDefinition } from "./settings.catalog";
+import { getDefinition, SETTINGS_CATALOG } from "./settings.catalog";
 import type { SettingDefinition, SettingRow, SettingSource, SettingValue } from "./settings.types";
 
 export interface ResolvedSetting {
   value: SettingValue | null;
   source: SettingSource;
 }
+
+/**
+ * Catalog keys whose default declares a number, so a boolean key cannot be read
+ * through a numeric reader and the compiler rejects the mix-up.
+ */
+type NumberSettingKey = {
+  [K in keyof typeof SETTINGS_CATALOG]: (typeof SETTINGS_CATALOG)[K]["defaultValue"] extends number
+    ? K
+    : never;
+}[keyof typeof SETTINGS_CATALOG];
+
+type BooleanSettingKey = {
+  [K in keyof typeof SETTINGS_CATALOG]: (typeof SETTINGS_CATALOG)[K]["defaultValue"] extends boolean
+    ? K
+    : never;
+}[keyof typeof SETTINGS_CATALOG];
 
 /** Rows as they came out of `station_settings` at the last hydration. */
 const storedRows = new Map<string, SettingRow>();
@@ -61,6 +77,38 @@ export function getSetting(key: string): SettingValue | null {
 /** Where the value of a key comes from, for the panel to label it. */
 export function settingSource(key: string): SettingSource {
   return resolveCurrent(key).source;
+}
+
+/**
+ * The value of a numeric key, typed. `getSetting` answers with every value
+ * shape the catalog can hold because one reader serves all keys, so a config
+ * module delegating to it would hand a union to a consumer that needs a
+ * number. This is the narrowing the callers would otherwise write by hand.
+ *
+ * The number comes from one resolution and only from one resolution: the
+ * module's own resolver answers the row, the environment or the catalog
+ * default, and whatever it resolved is what this returns. There is no second
+ * lookup to consult when the type does not match, so the reader cannot answer
+ * something the cache and the panel never saw.
+ */
+export function getNumberSetting(key: NumberSettingKey): number {
+  const { value } = resolveCurrent(key);
+  if (typeof value === "number") return value;
+
+  // Reachable only when the catalog entry contradicts itself: it declares a
+  // numeric default here, so only a `parse` or an `envFallback` of the wrong
+  // type can produce anything else, and `satisfies` does not check that a key's
+  // three sources agree. Answering the default anyway would hide a watchdog
+  // threshold that silently disagrees with the panel, so this fails instead.
+  throw new Error(`Setting "${key}" resolved to ${typeof value}, not a number`);
+}
+
+/** The boolean counterpart of {@link getNumberSetting}. */
+export function getBooleanSetting(key: BooleanSettingKey): boolean {
+  const { value } = resolveCurrent(key);
+  if (typeof value === "boolean") return value;
+
+  throw new Error(`Setting "${key}" resolved to ${typeof value}, not a boolean`);
 }
 
 /** Every hydrated row, including the ones the catalog does not know. */

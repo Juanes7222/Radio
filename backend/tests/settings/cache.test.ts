@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   currentRows,
+  getBooleanSetting,
+  getNumberSetting,
   getSetting,
   hydrateFromRows,
   resetCache,
@@ -119,6 +121,46 @@ describe("settings cache", () => {
     hydrateFromRows([row("health.diskMinFreePercent", "30")]);
     expect(getSetting("health.diskMinFreePercent")).toBe(30);
     expect(settingSource("health.diskMinFreePercent")).toBe("panel");
+  });
+
+  // The typed readers are what a config module calls, so they are the only
+  // path by which a threshold reaches the watchdog. A reader stuck on the
+  // default would leave every other assertion in this file green.
+  it("answers the stored number, not the default", () => {
+    hydrateFromRows([row("health.diskMinFreePercent", "30")]);
+
+    // The catalog default is 15, so 30 can only have come from the row.
+    expect(getNumberSetting("health.diskMinFreePercent")).toBe(30);
+  });
+
+  it("answers the stored boolean, not the default", () => {
+    hydrateFromRows([row("health.emailEnabled", "false")]);
+
+    // The catalog default is true, so false can only have come from the row.
+    expect(getBooleanSetting("health.emailEnabled")).toBe(false);
+  });
+
+  it("answers an already typed default for a key that was never stored", () => {
+    // A null reaching a consumer comparing a number would make the comparison
+    // false forever, so the reader owes the caller the key's own type.
+    expect(getNumberSetting("health.diskMinFreePercent")).toBe(15);
+    expect(getBooleanSetting("health.emailEnabled")).toBe(true);
+  });
+
+  it("falls back instead of throwing when a stored number cannot be parsed", () => {
+    process.env.HEALTH_DISK_MIN_FREE_PERCENT = "20";
+    hydrateFromRows([row("health.diskMinFreePercent", "mucho")]);
+
+    // The corrupt row is discarded, so the environment answers, and it answers
+    // as a number rather than as the string the environment holds.
+    expect(getNumberSetting("health.diskMinFreePercent")).toBe(20);
+  });
+
+  it("falls back to the default when a stored boolean cannot be parsed", () => {
+    hydrateFromRows([row("health.emailEnabled", "not-a-boolean")]);
+
+    // The environment is unset here, so what is left is the catalog default.
+    expect(getBooleanSetting("health.emailEnabled")).toBe(true);
   });
 });
 

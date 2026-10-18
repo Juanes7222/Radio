@@ -1,6 +1,5 @@
 import { envOr, listEnvOr } from "./env";
-import { getSetting } from "../modules/settings/settings.cache";
-import { SETTINGS_CATALOG, type SettingKey } from "../modules/settings/settings.catalog";
+import { getBooleanSetting, getNumberSetting } from "../modules/settings/settings.cache";
 
 /**
  * Every watchdog threshold comes from the settings cache, and this module is a
@@ -18,50 +17,24 @@ import { SETTINGS_CATALOG, type SettingKey } from "../modules/settings/settings.
  * the device list is an open product decision recorded in the design spec.
  */
 
-/** Catalog keys declared as numbers, so a boolean key cannot reach a numeric reader. */
-type NumberSettingKey = {
-  [K in SettingKey]: (typeof SETTINGS_CATALOG)[K]["defaultValue"] extends number ? K : never;
-}[SettingKey];
-
-type BooleanSettingKey = {
-  [K in SettingKey]: (typeof SETTINGS_CATALOG)[K]["defaultValue"] extends boolean ? K : never;
-}[SettingKey];
-
-/**
- * `getSetting` answers with every value shape the catalog can hold, because one
- * reader serves all keys. These two narrow it to the type the key declares, and
- * the catalog default is the fallback the type system asks for: a catalogued key
- * resolves to its default, a parsed row or an environment fallback, all of which
- * already carry that key's own type.
- */
-function readNumber(key: NumberSettingKey): number {
-  const value = getSetting(key);
-  return typeof value === "number" ? value : SETTINGS_CATALOG[key].defaultValue;
-}
-
-function readBoolean(key: BooleanSettingKey): boolean {
-  const value = getSetting(key);
-  return typeof value === "boolean" ? value : SETTINGS_CATALOG[key].defaultValue;
-}
-
 // Getters keep values lazy so config can be imported after secrets load and the
 // cache can be hydrated before the first read.
 export const healthConfig = {
   /** How often the watchdog loop runs, in minutes. */
   get intervalMinutes() {
-    return readNumber("health.checkIntervalMinutes");
+    return getNumberSetting("health.checkIntervalMinutes");
   },
   /** Silent AzuraCast now-playing for longer than this is a problem (seconds). */
   get nowPlayingSilenceSeconds() {
-    return readNumber("health.nowPlayingSilenceSeconds");
+    return getNumberSetting("health.nowPlayingSilenceSeconds");
   },
   /** A backup older than this many hours marks the backup check as degraded. */
   get backupMaxAgeHours() {
-    return readNumber("health.backupMaxAgeHours");
+    return getNumberSetting("health.backupMaxAgeHours");
   },
   /** Free-disk percentage below this marks the disk check as degraded. */
   get diskMinFreePercent() {
-    return readNumber("health.diskMinFreePercent");
+    return getNumberSetting("health.diskMinFreePercent");
   },
   /** Filesystem whose free space is watched (AzuraCast media lives here). */
   get diskMountPath() {
@@ -69,11 +42,11 @@ export const healthConfig = {
   },
   /** Send email notifications on human-action alerts. */
   get emailEnabled() {
-    return readBoolean("health.emailEnabled");
+    return getBooleanSetting("health.emailEnabled");
   },
   /** Send admin push notifications on human-action alerts. */
   get pushEnabled() {
-    return readBoolean("health.pushEnabled");
+    return getBooleanSetting("health.pushEnabled");
   },
   /**
    * FCM tokens of the devices that receive health alerts. Explicit because
@@ -85,6 +58,6 @@ export const healthConfig = {
   },
   /** Hours without a listener snapshot before the snapshot check degrades. */
   get snapshotMaxAgeHours() {
-    return readNumber("health.snapshotMaxAgeHours");
+    return getNumberSetting("health.snapshotMaxAgeHours");
   },
 };

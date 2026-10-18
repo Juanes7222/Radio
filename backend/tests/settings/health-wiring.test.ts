@@ -38,9 +38,16 @@ describe("health config wiring", () => {
     expect(config).not.toContain("intervalSeconds");
   });
 
+  it("keeps the mount path and the device list on the environment", () => {
+    // Both were left out of the catalog on purpose: a mount path is a fact
+    // about the machine, and the device list is an open product decision
+    // recorded in the design spec. The absence assertions above would not
+    // notice them moving, so their presence is what pins that decision.
+    expect(config).toContain("HEALTH_DISK_MOUNT_PATH");
+    expect(config).toContain("HEALTH_PUSH_TOKENS");
+  });
+
   it("names every catalogued threshold and imports the cache reader", () => {
-    // The getters reach the cache through a narrowing helper, so naming the
-    // reader alone would not prove the thresholds go through it.
     expect(config).toContain('from "../modules/settings/settings.cache"');
 
     const thresholds = [
@@ -56,5 +63,14 @@ describe("health config wiring", () => {
     for (const key of thresholds) {
       expect(config).toContain(`"${key}"`);
     }
+  });
+
+  it("leaves the narrowing readers to the settings module", () => {
+    // A config module derives nothing from the catalog's internals: it consumes
+    // the cache's public readers. Four more config modules migrate in later
+    // phases, and none of them should restate the key types.
+    expect(config).not.toContain("SETTINGS_CATALOG");
+    expect(config).not.toContain("SettingKey");
+    expect(config).not.toContain("defaultValue");
   });
 });
