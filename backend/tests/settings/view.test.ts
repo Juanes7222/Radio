@@ -7,7 +7,7 @@ import {
 } from "../../src/modules/settings/settings.view";
 import type { SettingRow } from "../../src/modules/settings/settings.types";
 
-/** The environment variables the keys read below resolve through. */
+/** The environment variables the keys exercised below resolve through. */
 const ORIGINAL_ENV = {
   HEALTH_EMAIL_ENABLED: process.env.HEALTH_EMAIL_ENABLED,
   HEALTH_DISK_MIN_FREE_PERCENT: process.env.HEALTH_DISK_MIN_FREE_PERCENT,
@@ -75,9 +75,9 @@ describe("buildSettingsView", () => {
     expect(item?.min).toBe(1);
   });
 
-  // The three assertions above fix the "panel" and "default" ends of the
-  // precedence; this one fixes the middle, which is the end an operator hits
-  // when a station still carries the variable in its environment.
+  // The two tests above fix the "panel" and "default" ends of the precedence;
+  // this one fixes the middle, which is where an operator lands when the
+  // station still carries the variable in its environment.
   it("names the environment as the source when it overrides the default", () => {
     process.env.HEALTH_DISK_MIN_FREE_PERCENT = "42";
     const sections = buildSettingsView(new Map());
@@ -128,6 +128,9 @@ describe("buildSettingsView", () => {
 });
 
 describe("redactForAudit", () => {
+  // Phase 1 ships no sensitive key, so the mechanism is pinned against
+  // `health.pushTokens`, a key the catalog does not know yet: a definition the
+  // catalog cannot vouch for is redacted rather than written in clear text.
   it("hides the value of a key the catalog marks sensitive", () => {
     expect(redactForAudit("health.pushTokens", "token-abc")).toBe(REDACTED_PLACEHOLDER);
   });
