@@ -22,7 +22,8 @@ export type AdminPermission =
   | "notices"
   | "logs"
   | "jobs"
-  | "users";
+  | "users"
+  | "settings";
 
 export const ADMIN_PERMISSIONS: AdminPermission[] = [
   "dashboard",
@@ -45,6 +46,7 @@ export const ADMIN_PERMISSIONS: AdminPermission[] = [
   "logs",
   "jobs",
   "users",
+  "settings",
 ];
 
 export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
@@ -74,6 +76,7 @@ export const ADMIN_PERMISSION_LABELS: Record<AdminPermission, string> = {
   logs: "Bitácora",
   jobs: "Jobs",
   users: "Usuarios",
+  settings: "Ajustes",
 };
 
 export function hasAdminPermission(
@@ -1288,4 +1291,63 @@ export interface PlaybackLogQuery {
 
 export interface PlaybackAudioQuery extends PlaybackLogQuery {
   order?: PlaybackAudioOrder;
+}
+
+// ── Ajustes de la estación ──────────────────────────────────────────────────
+
+/**
+ * Contrato de la pantalla de ajustes. El tipo de vista del backend declara la
+ * sección como `SettingSectionId`; aquí queda como `string` porque la unión
+ * vive en el catálogo y este paquete no lo conoce. Los dos se asignan uno a
+ * otro en el borde de la respuesta.
+ */
+export type SettingFieldType = "number" | "boolean" | "text" | "emailList";
+
+/** De dónde viene el valor efectivo ahora mismo. */
+export type SettingSource = "panel" | "env" | "default";
+
+export interface StationSettingValue {
+  key: string;
+  label: string;
+  description: string;
+  type: SettingFieldType;
+  /**
+   * Un ajuste de tipo `boolean` se manda como booleano de verdad, nunca `0`/`1`:
+   * el backend rechaza el número antes de invocar el parseo del catálogo.
+   */
+  value: string | number | boolean | string[] | null;
+  source: SettingSource;
+  unit: string | null;
+  min: number | null;
+  max: number | null;
+  /** true cuando el consumidor captura el valor al importar. */
+  requiresRestart: boolean;
+  /** Fecha de estación del último guardado, en ISO-8601 como el resto de la API. */
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+export interface StationSettingsSection {
+  id: string;
+  label: string;
+  description: string;
+  items: StationSettingValue[];
+}
+
+export interface StationSettingsResponse {
+  sections: StationSettingsSection[];
+}
+
+/** Una escritura en `station_settings`, con el valor ya redactado si el ajuste es sensible. */
+export interface StationSettingChange {
+  id: string;
+  key: string;
+  previousValue: string | null;
+  newValue: string | null;
+  changedBy: string;
+  createdAt: string;
+}
+
+export interface StationSettingsChangesResponse {
+  rows: StationSettingChange[];
 }
