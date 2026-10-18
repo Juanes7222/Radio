@@ -4,13 +4,15 @@ import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
 
 /**
- * Watchdog loop: runs every HEALTH_CHECK_INTERVAL_SECONDS (default 2 min).
+ * Watchdog loop: runs every `health.checkIntervalMinutes` (default 2 min).
  * Checks AzuraCast, workers, jobs, disk, backups and listener sampling,
  * deduplicates alerts and attempts self-remediation.
  */
 export function registerHealthJob(): void {
-  const seconds = Math.max(30, config.health.intervalSeconds);
-  const minutes = Math.ceil(seconds / 60);
+  // Read once, here: the expression below is frozen into the cron, which is
+  // what makes this setting need a restart. The floor keeps a malformed value
+  // from producing a cron expression the scheduler cannot parse.
+  const minutes = Math.max(1, config.health.intervalMinutes);
   cron.schedule(
     `*/${minutes} * * * *`,
     () => {
