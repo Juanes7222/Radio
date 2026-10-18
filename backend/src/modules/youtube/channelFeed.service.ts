@@ -14,8 +14,20 @@ const FEED_TIMEOUT_MS = 15_000;
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
 
-function feedUrl(channelId: string): string {
-  return `https://www.youtube.com/xml/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`;
+/**
+ * The Atom feed of a channel's uploads, and the WebSub topic the hub subscribes to.
+ *
+ * Both readers need the same URL, so it is built here once: a hub watching a
+ * different feed than the panel reports on is a failure nobody can see.
+ *
+ * Do not move this to `/xml/feeds/videos.xml`. Measured on 18 Oct 2026, that path
+ * answers 200 with the same 463 byte document for a real channel, for someone
+ * else's channel and for an invented id: a stub with no `<entry>` and no
+ * `yt:channelId`, so a topic there has nothing to publish. This path answers the
+ * real feed, and 404s for a channel id that does not exist.
+ */
+export function channelFeedUrl(channelId: string): string {
+  return `https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`;
 }
 
 function toEntries(feed: unknown): ChannelFeedEntry[] {
@@ -45,16 +57,12 @@ function toEntries(feed: unknown): ChannelFeedEntry[] {
 /**
  * Reads the public Atom feed a WebSub topic points at.
  *
- * It answers `200` with an empty stub for every `channel_id`, including ids that
- * do not exist, so the entry count is the only signal about whether a channel will
- * ever notify. Measured on 16 Oct 2026: the same 463 bytes for a real channel, for
- * the project's example channel and for an invented id.
- *
- * An empty list is therefore a valid answer, not a failure: the caller records the
- * count so the panel can show that the channel is registered but will stay quiet.
+ * An empty list is a valid answer: the channel exists and has nothing new, so the
+ * caller records the count rather than treating it as a failure. A 404 is not one:
+ * it means the channel id does not exist, which is what a mistyped id looks like.
  */
 export async function fetchChannelFeed(channelId: string): Promise<ChannelFeedSnapshot> {
-  const response = await fetch(feedUrl(channelId), {
+  const response = await fetch(channelFeedUrl(channelId), {
     signal: AbortSignal.timeout(FEED_TIMEOUT_MS),
     headers: { Accept: "application/atom+xml" },
   });

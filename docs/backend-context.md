@@ -490,20 +490,41 @@ cuántos archivos suenen adentro. Los de un solo archivo ya lo hacían por ffmpe
 La lista de canales que sigue la estación se administra en el panel admin, no en
 el entorno. Es el primer paso de mover configuración a la base de datos.
 
-- **El feed público de YouTube ya no publica videos.** Medido el 16 de octubre
-  de 2026: `GET https://www.youtube.com/xml/feeds/videos.xml?channel_id=<X>`
-  responde `200` con los mismos 463 bytes para un canal real, para el canal de
-  ejemplo del proyecto y para un id inventado. Sin `<entry>` y sin
-  `<yt:channelId>`, o sea un stub que ignora el parámetro. El hub
-  `pubsubhubbub.appspot.com` sigue devolviendo `202` a una suscripción nueva, pero
-  ese `202` se emite antes de verificar el callback: dice que la petición se
-  aceptó, no que el topic tenga contenido. **La ingesta no recibe nada por
-  WebSub.** Si la tabla de jobs aparece vacía y ningún log dice nada raro, esto es
-  lo que está pasando.
-  La migración pendiente es a la **YouTube Data API v3**: con polling sobre la
-  playlist de subidas cuesta una sola API key (quota 10.000/día) y cabe en este
-  mismo objetivo de reducir variables; con Pub/Sub push cuesta un proyecto de
-  Google Cloud con cuenta de servicio y endpoint de push. No se ha elegido.
+- **El topic del hub es `https://www.youtube.com/feeds/videos.xml`, no
+  `https://www.youtube.com/xml/feeds/videos.xml`.** La ingesta estuvo muda del 5 al
+  18 de octubre de 2026 y la ruta equivocada es la causa. Medido el 18 de octubre:
+  la ruta con `/xml/` responde `200` con los mismos 463 bytes para un canal real,
+  para el canal de ejemplo de Google y para un id inventado, sin `<entry>` ni
+  `yt:channelId`: es un stub que ignora el `channel_id`, y un topic así no tiene
+  nada que publicar. La ruta sin `/xml/` devuelve el feed real, con `yt:videoId`,
+  `yt:channelId`, `<title>` y `<published>`, y da `404` para un id que no existe.
+  Nota: una versión anterior de esta documentación afirmó que el feed había
+  muerto y dejó pendiente una migración a la Data API v3. Era una conclusión
+  correcta sobre una medición incompleta: no se contrastó la ruta alternativa.
+  **No hace falta la Data API** para esto, que es la conclusión a la que se llegó
+  después. Las dos rutas del hub conviven: `pubsubhubbub.appspot.com` sigue
+  devolviendo `202` sin tarjeta ni cuota, y ese `202` se emite antes de verificar
+  el callback, así que un `202` no prueba que exista una suscripción.
+- **El webhook se monta antes que el router de administración, no después.** El
+  router de admin lleva `router.use(requireAuth)` sobre todas sus rutas, así que
+  montado primero responde `401` a la verificación del hub y la suscripción nunca
+  se verifica: `GET /admin-api/youtube/webhook?hub.mode=subscribe&hub.challenge=X`
+  devolvía `401 {"error":"No autorizado"}` (25 bytes, el cuerpo de
+  `auth.middleware.ts:33`). Esto llegó con `13c9f45`, el 16 de octubre, y es
+  independiente del topic: aunque el feed hubiera seguido vivo, el hub no habría
+  podido suscribirse. Es fácil confundirlo con lo anterior porque
+  `state: subscribed` en el panel tampoco lo detecta: solo refleja el `202`.
+  `apps/web/tests/youtube/websub-wiring.test.ts` fija el orden.
+- **El id del canal estaba mal escrito y la corrección es una migración.**
+  `UCVqtvYvLNHvGymJFoGeRH7nw` (con una `v` de más y la `y` en minúscula) daba
+  `404`; el real es `UCVqtYvLNHvGymJFoGeRH7nw`. La migración
+  `20261018000000_fix_youtube_channel_id` corrige la fila y también
+  `YouTubeVideo.channelId`, porque `channelCategoryOf()` busca la fila del
+  registro al despachar y un job pendiente con el id viejo caería a la playlist
+  general en vez de a la de noticias. También pone `expiresAt`, `feedEntryCount` y
+  `feedCheckedAt` en `null`: describían el topic viejo, y con `expiresAt` en null
+  la renovación del cron vuelve a suscribirse con el feed bueno en su próxima
+  pasada.
 - `YouTubeSubscription` pasó a llamarse `YouTubeChannel` (migración
   `20261017000000_youtube_channels`, que crea, copia y borra: SQLite no renombra
   preservando índices). Antes solo recibía un `upsert` al arrancar y nadie lo
@@ -552,10 +573,9 @@ el entorno. Es el primer paso de mover configuración a la base de datos.
   alguna vuelve a aparecer fuera del backfill.
 - Endpoints en `/admin-api/youtube` con `requireAuth` + permiso `youtube`:
   `GET /channels`, `POST /channels`, `DELETE /channels/:channelId`,
-  `POST /channels/:channelId/resubscribe`. El router de administración se
-  monta **antes** del webhook en `app.ts`: su `router.use(requireAuth)` podría
-  alcanzarlo y el hub llama sin sesión, lo que mataría la suscripción en
-  silencio.
+  `POST /channels/:channelId/resubscribe`. El webhook se monta **antes** que el
+  router de administración en `app.ts`, nunca al revés: ver la trampa del `401`
+  más arriba.
 
 ## Suggested expectations for the agent
 

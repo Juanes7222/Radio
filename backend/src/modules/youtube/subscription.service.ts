@@ -1,7 +1,7 @@
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
 import { prisma } from "../../infrastructure/database/prisma";
-import { fetchChannelFeed } from "./channelFeed.service";
+import { channelFeedUrl, fetchChannelFeed } from "./channelFeed.service";
 
 const PUBSUBHUBBUB_HUB = "https://pubsubhubbub.appspot.com/subscribe";
 const LEASE_SECONDS = 86400; // 24 hours
@@ -14,14 +14,10 @@ export const RESUBSCRIBE_MARGIN_MS = 6 * 60 * 60 * 1000;
 
 export const WEBHOOK_PATH = "/admin-api/youtube/webhook";
 
-function topicUrl(channelId: string): string {
-  return `https://www.youtube.com/xml/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`;
-}
-
 async function callHub(mode: "subscribe" | "unsubscribe", channelId: string): Promise<void> {
   const params = new URLSearchParams({
     "hub.callback": `${config.publicUrl}${WEBHOOK_PATH}`,
-    "hub.topic": topicUrl(channelId),
+    "hub.topic": channelFeedUrl(channelId),
     "hub.mode": mode,
     "hub.lease_seconds": String(LEASE_SECONDS),
     "hub.verify": "async",

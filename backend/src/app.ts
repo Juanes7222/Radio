@@ -137,10 +137,12 @@ export function createApp(): Express {
   app.use("/admin-api/live", liveAdminRouter);
   app.use("/admin-api/locutor", locutorRouter);
   app.use("/admin-api/locutor/announcement", announcementRouter);
-  // The admin router first: its router.use(requireAuth) would otherwise be able to
-  // shadow the webhook, which the hub calls without a session.
-  app.use("/admin-api/youtube", youtubeAdminRouter);
+  // The webhook router first. The admin router guards every path below it with
+  // requireAuth, so with the order reversed the hub gets a 401 instead of the
+  // challenge, the subscription never verifies, and the only trace is a 202 that
+  // the hub answers before it checks anything.
   app.use("/admin-api/youtube", youtubeRouter);
+  app.use("/admin-api/youtube", youtubeAdminRouter);
   app.use("/api/bible", bibleRouter);
   app.use("/admin-api/workers", workerAdminRouter);
   app.use(releasesRouter);
