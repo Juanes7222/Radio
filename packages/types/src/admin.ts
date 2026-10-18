@@ -1336,6 +1336,16 @@ export interface StationSettingsSection {
 
 export interface StationSettingsResponse {
   sections: StationSettingsSection[];
+  /**
+   * Keys the last `PUT /` actually wrote. `GET /` sends neither field, so both
+   * are optional rather than empty-by-default.
+   */
+  applied?: string[];
+  /**
+   * Keys the last `POST /reset` actually dropped. A key with no stored row is
+   * absent from it because there was nothing to clear.
+   */
+  cleared?: string[];
 }
 
 /** Una escritura en `station_settings`, con el valor ya redactado si el ajuste es sensible. */

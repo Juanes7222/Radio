@@ -60,6 +60,8 @@ import type {
   RotationRunLog,
   RotationRunResult,
   ScheduleCategory,
+  StationSettingsChangesResponse,
+  StationSettingsResponse,
   NotificationProgram,
   WorkerJob,
   WorkerNodeInfo,
@@ -1216,6 +1218,37 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Ajustes de la estación ──────────────────────────────────
+  // The catalog is the backend's, so the panel never names a key here: the
+  // response drives the form and the patch is whatever the operator changed.
+  const SETTINGS_BASE = '/admin-api/settings';
+
+  const getSettings = useCallback(
+    () => request<StationSettingsResponse>({ url: SETTINGS_BASE }),
+    [request]
+  );
+
+  const updateSettings = useCallback(
+    (patch: Record<string, string | number | boolean | string[]>) =>
+      request<StationSettingsResponse>({ method: 'PUT', url: SETTINGS_BASE, data: patch }),
+    [request]
+  );
+
+  const resetSettings = useCallback(
+    (keys: string[]) =>
+      request<StationSettingsResponse>({ method: 'POST', url: `${SETTINGS_BASE}/reset`, data: { keys } }),
+    [request]
+  );
+
+  const getSettingsChanges = useCallback(
+    (limit?: number) =>
+      request<StationSettingsChangesResponse>({
+        url: `${SETTINGS_BASE}/changes`,
+        params: limit === undefined ? undefined : { limit },
+      }),
+    [request]
+  );
+
   // ── Salud del sistema ─────────────────────────────────────
   const getHealthOverview = useCallback(
     () => request<HealthOverview>({ url: '/admin-api/health/watchdog' }),
@@ -1477,6 +1510,10 @@ export function useAdminApi() {
     runBackup,
     getHealthOverview,
     runHealthCycle,
+    getSettings,
+    updateSettings,
+    resetSettings,
+    getSettingsChanges,
     getAdminUsers,
     createAdminUser,
     updateAdminUser,

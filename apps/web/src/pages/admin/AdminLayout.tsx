@@ -26,6 +26,7 @@ MessageSquare,
   Terminal,
   Cog,
   DatabaseBackup,
+  Settings,
   Users,
   HeartPulse,
   History,
@@ -96,6 +97,12 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/admin/devices', label: 'Dispositivos', icon: Smartphone, permission: 'devices' },
       { to: '/admin/notification-programs', label: 'Programas notificables', icon: BellRing, permission: 'devices' },
       { to: '/admin/notices', label: 'Avisos', icon: Megaphone, permission: 'notices' },
+    ],
+  },
+  {
+    title: 'Ajustes',
+    items: [
+      { to: '/admin/settings', label: 'Ajustes', icon: Settings, permission: 'settings' },
     ],
   },
   {
