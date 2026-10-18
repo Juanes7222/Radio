@@ -84,6 +84,16 @@ describe("parseSettingInput", () => {
     // catalog alone, so the same payload behaves the same on every station.
     expect(parseSettingInput("health.diskMinFreePercent", 100).ok).toBe(false);
   });
+
+  it("rejects a key inherited from Object.prototype instead of throwing", () => {
+    // The lookup used to answer with the inherited function, which left the
+    // type switch with nothing to match. A key the catalog does not declare is
+    // a 400, whatever the object it was read from hands back.
+    const result = parseSettingInput("toString", true);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("toString");
+  });
 });
 
 describe("normalizeSettingValue", () => {

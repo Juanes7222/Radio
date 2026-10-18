@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { SETTINGS_CATALOG } from "../../src/modules/settings/settings.catalog";
+import {
+  getDefinition,
+  SETTINGS_CATALOG,
+} from "../../src/modules/settings/settings.catalog";
 import {
   buildSettingsView,
   REDACTED_PLACEHOLDER,
@@ -127,6 +130,16 @@ describe("buildSettingsView", () => {
   });
 });
 
+describe("getDefinition", () => {
+  // The catalog is an object literal, so a request-derived key can name a
+  // property it inherits from Object.prototype. Those are not definitions, and
+  // treating them as such is what made the redaction below fail open.
+  it("returns null for a key inherited from Object.prototype", () => {
+    expect(getDefinition("constructor")).toBeNull();
+    expect(getDefinition("toString")).toBeNull();
+  });
+});
+
 describe("redactForAudit", () => {
   // Phase 1 ships no sensitive key, so the mechanism is pinned against
   // `health.pushTokens`, a key the catalog does not know yet: a definition the
@@ -141,6 +154,14 @@ describe("redactForAudit", () => {
 
   it("keeps null as null", () => {
     expect(redactForAudit("health.diskMinFreePercent", null)).toBeNull();
+  });
+
+  // Fail-closed covers every key the catalog cannot vouch for, and an inherited
+  // property is a key it cannot vouch for even though the lookup returns
+  // something truthy for it.
+  it("hides the value of a key inherited from Object.prototype", () => {
+    expect(redactForAudit("constructor", "x")).toBe(REDACTED_PLACEHOLDER);
+    expect(redactForAudit("toString", "x")).toBe(REDACTED_PLACEHOLDER);
   });
 });
 

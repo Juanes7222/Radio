@@ -132,8 +132,17 @@ export const SETTING_SECTIONS: ReadonlyArray<{
   },
 ];
 
+/**
+ * Own properties only. `SETTINGS_CATALOG` is an object literal, so a
+ * request-derived key such as "constructor" or "toString" would otherwise
+ * resolve to something inherited. A definition is an own entry and nothing
+ * else: reading `sensitive` off an inherited function writes a secret in clear
+ * text, and an inherited value leaves the validator's type switch with nothing
+ * to match.
+ */
 export function getDefinition(key: string): SettingDefinition | null {
-  return (SETTINGS_CATALOG as Record<string, SettingDefinition>)[key] ?? null;
+  if (!Object.prototype.hasOwnProperty.call(SETTINGS_CATALOG, key)) return null;
+  return (SETTINGS_CATALOG as Record<string, SettingDefinition>)[key];
 }
 
 /** Accepts the four spellings a panel and an operator produce alike. */
