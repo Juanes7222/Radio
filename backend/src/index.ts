@@ -18,6 +18,7 @@ async function bootstrap(): Promise<void> {
   );
   const { config } = await import("./config");
   const { logger } = await import("./shared/logger/logger");
+  const { hydrateSettings } = await import("./modules/settings/settings.service");
 
   // Announcements read the station clock explicitly, but the day keys stored in
   // the database still come from the process clock: a mismatch shifts them.
@@ -30,6 +31,11 @@ async function bootstrap(): Promise<void> {
   }
 
   const JOB_DISPATCH_INTERVAL_MS = config.worker.jobDispatchIntervalMs;
+
+  // Before the scheduler, not after: jobs read settings while they are being
+  // registered, so a job registered against an empty cache would decide its
+  // first cycle with catalog defaults instead of the stored values.
+  await hydrateSettings();
 
   startScheduler();
 
