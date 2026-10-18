@@ -1,5 +1,5 @@
 import { boolEnvOr, intEnvOr } from "../../config/env";
-import type { SettingDefinition } from "./settings.types";
+import type { SettingDefinition, SettingSectionId } from "./settings.types";
 
 /**
  * The catalog is the only place a setting is declared: its key, type, range,
@@ -38,9 +38,99 @@ export const SETTINGS_CATALOG = {
     parse: parseNumber,
     format: String,
   },
+  "health.checkIntervalMinutes": {
+    key: "health.checkIntervalMinutes",
+    section: "health",
+    label: "Cada cuánto revisa el vigilante",
+    description:
+      "Minutos entre una revisión de salud y la siguiente. El intervalo se lee al programar la tarea, así que el cambio solo surte efecto al reiniciar el servicio.",
+    type: "number",
+    defaultValue: 2,
+    // The environment still speaks seconds and the domain is minutes, so a field
+    // labelled "segundos" with a minimum of 30 would be a lie. Sub-minute
+    // values cannot reach a minute-resolution cron anyway.
+    envFallback: () =>
+      Math.max(1, Math.ceil(intEnvOr("HEALTH_CHECK_INTERVAL_SECONDS", 120) / 60)),
+    unit: "min",
+    min: 1,
+    max: 60,
+    parse: parseNumber,
+    format: String,
+    requiresRestart: true,
+  },
+  "health.nowPlayingSilenceSeconds": {
+    key: "health.nowPlayingSilenceSeconds",
+    section: "health",
+    label: "Silencio en la emisión",
+    description:
+      "Segundos que la emisión puede pasar sin avanzar una pista antes de marcar el AutoDJ como degradado. Solo aplica al AutoDJ: una persona en directo se considera sana.",
+    type: "number",
+    defaultValue: 900,
+    envFallback: () => intEnvOr("HEALTH_NOW_PLAYING_SILENCE_SECONDS", 900),
+    unit: "s",
+    min: 60,
+    max: 86400,
+    parse: parseNumber,
+    format: String,
+  },
+  "health.backupMaxAgeHours": {
+    key: "health.backupMaxAgeHours",
+    section: "health",
+    label: "Antigüedad máxima de un respaldo",
+    description:
+      "Horas sin un respaldo nuevo antes de que la verificación de respaldos pase a estado crítico.",
+    type: "number",
+    defaultValue: 26,
+    envFallback: () => intEnvOr("HEALTH_BACKUP_MAX_AGE_HOURS", 26),
+    unit: "h",
+    min: 1,
+    max: 720,
+    parse: parseNumber,
+    format: String,
+  },
+  "health.snapshotMaxAgeHours": {
+    key: "health.snapshotMaxAgeHours",
+    section: "health",
+    label: "Antigüedad máxima del muestreo de oyentes",
+    description:
+      "Horas sin una muestra nueva de oyentes antes de que el muestreo se marque como degradado. Si nunca se ha registrado ninguna muestra, el aviso aparece de inmediato.",
+    type: "number",
+    defaultValue: 2,
+    envFallback: () => intEnvOr("HEALTH_SNAPSHOT_MAX_AGE_HOURS", 2),
+    unit: "h",
+    min: 1,
+    max: 720,
+    parse: parseNumber,
+    format: String,
+  },
+  "health.pushEnabled": {
+    key: "health.pushEnabled",
+    section: "health",
+    label: "Enviar alertas de salud a los dispositivos",
+    description:
+      "Cuando está activo, el vigilante envía una notificación push a los dispositivos registrados. Solo a los del servidor: la lista de dispositivos se sigue configuring fuera del panel.",
+    type: "boolean",
+    defaultValue: false,
+    envFallback: () => boolEnvOr("HEALTH_PUSH_ENABLED", false),
+    parse: parseBoolean,
+    format: String,
+  },
 } as const satisfies Record<string, SettingDefinition>;
 
 export type SettingKey = keyof typeof SETTINGS_CATALOG;
+
+/** The paint order of the panel page. Later sections are appended here. */
+export const SETTING_SECTIONS: ReadonlyArray<{
+  id: SettingSectionId;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "health",
+    label: "Salud",
+    description: "Cuándo el vigilante considera que algo anda mal y a quién avisa.",
+  },
+];
 
 export function getDefinition(key: string): SettingDefinition | null {
   return (SETTINGS_CATALOG as Record<string, SettingDefinition>)[key] ?? null;
