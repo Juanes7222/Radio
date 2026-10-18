@@ -1,6 +1,6 @@
 import { logger } from "../../shared/logger/logger";
 import { getDefinition } from "./settings.catalog";
-import type { SettingRow, SettingSource, SettingValue } from "./settings.types";
+import type { SettingDefinition, SettingRow, SettingSource, SettingValue } from "./settings.types";
 
 export interface ResolvedSetting {
   value: SettingValue | null;
@@ -45,7 +45,7 @@ export function resolveFromRows(
     }
   }
 
-  const envValue = definition.envFallback?.();
+  const envValue = readEnvFallback(definition);
   if (envValue !== undefined && !isSameValue(envValue, definition.defaultValue)) {
     return { value: envValue, source: "env" };
   }
@@ -111,6 +111,20 @@ export function resetCache(): void {
 /** `resolveFromRows` over the module state, minus the rows known to be bad. */
 function resolveCurrent(key: string): ResolvedSetting {
   return resolveFromRows(key, unparseableKeys.has(key) ? NO_ROWS : storedRows);
+}
+
+/**
+ * The environment is the last source before the default, so a reader that
+ * throws must not take the read down with it. Silent on purpose: hydration
+ * already logs the row problems that matter, and this runs on every read.
+ */
+function readEnvFallback(definition: SettingDefinition): SettingValue | undefined {
+  if (!definition.envFallback) return undefined;
+  try {
+    return definition.envFallback();
+  } catch {
+    return undefined;
+  }
 }
 
 /** A list read from the environment is a new array every time, so compare items. */
