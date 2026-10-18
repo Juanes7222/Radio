@@ -5,6 +5,13 @@ import type { SettingDefinition, SettingRow, SettingSource, SettingValue } from 
 export interface ResolvedSetting {
   value: SettingValue | null;
   source: SettingSource;
+  /**
+   * The entry this resolution consulted, `null` when the catalog does not know
+   * the key. Handed back so a typed reader can narrow the value against the
+   * declaration that produced it, instead of looking the catalog up again and
+   * risking a second, different answer.
+   */
+  definition: SettingDefinition | null;
 }
 
 /**
@@ -41,20 +48,26 @@ let unknownKeyCount = 0;
 /**
  * Reads one setting with the precedence the whole module shares: a parseable
  * stored row wins, then the environment variable, then the catalog default.
- * Never throws, because it runs on synchronous paths — health checks, job
- * dispatch, audio composition — where a bad row must not stop the station.
+ *
+ * A missing, unknown or unparseable value never throws, because these reads run
+ * on synchronous paths — health checks, job dispatch, audio composition — where
+ * a bad row must not stop the station. A value whose type contradicts the entry
+ * that declares it is a different thing: not a data problem but an authoring one,
+ * so the typed readers log it and answer that entry's default rather than
+ * failing. Throwing here would travel `registerHealthJob` -> `startScheduler` ->
+ * the `process.exit(1)` in `bootstrap` and take the backend down with it.
  */
 export function resolveFromRows(
   key: string,
   rows: ReadonlyMap<string, SettingRow>,
 ): ResolvedSetting {
   const definition = getDefinition(key);
-  if (!definition) return { value: null, source: "default" };
+  if (!definition) return { value: null, source: "default", definition: null };
 
   const row = rows.get(key);
   if (row) {
     try {
-      return { value: definition.parse(row.value), source: "panel" };
+      return { value: definition.parse(row.value), source: "panel", definition };
     } catch {
       // Falls through to the environment value and the default. The warning
       // belongs to the hydration, which is where the row enters the cache.
@@ -63,10 +76,10 @@ export function resolveFromRows(
 
   const envValue = readEnvFallback(definition);
   if (envValue !== undefined && !isSameValue(envValue, definition.defaultValue)) {
-    return { value: envValue, source: "env" };
+    return { value: envValue, source: "env", definition };
   }
 
-  return { value: definition.defaultValue, source: "default" };
+  return { value: definition.defaultValue, source: "default", definition };
 }
 
 /** The effective value of a key, or `null` when the catalog does not know it. */
@@ -85,30 +98,52 @@ export function settingSource(key: string): SettingSource {
  * module delegating to it would hand a union to a consumer that needs a
  * number. This is the narrowing the callers would otherwise write by hand.
  *
- * The number comes from one resolution and only from one resolution: the
- * module's own resolver answers the row, the environment or the catalog
- * default, and whatever it resolved is what this returns. There is no second
- * lookup to consult when the type does not match, so the reader cannot answer
- * something the cache and the panel never saw.
+ * Everything comes out of one resolution. The value is what `resolveCurrent`
+ * resolved, and the fallback is the default of the very definition that
+ * resolution consulted, so this cannot answer a number that resolution did not
+ * already have in hand.
  */
 export function getNumberSetting(key: NumberSettingKey): number {
-  const { value } = resolveCurrent(key);
+  const { value, definition } = resolveCurrent(key);
   if (typeof value === "number") return value;
 
   // Reachable only when the catalog entry contradicts itself: it declares a
   // numeric default here, so only a `parse` or an `envFallback` of the wrong
   // type can produce anything else, and `satisfies` does not check that a key's
-  // three sources agree. Answering the default anyway would hide a watchdog
-  // threshold that silently disagrees with the panel, so this fails instead.
-  throw new Error(`Setting "${key}" resolved to ${typeof value}, not a number`);
+  // three sources agree. Answering the default quietly would hide a threshold
+  // that disagrees with the panel, so it is logged. It is answered rather than
+  // thrown because an authoring mistake must not become an outage: see the note
+  // on `resolveFromRows` about what this call sits in front of.
+  const fallback = definition?.defaultValue;
+  if (typeof fallback === "number") {
+    logger.error("Settings", "Numeric reader resolved a non-number; using the catalog default", {
+      key,
+      received: typeof value,
+    });
+    return fallback;
+  }
+
+  // Structural: a key that is not in the catalog cannot reach a reader, whose
+  // parameter type is built from the catalog. Kept so a future caller that
+  // widens that type fails loudly instead of reading something meaningless.
+  throw new Error(`Setting "${key}" is not in the catalog`);
 }
 
 /** The boolean counterpart of {@link getNumberSetting}. */
 export function getBooleanSetting(key: BooleanSettingKey): boolean {
-  const { value } = resolveCurrent(key);
+  const { value, definition } = resolveCurrent(key);
   if (typeof value === "boolean") return value;
 
-  throw new Error(`Setting "${key}" resolved to ${typeof value}, not a boolean`);
+  const fallback = definition?.defaultValue;
+  if (typeof fallback === "boolean") {
+    logger.error("Settings", "Boolean reader resolved a non-boolean; using the catalog default", {
+      key,
+      received: typeof value,
+    });
+    return fallback;
+  }
+
+  throw new Error(`Setting "${key}" is not in the catalog`);
 }
 
 /** Every hydrated row, including the ones the catalog does not know. */

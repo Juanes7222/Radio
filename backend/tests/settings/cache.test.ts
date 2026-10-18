@@ -1,4 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { logger } from "../../src/shared/logger/logger";
+import { SETTINGS_CATALOG, getDefinition } from "../../src/modules/settings/settings.catalog";
 import {
   currentRows,
   getBooleanSetting,
@@ -89,6 +91,7 @@ describe("settings cache", () => {
     expect(resolveFromRows("health.retiredKey", new Map())).toEqual({
       value: null,
       source: "default",
+      definition: null,
     });
   });
 
@@ -105,6 +108,9 @@ describe("settings cache", () => {
     expect(resolveFromRows("health.diskMinFreePercent", rows)).toEqual({
       value: 42,
       source: "panel",
+      // The entry the resolution consulted, so a typed reader can fall back
+      // without looking the catalog up a second time.
+      definition: getDefinition("health.diskMinFreePercent"),
     });
     // The module cache was never hydrated, so the read above cannot have leaked into it.
     expect(getSetting("health.diskMinFreePercent")).toBe(15);
@@ -161,6 +167,31 @@ describe("settings cache", () => {
 
     // The environment is unset here, so what is left is the catalog default.
     expect(getBooleanSetting("health.emailEnabled")).toBe(true);
+  });
+
+  it("logs and answers the catalog default when resolution contradicts it", () => {
+    // No catalog entry contradicts itself today: this stubs one so the branch
+    // is not untested. It matters because a throw here travels
+    // registerHealthJob -> startScheduler -> the process.exit(1) in bootstrap,
+    // which turns an authoring mistake into a dead backend instead of a
+    // threshold that disagrees with the panel for a few log lines.
+    const entry = SETTINGS_CATALOG["health.diskMinFreePercent"];
+    const original = entry.envFallback;
+    Object.assign(entry, { envFallback: () => "20" });
+    const logged = vi.spyOn(logger, "error").mockImplementation(() => undefined);
+
+    try {
+      // The stub resolves to the string "20"; the catalog default is 15.
+      expect(getNumberSetting("health.diskMinFreePercent")).toBe(15);
+      expect(logged).toHaveBeenCalledWith(
+        "Settings",
+        expect.stringContaining("using the catalog default"),
+        expect.objectContaining({ key: "health.diskMinFreePercent", received: "string" })
+      );
+    } finally {
+      logged.mockRestore();
+      Object.assign(entry, { envFallback: original });
+    }
   });
 });
 
