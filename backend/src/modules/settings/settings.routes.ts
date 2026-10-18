@@ -110,13 +110,20 @@ function actorEmail(req: Request): string {
 /**
  * Rejects anything that is not a plain object, so a body that happens to be an
  * array or `null` is a 400 with a sentence instead of an empty save.
+ *
+ * Exported for the tests: this is a rule of the request contract, and without an
+ * HTTP harness the only way to pin it is to reach the function directly.
  */
-function asPlainObject(body: unknown): Record<string, unknown> | null {
+export function asPlainObject(body: unknown): Record<string, unknown> | null {
   if (typeof body !== "object" || body === null || Array.isArray(body)) return null;
   return body as Record<string, unknown>;
 }
 
-function isStringArray(value: unknown): value is string[] {
+/**
+ * An empty list passes: resetting nothing is a legitimate answer, and the view
+ * the route returns already says which keys still have a stored value.
+ */
+export function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
@@ -125,8 +132,12 @@ function isStringArray(value: unknown): value is string[] {
  * either fail deep inside the client or silently answer nothing. A value above
  * the cap is capped rather than rejected, because asking for more of the log is
  * not a mistake worth an error.
+ *
+ * Only plain digits are accepted, which is what rules out `1.5`, `1e2` and a
+ * sign. Express hands a repeated parameter over as an array, which is not a
+ * string and is rejected for that reason.
  */
-function parseChangesLimit(raw: unknown): number {
+export function parseChangesLimit(raw: unknown): number {
   if (raw === undefined) return CHANGES_DEFAULT_LIMIT;
 
   const text = typeof raw === "string" ? raw.trim() : "";
