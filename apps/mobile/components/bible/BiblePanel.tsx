@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     width: 200,
-    backgroundColor: 'rgba(8,10,30,0.55)',
+    backgroundColor: Colors.scrimSoft,
   },
   navBtn: {
     padding: Spacing.sm,

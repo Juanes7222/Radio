@@ -97,7 +97,6 @@ export default function StationScreen() {
       >
         <Animated.View entering={FadeInDown.delay(40).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
           <ScreenHeader
-            eyebrow="Nuestra comunidad"
             title="La estación"
             subtitle="Redes sociales, sitio web y documentos legales."
           />
@@ -211,7 +210,7 @@ export default function StationScreen() {
         <Animated.View entering={FadeInDown.delay(320).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
           <View style={styles.legalPanel}>
             <View style={styles.legalHeader}>
-              <Text style={styles.legalEyebrow}>Documentos legales</Text>
+              <Text style={styles.legalSectionLabel}>Documentos legales</Text>
               <Text style={styles.legalHint}>Se abren en el navegador</Text>
             </View>
             {Object.values(LEGAL_DOCUMENTS).map((document) => (
@@ -378,7 +377,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingBottom: Spacing.sm,
   },
-  legalEyebrow: { ...Typography.eyebrow, color: Colors.signal },
+  legalSectionLabel: { ...Typography.label, color: Colors.signal },
   legalHint: { ...Typography.mono, color: Colors.textAltFaint, flexShrink: 1, textAlign: 'right' },
   legalRow: {
     flexDirection: 'row',

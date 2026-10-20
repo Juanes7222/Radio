@@ -1,20 +1,21 @@
 /**
- * Design tokens — La Voz de la Verdad (Mobile) alineado a Web
- * Espeja apps/web/src/index.css :root (public) para paridad visual.
- * Web :root usa indigo #8D86F4 como primary; .admin-theme usa amber #FAB742.
- * Mobile migraba al dial ámbar (#FFB547, cercano a admin). Ahora se alinea al public indigo.
- * Mantiene aliases legacy (accent/cian) apuntando al nuevo primary para compatibilidad.
+ * Design tokens — La Voz de la Verdad (Mobile)
+ * Base: apps/web/src/index.css :root. Se conserva la familia azul de noche y el
+ * índigo #8D86F4 del logo en ink, signal, tally y los colores semánticos.
+ * Los escalones de superficie y los tonos de texto son propios del móvil: la
+ * web comparte la familia, no los mismos valores.
+ * Mantiene aliases legacy (accent/cian) apuntando al primary para compatibilidad.
  */
 
 export const Colors = {
-  // ——— Core — espeja :root en apps/web/src/index.css:8 ———
+  // ——— Core — noche azul: tres escalones, de ink a inkElevated ———
   ink: '#020817', // --background 222.2 84% 4.9%
-  inkElevated: '#1F2937', // --card 215 28% 17%
-  inkSoft: '#181C25', // --surface-sunken 222 22% 12%
+  inkElevated: '#16264D', // superficie elevada: marino de la familia
+  inkSoft: '#121C36', // escalón medio del degradado
   background: '#020817', // --background
-  backgroundAlt: '#0F172A', // slate-900 intermedio para gradientes (entre background y card)
-  backgroundElevated: '#1F2937', // --card
-  gradientDeep: '#181C25', // --surface-sunken
+  backgroundAlt: '#0B1530', // base bajo el degradado (medianoche)
+  backgroundElevated: '#16264D', // --card
+  gradientDeep: '#121C36', // escalón medio del degradado
 
   // ——— Surfaces (glass system sobre ink) ———
   // Glass se mantiene como overlay blanco translúcido; web usa bg-background/70 + backdrop-blur.
@@ -25,9 +26,9 @@ export const Colors = {
   surfaceBorder: 'rgba(255,255,255,0.07)',
   surfaceElevated: 'rgba(255,255,255,0.10)',
   surfaceGlass: 'rgba(255,255,255,0.06)',
-  border: '#334155', // --border 215 16% 27% => #3A4350 (ajustado a slate-700 para AA)
-  borderGlass: 'rgba(148,163,184,0.14)', // --border con alpha, para hairlines sobre glass
-  borderStrong: 'rgba(148,163,184,0.24)',
+  border: '#2A3A5C', // línea visible de la familia azul
+  borderGlass: 'rgba(150,175,225,0.14)', // hairline sobre glass
+  borderStrong: 'rgba(150,175,225,0.24)', // agarradera de hoja
 
   // ——— Signal -> Primary indigo — espeja --primary 244 83% 74% #8D86F4 ———
   // Antes: amber dial #FFB547 (cercano a .admin-theme --primary 38 95% 62% #FAB742)
@@ -38,6 +39,17 @@ export const Colors = {
   signalGlow: 'rgba(141,134,244,0.32)',
   signalSoft: 'rgba(141,134,244,0.08)',
   signalFaint: 'rgba(141,134,244,0.06)',
+  // Filled accent surfaces. `signal` stays for strokes, rings, halos and marks;
+  // `signalFill` is for a filled surface that carries a label or a glyph.
+  signalFill: '#7C74F0',
+
+  // Scrims: the ink of the app at three opacities.
+  scrim: 'rgba(2,8,23,0.88)', // tab bar
+  scrimStrong: 'rgba(2,8,23,0.92)', // player control bar
+  scrimSoft: 'rgba(2,8,23,0.55)', // bible modal backdrop
+  // The sheet surface at zero alpha. A gradient towards 'transparent'
+  // interpolates through black and leaves a grey band.
+  inkElevatedFade: 'rgba(22,38,77,0)',
 
   // ——— Legacy aliases (migración) ———
   accent: '#8D86F4',
@@ -53,19 +65,22 @@ export const Colors = {
   dangerMuted: 'rgba(228,68,86,0.14)',
   warning: '#F6A328', // --warning 36 92% 56%
   warningMuted: 'rgba(246,163,40,0.14)',
+  warningGlow: 'rgba(246,163,40,0.25)', // warning ring on a filled surface
   success: '#4ABF89', // --success 152 48% 52%
   successMuted: 'rgba(74,191,137,0.14)',
   info: '#4CBCF0', // --info 199 85% 62% (nuevo, antes no existía en mobile)
   infoMuted: 'rgba(76,188,240,0.14)',
 
-  // ——— Text — espeja --foreground / --muted-foreground / --faint ———
-  text: '#F8FAFC', // slate-50, cercano a --foreground 0 0% 100%
+  // ——— Text — blanco azulado y sus tres escalones de gris azulado ———
+  // Secondary text is tinted from the blue of the surfaces instead of slate:
+  // a grey label on a blue ground is what makes a dark app read as generic.
+  text: '#F1F4FA', // blanco azulado
   textBright: '#FFFFFF', // --foreground
-  textSoft: '#F1F5F9', // slate-100
-  textMuted: '#94A3B8', // --muted-foreground 215 20% 65%
-  textFaint: '#848E9F', // --faint 218 12% 57%
-  textAlt: '#94A3B8',
-  textAltFaint: '#7A8699', // slate-500 #64748B is only 4.2:1 on ink; this is 5.4:1 (AA)
+  textSoft: '#DCE4F0',
+  textMuted: '#97A6C0', // 8.1:1 sobre ink
+  textFaint: '#7C8AA6', // 5.8:1 sobre ink
+  textAlt: '#97A6C0',
+  textAltFaint: '#6E7C96', // 4.75:1 sobre ink
   textOnSignal: '#020817', // --primary-foreground 222.2 84% 4.9% (texto oscuro sobre indigo)
   textOnPaper: '#1C1400',
 
@@ -113,12 +128,13 @@ export const Typography = {
   songTitle: { fontFamily: Fonts.displaySemi, fontSize: 22, fontWeight: '700' as const, letterSpacing: -0.5, lineHeight: 26 },
   artistName: { fontFamily: Fonts.bodyMedium, fontSize: 15, fontWeight: '500' as const, letterSpacing: -0.1, lineHeight: 20 },
   albumName: { fontFamily: Fonts.bodyRegular, fontSize: 13, fontWeight: '400' as const, lineHeight: 18 },
-  body: { fontFamily: Fonts.bodyRegular, fontSize: 14, fontWeight: '400' as const, lineHeight: 20 },
-  bodyStrong: { fontFamily: Fonts.bodySemi, fontSize: 14, fontWeight: '600' as const, lineHeight: 20 },
-  label: { fontFamily: Fonts.bodyBold, fontSize: 11, fontWeight: '700' as const, letterSpacing: 0.08 * 11, lineHeight: 14, textTransform: 'uppercase' as const },
-  eyebrow: { fontFamily: Fonts.bodyBold, fontSize: 11, fontWeight: '700' as const, letterSpacing: 1.4, lineHeight: 14, textTransform: 'uppercase' as const },
-  caption: { fontFamily: Fonts.bodyRegular, fontSize: 12, fontWeight: '400' as const, lineHeight: 16 },
-  captionStrong: { fontFamily: Fonts.bodySemi, fontSize: 12, fontWeight: '600' as const, lineHeight: 16 },
+  body: { fontFamily: Fonts.bodyRegular, fontSize: 16, fontWeight: '400' as const, lineHeight: 23 },
+  bodyStrong: { fontFamily: Fonts.bodySemi, fontSize: 16, fontWeight: '600' as const, lineHeight: 23 },
+  // Small label. Sentence case: the app never shouts, and a 13px label on a
+  // dark surface needs a touch of tracking to stay legible.
+  label: { fontFamily: Fonts.bodyBold, fontSize: 13, fontWeight: '700' as const, letterSpacing: 0.3, lineHeight: 17 },
+  caption: { fontFamily: Fonts.bodyRegular, fontSize: 12, fontWeight: '400' as const, letterSpacing: 0.1, lineHeight: 17 },
+  captionStrong: { fontFamily: Fonts.bodySemi, fontSize: 12, fontWeight: '600' as const, letterSpacing: 0.1, lineHeight: 17 },
   mono: { fontFamily: Fonts.mono, fontSize: 11, fontWeight: '500' as const, letterSpacing: 0.04 * 11, lineHeight: 14, fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] },
   monoLarge: { fontFamily: Fonts.mono, fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.02 * 13, lineHeight: 16, fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] },
 } as const;

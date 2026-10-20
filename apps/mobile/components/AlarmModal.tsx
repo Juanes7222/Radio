@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.md,
     marginTop: Spacing.xs,
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     borderRadius: Radii.lg,
   },
   addIconWrap: {
@@ -531,8 +531,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   chipActive: {
-    backgroundColor: Colors.signal,
-    borderColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
+    borderColor: Colors.signalFill,
   },
   chipTextActive: {
     color: Colors.textOnSignal,
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   exactAlarmButton: {
-    backgroundColor: 'rgba(245,158,11,0.25)',
+    backgroundColor: Colors.warningGlow,
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
     borderRadius: Radii.sm,

@@ -142,12 +142,12 @@ function WheelColumn({ items, selected, onChange, width = 104, label }: WheelCol
       <View style={styles.highlightBar} pointerEvents="none" />
       <LinearGradient
         pointerEvents="none"
-        colors={['#12121f', 'rgba(18,18,31,0)']}
+        colors={[Colors.inkElevated, Colors.inkElevatedFade]}
         style={styles.topFade}
       />
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(18,18,31,0)', '#12121f']}
+        colors={[Colors.inkElevatedFade, Colors.inkElevated]}
         style={styles.bottomFade}
       />
     </View>

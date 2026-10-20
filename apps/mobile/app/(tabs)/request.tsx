@@ -342,7 +342,6 @@ export default function RequestScreen() {
       >
         <View style={styles.headerWrap}>
           <ScreenHeader
-            eyebrow="Pide tu música"
             title="Solicitar canción"
             subtitle="Busca entre nuestra discografía y pide la canción que quieras escuchar"
           />
@@ -572,16 +571,13 @@ const styles = StyleSheet.create({
   preachingBadge: {
     ...Typography.captionStrong,
     color: Colors.signal,
-    fontSize: 10,
-    lineHeight: 14,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.2,
     marginBottom: 2,
   },
   title: { ...Typography.bodyStrong, color: Colors.textSoft },
   artist: { ...Typography.caption, color: Colors.textAltFaint, marginTop: 3 },
   btn: {
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     paddingHorizontal: 14,
     minHeight: 44,
     justifyContent: 'center',

@@ -190,7 +190,7 @@ function createStyles(metrics: TopBarMetrics) {
       top: '100%',
       left: 0,
       marginTop: 8,
-      backgroundColor: Colors.signal,
+      backgroundColor: Colors.signalFill,
       paddingHorizontal: Spacing.sm,
       paddingVertical: Spacing.xs + 2,
       borderRadius: Radii.sm,

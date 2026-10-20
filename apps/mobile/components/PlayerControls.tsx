@@ -242,7 +242,7 @@ function PlayerControlsImpl({
         <Ionicons
           name={isFavorite ? 'heart' : 'heart-outline'}
           size={metrics.sideIconSize}
-          color={isFavorite ? Colors.tally : Colors.textMuted}
+          color={isFavorite ? Colors.success : Colors.textMuted}
         />
       </AnimatedPressable>
 
@@ -307,7 +307,7 @@ function createStyles(metrics: PlayerControlMetrics) {
       width: metrics.playSize,
       height: metrics.playSize,
       borderRadius: Radii.full,
-      backgroundColor: Colors.signal,
+      backgroundColor: Colors.signalFill,
       alignItems: 'center',
       justifyContent: 'center',
       ...Shadows.signal,

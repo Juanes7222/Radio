@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   sectionTitle: {
-    ...Typography.eyebrow,
+    ...Typography.label,
     color: Colors.textAlt,
   },
   sectionBody: {
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     backgroundColor: ACCENT_TINT,
   },
   responseTitle: {
-    ...Typography.eyebrow,
+    ...Typography.label,
     color: Colors.accentLight,
   },
   responseBody: {

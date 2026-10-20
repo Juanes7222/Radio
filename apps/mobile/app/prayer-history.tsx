@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     borderRadius: Radii.full,
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   },
   unreadLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   unreadLabel: {
-    ...Typography.eyebrow,
+    ...Typography.label,
     fontSize: 10,
     lineHeight: 13,
     letterSpacing: 1,

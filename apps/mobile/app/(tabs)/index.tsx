@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     borderRadius: Radii.full,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm + 2,
@@ -657,6 +657,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.borderGlass,
-    backgroundColor: 'rgba(8,10,30,0.92)',
+    backgroundColor: Colors.scrimStrong,
   },
 });

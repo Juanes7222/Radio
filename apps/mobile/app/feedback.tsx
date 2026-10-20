@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.borderGlass,
   },
   submitBtn: {
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     borderRadius: Radii.md,
     paddingVertical: 14,
     flexDirection: 'row',

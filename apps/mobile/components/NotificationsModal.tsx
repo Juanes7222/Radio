@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   sectionTitle: {
-    ...Typography.eyebrow,
+    ...Typography.label,
     color: Colors.signal,
   },
   bulkActions: {
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   exactAlarmButton: {
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     paddingHorizontal: Spacing.md,
     paddingVertical: 7,
     borderRadius: Radii.full,

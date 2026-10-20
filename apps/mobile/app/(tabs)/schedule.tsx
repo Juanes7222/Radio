@@ -669,7 +669,6 @@ export default function ScheduleScreen() {
       >
         {/* Cabecera */}
         <ScreenHeader
-          eyebrow="Horarios y Emisiones"
           title="Programación"
           subtitle="Todos nuestros programas, de lunes a domingo. Selecciona un día para ver los detalles."
         />

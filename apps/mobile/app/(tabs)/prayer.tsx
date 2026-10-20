@@ -199,7 +199,6 @@ export default function PrayerScreen() {
           style={styles.header}
         >
           <ScreenHeader
-            eyebrow="Estamos contigo"
             title="Petición de oración"
             subtitle="Comparte tu petición y nuestro equipo intercederá por ti."
           />
@@ -470,7 +469,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   submitBtn: {
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     borderRadius: 12,
     paddingVertical: 14,
     flexDirection: 'row',

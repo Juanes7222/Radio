@@ -139,7 +139,7 @@ function LiveDot() {
 
 const liveStyles = StyleSheet.create({
   container: { position: 'absolute', top: -2, right: -4, width: 12, height: 12, alignItems: 'center', justifyContent: 'center' },
-  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.tally, borderWidth: 1.5, borderColor: 'rgba(8,10,30,0.9)', zIndex: 1 },
+  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.tally, borderWidth: 1.5, borderColor: Colors.scrimStrong, zIndex: 1 },
   halo: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.tally, opacity: 0.5 },
 });
 
@@ -179,9 +179,9 @@ const badgeStyles = StyleSheet.create({
     height: 16,
     paddingHorizontal: 4,
     borderRadius: Radii.full,
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     borderWidth: 1.5,
-    borderColor: 'rgba(8,10,30,0.9)',
+    borderColor: Colors.scrimStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -229,7 +229,7 @@ export default function TabLayout() {
           <BlurView
             intensity={28}
             tint="dark"
-            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(8,10,30,0.72)', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.borderGlass }]}
+            style={[StyleSheet.absoluteFill, { backgroundColor: Colors.scrim, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.borderGlass }]}
           />
         ),
         tabBarItemStyle: {
@@ -240,11 +240,10 @@ export default function TabLayout() {
           borderRadius: 14,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: '700',
-          letterSpacing: 0.4,
+          letterSpacing: 0.3,
           marginTop: 3,
-          textTransform: 'uppercase',
         },
         tabBarAllowFontScaling: true,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

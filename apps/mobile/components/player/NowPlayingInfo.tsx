@@ -192,7 +192,6 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     color: Colors.signal,
     fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.9,
+    letterSpacing: 0.2,
   },
 });
