@@ -38,13 +38,13 @@ Consume `hooks/useTodayReading.ts` del plan del reproductor (`2026-10-20-mobile-
 Veinticinco botones sólidos de acento hacen que el color deje de significar "acción principal" y pase a ser textura. La acción se queda, discreta, y el color aparece cuando la canción ya está pedida.
 
 **Files:**
-- Create: `apps/mobile/components/ui/Toast.tsx`
+- Create: `apps/mobile/components/ui/Snackbar.tsx`
 - Modify: `apps/mobile/app/(tabs)/request.tsx` (`styles.btn`, `styles.btnSent`, `SongRow`, `handleRequest`)
 - Test: `apps/mobile/tests/design/request-action.test.ts`
 
 **Interfaces:**
 - Consumes: `Colors.borderGlass`, `Colors.success`, `Colors.successMuted`, `Colors.textMuted`, `Colors.inkElevated` (existentes).
-- Produces: `components/ui/Toast.tsx` con `Toast({ message, onHide }: { message: string | null; onHide: () => void })`. Es un componente tonto: si `message` es `null` no pinta nada, y si no es `null` se oculta solo a los 2600 ms llamando `onHide`.
+- Produces: `components/ui/Snackbar.tsx` con `Snackbar({ message, onHide }: { message: string | null; onHide: () => void })`. Es un componente tonto: si `message` es `null` no pinta nada, y si no es `null` se oculta solo a los 2600 ms llamando `onHide`. Es un snackbar y no un toast: en Android el feedback transitorio es un snackbar anclado abajo, y un toast flota sobre el contenido y tapa lo que acaba de pasar.
 
 - [ ] **Step 1: Escribe la prueba que falla**
 
@@ -81,8 +81,8 @@ describe('request row action', () => {
     const screen = read('app/(tabs)/request.tsx');
 
     expect(screen).toMatch(/Haptics\.NotificationFeedbackType\.Success/);
-    expect(screen).toMatch(/<Toast/);
-    expect(read('components/ui/Toast.tsx')).toMatch(/2600/);
+    expect(screen).toMatch(/<Snackbar/);
+    expect(read('components/ui/Snackbar.tsx')).toMatch(/2600/);
   });
 });
 ```
@@ -90,11 +90,11 @@ describe('request row action', () => {
 - [ ] **Step 2: Ejecuta la prueba para verla fallar**
 
 Run: `cmd /c "cd apps\mobile && pnpm exec vitest run tests/design/request-action.test.ts"`
-Expected: FAIL. `btn` usa `Colors.signalFill`, no hay etiqueta "Pedida", no hay haptic de éxito y no existe `components/ui/Toast.tsx`.
+Expected: FAIL. `btn` usa `Colors.signalFill`, no hay etiqueta "Pedida", no hay haptic de éxito y no existe `components/ui/Snackbar.tsx`.
 
 - [ ] **Step 3: Crea el aviso breve**
 
-Crea `apps/mobile/components/ui/Toast.tsx`. Un `Animated.View` posicionado con `position: 'absolute'`, `bottom: Spacing.xl`, `alignSelf: 'center'`, `paddingVertical: Spacing.sm`, `paddingHorizontal: Spacing.md`, `borderRadius: Radii.full`, `backgroundColor: Colors.inkElevated`, `borderWidth: 1`, `borderColor: Colors.borderGlass`, con un `Text` en `Typography.captionStrong` y `Colors.text`. Entra con `FadeIn.duration(180)` y sale con `FadeOut.duration(140)`. Si `message` es `null`, el componente devuelve `null`. Si no lo es, un `useEffect` con `setTimeout` de 2600 ms llama `onHide()` y limpia el temporizador al desmontar.
+Crea `apps/mobile/components/ui/Snackbar.tsx`. Un `Animated.View` posicionado con `position: 'absolute'`, `bottom: Spacing.xl`, `alignSelf: 'center'`, `paddingVertical: Spacing.sm`, `paddingHorizontal: Spacing.md`, `borderRadius: Radii.full`, `backgroundColor: Colors.inkElevated`, `borderWidth: 1`, `borderColor: Colors.borderGlass`, con un `Text` en `Typography.captionStrong` y `Colors.text`. Entra con `FadeIn.duration(180)` y sale con `FadeOut.duration(140)`. Si `message` es `null`, el componente devuelve `null`. Si no lo es, un `useEffect` con `setTimeout` de 2600 ms llama `onHide()` y limpia el temporizador al desmontar.
 
 El componente no recibe estado de la pantalla: es tonto a propósito, para que Oración pueda usarlo igual más adelante.
 
@@ -108,7 +108,7 @@ En `app/(tabs)/request.tsx`:
 - El glifo del estado pedida pasa a `Colors.success`.
 - En `SongRow`, el `accessibilityLabel` pasa a `` isSent ? `Pedida: ${title}` : `Pedir ${title}` ``.
 - En `handleRequest`, la rama `if (result.success)` añade `Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})` y pone el mensaje del aviso: `` `${title} entra en la cola` ``. El `selectionAsync` del press se queda: son dos momentos distintos, y la tabla de háptica distingue el tic de la confirmación.
-- La pantalla monta `<Toast message={toast} onHide={() => setToast(null)} />` **fuera** de la `FlashList`, con el estado `const [toast, setToast] = useState<string | null>(null);`. El `Toast` va por encima de la lista y por encima de la barra de pestañas: `bottom: Spacing.xl` dentro del contenido desplazable no serviría, así que el `Toast` se monta como hermano de la lista, con `pointerEvents="none"` para que no robe toques.
+- La pantalla monta `<Snackbar message={snackbar} onHide={() => setSnackbar(null)} />` **fuera** de la `FlashList`, con el estado `const [snackbar, setSnackbar] = useState<string | null>(null);`. El `Snackbar` va por encima de la lista y por encima de la barra de pestañas: `bottom: Spacing.xl` dentro del contenido desplazable no serviría, así que el `Snackbar` se monta como hermano de la lista, con `pointerEvents="none"` para que no robe toques.
 
 - [ ] **Step 5: Ejecuta la prueba y la suite**
 
@@ -128,7 +128,7 @@ Pide una canción: el botón pasa de contorno a verde con el check, la pantalla 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add apps/mobile/components/ui/Toast.tsx apps/mobile/app/"(tabs)"/request.tsx apps/mobile/tests/design/request-action.test.ts
+git add apps/mobile/components/ui/Snackbar.tsx apps/mobile/app/"(tabs)"/request.tsx apps/mobile/tests/design/request-action.test.ts
 git commit -m "feat(mobile): make the request action quiet until the song is queued"
 ```
 

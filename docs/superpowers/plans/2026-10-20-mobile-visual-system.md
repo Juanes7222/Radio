@@ -34,6 +34,8 @@ Este plan es el primero de cuatro y no depende de los otros tres. Los tres sigui
 
 ### Task 1: Tokens de superficie, acento, texto y scrims
 
+**Estado:** ejecutada el 2026-10-20 en el commit `747b004`. La escala tipográfica se movió a la Task 2: los dos cambios tocaban los mismos tokens y, por separado, dejaban etiquetas de 13px en mayúsculas, que es un estado que no existe en ninguna parte del producto.
+
 Esta tarea no cambia comportamiento: mueve valores y elimina los literales que quedaron de la paleta anterior. Las hojas inferiores cambian de color sin tocarlas, porque `AppBottomSheet` ya lee `Colors.inkElevated`.
 
 **Files:**
@@ -171,7 +173,7 @@ warningGlow: 'rgba(246,163,40,0.25)', // warning ring on a filled surface
 
 `inkElevatedFade` existe porque un degradado hacia `'transparent'` interpola por negro y deja una banda gris; el mismo RGB con alfa cero es lo único que se desvanece sin ensuciar. `warningGlow` recoge el ámbar que `AlarmModal` tenía escrito a mano.
 
-En `Typography`: `body` pasa a `fontSize: 16, lineHeight: 23` y `label` a `fontSize: 13, lineHeight: 17`. Los dos pierden su `textTransform` (eso es la Task 2). El resto de la escala no se toca.
+En `Typography`: nada en esta tarea. La escala (cuerpo 16/23, etiqueta 13/17, caption 12/17) y el caso van en la Task 2, que es la que lleva la tipografía.
 
 Actualiza el comentario de cabecera del archivo: sigue espejando la web en `ink`, `signal`, `tally` y los semánticos, pero los escalones de superficie y los tonos de texto son ahora propios del móvil hasta que la web adopte lo mismo.
 
@@ -213,21 +215,27 @@ git commit -m "refactor(mobile): order the night-blue palette and split the acce
 
 ---
 
-### Task 2: Mayúscula de oración en las etiquetas
+### Task 2: El kicker desaparece, la escala sube y las etiquetas dejan de gritar
 
-Los tokens dejan de forzar mayúsculas y los tres sitios que lo hacen a mano lo pierden. Las cuatro marcas que sí son mayúsculas —`EN VIVO`, `AL AIRE`, la cabecera mono de Opiniones y el folio de la Biblia— se quedan, y la prueba las fija para que nadie las "corrija" después.
+**Estado:** ejecutada el 2026-10-20 en el commit `747b004`, junto con la Task 1 (mismos archivos).
+
+Tres cambios en una sola tarea porque van juntos: la escala tipográfica sube al piso de 16px del cuerpo, las etiquetas dejan de forzar mayúsculas, y el kicker sobre los títulos se elimina en vez de reescribirse. Una etiqueta sobre un título es el recurso por defecto de las plantillas, no un recurso de diseño: el título habla solo y lo que la etiqueta añadía ahora vive en el subtítulo, que las cuatro pantallas ya tenían.
+
+Las cuatro marcas que sí son mayúsculas —`EN VIVO`, el sello `AL AIRE`, la cabecera mono de Opiniones y el folio de la Biblia— se quedan, y la prueba las fija para que nadie las "corrija" después.
 
 **Files:**
-- Modify: `apps/mobile/constants/theme.ts` (`Typography.label`, `Typography.eyebrow`)
+- Modify: `apps/mobile/constants/theme.ts` (`Typography.body`, `bodyStrong`, `label`, `caption`, `captionStrong`; se elimina `Typography.eyebrow`)
 - Modify: `apps/mobile/app/(tabs)/_layout.tsx` (`tabBarLabelStyle`)
 - Modify: `apps/mobile/components/player/NowPlayingInfo.tsx` (`preachingBadgeText`)
 - Modify: `apps/mobile/app/(tabs)/request.tsx` (`preachingBadge`)
-- Modify: `apps/mobile/components/ui/ScreenHeader.tsx` (comentario del prop `eyebrow`)
+- Modify: `apps/mobile/components/ui/ScreenHeader.tsx` (se elimina el prop `eyebrow`)
+- Modify: `apps/mobile/app/(tabs)/request.tsx`, `prayer.tsx`, `schedule.tsx`, `social.tsx` (se quita `eyebrow=` de las cuatro cabeceras)
+- Modify: `apps/mobile/app/prayer-history.tsx`, `app/prayer/[id].tsx`, `app/(tabs)/social.tsx`, `components/NotificationsModal.tsx` (`Typography.eyebrow` → `Typography.label`)
 - Test: `apps/mobile/tests/design/type-casing.test.ts`
 
 **Interfaces:**
-- Consumes: `Typography.body` y `Typography.label` ya sin `textTransform` (Task 1).
-- Produces: `Typography.label` y `Typography.eyebrow` sin `textTransform`. Ninguna otra tarea depende de esto.
+- Consumes: nada de la Task 1 (solo tokens de color).
+- Produces: `Typography.body` y `bodyStrong` a 16/23, `Typography.label` a 13/17 con `letterSpacing: 0.3`, `Typography.caption` y `captionStrong` a 12/17 con `letterSpacing: 0.1`. `Typography.eyebrow` desaparece: sus usos pasan a `Typography.label`, porque un rol de etiqueta en mayúscula y otro de etiqueta en minúscula son el mismo rol. `ScreenHeader` queda con `{ title, subtitle }`.
 
 - [ ] **Step 1: Escribe la prueba que falla**
 
@@ -246,7 +254,13 @@ const read = (file: string) => readFileSync(join(appRoot, file), 'utf8');
 describe('sentence-case labels', () => {
   it('stops the type tokens from forcing uppercase', () => {
     expect(Typography.label).not.toHaveProperty('textTransform');
-    expect(Typography.eyebrow).not.toHaveProperty('textTransform');
+    expect(Typography.body).not.toHaveProperty('textTransform');
+    expect(Typography.caption).not.toHaveProperty('textTransform');
+  });
+
+  it('keeps the body at the 16px floor and the label at 13', () => {
+    expect(Typography.body.fontSize).toBe(16);
+    expect(Typography.label.fontSize).toBe(13);
   });
 
   it('drops uppercase from the tab bar and the preaching badges', () => {
@@ -255,6 +269,20 @@ describe('sentence-case labels', () => {
     const request = read('app/(tabs)/request.tsx');
     expect(request).not.toMatch(/textTransform: 'uppercase'/);
     expect(request).toMatch(/Prédica/);
+  });
+
+  it('has no kicker above a heading', () => {
+    const header = read('components/ui/ScreenHeader.tsx');
+
+    expect(header).not.toMatch(/eyebrow/);
+    for (const file of [
+      'app/(tabs)/request.tsx',
+      'app/(tabs)/prayer.tsx',
+      'app/(tabs)/schedule.tsx',
+      'app/(tabs)/social.tsx',
+    ]) {
+      expect(read(file)).not.toMatch(/eyebrow=/);
+    }
   });
 
   it('keeps the marks that are deliberately uppercase', () => {
@@ -267,32 +295,38 @@ describe('sentence-case labels', () => {
 - [ ] **Step 2: Ejecuta la prueba para verla fallar**
 
 Run: `cmd /c "cd apps\mobile && pnpm exec vitest run tests/design/type-casing.test.ts"`
-Expected: FAIL en las dos primeras pruebas; la tercera ya pasa y debe seguir pasando.
+Expected: FAIL en las dos primeras y en la del kicker; la de las marcas ya pasa y debe seguir pasando.
 
-- [ ] **Step 3: Quita el forzado en los tokens y en los tres sitios**
+- [ ] **Step 3: Sube la escala, quita las mayúsculas y elimina el kicker**
 
-En `constants/theme.ts`, `label` pierde `textTransform` y queda con `letterSpacing: 0.2`; `eyebrow` lo pierde y queda con `letterSpacing: 0.4`. En `_layout.tsx`, `tabBarLabelStyle` pierde `textTransform: 'uppercase'` y mantiene `fontSize: 11`, `fontWeight: '700'`, `letterSpacing: 0.4`. En `NowPlayingInfo.tsx`, `preachingBadgeText` pierde `textTransform` y su `letterSpacing: 0.9` baja a `0.2`. En `request.tsx`, `preachingBadge` pierde `textTransform` y su `letterSpacing: 0.8` baja a `0.2`. El comentario de `ScreenHeader.tsx` pasa a "Small label above the title."
+En `constants/theme.ts`: `body` y `bodyStrong` pasan a `fontSize: 16, lineHeight: 23`. `label` pasa a `fontSize: 13, lineHeight: 17, letterSpacing: 0.3` y pierde `textTransform`. `caption` y `captionStrong` pasan a `lineHeight: 17` con `letterSpacing: 0.1`. `eyebrow` se elimina del token; sus cinco usos pasan a `Typography.label`.
+
+El cuerpo a 16px es el piso de lectura en móvil, y sobre una superficie oscura el texto pequeño necesita un poco más de interlineado y de tracking para no cerrarse.
+
+En `_layout.tsx`, `tabBarLabelStyle` pierde `textTransform: 'uppercase'` y pasa a `fontSize: 12, letterSpacing: 0.3`. En `NowPlayingInfo.tsx`, `preachingBadgeText` pierde `textTransform` y su `letterSpacing: 0.9` baja a `0.2`. En `request.tsx`, `preachingBadge` pierde `textTransform` y su `letterSpacing: 0.8` baja a `0.2`; su `fontSize: 10` y su `lineHeight: 14` se borran, porque el rol ya trae los suyos.
+
+En `ScreenHeader.tsx` desaparece el prop `eyebrow` y su estilo, y el componente queda con título y subtítulo. En las cuatro pantallas que lo pasaban, el `eyebrow=` se borra: "Pide tu música", "Estamos contigo", "Horarios y Emisiones" y "Nuestra comunidad" eran redundantes con un subtítulo que ya estaba debajo.
 
 Los cuatro sitios de mayúsculas deliberadas no se tocan: `LiveBadge.tsx` (literal `EN VIVO`), `feedback.tsx:590,702` (cabecera mono y sello `AL AIRE`), `BiblePanel.tsx:307,381` (folio de la lectura).
 
 - [ ] **Step 4: Ejecuta la prueba y la suite**
 
 Run: `cmd /c "cd apps\mobile && pnpm exec vitest run tests/design/type-casing.test.ts"`
-Expected: PASS, 3 pruebas.
+Expected: PASS, 5 pruebas.
 
 Run: `cmd /c "cd apps\mobile && pnpm test"`
-Expected: PASS, 3 archivos.
+Expected: PASS, 3 archivos, 15 pruebas.
 
 - [ ] **Step 5: Verifica tipos y revisa las cabeceras**
 
 Run: `cmd /c "cd apps\mobile && pnpm exec tsc --noEmit"`
 Expected: sin salida.
 
-Abre En vivo, Horarios, Solicitar y Oración. Las cuatro cabeceras (`Pide tu música`, `Estamos contigo`, …) y las etiquetas de la barra inferior deben leerse en minúscula de oración sin haber cambiado el texto que pasa cada pantalla.
+Abre En vivo, Horarios, Solicitar, Oración y Redes. Las cuatro cabeceras se leen en minúscula de oración, las etiquetas de la barra inferior también, y ningún texto se corta con el cuerpo a 16px. En Redes, el rótulo "Documentos legales" pasa a llamarse `legalSectionLabel` para no chocar con el `legalLabel` que ya existía para el título de cada documento.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/mobile/constants/theme.ts apps/mobile/tests/design/type-casing.test.ts apps/mobile/app apps/mobile/components
+git add apps/mobile
 git commit -m "style(mobile): read labels in sentence case instead of uppercase"
 ```

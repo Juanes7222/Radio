@@ -30,6 +30,7 @@ Antes de proponer nada, esto ya está hecho y no hay que tocarlo. La propuesta d
 | Carátula a la izquierda de cada canción en Solicitar | Ya cumple | `SongRow` pinta la carátula de 50dp a la izquierda |
 | Temporizador con anillo que se vacía | Ya cumple | `SleepTimerBubble` dibuja el arco de progreso real |
 | El hook de "reducir movimiento" | Existe | `hooks/useReducedMotion.ts` sigue los cambios del sistema en vivo, pero 77 animaciones de layout no lo consultan |
+| Un estado vacío que invite a crear el primero | Ya cumple | `AlarmModal` muestra "Aún no tienes recordatorios." con su inviting hint |
 
 Esto no es un capricho del revisor: es el punto de partida. La revisión externa recomienda varias cosas que la app ya hizo.
 
@@ -88,12 +89,27 @@ Dos literales más arrastran el mismo problema y hay que alcanzarlos en el mismo
 
 ## 4. Tipografía
 
-No cambian las familias. Cambia el uso y la escala.
+No cambian las familias. Cambia el uso, la escala y el número de roles.
 
-- `Typography.eyebrow` y `Typography.label` dejan de forzar mayúsculas. `letterSpacing` baja de `1.4` a `0.4` y de `0.88` a `0.2`, porque el espaciado amplio existía para compensar las mayúsculas.
-- La barra de pestañas pierde `textTransform: 'uppercase'`.
+- El cuerpo pasa de 14 a 16px, que es el piso de lectura en móvil. Sobre una superficie oscura el texto pequeño necesita además un poco más de interlineado y de tracking para no cerrarse: `caption` y `captionStrong` pasan a 12/17 con `letterSpacing: 0.1`, y `label` a 13/17 con `letterSpacing: 0.3`.
+- `Typography.label` deja de forzar mayúsculas. `Typography.eyebrow` desaparece del token: sus usos pasan a `label`, porque un rol de etiqueta en mayúscula y otro en minúscula son el mismo rol, y un sistema debe tener los menos roles posibles.
+- La barra de pestañas pierde `textTransform: 'uppercase'` y baja a 12px.
 - "Prédica · En vivo" pierde mayúsculas en el reproductor y en Solicitar.
-- La escala del documento (28 / 20 / 16 / 13) se adopta sobre la existente: `display` 28 (ya), `screenTitle` 20 (ya), `body` 14 → 16 y `label` 11 → 13. Un cuerpo a 16px en vez de 14 es la diferencia entre una app que se lee de un vistazo y una que se lee con effort; el `caption` de 12 se queda para los metadatos.
+- **El kicker sobre el título desaparece.** `ScreenHeader` tenía un `eyebrow` ("Pide tu música", "Estamos contigo", "Horarios y Emisiones", "Nuestra comunidad") que era el recurso por defecto de las plantillas y no un recurso de diseño: las cuatro pantallas ya tenían un subtítulo debajo, y el título ("Solicitar canción", "Petición de oración", "Programación", "La estación") habla solo. El encabezado queda con título y subtítulo.
+- Las marcas que sí son mayúsculas se quedan: `EN VIVO`, el sello `AL AIRE`, la cabecera mono de Opiniones y el folio de la Biblia.
+
+La escala queda así:
+
+| Rol | Tamaño / interlineado | Uso |
+|---|---|---|
+| `display` | 28/32 | El título de la pantalla (Fraunces) |
+| `songTitle` | 22/26 | Lo que está sonando (Fraunces) |
+| `screenTitle` | 20/26 | El título de una hoja o de una sección grande |
+| `sectionTitle` | 14/18 | El encabezado de una sección |
+| `body` / `bodyStrong` | 16/23 | El cuerpo de lectura |
+| `label` | 13/17 | Una etiqueta corta: un badge, un rótulo de sección |
+| `caption` / `captionStrong` | 12/17 | Metadatos: el artista, la hora, la referencia |
+| `mono` / `monoLarge` | 11/14, 13/16 | Tiempos, cifras y datos tabular |
 
 ## 5. El reproductor
 
@@ -154,7 +170,22 @@ Tras enviar, la confirmación serena ya existe; se le añade una línea de acomp
 
 **Háptica.** Hoy hay 36 llamadas repartidas sin criterio: `selectionAsync` en casi todo, `impactAsync(Light)` en unos pocos, `notificationAsync(Success)` en tres sitios y `notificationAsync(Warning)` para los errores. La tabla del documento se codifica en un módulo con cuatro respuestas nombradas —tic, clic, éxito y error— y los sitios se alinean a ella.
 
-## 8. Lo que queda fuera, con motivo
+## 8. Las reglas que la implementación cumple
+
+Este es el contrato que respetan las cuatro tareas de implementación y el que se revisa en la pasada final. Viene de las guías de diseño que aplican a una app Android de escucha:
+
+- **Sin kicker sobre un título.** El encabezado se sostiene solo.
+- **Una sola luz de acento.** El índigo marca lo que se puede hacer; el rojo es "al aire" y nada más; el ámbar es temporizador y aviso.
+- **El texto secundario se tiñe del azul de la superficie, nunca gris.** Un gris pizarra sobre un fondo azul es lo que hace que una app oscura se lea como genérica.
+- **La elevación se declara una sola vez:** borde o sombra, nunca las dos. Los radios de tarjeta se quedan entre 12 y 16.
+- **48dp es el suelo táctil**, con 8dp entre controles contiguos.
+- **Una sola respuesta al gesto.** Un control que se hunde, una entrada que llega, una vibración por clase de acción.
+- **Un momento orquestado y el resto, respuestas.** El pulso de la emisión y el del directo de Facebook son los dos que respiran; el resto se mantiene quieto.
+- **Las transiciones duran menos de 300 ms** y salen con `ease-out`: entrar rápido, salir más rápido.
+- **El escalado de la fuente del sistema siempre gana.** Ningún texto se recorta; las cajas de altura fija crecen.
+- **Cada estado existe:** vacío, cargando, error y confirmado. Un vacío es una invitación, no un hueco.
+
+## 9. Lo que queda fuera, con motivo
 
 | Propuesta | Motivo |
 |---|---|
@@ -175,14 +206,14 @@ Tras enviar, la confirmación serena ya existe; se le añade una línea de acomp
 
 Cuatro afirmaciones de la revisión de origen son incorrectas sobre la app actual y quedan registradas aquí para que nadie las "arregle": el overlay de depuración no llega a producción, Solicitar ya pinta carátula de 50dp, el temporizador ya tiene anillo que se vacía, y la lista de Solicitar ya reserva el alto de la barra: lo que se ve bajo la barra es el contenido a través del desenfoque.
 
-## 9. Riesgos
+## 10. Riesgos
 
 - La paridad con la web es intencional (`theme.ts` espeja `apps/web/src/index.css`). Este plan cambia solo el móvil, así que web y móvil divergen en los escalones de superficie y en el tono de los textos secundarios hasta que la web adopte lo mismo. Es una divergencia de tono, no de familia.
 - `inkElevated` también lo usa `backgroundElevated`. Cualquier tarjeta que ya se leyera como "gris" cambia con él, para bien, pero hay que mirar las hojas de Oración, Alarmas y Biblia en dispositivo.
 - La hoja única de opciones toca cuatro componentes a la vez. Es el cambio con más superficie de la revisión; por eso va en su propio plan y no mezclado con el resto.
 - Los valores de contraste están calculados a mano con la fórmula WCAG; la prueba los recalcula, así que un cambio futuro de token que rompa AA falla la suite.
 
-## 10. Plan de trabajo
+## 11. Plan de trabajo
 
 Cuatro planes, cada uno por un subsistema y cada uno dejando software que funciona por sí solo.
 
