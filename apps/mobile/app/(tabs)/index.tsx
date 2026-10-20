@@ -448,9 +448,11 @@ const [showBible, setShowBible] = useState(false);
                 isPreaching={isPreaching}
                 size={vinylSize}
                 progress={
-                  data && data.now_playing.duration > 0
-                    ? data.now_playing.elapsed / data.now_playing.duration
-                    : null
+                  isPreaching
+                    ? null
+                    : data && data.now_playing.duration > 0
+                      ? data.now_playing.elapsed / data.now_playing.duration
+                      : null
                 }
                 songId={data?.now_playing.sh_id ?? null}
               />
