@@ -1009,7 +1009,7 @@ const styles = StyleSheet.create({
   },
   sectionCount: {
     ...Typography.caption,
-    fontSize: 11,
+    fontSize: 13,
     lineHeight: 15,
     color: TEXT_MUTED,
     marginTop: 1,
@@ -1071,7 +1071,7 @@ const styles = StyleSheet.create({
   },
   liveBadgeText: {
     ...Typography.captionStrong,
-    fontSize: 10,
+    fontSize: 12,
     lineHeight: 14,
     letterSpacing: 0.5,
   },

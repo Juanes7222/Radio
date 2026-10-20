@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
   },
   bookMeta: {
     ...Typography.body,
-    fontSize: 11,
+    fontSize: 13,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: Colors.textMuted,
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
   },
   supplementaryLabel: {
     ...Typography.body,
-    fontSize: 11,
+    fontSize: 13,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: Colors.textMuted,

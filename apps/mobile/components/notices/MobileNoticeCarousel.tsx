@@ -124,7 +124,7 @@ export function MobileNoticeCarousel({ items, autoPlayMs = 4000 }: Props) {
                   </View>
                   <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5, flexDirection: "row", alignItems: "center", gap: 4 }}>
                     <Ionicons name="expand-outline" size={12} color="#fff" />
-                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}>Ampliar</Text>
+                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Ampliar</Text>
                   </View>
                 </Pressable>
                 ) : (
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     borderColor: "#334155",
   },
   perf: { width: 6, height: 6, borderRadius: 2, backgroundColor: "#334155" },
-  railText: { marginLeft: "auto", fontSize: 8, color: "#64748B", letterSpacing: 1 },
+  railText: { marginLeft: "auto", fontSize: 11, color: "#64748B", letterSpacing: 1 },
   arrow: {
     position: "absolute",
     top: "50%",

@@ -9,22 +9,14 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, {
-  Easing,
-  FadeIn,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { Easing, FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
 import { getDeviceId } from '@/lib/device';
-import { Colors, Radii, Typography } from '@/constants/theme';
+import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { Durations, Easings } from '@/constants/motion';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { PrayerNode, type PrayerNodeTone } from '@/components/prayer/PrayerNode';
 import {
   getPrayerStatusConfig,
   getTimeAgo,
@@ -33,84 +25,69 @@ import {
   type PrayerItem,
 } from '@/lib/prayer';
 
-interface PrayerCardProps {
+interface PrayerRowProps {
   item: PrayerItem;
   /** Takes the id rather than a per-item closure so memo() actually holds. */
   onOpen: (id: string) => void;
+  isLast: boolean;
 }
 
-const PrayerCard = memo(function PrayerCard({ item, onOpen }: PrayerCardProps) {
+/**
+ * One petition, as a line of the thread: the node carries the state and the
+ * text carries the words. The petition is the protagonist, so the message
+ * comes first and the metadata is the quiet line under it.
+ */
+const PrayerRow = memo(function PrayerRow({ item, onOpen, isLast }: PrayerRowProps) {
   const config = getPrayerStatusConfig(item.estado);
   const unread = hasUnreadAnswer(item);
-  const reducedMotion = useReducedMotion();
 
-  // A slow breathe, not a flash: the card is already the loudest thing on screen
-  // thanks to the edge bar and the label, so the dot only has to keep the eye
-  // from settling on it as settled.
-  const pulse = useSharedValue(1);
-  useEffect(() => {
-    if (!unread || reducedMotion) {
-      pulse.value = withTiming(1, { duration: Durations.fast });
-      return;
-    }
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(0.3, { duration: Durations.ambient / 2, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: Durations.ambient / 2, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      false
-    );
-  }, [unread, reducedMotion, pulse]);
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  const tone: PrayerNodeTone = unread
+    ? 'unread'
+    : item.respuesta
+      ? 'answered'
+      : item.estado === 'CERRADA'
+        ? 'muted'
+        : 'waiting';
 
   return (
     <TouchableOpacity
       onPress={() => onOpen(item.id)}
       activeOpacity={0.7}
-      style={[styles.card, unread && styles.cardUnread]}
+      style={[styles.row, !isLast && styles.rowDivider]}
       accessibilityRole="button"
       accessibilityLabel={`Petición de ${item.name}, ${config.label}${unread ? ', respuesta nueva sin leer' : ''}`}
     >
-      {unread && <View style={styles.unreadEdge} />}
-      <View style={styles.cardHeader}>
-        <View style={styles.statusRow}>
-          <Ionicons name={config.icon} size={16} color={config.color} />
-          <Text style={[styles.statusText, { color: config.color }]}>{config.label}</Text>
-        </View>
-        <Text style={styles.timeText}>{getTimeAgo(item.createdAt)}</Text>
+      <View style={styles.rowNode}>
+        <PrayerNode tone={tone} />
       </View>
-      <Text style={styles.cardName}>{item.name}</Text>
-      <Text style={styles.cardRequest} numberOfLines={2}>{item.request}</Text>
-      {item.respuesta && (
-        <View style={[styles.responsePreview, unread && styles.responsePreviewUnread]}>
-          {unread && (
-            <View
-              style={styles.unreadLabelRow}
-              accessible={false}
-              importantForAccessibility="no-hide-descendants"
-            >
-              <Animated.View style={[styles.unreadDot, pulseStyle]}>
-                <View style={styles.unreadDotCore} />
-              </Animated.View>
-              <Text style={styles.unreadLabel}>Respuesta nueva</Text>
-            </View>
-          )}
-          <View style={styles.responseRow}>
+
+      <View style={styles.rowBody}>
+        <Text style={styles.rowMessage} numberOfLines={2}>
+          {item.request}
+        </Text>
+
+        <Text style={styles.rowMeta} numberOfLines={1}>
+          {item.name} · {config.label} · {getTimeAgo(item.createdAt)}
+        </Text>
+
+        {unread && <Text style={styles.rowUnreadLabel}>Respuesta nueva</Text>}
+
+        {item.respuesta && (
+          <View style={styles.rowReply}>
             <Ionicons
-              name="chatbubble-ellipses"
-              size={14}
-              color={unread ? Colors.accentLight : Colors.accent}
+              name="return-down-forward-outline"
+              size={13}
+              color={unread ? Colors.signal : Colors.textAltFaint}
             />
             <Text
-              style={styles.responsePreviewText}
-              numberOfLines={unread ? 2 : 1}
+              style={[styles.rowReplyText, unread && styles.rowReplyTextUnread]}
+              numberOfLines={1}
             >
               {item.respuesta}
             </Text>
           </View>
-        </View>
-      )}
+        )}
+      </View>
     </TouchableOpacity>
   );
 });
@@ -156,14 +133,16 @@ export default function PrayerHistoryScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: PrayerItem }) => <PrayerCard item={item} onOpen={handleOpen} />,
-    [handleOpen]
+    ({ item, index }: { item: PrayerItem; index: number }) => (
+      <PrayerRow item={item} onOpen={handleOpen} isLast={index === requests.length - 1} />
+    ),
+    [handleOpen, requests.length]
   );
 
   const handleKeyExtractor = useCallback((item: PrayerItem) => item.id, []);
 
   // Derived from the rows on screen rather than from the server count, so the
-  // summary and the cards can never disagree with each other.
+  // summary and the rows can never disagree with each other.
   const unreadAnswers = useMemo(
     () => requests.filter(hasUnreadAnswer).length,
     [requests]
@@ -182,7 +161,7 @@ export default function PrayerHistoryScreen() {
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtn}
@@ -208,7 +187,7 @@ export default function PrayerHistoryScreen() {
           accessibilityRole="button"
           accessibilityLabel="Actualizar mis peticiones"
         >
-          <Ionicons name="refresh" size={20} color={Colors.accent} />
+          <Ionicons name="refresh" size={20} color={Colors.textMuted} />
         </TouchableOpacity>
       </View>
 
@@ -249,7 +228,7 @@ export default function PrayerHistoryScreen() {
             renderItem={renderItem}
             contentContainerStyle={[
               styles.list,
-              { paddingBottom: insets.bottom + 16 },
+              { paddingBottom: insets.bottom + Spacing.lg },
             ]}
             showsVerticalScrollIndicator={false}
             refreshing={refreshing}
@@ -266,9 +245,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
   },
   backBtn: {
     width: 48,
@@ -284,12 +263,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: -12,
   },
+  headingBlock: { flex: 1, gap: 2 },
   heading: {
     ...Typography.screenTitle,
     color: Colors.text,
   },
-  headingBlock: { alignItems: 'center', gap: 2 },
-  headingSummary: { ...Typography.caption, color: Colors.accentLight },
+  headingSummary: { ...Typography.caption, color: Colors.signalLight },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   emptyText: { ...Typography.body, color: Colors.textMuted, textAlign: 'center' },
   emptyHint: {
@@ -310,70 +289,24 @@ const styles = StyleSheet.create({
     minHeight: 44,
     marginTop: 8,
   },
-  emptyActionText: { ...Typography.captionStrong, color: Colors.textOnSignal, fontSize: 13 },
-  list: { paddingHorizontal: 16, gap: 12 },
-  card: {
-    backgroundColor: Colors.surfaceDim,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.surfaceSoft,
-    padding: 16,
-    gap: 8,
-    overflow: 'hidden',
-  },
-  cardUnread: {
-    backgroundColor: Colors.signalFaint,
-    borderColor: Colors.signalMuted,
-  },
-  unreadEdge: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
-    backgroundColor: Colors.signal,
-  },
-  cardHeader: {
+  emptyActionText: { ...Typography.captionStrong, color: Colors.textOnSignal },
+  list: { paddingHorizontal: Spacing.md },
+  row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.md,
+    minHeight: 72,
   },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statusText: { ...Typography.captionStrong },
-  timeText: { ...Typography.caption, color: Colors.textMuted, fontSize: 11, lineHeight: 15 },
-  cardName: { ...Typography.bodyStrong, color: Colors.text, fontSize: 13 },
-  cardRequest: { ...Typography.body, color: Colors.textAlt, fontSize: 13, lineHeight: 18 },
-  responsePreview: {
-    gap: 6,
-    backgroundColor: Colors.signalFaint,
-    borderRadius: 8,
-    padding: 8,
+  rowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderGlass,
   },
-  responsePreviewUnread: {
-    backgroundColor: Colors.signalSoft,
-    borderWidth: 1,
-    borderColor: Colors.signalMuted,
-  },
-  unreadLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  unreadLabel: {
-    ...Typography.label,
-    fontSize: 10,
-    lineHeight: 13,
-    letterSpacing: 1,
-    color: Colors.accentLight,
-  },
-  unreadDot: {
-    width: 7,
-    height: 7,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  unreadDotCore: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: Colors.signalLight,
-  },
-  responseRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  responsePreviewText: { ...Typography.caption, color: Colors.accentLight, flex: 1 },
+  rowNode: { width: 18, alignItems: 'center', paddingTop: 4 },
+  rowBody: { flex: 1, gap: 4 },
+  rowMessage: { ...Typography.body, color: Colors.text },
+  rowMeta: { ...Typography.caption, color: Colors.textMuted },
+  rowUnreadLabel: { ...Typography.label, color: Colors.signal, marginTop: 2 },
+  rowReply: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  rowReplyText: { ...Typography.caption, color: Colors.textMuted, flex: 1 },
+  rowReplyTextUnread: { color: Colors.textSoft },
 });

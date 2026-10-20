@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   },
   verseNumber: {
     ...Typography.body,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: Colors.signal,
     opacity: 0.9,
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   },
   translationText: {
     ...Typography.body,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.textMuted,
     letterSpacing: 0.8,

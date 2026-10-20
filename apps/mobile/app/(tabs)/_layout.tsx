@@ -187,7 +187,7 @@ const badgeStyles = StyleSheet.create({
   },
   text: {
     ...Typography.captionStrong,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 12,
     letterSpacing: 0,
     color: Colors.textOnSignal,

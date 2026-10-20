@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   },
   liveBannerSub: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
   },
   liveDot: {
@@ -399,5 +399,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 3,
   },
-  legalTagText: { ...Typography.mono, fontSize: 10, color: Colors.signal },
+  legalTagText: { ...Typography.mono, fontSize: 12, color: Colors.signal },
 });

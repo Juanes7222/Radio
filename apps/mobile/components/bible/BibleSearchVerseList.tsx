@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   },
   resultReference: {
     ...Typography.body,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: 'bold',
     color: Colors.accent,
     textTransform: 'uppercase',

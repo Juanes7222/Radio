@@ -19,6 +19,18 @@ describe('sentence-case labels', () => {
     expect(Typography.label.fontSize).toBe(13);
   });
 
+  it('keeps every readable role at 13px or more', () => {
+    expect(Typography.body.fontSize).toBeGreaterThanOrEqual(13);
+    expect(Typography.bodyStrong.fontSize).toBeGreaterThanOrEqual(13);
+    expect(Typography.label.fontSize).toBeGreaterThanOrEqual(13);
+    expect(Typography.caption.fontSize).toBeGreaterThanOrEqual(13);
+    expect(Typography.captionStrong.fontSize).toBeGreaterThanOrEqual(13);
+    expect(Typography.sectionTitle.fontSize).toBeGreaterThanOrEqual(13);
+    // Numbers are data, not reading, so the mono role may sit one step below.
+    expect(Typography.mono.fontSize).toBeGreaterThanOrEqual(12);
+    expect(Typography.monoLarge.fontSize).toBeGreaterThanOrEqual(12);
+  });
+
   it('drops uppercase from the tab bar and the preaching badges', () => {
     expect(read('app/(tabs)/_layout.tsx')).not.toMatch(/textTransform: 'uppercase'/);
     expect(read('components/player/NowPlayingInfo.tsx')).not.toMatch(/textTransform: 'uppercase'/);

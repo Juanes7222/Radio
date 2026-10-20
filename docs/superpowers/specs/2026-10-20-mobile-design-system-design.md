@@ -108,8 +108,10 @@ La escala queda así:
 | `sectionTitle` | 14/18 | El encabezado de una sección |
 | `body` / `bodyStrong` | 16/23 | El cuerpo de lectura |
 | `label` | 13/17 | Una etiqueta corta: un badge, un rótulo de sección |
-| `caption` / `captionStrong` | 12/17 | Metadatos: el artista, la hora, la referencia |
-| `mono` / `monoLarge` | 11/14, 13/16 | Tiempos, cifras y datos tabular |
+| `caption` / `captionStrong` | 13/18 | Metadatos: el artista, la hora, la referencia |
+| `mono` / `monoLarge` | 12/16, 14/18 | Tiempos, cifras y datos tabular |
+
+**El piso de lectura es 13px.** 12px es un tamaño de leyenda que nadie lee, y la audiencia de una emisora de radio no tiene veinte años. Los roles de arriba no bajan de ahí, y las thirty excepciones que había por la app (tamaños escritos a mano de 8, 9, 10 y 11 px) se suben: lo que es texto pasa a 13, y lo que es dato puro —el dígito de la insignia, el número de un versículo, el índice del carrusel— se queda entre 11 y 12. La prueba de la tarea 1 del plan del sistema visual fija el piso, para que una futura modificación no lo baje en silencio.
 
 ## 5. El reproductor
 
@@ -154,17 +156,29 @@ La pantalla de error dice "Reintentamos automáticamente cuando vuelva la señal
 
 **Solicitar.** El botón sólido por fila pasa a acción discreta: borde hairline, texto en `textMuted`. El color queda para el estado pedida (tinte y borde verde, glifo de check), y para el anuncio del lector de pantalla, que pasa de "Pedir X" a "Pedida: X". Al pedir, el botón vibra con la respuesta de éxito y aparece un aviso breve que confirma que la canción entró en la fila: hoy el `Alert` de error y el `ActivityIndicator` del botón son la única confirmación, y no hay ninguno para el caso feliz.
 
-**Oración.** La frase de datos sensibles deja de usar `warning` a 11px. Pasa a `textMuted` a 12/17 con un icono de información en `info`. El error de consentimiento sigue en `danger`: ese sí es un error.
+**Oración.** La frase de datos sensibles deja de usar `warning` a 11px. Pasa a `textMuted` a 13/18 con un icono de información en `info`. El error de consentimiento sigue en `danger`: ese sí es un error.
 
 Arriba del formulario, un versículo breve. Sale de la misma fuente que la tarjeta de lectura: los capítulos de hoy y el primer versículo de ese capítulo, con la caché local que ya usa `useBible`. Si no hay lectura o el capítulo no resuelve, no se pinta nada.
 
 Tras enviar, la confirmación serena ya existe; se le añade una línea de acompañamiento.
+
+### Mis peticiones y Mi petición: un hilo, no tarjetas
+
+Las dos pantallas de petición son las que el oyente abre para saber si alguien está con su petición, y eran las peor dibujadas de la app: el estado era una etiqueta rellena dentro de una tarjeta, la respuesta era otra tarjeta dentro de la tarjeta, y "sin leer" se señalaba de tres maneras a la vez (borde de color, tinte y un punto que late). Todo eso desaparece.
+
+La lista deja de ser una lista de tarjetas y pasa a ser una lista de filas separadas por un filete: el nodo del hilo lleva el estado (un anillo hueco mientras la espera, un punto verde cuando la respondieron, un punto índigo con halo cuando la respuesta sigue sin leer), el mensaje va primero porque es lo que el oyente escribió, y la metadata —nombre, estado y tiempo— es la línea discreta de abajo. Una respuesta sin leer se anuncia con dos señales, un rótulo y el color, no con cinco.
+
+El detalle deja de apilar secciones y se convierte en un hilo: la petición y la respuesta son dos momentos de la misma conversación, unidos por una línea vertical. El mensaje va en la serif, que es donde la app se lee y no se usa; el estado es una palabra dentro de la línea de metadatos, no una insignia; y cuando todavía no hay respuesta, una frase tranquila pone la expectation: "Esta petición está esperando la respuesta del equipo. Te avisaremos aquí en cuanto la tengas."
+
+Los colores literales que quedaban en la respuesta (`#e0e7ff` y un índigo `rgba(99,102,241,…)` de la paleta anterior a la migración) desaparecen, y las fechas dejan de ser "20 de octubre de 2026, 18:40" para ser "Hoy, 18:40", "Ayer, 18:40" o "5 de oct, 18:40".
 
 ## 7. Accesibilidad, movimiento y háptica
 
 **Áreas táctiles.** El documento pide 48dp. La app tiene 44dp en las pestañas y las listas, pero la capa de hojas nunca se auditó —la crítica interna del 4 de octubre lo dice y lista los sitios: el control de tamaño de letra de la Biblia (~24dp), los botones de icono de 32dp en la Biblia y su buscador, el "Cancelar" del temporizador (~24dp), los chips de día de las alarmas (38dp) y el escape del reproductor de Facebook (~20dp). Esa capa sube a 48dp.
 
 **Escalado de fuente.** No hay `maxFontSizeMultiplier` en ninguna parte salvo la barra de pestañas, y el texto escala sin límite dentro de geometría fija: el vinilo de 232px y las filas de 44dp del selector de hora. Los textos que viven en cajas de altura fija llevan `maxFontSizeMultiplier` y las cajas pasan de `height` a `minHeight`.
+
+**Legibilidad.** Nada que el oyente tenga que leer baja de 13px, ni siquiera antes de que el sistema suba la fuente. Las treinta excepciones que quedaban por la app (8, 9, 10 y 11 px escritos a mano) se suben en esta pasada, y solo el dato puro —el dígito de una insignia, el número de un versículo, el índice del carrusel— se queda entre 11 y 12.
 
 **Movimiento.** El P0 de la crítica interna sigue abierto: hay 77 animaciones de layout y ninguna consulta "reducir movimiento". El modelo está invertido: el usuario que pide menos movimiento pierde el vinilo (inofensivo) y recibe las 49 entradas con desplazamiento a pleno. Reanimated 4 expone `ReducedMotionConfig`, que aplica el ajuste del sistema a todas las animaciones de una vez: es un envoltorio en `app/_layout.tsx`, no setenta ediciones.
 

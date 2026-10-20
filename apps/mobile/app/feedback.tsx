@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   },
   letterheadText: {
     ...Typography.mono,
-    fontSize: 11,
+    fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 1.1,
     color: Colors.textAltFaint,
@@ -607,8 +607,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.sm,
   },
-  rowLabel: { ...Typography.label, color: Colors.textFaint, letterSpacing: 1.2, fontSize: 11 },
-  optionalTag: { ...Typography.caption, color: Colors.textAltFaint, fontSize: 11 },
+  rowLabel: { ...Typography.label, color: Colors.textFaint, letterSpacing: 1.2, fontSize: 13 },
+  optionalTag: { ...Typography.caption, color: Colors.textAltFaint, fontSize: 13 },
 
   // The motive options read as options: quiet pills, where the chosen one
   // carries the signal indigo. Chips are transparent when idle so the sheet
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   textarea: { minHeight: 120, paddingTop: 12 },
   textareaSmall: { minHeight: 96, paddingTop: 10 },
   errorText: { ...Typography.caption, color: Colors.danger },
-  hint: { ...Typography.caption, color: Colors.textAltFaint, fontSize: 11 },
+  hint: { ...Typography.caption, color: Colors.textAltFaint, fontSize: 13 },
   counter: { ...Typography.mono, color: Colors.textAltFaint },
 
   consentBlock: {
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
   sealText: {
     ...Typography.mono,
     color: Colors.tally,
-    fontSize: 12,
+    fontSize: 13,
     letterSpacing: 2.2,
     textTransform: 'uppercase',
   },

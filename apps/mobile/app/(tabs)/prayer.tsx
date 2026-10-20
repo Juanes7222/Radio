@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
   charCounter: {
     ...Typography.caption,
     color: Colors.textAltFaint,
-    fontSize: 11,
+    fontSize: 13,
     lineHeight: 15,
     alignSelf: 'flex-end',
     marginTop: 4,
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   sensitiveWarning: {
     ...Typography.caption,
     color: Colors.warning,
-    fontSize: 11,
+    fontSize: 13,
     lineHeight: 16,
     marginTop: 6,
   },
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   successTitle: { ...Typography.screenTitle, color: Colors.text, fontSize: 18, lineHeight: 24 },
   successTitleSmall: { fontSize: 16, lineHeight: 22 },
   successText: { ...Typography.body, color: Colors.textAlt, textAlign: 'center' },
-  successTextSmall: { fontSize: 12 },
+  successTextSmall: { fontSize: 13 },
   headerActions: { flexDirection: 'row', justifyContent: 'flex-end' },
   historyLink: {
     flexDirection: 'row',

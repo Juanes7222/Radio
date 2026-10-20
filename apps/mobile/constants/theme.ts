@@ -126,6 +126,9 @@ export const Typography = {
   screenTitle: { fontFamily: Fonts.bodyBold, fontSize: 20, fontWeight: '700' as const, letterSpacing: -0.4, lineHeight: 26 },
   sectionTitle: { fontFamily: Fonts.bodySemi, fontSize: 14, fontWeight: '700' as const, letterSpacing: -0.2, lineHeight: 18 },
   songTitle: { fontFamily: Fonts.displaySemi, fontSize: 22, fontWeight: '700' as const, letterSpacing: -0.5, lineHeight: 26 },
+  // The body of a letter: a petition, or the answer the team wrote back. Set
+  // in the serif because this is the one place the app is read, not used.
+  message: { fontFamily: Fonts.displaySemi, fontSize: 20, fontWeight: '600' as const, lineHeight: 30 },
   artistName: { fontFamily: Fonts.bodyMedium, fontSize: 15, fontWeight: '500' as const, letterSpacing: -0.1, lineHeight: 20 },
   albumName: { fontFamily: Fonts.bodyRegular, fontSize: 13, fontWeight: '400' as const, lineHeight: 18 },
   body: { fontFamily: Fonts.bodyRegular, fontSize: 16, fontWeight: '400' as const, lineHeight: 23 },
@@ -133,10 +136,13 @@ export const Typography = {
   // Small label. Sentence case: the app never shouts, and a 13px label on a
   // dark surface needs a touch of tracking to stay legible.
   label: { fontFamily: Fonts.bodyBold, fontSize: 13, fontWeight: '700' as const, letterSpacing: 0.3, lineHeight: 17 },
-  caption: { fontFamily: Fonts.bodyRegular, fontSize: 12, fontWeight: '400' as const, letterSpacing: 0.1, lineHeight: 17 },
-  captionStrong: { fontFamily: Fonts.bodySemi, fontSize: 12, fontWeight: '600' as const, letterSpacing: 0.1, lineHeight: 17 },
-  mono: { fontFamily: Fonts.mono, fontSize: 11, fontWeight: '500' as const, letterSpacing: 0.04 * 11, lineHeight: 14, fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] },
-  monoLarge: { fontFamily: Fonts.mono, fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.02 * 13, lineHeight: 16, fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] },
+  // Metadata. 13px is the floor for anything a listener has to read on this
+  // app: 12px is a size for a caption nobody reads, and the audience of a
+  // radio station is not twenty years old.
+  caption: { fontFamily: Fonts.bodyRegular, fontSize: 13, fontWeight: '400' as const, letterSpacing: 0.1, lineHeight: 18 },
+  captionStrong: { fontFamily: Fonts.bodySemi, fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.1, lineHeight: 18 },
+  mono: { fontFamily: Fonts.mono, fontSize: 12, fontWeight: '500' as const, letterSpacing: 0.04 * 12, lineHeight: 16, fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] },
+  monoLarge: { fontFamily: Fonts.mono, fontSize: 14, fontWeight: '600' as const, letterSpacing: 0.02 * 14, lineHeight: 18, fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] },
 } as const;
 
 export const Shadows = {
