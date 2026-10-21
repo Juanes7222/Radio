@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import type { StreamQuality } from '@radio/types';
 import { Colors, Typography } from '@/constants/theme';
+import { tick } from '@/lib/haptics';
 
 // Letras para el oyente en lugar de kbps de ingeniero: la palabra va delante y
 // el valor queda entre paréntesis cuando aporta información.
@@ -29,7 +30,7 @@ export function QualityOptions({ currentQuality, availableQualities, onSelect }:
             key={quality}
             style={[styles.option, isActive && styles.optionActive]}
             onPress={() => {
-              Haptics.selectionAsync().catch(() => {});
+              tick();
               onSelect(quality);
             }}
           >

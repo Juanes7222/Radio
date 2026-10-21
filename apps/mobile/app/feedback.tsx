@@ -41,6 +41,7 @@ import {
 import { BACKEND_URL } from '@/constants/api';
 import { legalUrl } from '@/constants/legalDocuments';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { tick, success } from '@/lib/haptics';
 import { Durations, Easings, Spring } from '@/constants/motion';
 import { openExternalUrl } from '@/lib/externalLinks';
 
@@ -206,7 +207,7 @@ export default function FeedbackScreen() {
       });
 
       if (result.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        success();
         setSignedName(trimmedNombre.length > 0 ? trimmedNombre : null);
         setMensaje('');
         setNombre('');
@@ -333,7 +334,7 @@ export default function FeedbackScreen() {
                       <TouchableOpacity
                         key={category}
                         onPress={() => {
-                          Haptics.selectionAsync().catch(() => {});
+                          tick();
                           setCategoria(category);
                         }}
                         disabled={loading}

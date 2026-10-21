@@ -14,6 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { memo, useEffect, useMemo } from 'react';
 import { Colors, Radii, Shadows } from '@/constants/theme';
+import { tick, click } from '@/lib/haptics';
 import { clamp, CONTENT_MAX_WIDTH, useResponsive } from '@/lib/responsive';
 import { Durations, Motion, Spring } from '@/constants/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -190,7 +191,7 @@ function PlayerControlsImpl({
   }, [isFavorite, favScale]);
 
   const handleFavorite = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    click();
     // micro burst even when unfaving
     // eslint-disable-next-line react-hooks/immutability
     favScale.value = withSequence(
@@ -200,13 +201,11 @@ function PlayerControlsImpl({
     onToggleFavorite();
   };
   const handlePlay = () => {
-    Haptics.impactAsync(
-      isPlaying ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium
-    ).catch(() => {});
+    click();
     onTogglePlay();
   };
   const handleShare = () => {
-    Haptics.selectionAsync().catch(() => {});
+    tick();
     onShare();
   };
 

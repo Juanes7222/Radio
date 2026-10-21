@@ -29,6 +29,7 @@ import { fetchRequestableSongs, requestSong } from '@radio/api';
 import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { tick, success } from '@/lib/haptics';
 import { Durations, Easings } from '@/constants/motion';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import { useResponsive } from '@/lib/responsive';
@@ -102,7 +103,7 @@ const SongRow = memo(function SongRow({
 
       <PressableScale
         onPress={() => {
-          Haptics.selectionAsync().catch(() => {});
+          tick();
           onRequest(item);
         }}
         disabled={isSent || isRequesting}
@@ -307,7 +308,7 @@ export default function RequestScreen() {
           setSent(prev =>
             prev.includes(item.request_id) ? prev : [...prev, item.request_id],
           );
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          success();
           setSnackbar(`${title} entra en la cola`);
         } else {
           setRequestError(result.errorMessage);

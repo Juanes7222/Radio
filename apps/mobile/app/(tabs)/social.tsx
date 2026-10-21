@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { WEB_URL } from '@/constants/api';
 import { LEGAL_DOCUMENTS, legalUrl } from '@/constants/legalDocuments';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { tick } from '@/lib/haptics';
 import { Entrances } from '@/constants/motion';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
@@ -73,7 +74,7 @@ export default function StationScreen() {
       : { ...link, isLive: false });
 
   const openLink = useCallback((url: string) => {
-    Haptics.selectionAsync().catch(() => {});
+    tick();
     openExternalUrl(url);
   }, []);
 
@@ -187,7 +188,7 @@ export default function StationScreen() {
             style={styles.writeCard}
             activeOpacity={0.85}
             onPress={() => {
-              Haptics.selectionAsync().catch(() => {});
+              tick();
               router.push('/feedback');
             }}
             accessibilityRole="button"

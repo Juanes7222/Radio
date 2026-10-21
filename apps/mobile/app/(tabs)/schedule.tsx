@@ -10,6 +10,7 @@ import { fetchSchedule, fetchScheduleCategories, mergeConsecutiveScheduleItems }
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Typography } from '@/constants/theme';
+import { tick } from '@/lib/haptics';
 import { PressScale } from '@/components/ui/PressScale';
 import { Spring } from '@/constants/motion';
 import { Entrances } from '@/constants/motion';
@@ -81,7 +82,7 @@ type ViewMode = 'categories' | 'chronological';
 
 function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewMode) => void }) {
   const handleChange = (next: ViewMode) => {
-    if (next !== mode) Haptics.selectionAsync().catch(() => {});
+    if (next !== mode) tick();
     onChange(next);
   };
   return (
@@ -192,7 +193,7 @@ function CategoryPickerModal({
             <TouchableOpacity
               key={option.id ?? '__all__'}
               onPress={() => {
-                Haptics.selectionAsync().catch(() => {});
+                tick();
                 onSelect(option.id);
               }}
               activeOpacity={0.8}
@@ -240,7 +241,7 @@ function ProgramRow({
     >
       <PressScale
         onPress={() => {
-          Haptics.selectionAsync().catch(() => {});
+          tick();
           onPress();
         }}
         style={[styles.rowCard, isNow && styles.rowCardNow]}
@@ -298,7 +299,7 @@ function ScheduleSectionView({
 
   return (
     <Animated.View layout={LinearTransition.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))} style={styles.section}>
-      <TouchableOpacity onPress={() => { Haptics.selectionAsync().catch(() => {}); onToggle(); }} activeOpacity={0.8} style={styles.sectionHeader}>
+      <TouchableOpacity onPress={() => { tick(); onToggle(); }} activeOpacity={0.8} style={styles.sectionHeader}>
         <View style={[styles.sectionIcon, { backgroundColor: accent.glow }]}>
           <Ionicons name={getCategoryIcon(section.category)} size={16} color={accent.dot} />
         </View>
@@ -372,7 +373,7 @@ function TimelineRow({
       </View>
 
       <TouchableOpacity
-        onPress={() => { Haptics.selectionAsync().catch(() => {}); onPress(); }}
+        onPress={() => { tick(); onPress(); }}
         activeOpacity={0.8}
         style={[styles.timelineCard, isNow && styles.timelineCardNow]}
       >
@@ -563,7 +564,7 @@ export default function ScheduleScreen() {
     sectionKeys.length > 0 && sectionKeys.every((key) => collapsedCategories.has(key));
 
   const toggleCategoryCollapse = useCallback((key: string) => {
-    Haptics.selectionAsync().catch(() => {});
+    tick();
     setCollapsedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
@@ -576,7 +577,7 @@ export default function ScheduleScreen() {
   }, []);
 
   const handleToggleAllSections = () => {
-    Haptics.selectionAsync().catch(() => {});
+    tick();
     setCollapsedCategories(allSectionsCollapsed ? new Set() : new Set(sectionKeys));
   };
 
@@ -689,7 +690,7 @@ export default function ScheduleScreen() {
             >
               <TouchableOpacity
                 onPress={() => {
-                  if (selectedDay !== i) Haptics.selectionAsync().catch(() => {});
+                  if (selectedDay !== i) tick();
                   setSelectedDay(i);
                 }}
                 activeOpacity={0.8}

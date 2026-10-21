@@ -34,6 +34,7 @@ import * as Haptics from 'expo-haptics';
 import { BACKEND_URL } from '@/constants/api';
 import { legalUrl } from '@/constants/legalDocuments';
 import { Colors, Spacing, Typography } from '@/constants/theme';
+import { tick } from '@/lib/haptics';
 import { Durations, Easings, Spring } from '@/constants/motion';
 import { Entrances } from '@/constants/motion';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -209,7 +210,7 @@ export default function PrayerScreen() {
 
         {!sent && !loading && (
           <Animated.View entering={FadeIn.delay(80).duration(220)} style={styles.headerActions}>
-            <TouchableOpacity onPress={() => { Haptics.selectionAsync().catch(()=>{}); router.push('/prayer-history'); }} style={styles.historyLink} activeOpacity={0.8}>
+            <TouchableOpacity onPress={() => { tick(); router.push('/prayer-history'); }} style={styles.historyLink} activeOpacity={0.8}>
               <Ionicons name="list-outline" size={14} color={Colors.accent} />
               <Text style={styles.historyLinkText}>Mis peticiones</Text>
             </TouchableOpacity>

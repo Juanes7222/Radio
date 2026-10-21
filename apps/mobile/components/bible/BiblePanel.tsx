@@ -14,6 +14,7 @@ import { useBible } from '@/hooks/useBible';
 import { BibleChapterNavigator } from './BibleChapterNavigator';
 import { BibleSearch } from './BibleSearch';
 import { Colors, Typography, Radii, Spacing } from '@/constants/theme';
+import { tick, success } from '@/lib/haptics';
 import { Durations, Easings, Motion } from '@/constants/motion';
 import { PressScale } from '@/components/ui/PressScale';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
@@ -41,12 +42,12 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
   const isLastBookAndChapter = currentBook === books[books.length - 1]?.name && currentChapter === (books[books.length - 1]?._count?.chapters || 1);
 
   const handleNextChapter = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    tick();
     actions.nextChapter();
   };
 
   const handlePrevChapter = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    tick();
     actions.prevChapter();
   };
 
@@ -54,7 +55,7 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
     Clipboard.setStringAsync(
       `${currentBook} ${currentChapter}:${verse.number} — ${verse.text}`,
     ).catch(() => {});
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    success();
     setCopiedVerse(verse.number);
     setTimeout(() => {
       setCopiedVerse(null);

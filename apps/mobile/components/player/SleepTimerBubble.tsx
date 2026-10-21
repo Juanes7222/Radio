@@ -15,6 +15,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { tick } from '@/lib/haptics';
 import { Durations, Easings, Motion, Spring } from '@/constants/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
@@ -169,7 +170,7 @@ function SleepTimerBubbleImpl({
 
       <AnimatedPressable
         onPress={() => {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+          tick();
           onCancel();
         }}
         // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design; same exemption as PlayerControls.

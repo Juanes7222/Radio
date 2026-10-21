@@ -26,6 +26,7 @@ import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { usePrayerAnswers } from '@/hooks/usePrayerAnswers';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Colors, Radii, Typography } from '@/constants/theme';
+import { tick } from '@/lib/haptics';
 import { Durations, Easings, Spring } from '@/constants/motion';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -65,7 +66,7 @@ function TabBarButton(props: TabBarButtonProps) {
     <AnimatedPressable
       {...props}
       onPress={(e) => {
-        Haptics.selectionAsync().catch(() => {});
+        tick();
         onPress?.(e);
       }}
       onPressIn={(e) => {

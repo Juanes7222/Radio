@@ -3,6 +3,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import * as Haptics from 'expo-haptics';
 import { SLEEP_PRESETS } from '@/hooks/useSleepTimer';
 import { Colors, Spacing, Typography } from '@/constants/theme';
+import { tick } from '@/lib/haptics';
 
 interface SleepTimerOptionsProps {
   isActive: boolean;
@@ -25,7 +26,7 @@ export function SleepTimerOptions({
             key={minutes}
             style={styles.option}
             onPress={() => {
-              Haptics.selectionAsync().catch(() => {});
+              tick();
               onSelectPreset(minutes);
             }}
           >
@@ -47,7 +48,7 @@ export function SleepTimerOptions({
         <PressableScale
           style={[styles.option, styles.cancelOption]}
           onPress={() => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+            tick();
             onCancel();
           }}
         >

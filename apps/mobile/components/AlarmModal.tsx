@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { TimeWheelPicker } from '@/components/alarm/TimeWheelPicker';
 import type { AlarmInput, RadioAlarm } from '@/hooks/useAlarmClock';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { tick, success, error } from '@/lib/haptics';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 
@@ -77,7 +78,7 @@ export function AlarmModal({
   }, [visible]);
 
   const openEditor = (alarm: RadioAlarm) => {
-    Haptics.selectionAsync().catch(() => {});
+    tick();
     setForm({
       hour: alarm.hour,
       minute: alarm.minute,
@@ -90,7 +91,7 @@ export function AlarmModal({
   };
 
   const openNewEditor = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    tick();
     setForm(DEFAULT_FORM);
     setRepeatExpanded(false);
     setEditingId(null);
@@ -98,7 +99,7 @@ export function AlarmModal({
   };
 
   const toggleDay = (day: number) => {
-    Haptics.selectionAsync().catch(() => {});
+    tick();
     setForm((prev) => ({
       ...prev,
       days: prev.days.includes(day)
@@ -108,7 +109,7 @@ export function AlarmModal({
   };
 
   const save = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    success();
     const input: AlarmInput = {
       hour: form.hour,
       minute: form.minute,
@@ -183,7 +184,7 @@ export function AlarmModal({
                   <Switch
                     value={alarm.enabled}
                     onValueChange={(enabled) => {
-                      Haptics.selectionAsync().catch(() => {});
+                      tick();
                       onToggle(alarm.id, enabled);
                     }}
                     trackColor={{ false: Colors.border, true: Colors.signal }}
@@ -342,7 +343,7 @@ export function AlarmModal({
                 style={styles.deleteButton}
                 activeOpacity={0.7}
                 onPress={() => {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+                  error();
                   onRemove(editingId);
                   setEditingId(null);
                   setShowEditor(false);

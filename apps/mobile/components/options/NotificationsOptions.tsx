@@ -14,6 +14,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { tick } from '@/lib/haptics';
 import { useProgramSubscriptions } from '@/hooks/useProgramSubscriptions';
 import { ensureNotificationPermission } from '@/lib/device';
 import { openExactAlarmSettings } from '@/modules/exact-alarms';
@@ -81,7 +82,7 @@ export function NotificationsOptions({
           </View>
           <PressableScale
             onPress={() => {
-              Haptics.selectionAsync().catch(() => {});
+              tick();
               openExactAlarmSettings();
             }}
             style={styles.exactAlarmButton}
@@ -103,7 +104,7 @@ export function NotificationsOptions({
           <Switch
             value={notifyEnabled}
             onValueChange={() => {
-              Haptics.selectionAsync().catch(() => {});
+              tick();
               onToggleCurrent();
             }}
             trackColor={{ false: Colors.borderGlass, true: Colors.signal }}
@@ -121,7 +122,7 @@ export function NotificationsOptions({
             <View style={styles.bulkActions}>
               <PressableScale
                 onPress={() => {
-                  Haptics.selectionAsync().catch(() => {});
+                  tick();
                   void requestNotificationAccess();
                   subscribeAll(programs);
                 }}
@@ -133,7 +134,7 @@ export function NotificationsOptions({
               </PressableScale>
               <Text style={styles.bulkSeparator}>·</Text>
               <PressableScale
-                onPress={() => { Haptics.selectionAsync().catch(() => {}); unsubscribeAll(); }}
+                onPress={() => { tick(); unsubscribeAll(); }}
                 style={styles.bulkAction}
                 accessibilityRole="button"
                 accessibilityLabel="Desuscribirse de todos los programas"
@@ -164,7 +165,7 @@ export function NotificationsOptions({
                 <Switch
                   value={isSubscribed}
                   onValueChange={() => {
-                    Haptics.selectionAsync().catch(() => {});
+                    tick();
                     if (!isSubscribed) void requestNotificationAccess();
                     toggleSubscription(program);
                   }}
