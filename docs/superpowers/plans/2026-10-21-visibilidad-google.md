@@ -16,7 +16,7 @@
 - Code comments, docstrings and JSDoc are written in English. User-facing copy (page titles, descriptions, page body) is in Spanish.
 - No `any`. Explicit types on every exported function.
 - No new runtime dependency. Everything here uses what is already installed.
-- Canonical URLs always carry a trailing slash, because that is the form nginx answers with 200 (`try_files $uri $uri/`). The existing `canonicalUrl()` in `apps/web/src/config/seo.config.ts` is the only place that decides it.
+- Canonical URLs always carry a trailing slash, because that is the form nginx answers with 200 (`try_files $uri $uri/`). `canonicalUrl()` in `apps/web/src/config/seo.config.ts` decides it for the eight public routes, and the generated pages obey the same rule because their path ends with a slash and their canonical is `SITE_URL` plus that path. There is no second rule and no second expression for the slash.
 - The site is `https://lavozverdad.com`. `SITE_URL` in `seo.config.ts` is the only source for that value.
 - The published Bible text is the free-to-redistribute translation (Reina-Valera Gómez 2004), never RVR1960.
 - The service worker must not serve a cached page in place of a catalog page, and must not overwrite the cached home page with a catalog page.
