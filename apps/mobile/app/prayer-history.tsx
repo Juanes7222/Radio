@@ -15,6 +15,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
 import { getDeviceId } from '@/lib/device';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { ShimmerBox } from '@/components/ui/Shimmer';
 import { Durations, Easings } from '@/constants/motion';
 import { PrayerNode, type PrayerNodeTone } from '@/components/prayer/PrayerNode';
 import {
@@ -192,8 +193,16 @@ export default function PrayerHistoryScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.accent} />
+        <View style={styles.skeletonList}>
+          {[0, 1, 2].map((row) => (
+            <View key={row} style={styles.skeletonRow}>
+              <ShimmerBox style={styles.skeletonNode} borderRadius={6} />
+              <View style={styles.skeletonBody}>
+                <ShimmerBox style={styles.skeletonLine} borderRadius={6} />
+                <ShimmerBox style={styles.skeletonLineShort} borderRadius={4} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -291,6 +300,17 @@ const styles = StyleSheet.create({
   },
   emptyActionText: { ...Typography.captionStrong, color: Colors.textOnSignal },
   list: { paddingHorizontal: Spacing.md },
+  skeletonList: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, gap: Spacing.md },
+  skeletonRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    minHeight: 72,
+    alignItems: 'flex-start',
+  },
+  skeletonNode: { width: 12, height: 12 },
+  skeletonBody: { flex: 1, gap: 6 },
+  skeletonLine: { height: 14, width: '68%' },
+  skeletonLineShort: { height: 10, width: '38%' },
   row: {
     flexDirection: 'row',
     gap: Spacing.md,
