@@ -125,6 +125,8 @@ git commit -m "feat(mobile): hold the disc still and empty the ring while a prea
 
 ### Task 2: La barra superior queda en dos elementos y las hojas en una
 
+> **Sustituida el 2026-10-20 por la Task 2b de más abajo.** Esta versión metió las cuatro opciones de escucha como secciones de una sola hoja. El usuario la rechazó: "poner todo eso en un solo modal es mucho contenido que se puede perder, eso es una total falla de diseño". El error no era el número de cosas, era la forma: una hoja con cuatro secciones y desplazamiento es un contenedor de ajustes escondido dentro de un reproductor, y el oyente no puede saber si hay algo más abajo. La Task 2b lo resuelve con un índice de tres filas que no hace scroll, un intercambio de contenido dentro de la misma hoja, y sacando el temporizador del modal a una pastilla siempre visible. Se conserva de esta versión la extracción del contenido a `components/options/*`, que la Task 2b reutiliza.
+
 La barra tiene hoy cinco elementos, y por eso esconde el contador de oyentes por debajo de 430dp: la propia barra calcula ese umbral. Y las hojas son cuatro. La barra queda en **EN VIVO** y **un botón de opciones**, que abre **una sola hoja** con notificaciones, temporizador, calidad y una fila que abre el editor de alarmas.
 
 **Files:**
@@ -404,6 +406,8 @@ git commit -m "feat(mobile): show the next track artwork on the coming-up card"
 
 ### Task 5: La lectura del día ocupa el lugar de la píldora de Biblia
 
+> **Cancelada el 2026-10-20 por decisión del usuario, antes de implementarse.** La rotación bíblica es un evento que termina, y una tarjeta que promete "Lectura de hoy" habría que volver a quitar de la app cuando eso pase. Además es un elemento más en la pantalla del reproductor, y el reproductor ya tiene que caber en pantallas pequeñas. El texto de abajo se conserva solo como registro de lo que se descartó; nada de esta tarea se implementa. Lo que sí queda de esta idea, si algún día se quiere, es la ficha de la Biblia dentro de la app (la pantalla de lectura y de búsqueda), que no depende de ningún evento.
+
 La píldora flotante compite con el héroe y no dice nada. En su lugar, una tarjeta con los capítulos que la rotación bíblica emitió hoy, que es el dato real que el backend ya publica. Cuando no hay lectura, la píldora actual queda como respaldo y nada desaparece.
 
 **Files:**
@@ -510,4 +514,134 @@ Con la rotación bíblica activa, la tarjeta aparece con los capítulos de hoy, 
 ```bash
 git add apps/mobile/lib/formatReading.ts apps/mobile/hooks/useTodayReading.ts apps/mobile/components/player/ReadingOfTheDayCard.tsx apps/mobile/components/bible/BiblePanel.tsx apps/mobile/app/"(tabs)"/index.tsx apps/mobile/tests/design/format-reading.test.ts
 git commit -m "feat(mobile): surface the reading of the day in place of the floating bible pill"
+```
+
+---
+
+### Task 2b: Las opciones de escucha, en un índice que no se desplaza
+
+**Estado:** vigente. Sustituye a la Task 2 (ver la nota de aquella sección).
+
+La barra superior queda en dos elementos: la insignia EN VIVO y un botón de opciones. Pero la hoja de opciones NO es un sitio donde vivan cuatro ajustes apilados: es un índice de tres filas que no hace scroll, y cada fila abre su propia vista dentro de la misma hoja. El temporizador de apagado sale de la hoja: es lo único que se usa mientras se escucha, tiene estado activo y se olvida, así que vive en una pastilla visible junto a los controles, con su anillo que se vacía.
+
+**Files:**
+- Modify: `apps/mobile/components/player/ListeningOptionsSheet.tsx` (se reescribe: índice + detalle dentro de la misma hoja)
+- Create: `apps/mobile/components/player/SleepTimerSheet.tsx` (hoja corta con los presets del temporizador, abierta desde la burbuja)
+- Modify: `apps/mobile/app/(tabs)/index.tsx` (monta las dos hojas; la burbuja del temporizador sale del área desplazable y baja a la barra fija)
+- Test: `apps/mobile/tests/design/listening-options.test.ts` (se reescribe)
+
+**Interfaces:**
+- Consumes: `components/options/NotificationsOptions.tsx`, `components/options/QualityOptions.tsx` y `components/options/SleepTimerOptions.tsx`, que ya existen y se reutilizan tal cual. `Components/AlarmModal.tsx` sigue siendo su propia hoja.
+- Produces:
+  - `ListeningOptionsSheetProps`: `{ visible: boolean; onClose: () => void; notifyEnabled: boolean; onToggleCurrent: () => void; currentSongTitle?: string; exactAlarmGranted?: boolean | null; quality: StreamQuality | null; availableQualities: StreamQuality[]; onSelectQuality: (q: StreamQuality) => void; onOpenAlarms: () => void }`. Ya no lleva nada del temporizador: el temporizador no vive en esta hoja.
+  - `SleepTimerSheetProps`: `{ visible: boolean; onClose: () => void; isActive: boolean; endTime: number | null; onSelectPreset: (minutes: number) => void; onCancel: () => void }`.
+
+- [ ] **Step 1: Escribe la prueba que falla**
+
+Reescribe `apps/mobile/tests/design/listening-options.test.ts` con estas cinco comprobaciones:
+
+```ts
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
+
+const appRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const read = (file: string) => readFileSync(join(appRoot, file), 'utf8');
+
+describe('listening options', () => {
+  it('keeps two elements in the top bar', () => {
+    const bar = read('components/player/PlayerTopBar.tsx');
+
+    expect(bar).toMatch(/onOpenOptions: \(\) => void/);
+    expect(bar).not.toMatch(/onOpenNotifications|onOpenSleepTimer|onOpenAlarm|onOpenQuality/);
+  });
+
+  it('opens an index of three rows instead of one long sheet', () => {
+    const sheet = read('components/player/ListeningOptionsSheet.tsx');
+
+    expect(sheet).toMatch(/Calidad del audio/);
+    expect(sheet).toMatch(/Notificaciones/);
+    expect(sheet).toMatch(/Alarmas de radio/);
+    expect(sheet).toMatch(/Opciones de escucha/);
+  });
+
+  it('keeps the sleep timer out of the options sheet', () => {
+    const sheet = read('components/player/ListeningOptionsSheet.tsx');
+
+    expect(sheet).not.toMatch(/SleepTimerOptions/);
+    expect(sheet).not.toMatch(/timerEndTime|onSelectPreset/);
+  });
+
+  it('shows the sleep timer in its own short sheet', () => {
+    const sheet = read('components/player/SleepTimerSheet.tsx');
+
+    expect(sheet).toMatch(/Apagar la radio/);
+    expect(sheet).toMatch(/SleepTimerOptions/);
+  });
+
+  it('keeps the timer bubble visible next to the controls', () => {
+    const screen = read('app/(tabs)/index.tsx');
+
+    expect(screen).toMatch(/SleepTimerSheet/);
+    expect(screen).not.toMatch(/NotificationsModal|SleepTimerModal|QualityModal/);
+  });
+});
+```
+
+- [ ] **Step 2: Ejecuta la prueba para verla fallar**
+
+Run: `cmd /c "cd apps\mobile && pnpm exec vitest run tests/design/listening-options.test.ts"`
+Expected: FAIL. La hoja actual tiene las cuatro secciones, no tiene índice, y no existe `SleepTimerSheet.tsx`.
+
+- [ ] **Step 3: Escribe el índice y el detalle**
+
+`ListeningOptionsSheet.tsx` tiene dos vistas dentro de la misma `AppBottomSheet` (`snapPoints={['68%', '86%']}`): el índice y el detalle. El estado de la vista vive en el propio componente (`'index' | 'quality' | 'notifications'`).
+
+**El índice** son tres filas y nada más. Cada fila es un botón de 48dp de alto con el nombre de la opción y, DEBAJO, su valor actual:
+
+| Fila | Valor | Al pulsarla |
+|---|---|---|
+| Calidad del audio | "Baja (ahorra datos)", "Media" o "Alta" | Abre la vista de detalle de calidad |
+| Notificaciones | "Activadas" o "Desactivadas" | Abre la vista de detalle de notificaciones |
+| Alarmas de radio | "Sin alarmas", "Una alarma" o "N alarmas" | Cierra la hoja y abre el editor de alarmas |
+
+El valor va debajo de la etiqueta y no a la derecha: con la fuente del sistema al 130 % una etiqueta y un valor en la misma línea se recortan, y "Alta" cortado no dice nada. El valor en `Typography.caption` y `Colors.textMuted`; la etiqueta en `Typography.bodyStrong` y `Colors.text`. Cada fila de índice lleva un chevron a la derecha.
+
+**El detalle** es el contenido que ya existe: `QualityOptions` o `NotificationsOptions`, dentro del mismo `AppBottomSheet`, con una fila de vuelta arriba: "‹ Opciones de escucha" (chevron más texto), que devuelve al índice. El intercambio entre índice y detalle es un fundido de 180 ms (Reanimated `FadeIn`/`FadeOut` sobre la vista); con "reducir movimiento" activo no hay animación: se corta. Se usa el hook `hooks/useReducedMotion.ts` que ya existe.
+
+El botón físico Atrás de Android devuelve del detalle al índice, y del índice cierra la hoja. Se resuelve con `BackHandler` dentro del componente, registrado solo mientras la hoja está visible, y sin secuestrar el gesto: si no hay detalle abierto, el comportamiento normal del sistema se aplica.
+
+La sección de calidad se oculta cuando `availableQualities.length <= 1`: en ese caso el índice muestra solo dos filas.
+
+- [ ] **Step 4: La hoja corta del temporizador**
+
+Crea `components/player/SleepTimerSheet.tsx`: un `AppBottomSheet` con `snapPoints={['42%', '56%']}`, el título "Apagar la radio" y `<SleepTimerOptions />` dentro, que ya sabe mostrar los cuatro presets (15, 30, 60 y 90 minutos con sus nombres: Siesta, Prédica, Noche, Descanso), la línea "Termina a las HH:MM" si hay un temporizador activo, y el botón de cancelar. La hoja la abre la burbuja del temporizador, que es su único punto de entrada.
+
+- [ ] **Step 5: La burbuja baja a la barra fija**
+
+En `app/(tabs)/index.tsx`, la `SleepTimerBubble` sale del `ScrollView` (donde hoy se va al desplazar) y pasa al `bottomSection`, encima de los controles, que es fijo y está a la altura del pulgar. El temporizador activo se ve siempre, sin tener que abrir nada.
+
+La hoja de opciones deja de recibir los props del temporizador y se monta con los de calidad, notificaciones y alarmas. La `SleepTimerSheet` se monta con `visible={showSleepMenu}` y `onSelectPreset` / `onCancel` del hook.
+
+- [ ] **Step 6: Ejecuta la prueba y la suite**
+
+Run: `cmd /c "cd apps\mobile && pnpm exec vitest run tests/design/listening-options.test.ts"`
+Expected: PASS, 5 pruebas.
+
+Run: `cmd /c "cd apps\mobile && pnpm test"`
+Expected: PASS, 8 archivos.
+
+Run: `cmd /c "cd apps\mobile && pnpm exec tsc --noEmit"`
+Expected: sin salida.
+
+- [ ] **Step 7: Revisa en dispositivo**
+
+Abre "Opciones de escucha": el índice tiene tres filas, se ve entero sin desplazar, y cada fila enseña su valor actual. Entra en "Calidad del audio": el contenido cambia dentro de la misma hoja y el botón Atrás del sistema devuelve al índice. Abre "Alarmas de radio": sale al editor de alarmas. Pulsa la burbuja del temporizador: abre la hoja "Apagar la radio" con los presets. Con un temporizador activo, la burbuja se ve junto a los controles sin desplazar la pantalla.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add apps/mobile
+git commit -m "refactor(mobile): turn the listening options into a drill-down index and free the sleep timer"
 ```

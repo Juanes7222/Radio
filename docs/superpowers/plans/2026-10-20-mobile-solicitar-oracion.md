@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-20-mobile-design-system-design.md`, sección 6.
 
-Consume `hooks/useTodayReading.ts` del plan del reproductor (`2026-10-20-mobile-player.md`, Task 5) y los tokens del plan del sistema visual. No depende de los planes de accesibilidad y movimiento.
+Consume los tokens del plan del sistema visual. No depende de los planes de accesibilidad y movimiento, ni del plan del reproductor: el versículo de Oración ya no sale de la rotación bíblica del día (esa pieza se canceló), sino de una lista corta de pasajes fijos, uno por día de la semana.
 
 ## Global Constraints
 
@@ -219,7 +219,7 @@ La pantalla de Oración es la más cálida de la app y hoy empieza con un formul
 - Test: `apps/mobile/tests/design/daily-verse.test.ts`
 
 **Interfaces:**
-- Consumes: `hooks/useTodayReading.ts` del plan del reproductor, que devuelve `{ label, target }` con `target = { book, chapter }` del capítulo de hoy. `BACKEND_URL` de `constants/api`. `BibleVerse` de `@radio/types`.
+- Consumes: `BACKEND_URL` de `constants/api`; `BibleVerse` de `@radio/types`; `getBogotaDayOfWeek` de `lib/time.ts`, que ya devuelve el día de la semana en la zona de la estación.
 - Produces:
   - `lib/dailyVerse.ts`: `verseReference(book: string, chapter: number, verse: number): string` y `pickVerseText(verses: readonly BibleVerse[]): string | null`.
   - `hooks/useDailyVerse.ts`: `useDailyVerse(): { reference: string; text: string } | null`.
@@ -283,9 +283,11 @@ Expected: la mitad de módulo en PASS, la de pantalla en FAIL.
 
 - [ ] **Step 5: Añade el hook**
 
-Crea `apps/mobile/hooks/useDailyVerse.ts`. Llama a `useTodayReading()` y, cuando hay `target`, pide `GET ${BACKEND_URL}/api/bible/chapter?translation=RVR1960&book=${encodeURIComponent(target.book)}&chapter=${target.chapter}` una sola vez. De la respuesta toma `verses[0]` y devuelve `{ reference: verseReference(target.book, target.chapter, verses[0].number), text: pickVerseText(verses) }`.
+Crea `apps/mobile/hooks/useDailyVerse.ts`. El versículo NO depende de la rotación bíblica del día (esa rotación es un evento que termina, y atar la pantalla de Oración a ella obligaría a tocar la app cuando termine): sale de una lista corta de pasajes fijos en el propio hook, uno por día de la semana, elegido con `getBogotaDayOfWeek()` de `lib/time.ts` para que el día sea el de la estación y no el del teléfono.
 
-Si no hay `target`, si la respuesta no es `ok`, si `verses` está vacío o si el texto viene vacío, devuelve `null` y no lanza. El nombre del libro que devuelve la rotación puede no coincidir con el de la Biblia: por eso el fallo es silencioso y la pantalla empieza igual que hoy.
+Los siete pasajes son: Salmos 23:1, Proverbios 3:5, Isaías 40:31, Juan 14:6, Romanos 12:2, Filipenses 4:13 y Josué 1:9. Con el pasaje elegido pide `GET ${BACKEND_URL}/api/bible/chapter?translation=RVR1960&book=${encodeURIComponent(book)}&chapter=${chapter}` una sola vez, y de la respuesta toma `verses[0]`, devolviendo `{ reference: verseReference(book, chapter, verses[0].number), text: pickVerseText(verses) }`.
+
+Si la petición falla, si no hay versículos o si el texto viene vacío, devuelve `null` y no lanza: la pantalla empieza igual que hoy.
 
 No añadas reintentos, ni caché propia (la caché de capítulos ya vive en `useBible`), ni polling.
 

@@ -130,9 +130,23 @@ Es el cambio de mayor rendimiento conceptual con menos código de todo el plan: 
 
 Hoy son cinco: botón de notificaciones, insignia EN VIVO con oyentes, calidad, alarma y temporizador. Cinco elementos en una fila obligan a esconder el contador de oyentes por debajo de 430dp, y la propia barra ya calcula ese umbral.
 
-La barra queda en **EN VIVO** (con el contador de oyentes cuando cabe) y **un botón de opciones**, que abre **una sola hoja** con las cuatro secciones: notificaciones, temporizador, calidad y una fila que abre el editor de alarmas. La hoja es una, con un `ScrollView` y las secciones apiladas; el editor de alarmas sigue siendo su propia hoja, porque configurar una alarma es una tarea, no un ajuste.
+La barra queda en **EN VIVO** (con el contador de oyentes cuando cabe) y **un botón de opciones**, que abre una hoja con las opciones de escucha.
 
-La calidad desaparece de la hoja cuando la estación solo expone un mount, que es el caso normal.
+Y aquí hay un punto que la primera versión de este plan entendió mal: meter las cuatro opciones como secciones de una sola hoja no es simplificar, es esconder. Una hoja con cuatro secciones y desplazamiento es un contenedor de ajustes dentro de un reproductor, y el oyente no puede saber si hay algo más abajo. La hoja de opciones es un **índice de tres filas que no hace scroll**, y cada fila abre su vista dentro de la misma hoja:
+
+| Fila | Su valor | Al pulsarla |
+|---|---|---|
+| Calidad del audio | Baja (ahorra datos), Media o Alta | La vista de calidad |
+| Notificaciones | Activadas o Desactivadas | La vista de notificaciones |
+| Alarmas de radio | Sin alarmas, Una alarma o N alarmas | El editor de alarmas |
+
+El valor va debajo de la etiqueta y no a la derecha: con la fuente del sistema al 130 % una etiqueta y un valor en la misma línea se recortan, y "Alta" cortado no dice nada. La calidad desaparece del índice cuando la estación solo expone un mount, que es el caso normal.
+
+La misma hoja indexada tiene dos vistas, y el botón Atrás del sistema devuelve del detalle al índice y del índice cierra la hoja. El intercambio entre vistas es un fundido de 180 ms; con "quitar animaciones" activo, un corte.
+
+### El temporizador sale de la hoja del todo
+
+Es la única de las cuatro opciones que se usa mientras se escucha, que tiene estado activo y que se olvida: esconderla obliga a abrir un modal para comprobar si la radio se va a apagar. Vive en una pastilla visible junto a los controles, a la altura del pulgar, con el anillo que se vacía, y desde ahí se abre su propia hoja corta con los presets ("Apagar la radio").
 
 ### El temporizador vive en un solo lugar
 
@@ -144,9 +158,11 @@ La cuenta atrás vive en la burbuja, con su propio tick de un segundo y su propi
 
 `playing_next.song.art` existe en el tipo de la API (`packages/types/src/azuracast.ts:106`), así que la miniatura es un dato que ya llega. La tarjeta de "A continuación" la muestra a 40dp.
 
-### La lectura del día
+### La lectura del día, cancelada
 
-La píldora flotante de Biblia compite con el héroe y no dice nada. En su lugar, al final del contenido, una tarjeta "Lectura de hoy" con los capítulos que la rotación bíblica emitió hoy, alimentada por `GET /api/bible/reading/today` (`BibleReadingToday`, ya existe y es público). Abre la Biblia en ese capítulo. Cuando no hay lectura, no se pinta y la píldora actual queda como respaldo: nada desaparece.
+La primera versión de este plan cambiaba la píldora flotante de Biblia por una tarjeta "Lectura de hoy" con los capítulos que la rotación bíblica emitió ese día. **Se cancela.** La rotación bíblica es un evento que termina, y una tarjeta que promete una lectura diaria habría que volver a quitar de la app cuando eso pase: sería una deuda con fecha. Además es un elemento más en la pantalla del reproductor, que ya tiene que caber en pantallas pequeñas.
+
+La pantalla de lectura de la Biblia (capítulo, búsqueda, tamaño de letra, posición guardada) no depende de ese evento y se queda. Lo que no entra es la pieza que depende de él.
 
 ### El error ya dice la verdad
 
@@ -234,6 +250,6 @@ Cuatro planes, cada uno por un subsistema y cada uno dejando software que funcio
 | Plan | Alcance |
 |---|---|
 | `2026-10-20-mobile-visual-system.md` | Tokens de superficie, acento, textos y mayúsculas. No toca componentes. |
-| `2026-10-20-mobile-player.md` | Anillo de voz, barra superior y hoja única, temporizador en un lugar, miniatura de "a continuación", lectura del día. |
+| `2026-10-20-mobile-player.md` | Anillo de voz, barra superior con un índice de opciones, temporizador en un lugar, miniatura de "a continuación". La lectura del día quedó cancelada. |
 | `2026-10-20-mobile-solicitar-oracion.md` | Acción de pedir discreta, aviso de datos sensibles neutro, versículo y acompañamiento en Oración. |
 | `2026-10-20-mobile-accessibility-motion.md` | Áreas táctiles de 48dp, escalado de fuente, reducir movimiento, háptica coherente, esqueletos de carga. |
