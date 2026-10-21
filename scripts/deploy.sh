@@ -372,20 +372,22 @@ if [[ "$DEPLOY_BACKEND" == "true" ]]; then
   else
     info "Bible database already exists. Skipping seed."
   fi
-
-  # The published pages carry the free-to-redistribute translation, and the
-  # seed above only runs on a fresh database. This one is idempotent, so it
-  # runs on every deploy.
-  info "Seeding the published Bible translation..."
-  "$PNPM_BIN" --filter "$BACKEND_PACKAGE" run seed:bible:published
-
-  # The web build reads the artifact this writes, so the export has to run
-  # before it.
-  info "Exporting the catalog..."
-  "$PNPM_BIN" --filter "$BACKEND_PACKAGE" run catalog:export
 fi
 
 if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
+  # The published pages carry the free-to-redistribute translation and the
+  # export reads it from the database, so the seed travels with the export
+  # that needs it. The seed skips the write when the translation is already
+  # there, so it costs a parse and not 31.000 verses.
+  info "Seeding the published Bible translation..."
+  "$PNPM_BIN" --filter "$BACKEND_PACKAGE" run seed:bible:published
+
+  # The web build reads the artifact this writes. The export runs here, right
+  # before its consumer, so a frontend-only deploy ships a fresh artifact
+  # instead of the one the last backend deploy left behind.
+  info "Exporting the catalog..."
+  "$PNPM_BIN" --filter "$BACKEND_PACKAGE" run catalog:export
+
   info "Building frontend..."
   "$PNPM_BIN" --filter "$WEB_PACKAGE" run build
 

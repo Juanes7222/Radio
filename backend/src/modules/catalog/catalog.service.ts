@@ -24,15 +24,17 @@ export interface LibrarySong {
  * The fields of an AzuraCast request row the export reads.
  *
  * The shared `Song` type declares every field as a string, but the station
- * library answers null for the files that carry no album or no genre.
+ * library answers null for the files that carry no album or no genre. The row
+ * itself comes out of a cast, so nothing guarantees that it has a song.
  */
 interface LibraryRequestRow {
-  readonly song: {
+  readonly request_id?: string;
+  readonly song?: {
     readonly title?: string | null;
     readonly artist?: string | null;
     readonly album?: string | null;
     readonly genre?: string | null;
-  };
+  } | null;
 }
 
 /** A page of the library is 100 songs; 100 pages is far beyond the station library. */
@@ -75,20 +77,27 @@ export function groupSongsByArtist(
  * Maps every name to the slug it publishes under.
  *
  * Two names that fold to the same slug are told apart with a `-2`, a `-3` and
- * so on, in the order the names were given. The same name twice keeps the
- * same slug.
+ * so on, in the order the names were given. The suffix grows until the slug
+ * is free, so a name that is already spelled like a generated one cannot
+ * collide with it. The same name twice keeps the same slug.
  */
 export function uniqueSlugs(names: readonly string[]): Map<string, string> {
   const slugs = new Map<string, string>();
-  const taken = new Map<string, number>();
+  const taken = new Set<string>();
 
   for (const name of names) {
     if (slugs.has(name)) continue;
 
     const base = slugify(name);
-    const used = taken.get(base) ?? 0;
-    taken.set(base, used + 1);
-    slugs.set(name, used === 0 ? base : `${base}-${used + 1}`);
+    let candidate = base;
+    let suffix = 2;
+    while (taken.has(candidate)) {
+      candidate = `${base}-${suffix}`;
+      suffix++;
+    }
+
+    taken.add(candidate);
+    slugs.set(name, candidate);
   }
 
   return slugs;
@@ -209,21 +218,26 @@ async function readBible(): Promise<{ books: CatalogBook[]; chapters: CatalogCha
     chapterCount: number;
   }[] = [];
 
+  // The book slugs go through the same rule as the artist slugs, so the
+  // artifact can never carry two books under the same slug.
+  const bookSlugs = uniqueSlugs(books.map((book) => book.name));
+
   for (const book of books) {
     const published = book.chapters.filter((chapter) => chapter.verses.length > 0);
+    // The book and its chapters share one slug, so the web build links a
+    // chapter to its book without a lookup.
+    const slug = bookSlugs.get(book.name) ?? slugify(book.name);
 
     for (const chapter of published) {
       chapters.push({
-        bookSlug: chapterSlugParts(book.name, chapter.number).bookSlug,
+        bookSlug: slug,
         number: chapter.number,
         verses: chapter.verses.map((verse) => ({ number: verse.number, text: verse.text })),
       });
     }
 
     catalogBooks.push({
-      // The book and its chapters share one slug: both come from the same
-      // slugify, so the web build links a chapter to its book without a lookup.
-      slug: slugify(book.name),
+      slug,
       name: book.name,
       order: book.order,
       testament: book.testament === "NT" ? "NT" : "AT",
@@ -252,7 +266,9 @@ async function readLibrarySongs(): Promise<LibrarySong[]> {
     rows.push(...batch);
 
     if (batch.length < SONG_REQUESTS_PAGE_SIZE) {
-      return rows.map(toLibrarySong);
+      return dedupeByRequest(rows)
+        .map(toLibrarySong)
+        .filter((song): song is LibrarySong => song !== null);
     }
 
     page++;
@@ -262,6 +278,22 @@ async function readLibrarySongs(): Promise<LibrarySong[]> {
     `AzuraCast answered more than ${MAX_LIBRARY_PAGES} pages of songs. ` +
       "The export stopped instead of writing a partial library."
   );
+}
+
+/**
+ * Keeps one row per request, the way the house client does.
+ *
+ * A media item reachable through two requestable playlists comes back twice,
+ * and the artist page would list it twice.
+ */
+function dedupeByRequest(rows: readonly LibraryRequestRow[]): LibraryRequestRow[] {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    if (!row.request_id) return true;
+    if (seen.has(row.request_id)) return false;
+    seen.add(row.request_id);
+    return true;
+  });
 }
 
 /** The videos the station received, read from the database. */
@@ -292,13 +324,21 @@ async function readVideos(): Promise<CatalogVideo[]> {
   }));
 }
 
-/** A song of the library, with the empty fields the API answers as null. */
-function toLibrarySong(row: LibraryRequestRow): LibrarySong {
+/**
+ * A song of the library, with the empty fields the API answers as null.
+ *
+ * A row without a song is not a song: it is skipped instead of stopping the
+ * export.
+ */
+function toLibrarySong(row: LibraryRequestRow): LibrarySong | null {
+  const song = row.song;
+  if (!song) return null;
+
   return {
-    title: readOptionalText(row.song.title) ?? "",
-    artist: readOptionalText(row.song.artist),
-    album: readOptionalText(row.song.album),
-    genre: readOptionalText(row.song.genre),
+    title: readOptionalText(song.title) ?? "",
+    artist: readOptionalText(song.artist),
+    album: readOptionalText(song.album),
+    genre: readOptionalText(song.genre),
   };
 }
 

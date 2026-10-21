@@ -25,6 +25,15 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  console.error("[catalog] Export failed:", err instanceof Error ? err.message : String(err));
+  console.error("[catalog] Export failed:", err instanceof Error ? err.stack ?? err.message : String(err));
+  const url = requestUrl(err);
+  if (url) console.error(`[catalog] Request: ${url}`);
   process.exit(1);
 });
+
+/** The URL of the request that failed, when the error carries one. */
+function requestUrl(err: unknown): string | undefined {
+  if (typeof err !== "object" || err === null) return undefined;
+  const config = (err as { config?: { url?: string } }).config;
+  return typeof config?.url === "string" ? config.url : undefined;
+}

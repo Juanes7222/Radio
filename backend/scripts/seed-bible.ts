@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { PUBLISHED_TRANSLATION, parseBibleXml } from '../src/modules/bible/bibleTranslations';
+import { countVerses, isAlreadySeeded } from '../src/modules/bible/seedPlan';
 
 const BIBLE_XML_DIR = path.resolve(__dirname, '../../packages/assets/bible/Holy-Bible-XML-Format');
 
@@ -55,16 +56,37 @@ async function seedBible(target: SeedTarget) {
 
     const xmlPath = path.join(BIBLE_XML_DIR, target.file);
     if (!fs.existsSync(xmlPath)) {
-      console.warn(`File not found: ${xmlPath}. Please ensure the submodule is initialized.`);
-      return;
+      throw new Error(
+        `File not found: ${xmlPath}. Please ensure the submodule is initialized.`
+      );
     }
 
     console.log(`Parsing ${xmlPath}...`);
 
     const parsed = parseBibleXml(fs.readFileSync(xmlPath, 'utf8'));
     if (parsed.books.length === 0) {
-      console.error('No <bible> root found.');
-      return;
+      throw new Error('No <bible> root found.');
+    }
+
+    const expectedVerses = countVerses(parsed);
+    const existing = await prisma.bibleTranslation.findUnique({
+      where: { abbreviation: target.abbreviation }
+    });
+
+    if (existing) {
+      const seededVerses = await prisma.bibleVerse.count({
+        where: { chapter: { book: { translationId: existing.id } } }
+      });
+
+      // The translation is already there with the verses the file declares,
+      // so there is nothing to write. Rewriting 31.000 verses on every deploy
+      // would cost half a minute for nothing.
+      if (isAlreadySeeded(expectedVerses, seededVerses)) {
+        console.log(
+          `${target.abbreviation} already holds ${seededVerses} verses. Skipping the seed.`
+        );
+        return;
+      }
     }
 
     console.log(`Creating translation: ${target.name}`);

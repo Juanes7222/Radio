@@ -30,11 +30,25 @@ describe("groupSongsByArtist", () => {
     ]);
     expect(grouped[0]?.songs[0]).toEqual({ title: "Alabanza", album: "", genre: "" });
   });
+
+  it("sorts the artists by name", () => {
+    const grouped = groupSongsByArtist([
+      { title: "Zona", artist: "Zona Familiar", album: null, genre: null },
+      { title: "Alabanza", artist: "Abel Zavala", album: null, genre: null },
+      { title: "Jehová", artist: "Abel Zavala", album: null, genre: null },
+    ]);
+    expect(grouped.map((group) => group.name)).toEqual(["Abel Zavala", "Zona Familiar"]);
+    expect(grouped[0]?.songs.map((song) => song.title)).toEqual(["Alabanza", "Jehová"]);
+  });
 });
 
 describe("chapterSlugParts", () => {
   it("slugifies the book name and appends the chapter", () => {
     expect(chapterSlugParts("1 Corintios", 13)).toEqual({ bookSlug: "1-corintios", path: "1-corintios/13" });
+  });
+
+  it("drops the diacritics of the book name", () => {
+    expect(chapterSlugParts("Génesis", 1)).toEqual({ bookSlug: "genesis", path: "genesis/1" });
   });
 });
 
@@ -48,6 +62,21 @@ describe("uniqueSlugs", () => {
   it("keeps the same slug for the same name twice", () => {
     const slugs = uniqueSlugs(["Job", "Job"]);
     expect(slugs.get("Job")).toBe("job");
+  });
+
+  it("keeps counting when a third name folds to the same slug", () => {
+    const slugs = uniqueSlugs(["José Soto", "Jose Soto", "JOSE SOTO"]);
+    expect(slugs.get("José Soto")).toBe("jose-soto");
+    expect(slugs.get("Jose Soto")).toBe("jose-soto-2");
+    expect(slugs.get("JOSE SOTO")).toBe("jose-soto-3");
+  });
+
+  it("does not hand a name the slug another name already took", () => {
+    const slugs = uniqueSlugs(["a", "A", "a-2"]);
+    expect(slugs.get("a")).toBe("a");
+    expect(slugs.get("A")).toBe("a-2");
+    expect(slugs.get("a-2")).toBe("a-2-2");
+    expect(new Set(slugs.values()).size).toBe(3);
   });
 });
 
