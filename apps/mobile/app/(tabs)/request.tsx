@@ -34,6 +34,7 @@ import { formatMediaTitle } from '@/lib/formatMedia';
 import { useResponsive } from '@/lib/responsive';
 import { ShimmerBox } from '@/components/ui/Shimmer';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { Snackbar } from '@/components/ui/Snackbar';
 
 const PAGE_SIZE = 25;
 const CACHE_KEY = 'requestable_songs_cache_v2';
@@ -120,14 +121,14 @@ const SongRow = memo(function SongRow({
         style={[styles.btn, isSent && styles.btnSent, { transform: [{ scale: btnScale }] }]}
         hitSlop={{ top: 4, bottom: 4 }}
         accessibilityRole="button"
-        accessibilityLabel={`Pedir ${title}`}
+        accessibilityLabel={isSent ? `Pedida: ${title}` : `Pedir ${title}`}
         accessibilityState={{ disabled: isSent || isRequesting }}
       >
         {isRequesting ? (
-          <ActivityIndicator size="small" color={Colors.textOnSignal} />
+          <ActivityIndicator size="small" color={Colors.textMuted} />
         ) : isSent ? (
           <Animated.View entering={FadeIn.duration(Durations.fast).easing(Easing.bezier(...Easings.enter))}>
-            <Ionicons name="checkmark" size={16} color={Colors.textOnSignal} />
+            <Ionicons name="checkmark" size={16} color={Colors.success} />
           </Animated.View>
         ) : (
           <Text style={styles.btnText}>Pedir</Text>
@@ -153,6 +154,7 @@ export default function RequestScreen() {
   const [requesting, setRequesting] = useState<string | null>(null);
   const [sent, setSent] = useState<string[]>([]);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -309,6 +311,7 @@ export default function RequestScreen() {
     async (item: SongRequest) => {
       setRequesting(item.request_id);
       setRequestError(null);
+      const { title } = formatMediaTitle(item.song.title, item.song.artist);
 
       try {
         const result = await requestSong(BACKEND_URL, item.request_id);
@@ -317,6 +320,8 @@ export default function RequestScreen() {
           setSent(prev =>
             prev.includes(item.request_id) ? prev : [...prev, item.request_id],
           );
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          setSnackbar(`${title} entra en la cola`);
         } else {
           setRequestError(result.errorMessage);
           setTimeout(() => setRequestError(null), 4000);
@@ -474,6 +479,12 @@ export default function RequestScreen() {
           <Text style={styles.errorBannerText}>{requestError}</Text>
         </Animated.View>
       )}
+
+      <Snackbar
+        message={snackbar}
+        onHide={() => setSnackbar(null)}
+        bottom={tabBarHeight + 12}
+      />
     </View>
   );
 }
@@ -577,16 +588,21 @@ const styles = StyleSheet.create({
   title: { ...Typography.bodyStrong, color: Colors.textSoft },
   artist: { ...Typography.caption, color: Colors.textAltFaint, marginTop: 3 },
   btn: {
-    backgroundColor: Colors.signalFill,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.borderGlass,
     paddingHorizontal: 14,
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
     borderRadius: 10,
     minWidth: 64,
     alignItems: 'center',
   },
-  btnSent: { backgroundColor: Colors.success },
-  btnText: { ...Typography.captionStrong, color: Colors.textOnSignal, fontSize: 13 },
+  btnSent: {
+    backgroundColor: Colors.successMuted,
+    borderColor: Colors.success,
+  },
+  btnText: { ...Typography.captionStrong, color: Colors.textMuted },
   errorBanner: {
     position: 'absolute',
     left: 16,
