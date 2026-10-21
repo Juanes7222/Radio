@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCatalogBooks,
-  chapterSlugParts,
   groupSongsByArtist,
   uniqueSlugs,
 } from "../../src/modules/catalog/catalog.service";
@@ -42,17 +41,11 @@ describe("groupSongsByArtist", () => {
   });
 });
 
-describe("chapterSlugParts", () => {
-  it("slugifies the book name and appends the chapter", () => {
-    expect(chapterSlugParts("1 Corintios", 13)).toEqual({ bookSlug: "1-corintios", path: "1-corintios/13" });
-  });
-
-  it("drops the diacritics of the book name", () => {
-    expect(chapterSlugParts("Génesis", 1)).toEqual({ bookSlug: "genesis", path: "genesis/1" });
-  });
-});
-
 describe("uniqueSlugs", () => {
+  it("drops the diacritics of the name", () => {
+    expect(uniqueSlugs(["Génesis"]).get("Génesis")).toBe("genesis");
+  });
+
   it("disambiguates two names that fold to the same slug", () => {
     const slugs = uniqueSlugs(["José Soto", "Jose Soto"]);
     expect(slugs.get("José Soto")).toBe("jose-soto");

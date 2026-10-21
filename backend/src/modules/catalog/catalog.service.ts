@@ -129,15 +129,6 @@ export function buildCatalogBooks(
     }));
 }
 
-/** The slug of a book and the path segment of one of its chapters. */
-export function chapterSlugParts(
-  bookName: string,
-  chapterNumber: number
-): { bookSlug: string; path: string } {
-  const bookSlug = slugify(bookName);
-  return { bookSlug, path: `${bookSlug}/${chapterNumber}` };
-}
-
 /**
  * Writes the catalog the web build reads.
  *

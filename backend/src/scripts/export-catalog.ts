@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { initializeInfisicalSecrets } from "@radio/infisical-config";
+import { disconnectPrisma } from "../infrastructure/database/prisma";
 
 /**
  * Writes the catalog artifact the web build reads.
@@ -19,8 +20,7 @@ async function main(): Promise<void> {
       `[catalog] books=${counts.books} chapters=${counts.chapters} artists=${counts.artists} videos=${counts.videos}`
     );
   } finally {
-    const { prisma } = await import("../infrastructure/database/prisma");
-    await prisma.$disconnect();
+    await disconnectPrisma();
   }
 }
 
