@@ -27,7 +27,7 @@ describe('request row action', () => {
   it('confirms the request with a soft success and a brief notice', () => {
     const screen = read('app/(tabs)/request.tsx');
 
-    expect(screen).toMatch(/Haptics\.NotificationFeedbackType\.Success/);
+    expect(screen).toMatch(/\bsuccess\(\)/);
     expect(screen).toMatch(/<Snackbar/);
     expect(read('components/ui/Snackbar.tsx')).toMatch(/2600/);
   });
