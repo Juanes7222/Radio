@@ -33,7 +33,7 @@ import Animated, {
 import { BACKEND_URL } from '@/constants/api';
 import { legalUrl } from '@/constants/legalDocuments';
 import { Colors, Spacing, Typography } from '@/constants/theme';
-import { tick } from '@/lib/haptics';
+import { tick, success } from '@/lib/haptics';
 import { Durations, Easings, Spring } from '@/constants/motion';
 import { Entrances } from '@/constants/motion';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -151,6 +151,7 @@ export default function PrayerScreen() {
 
       if (res.ok) {
         setSent(true);
+        success();
         setName('');
         setRequest('');
         setFieldErrors({});
