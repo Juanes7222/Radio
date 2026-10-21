@@ -301,6 +301,16 @@ describe("seo metadata", () => {
     expect(canonical).toBe(canonicalUrl("/"));
   });
 
+  it("points every canonical at the URL the server answers with 200", () => {
+    // nginx resolves /programacion to dist/programacion/ and 301s the bare
+    // path, so the trailing-slash form is the one that returns 200. A
+    // canonical pointing at the redirecting form makes Google drop the page
+    // from the index.
+    for (const route of PUBLIC_ROUTES) {
+      expect(canonicalUrl(route), route).toMatch(/\/$/);
+    }
+  });
+
   it("blocks admin and backend paths in robots.txt and names the sitemap", () => {
     const robots = readFileSync(join(publicDir, "robots.txt"), "utf8");
     for (const blocked of ["/admin", "/admin-api/", "/internal/", "/panel-api/"]) {

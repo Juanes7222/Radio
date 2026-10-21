@@ -396,6 +396,26 @@ title and one description. Search metadata is now generated per route.
   plus `index index.html` already resolves `/programacion` to
   `dist/programacion/index.html`. HTML is absent from
   `snippets/static-cache.conf`, so heads are not pinned by a long cache.
+- **Every canonical carries a trailing slash, and that is not cosmetic.**
+  nginx resolves `/programacion` to the directory `dist/programacion/` and
+  301s the bare path, so the trailing-slash form is the only one that answers
+  200. While the canonical pointed at the redirecting form, the index showed
+  the `/info/*` pages with mixed slash forms and `/programacion` and
+  `/opiniones` were not indexed at all. Google's canonicalization guide lists
+  "a 3xx redirect" next to `rel="canonical"` as a common misconfiguration and
+  warns that Google may pick a different canonical than the declared one, so
+  the canonical has to name the URL that actually returns 200.
+  `canonicalUrl()` in `seo.config.ts` is the only place that decides it, and
+  `buildSitemapXml` reads the same function, so the sitemap cannot drift from
+  the canonical. Re-evaluation after the fix is not instant: Google may hold
+  pages in a duplicate cluster for up to two weeks.
+- Known debt: **unknown URLs return 200**, not 404. `main.tsx` routes `*` to
+  `<Navigate to="/" replace />` and nginx falls back to `dist/index.html` for
+  any path, so every typo or scraper URL is served as the home page. Google
+  documents this as a soft 404, and it spends crawl budget on an infinite URL
+  space. Fixing it needs the real status code, which means either an nginx
+  allowlist of the public routes (the admin panel also lives on this host) or
+  a dedicated 404 document served with a 404 status.
 - `components/layout/useRouteMeta.ts` re-applies the same tags on SPA
   navigation so a link shared after in-app navigation is not mislabelled.
 - Canonical host: `www.lavozverdad.com` and the whole `vozyverdad.com` pair

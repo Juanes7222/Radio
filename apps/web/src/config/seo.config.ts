@@ -137,12 +137,16 @@ export const ROUTE_META: Readonly<Record<PublicRoute, RouteMeta>> = {
 } satisfies Record<PublicRoute, RouteMeta>;
 
 /**
- * Absolute URL for a public route. The home keeps its trailing slash so it
- * matches the URL a visitor actually lands on, which is what canonical must
- * agree with.
+ * Absolute URL for a public route.
+ *
+ * Every route carries a trailing slash because that is the form the server
+ * answers with 200: nginx resolves `/programacion` to `dist/programacion/`
+ * and 301s the bare path to it. A canonical pointing at the redirecting form
+ * makes Google drop the page, which is how `/programacion` and `/opiniones`
+ * ended up missing from the index while their slash versions were indexed.
  */
 export function canonicalUrl(route: PublicRoute): string {
-  return route === '/' ? `${SITE_URL}/` : `${SITE_URL}${route}`;
+  return route === '/' ? `${SITE_URL}/` : `${SITE_URL}${route}/`;
 }
 
 export function absoluteUrl(assetPath: string): string {
