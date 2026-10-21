@@ -52,7 +52,7 @@ export function SleepTimerOptions({
             onCancel();
           }}
         >
-          <Text style={[styles.optionText, { color: Colors.tally }]}>Cancelar temporizador</Text>
+          <Text style={[styles.optionText, { color: Colors.warning }]}>Cancelar temporizador</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -83,8 +83,8 @@ const styles = StyleSheet.create({
     color: Colors.textFaint,
   },
   cancelOption: {
-    backgroundColor: Colors.tallyMuted,
-    borderColor: Colors.tallyGlow,
+    backgroundColor: Colors.warningMuted,
+    borderColor: Colors.warningGlow,
     marginTop: 4,
   },
   endTime: {

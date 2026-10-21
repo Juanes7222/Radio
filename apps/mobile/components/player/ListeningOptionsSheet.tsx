@@ -68,7 +68,7 @@ function IndexRow({ label, value, onPress }: IndexRowProps) {
         <Text style={styles.rowLabel}>{label}</Text>
         <Text style={styles.rowValue}>{value}</Text>
       </View>
-      <Ionicons name="chevron-forward-outline" size={16} color={Colors.textFaint} />
+      <Ionicons name="chevron-forward-outline" size={16} color={Colors.textMuted} />
     </TouchableOpacity>
   );
 }
