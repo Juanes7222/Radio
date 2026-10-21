@@ -28,7 +28,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 interface SleepTimerBubbleProps {
   endTime: number;
-  /** Duración original del preset en segundos; null omite el arco. */
+  /** Original preset duration in seconds; null omits the arc. */
   totalSeconds: number | null;
   onPress: () => void;
   onCancel: () => void;
@@ -58,8 +58,8 @@ function SleepTimerBubbleImpl({
     Math.max(0, Math.ceil((endTime - Date.now()) / 1000))
   );
 
-  // Cuenta atrás propia de un segundo. El hook no toca el estado, así que
-  // la pantalla del reproductor no se vuelve a renderizar cada segundo.
+  // Own one-second countdown. The hook does not touch this state, so the
+  // player screen does not re-render every tick.
   useEffect(() => {
     const tick = () => {
       setRemaining(Math.max(0, Math.ceil((endTime - Date.now()) / 1000)));

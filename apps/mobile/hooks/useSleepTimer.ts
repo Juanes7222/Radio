@@ -96,9 +96,9 @@ export function useSleepTimer(onExpire: () => void): UseSleepTimerReturn {
     writeStoredTimer(newEndTime, total);
   }, []);
 
-  // Comprobación de caducidad cada 5s. La precisión viene del reloj
-  // (Date.now()), no del tick, así que un intervalo largo basta para detener
-  // la música a tiempo sin volver a renderizar la pantalla cada segundo.
+  // Expiry check every 5s. Precision comes from the clock (Date.now()), not
+  // the tick, so a long interval is enough to stop the music in time without
+  // re-rendering the screen every second.
   useEffect(() => {
     if (endTime === null) return;
 
@@ -113,8 +113,8 @@ export function useSleepTimer(onExpire: () => void): UseSleepTimerReturn {
     return () => clearInterval(interval);
   }, [endTime, expire]);
 
-  // Al volver a foreground, recalcular con el reloj: los timers JS se
-  // suspenden o retrasan en segundo plano y el tick pierde precisión.
+  // When returning to the foreground, recalculate from the clock: JS timers
+  // suspend or delay in the background and the tick loses precision.
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state !== 'active' || endTime === null) return;
@@ -125,7 +125,7 @@ export function useSleepTimer(onExpire: () => void): UseSleepTimerReturn {
     return () => subscription.remove();
   }, [endTime, expire]);
 
-  // Restaurar un timer persistido que sobrevivió al cierre de la app.
+  // Restore a persisted timer that survived app closure.
   useEffect(() => {
     let mounted = true;
     AsyncStorage.getItem(END_TIME_KEY).then((raw) => {
