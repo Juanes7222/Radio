@@ -360,8 +360,8 @@ const [showBible, setShowBible] = useState(false);
         <View style={styles.errorIconWrap}>
           <Ionicons name="wifi-outline" size={40} color={Colors.tally} />
         </View>
-        <Text style={styles.errorText}>{error}</Text>
-        <Text style={styles.errorHint}>Reintentamos automáticamente cuando vuelva la señal</Text>
+        <Text style={styles.errorText} maxFontSizeMultiplier={1.4}>{error}</Text>
+        <Text style={styles.errorHint} maxFontSizeMultiplier={1.4}>Reintentamos automáticamente cuando vuelva la señal</Text>
         <TouchableOpacity
           onPress={() => void refresh()}
           style={styles.retryButton}
@@ -371,7 +371,7 @@ const [showBible, setShowBible] = useState(false);
           accessibilityHint="Vuelve a intentar conectarse con la emisora ahora mismo"
         >
           <Ionicons name="refresh" size={16} color={Colors.textOnSignal} />
-          <Text style={styles.retryButtonText}>Reintentar ahora</Text>
+          <Text style={styles.retryButtonText} maxFontSizeMultiplier={1.4}>Reintentar ahora</Text>
         </TouchableOpacity>
       </Animated.View>
     );
