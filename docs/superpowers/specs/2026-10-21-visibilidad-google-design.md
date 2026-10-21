@@ -333,9 +333,10 @@ mentions and directories.
 2. **The published Bible text is a free-to-redistribute translation.** The
    submodule `packages/assets/bible/Holy-Bible-XML-Format` ships about
    thirty Spanish translations. `SpanishRVGBible.xml` (Reina-Valera Gómez
-   2004) declares "Copyright Allowed To Use" in its own header, is a
-   modernisation of the public-domain 1909 and reads in modern Spanish:
-   that is the one to publish. `Spanish1569Bible.xml` and
+   2004) declares `info="Copyright Allowed To Use - Reina Valera Gómez 2004"`
+   in its own header (the typo is upstream's), is a modernisation of the
+   public-domain 1909 and reads in modern Spanish: that is the one to
+   publish. `Spanish1569Bible.xml` and
    `Spanish1858Bible.xml` carry the literal status "Public Domain" and are
    the zero-ambiguity fallback; `SpanishPDTBible.xml` (La Palabra de Dios
    para todos, Bible League International) is the most readable but comes
