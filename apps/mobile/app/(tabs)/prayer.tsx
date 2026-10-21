@@ -33,9 +33,10 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { BACKEND_URL } from '@/constants/api';
 import { legalUrl } from '@/constants/legalDocuments';
-import { Colors, Typography } from '@/constants/theme';
+import { Colors, Spacing, Typography } from '@/constants/theme';
 import { Durations, Easings, Spring } from '@/constants/motion';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { useDailyVerse } from '@/hooks/useDailyVerse';
 import { getDeviceId } from '@/lib/device';
 import { openExternalUrl } from '@/lib/externalLinks';
 
@@ -77,6 +78,7 @@ export default function PrayerScreen() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<PrayerFieldErrors>({});
+  const verse = useDailyVerse();
   const nameRef = useRef<TextInput>(null);
   const requestRef = useRef<TextInput>(null);
   const draftLoadedRef = useRef(false);
@@ -212,6 +214,16 @@ export default function PrayerScreen() {
             </TouchableOpacity>
           </Animated.View>
         )}
+        {verse && !sent && (
+          <Animated.View
+            entering={FadeIn.delay(40).duration(240).easing(Easing.bezier(...Easings.enter))}
+            style={styles.verseBlock}
+          >
+            <Text style={styles.verseText}>{verse.text}</Text>
+            <Text style={styles.verseReference}>{verse.reference}</Text>
+          </Animated.View>
+        )}
+
         {sent ? (
           <Animated.View
             entering={FadeInDown.duration(Durations.slow).easing(Easing.bezier(...Easings.enter))}
@@ -236,7 +248,7 @@ export default function PrayerScreen() {
               entering={FadeInDown.delay(260).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
               style={[styles.successText, isSmallScreen && styles.successTextSmall]}
             >
-              Tu petición ha sido recibida. Oraremos por ti.
+              Tu petición ha sido recibida. Alguien del equipo la está orando ahora.
             </Animated.Text>
             <Animated.View
               entering={FadeIn.delay(340).duration(Durations.normal)}
@@ -313,9 +325,17 @@ export default function PrayerScreen() {
               <Text style={styles.charCounter}>
                 {request.length}/{REQUEST_MAX_LENGTH}
               </Text>
-              <Text style={styles.sensitiveWarning}>
-                Evita incluir datos personales sensibles (salud, situación familiar o económica) o información de otras personas que no sea necesaria para tu petición.
-              </Text>
+              <View style={styles.sensitiveNotice}>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={14}
+                  color={Colors.info}
+                  style={styles.sensitiveIcon}
+                />
+                <Text style={styles.sensitiveWarning}>
+                  Evita incluir datos personales sensibles (salud, situación familiar o económica) o información de otras personas que no sea necesaria para tu petición.
+                </Text>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -430,12 +450,19 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     marginTop: 4,
   },
+  sensitiveNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 6,
+  },
+  sensitiveIcon: { marginTop: 2 },
   sensitiveWarning: {
     ...Typography.caption,
-    color: Colors.warning,
+    color: Colors.textMuted,
     fontSize: 13,
-    lineHeight: 16,
-    marginTop: 6,
+    lineHeight: 18,
+    flex: 1,
   },
   textarea: {
     minHeight: 100,
@@ -483,6 +510,18 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText: { ...Typography.bodyStrong, color: Colors.textOnSignal },
   submitBtnTextSmall: { fontSize: 13 },
+  verseBlock: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    gap: 4,
+  },
+  verseText: {
+    ...Typography.message,
+    color: Colors.textSoft,
+    textAlign: 'center',
+  },
+  verseReference: { ...Typography.caption, color: Colors.textMuted },
   successCard: {
     backgroundColor: Colors.surfaceDim,
     borderRadius: 16,
