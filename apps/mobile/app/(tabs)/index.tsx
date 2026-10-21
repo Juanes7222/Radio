@@ -237,8 +237,12 @@ const [showBible, setShowBible] = useState(false);
   const nextUpTitle = rawNextUp?.title;
   const nextUpArtist = rawNextUp?.artist;
   const nextUpSong = useMemo(
-    () => (nextUpTitle !== undefined ? { title: nextUpTitle, artist: nextUpArtist ?? '' } : null),
-    [nextUpTitle, nextUpArtist],
+    // `nextUpTitle !== undefined` guarantees rawNextUp is a real song, so
+    // reading .art directly off the payload path is safe here. rawNextUp is a
+    // fresh object each poll, so keying the memo on its primitives keeps the
+    // card from rebuilding (and restarting its marquee) on every tick.
+    () => (nextUpTitle !== undefined ? { title: nextUpTitle, artist: nextUpArtist ?? '', art: data?.playing_next?.song.art ?? null } : null),
+    [nextUpTitle, nextUpArtist, rawNextUp?.art],
   );
 
   const handleShare = useCallback(async () => {
@@ -451,7 +455,7 @@ const [showBible, setShowBible] = useState(false);
             />
           )}
 
-          {nextUpSong && <NextUpCard song={nextUpSong} active={isFocused} />}
+          {nextUpSong && <NextUpCard song={nextUpSong} art={nextUpSong.art} active={isFocused} />}
         </View>
       </Animated.ScrollView>
 
