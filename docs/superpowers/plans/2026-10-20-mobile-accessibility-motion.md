@@ -499,7 +499,7 @@ git commit -m "feat(mobile): paint skeletons instead of empty space while the li
 El usuario no recuerda una animación: la siente. Hoy la app habla con tres idiomas distintos al mismo gesto —`withTiming` en los controles del reproductor, `scale(0.96)` en la barra de pestañas y `activeOpacity: 0.8` sin escala en la programación— y repite la misma entrada de lista treinta y seis veces, que es lo que hace que una transición deje de leerse como una transición.
 
 **Files:**
-- Create: `apps/mobile/components/ui/PressableScale.tsx`
+- Create: `apps/mobile/components/ui/PressScale.tsx`
 - Modify: `apps/mobile/constants/motion.ts` (tres entradas con nombre)
 - Modify: `apps/mobile/app/(tabs)/request.tsx`, `app/(tabs)/prayer.tsx`, `app/feedback.tsx`, `components/SleepTimerModal.tsx`, `components/QualityModal.tsx`, `components/NotificationsModal.tsx` (adoptar el pressable)
 - Modify: `apps/mobile/app/(tabs)/social.tsx`, `app/(tabs)/schedule.tsx`, `app/(tabs)/prayer.tsx` (adoptar las entradas con nombre)
@@ -507,7 +507,7 @@ El usuario no recuerda una animación: la siente. Hoy la app habla con tres idio
 
 **Interfaces:**
 - Consumes: `constants/motion.ts` (existente), `hooks/useReducedMotion.ts` (existente).
-- Produces: `components/ui/PressableScale.tsx` con `PressableScale({ children, onPress, style, ... }: PressableProps)`, que escala a `0.97` al presionar y vuelve con `ease-out`; y en `constants/motion.ts`, tres entradas con nombre: `Motion.enterList` (elementos de una lista), `Motion.enterSheet` (una hoja) y `Motion.enterBlock` (un bloque de formulario).
+- Produces: `components/ui/PressScale.tsx` con `PressableScale({ children, onPress, style, ... }: PressableProps)`, que escala a `0.97` al presionar y vuelve con `ease-out`; y en `constants/motion.ts`, tres entradas con nombre: `Motion.enterList` (elementos de una lista), `Motion.enterSheet` (una hoja) y `Motion.enterBlock` (un bloque de formulario).
 
 - [ ] **Step 1: Escribe la prueba que falla**
 
@@ -524,7 +524,7 @@ const read = (file: string) => readFileSync(join(appRoot, file), 'utf8');
 
 describe('motion vocabulary', () => {
   it('has one pressable with a scale response', () => {
-    const pressable = read('components/ui/PressableScale.tsx');
+    const pressable = read('components/ui/PressScale.tsx');
 
     expect(pressable).toMatch(/0\.97/);
     expect(pressable).toMatch(/useReducedMotion/);
@@ -548,13 +548,13 @@ Expected: FAIL en las dos: no existe el pressable compartido y `social.tsx` toda
 
 - [ ] **Step 3: Crea el pressable y las entradas con nombre**
 
-Crea `components/ui/PressableScale.tsx`: un `Pressable` de Reanimated que, en `onPressIn`, lleva la escala a `0.97` con `withSpring`, y en `onPressOut` la devuelve a `1` con `withTiming` de 120 ms. Si `useReducedMotion()` es cierto, no escala: solo cambia la opacidad. Expone las mismas props que `Pressable` y acepta un `style` normal.
+Crea `components/ui/PressScale.tsx`: un `Pressable` de Reanimated que, en `onPressIn`, lleva la escala a `0.97` con `withSpring`, y en `onPressOut` la devuelve a `1` con `withTiming` de 120 ms. Si `useReducedMotion()` es cierto, no escala: solo cambia la opacidad. Expone las mismas props que `Pressable` y acepta un `style` normal.
 
 En `constants/motion.ts`, añade tres entradas construidas con los `Durations` y `Easings` que ya existen: `enterList` (un `FadeInDown` de 260 ms con retardo de 60 ms), `enterSheet` (un `FadeIn` de 220 ms) y `enterBlock` (un `FadeInDown` de 280 ms con retardo de 100 ms). No hay curvas nuevas: se usan `Easings.enter` y `Easings.exit`.
 
 - [ ] **Step 4: Adopta el pressable y las entradas**
 
-El `PressableScale` sustituye al `TouchableOpacity` con `activeOpacity` en los controles primarios: el botón de pedir de `request.tsx`, el botón de enviar de `prayer.tsx` y de `feedback.tsx`, y las filas de opción de `SleepTimerModal.tsx`, `QualityModal.tsx` y `NotificationsModal.tsx`. Un control con `activeOpacity` y sin escala convive con uno que escala, y el usuario nota la diferencia sin saber por qué.
+El `PressScale` sustituye al `TouchableOpacity` con `activeOpacity` en los controles primarios: el botón de pedir de `request.tsx`, el botón de enviar de `prayer.tsx` y de `feedback.tsx`, y las filas de opción de `SleepTimerModal.tsx`, `QualityModal.tsx` y `NotificationsModal.tsx`. Un control con `activeOpacity` y sin escala convive con uno que escala, y el usuario nota la diferencia sin saber por qué.
 
 `social.tsx`, `schedule.tsx` y `prayer.tsx` dejan de escribir `Easing.bezier(0.16, 1, 0.3, 1)` y `FadeInDown.delay(...)` a mano y usan `Motion.enterList`, `Motion.enterSheet` y `Motion.enterBlock` según el caso.
 
