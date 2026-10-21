@@ -40,7 +40,10 @@ export interface CatalogPage {
   /** The headline of the page. The document's `<h1>` reuses it. */
   readonly ogTitle: string;
   readonly jsonLd: string;
-  /** The inner HTML of `<main>`. */
+  /**
+   * The inner HTML of `<main>`, without the heading: the `<h1>` belongs to
+   * the document, so a consumer that renders the body alone has to add it.
+   */
   readonly body: string;
   /** "YYYY-MM-DD" */
   readonly lastmod: string;
@@ -138,6 +141,7 @@ function versesMarkup(verses: readonly CatalogVerse[]): string {
   return ['<div class="verses">', items, "</div>"].join("\n");
 }
 
+/** The list of every chapter of a book. It belongs to the page of the book. */
 function chaptersMarkup(book: CatalogBook, chapters: readonly CatalogChapter[]): string {
   const items = chapters
     .map(
@@ -155,11 +159,45 @@ function chaptersMarkup(book: CatalogBook, chapters: readonly CatalogChapter[]):
   ].join("\n");
 }
 
+/**
+ * The way out of a chapter: the previous chapter, the next one and the book.
+ *
+ * The whole list of the chapters of the book is not repeated here. It is
+ * quadratic in the length of the book (Salmos has 150 chapters) and the page of
+ * the book, one click away, already lists them.
+ */
+function siblingsMarkup(
+  book: CatalogBook,
+  chapter: CatalogChapter,
+  chapters: readonly CatalogChapter[],
+): string {
+  const index = chapters.findIndex((sibling) => sibling.number === chapter.number);
+  const previous = index > 0 ? chapters[index - 1] : undefined;
+  const next = index >= 0 ? chapters[index + 1] : undefined;
+  const links: string[] = [];
+  if (previous) {
+    links.push(
+      `<a class="previous" rel="prev" href="/biblia/${escapeHtml(book.slug)}/${previous.number}/">${escapeHtml(book.name)} ${previous.number}</a>`,
+    );
+  }
+  if (next) {
+    links.push(
+      `<a class="next" rel="next" href="/biblia/${escapeHtml(book.slug)}/${next.number}/">${escapeHtml(book.name)} ${next.number}</a>`,
+    );
+  }
+  if (links.length === 0) return "";
+  return [
+    `<nav class="siblings" aria-label="Capítulos de ${escapeHtml(book.name)}">`,
+    `  ${links.join("\n  ")}`,
+    "</nav>",
+  ].join("\n");
+}
+
 function chapterPage(
   catalog: Catalog,
   book: CatalogBook,
   chapter: CatalogChapter,
-  siblings: readonly CatalogChapter[],
+  chapters: readonly CatalogChapter[],
 ): CatalogPage {
   const path = `/biblia/${book.slug}/${chapter.number}/`;
   const bookPath = `/biblia/${book.slug}/`;
@@ -177,9 +215,11 @@ function chapterPage(
     `<p class="meta">Traducción: ${escapeHtml(catalog.translation.name)}</p>`,
     versesMarkup(chapter.verses),
     `<p class="book-link"><a href="${escapeHtml(bookPath)}">Ver el libro completo de ${escapeHtml(book.name)}</a></p>`,
-    chaptersMarkup(book, siblings),
+    siblingsMarkup(book, chapter, chapters),
     playerMarkup(),
-  ].join("\n");
+  ]
+    .filter((block) => block.length > 0)
+    .join("\n");
 
   return {
     path,
@@ -238,16 +278,12 @@ function bookPage(
       url: canonicalOf(path),
       inLanguage: "es-CO",
       isPartOf: [{ "@id": `${SITE_URL}/#website` }],
+      // The chapters are not repeated here: the body of the page links every
+      // one of them, and Salmos has 150 of them.
       mainEntity: {
         "@type": "Book",
         name: book.name,
         url: canonicalOf(path),
-        hasPart: chapters.map((chapter) => ({
-          "@type": "Chapter",
-          position: chapter.number,
-          name: `${book.name} ${chapter.number}`,
-          url: canonicalOf(`/biblia/${book.slug}/${chapter.number}/`),
-        })),
       },
     }),
     body,
@@ -283,7 +319,12 @@ function testamentMarkup(
 function bibleIndexPage(catalog: Catalog, chapterCount: number): CatalogPage {
   const path = "/biblia/";
   const books = [...catalog.books].sort((a, b) => a.order - b.order);
-  const title = `La Biblia en español | ${plural(books.length, "libro", "libros")} y ${plural(chapterCount, "capítulo", "capítulos")}`;
+  // The title has no tail to preserve, so the whole thing is shortened.
+  const title = fit(
+    `La Biblia en español | ${plural(books.length, "libro", "libros")} y ${plural(chapterCount, "capítulo", "capítulos")}`,
+    "",
+    MAX_TITLE_LENGTH,
+  );
   const description = fit(
     `La Biblia completa en español: ${plural(books.length, "libro", "libros")} y ${plural(chapterCount, "capítulo", "capítulos")} en la traducción ${catalog.translation.name}`,
     ", para leer y escuchar en vivo.",
@@ -342,7 +383,7 @@ function artistPage(catalog: Catalog, artist: CatalogArtist): CatalogPage {
     })
     .join("\n");
   const body = [
-    `<p class="meta">${plural(artist.songCount, "canción", "canciones")}</p>`,
+    `<p class="meta">${plural(artist.songs.length, "canción", "canciones")}</p>`,
     ['<ul class="songs">', songs, "</ul>"].join("\n"),
     `<p class="index-link"><a href="/alabanza/">Ver todos los artistas</a></p>`,
     playerMarkup(),
@@ -373,7 +414,10 @@ function artistPage(catalog: Catalog, artist: CatalogArtist): CatalogPage {
 function praiseIndexPage(catalog: Catalog): CatalogPage {
   const path = "/alabanza/";
   const title = "Alabanza y adoración | Canciones cristianas";
-  const songCount = catalog.artists.reduce((total, artist) => total + artist.songCount, 0);
+  const songCount = catalog.artists.reduce(
+    (total, artist) => total + artist.songs.length,
+    0,
+  );
   const description = fit(
     `El catálogo de ${plural(songCount, "canción", "canciones")} de alabanza y adoración de La Voz de la Verdad, agrupadas por artista`,
     ". Escúchalas en la radio en vivo.",
@@ -382,7 +426,7 @@ function praiseIndexPage(catalog: Catalog): CatalogPage {
   const artists = catalog.artists
     .map(
       (artist) =>
-        `<li><a href="/alabanza/${escapeHtml(artist.slug)}/">${escapeHtml(artist.name)}</a> <span class="count">${plural(artist.songCount, "canción", "canciones")}</span></li>`,
+        `<li><a href="/alabanza/${escapeHtml(artist.slug)}/">${escapeHtml(artist.name)}</a> <span class="count">${plural(artist.songs.length, "canción", "canciones")}</span></li>`,
     )
     .join("\n");
   const body = [

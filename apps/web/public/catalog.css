@@ -110,6 +110,20 @@ li {
   column-gap: 2rem;
 }
 
+.siblings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 1.75rem 0;
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--catalog-border);
+  border-bottom: 1px solid var(--catalog-border);
+}
+
+.siblings .next {
+  margin-left: auto;
+}
+
 .songs,
 .artists,
 .videos {

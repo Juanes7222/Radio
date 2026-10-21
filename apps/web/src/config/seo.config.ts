@@ -190,6 +190,9 @@ export interface PageMeta {
 /**
  * Core `<head>` tags for a page: identity plus the canonical that tells
  * search engines which of the four served hosts owns this URL.
+ *
+ * The JSON-LD is not part of it: the script is a separate region of the
+ * document and the caller writes it.
  */
 export function buildHeadTagsFor(page: PageMeta): string {
   return [
