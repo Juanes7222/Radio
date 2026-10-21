@@ -35,6 +35,7 @@ export const PUBLIC_ROUTES = [
   '/',
   '/programacion',
   '/opiniones',
+  '/lectura-de-hoy',
   '/info/who-we-are',
   '/info/privacy',
   '/info/terms',
@@ -88,6 +89,15 @@ export const ROUTE_META: Readonly<Record<PublicRoute, RouteMeta>> = {
     ogTitle: 'Opiniones y sugerencias | La Voz de la Verdad',
     priority: 0.7,
     changefreq: 'monthly',
+  },
+  '/lectura-de-hoy': {
+    kind: 'schedule',
+    title: 'Lectura bíblica de hoy | La Voz de la Verdad',
+    description:
+      'Los capítulos de la Biblia que se leen hoy en La Voz de la Verdad, con el enlace al texto completo de cada capítulo y la radio en vivo.',
+    ogTitle: 'Lectura bíblica de hoy',
+    priority: 0.7,
+    changefreq: 'daily',
   },
   '/info/who-we-are': {
     kind: 'about',

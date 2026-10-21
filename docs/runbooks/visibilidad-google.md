@@ -87,7 +87,7 @@ Google toma el canonical tal cual, con barra.
    lo encuentra por su cuenta. Enviarlo a mano solo acelera el primer rastreo.
 
 El sitemap lo escribe la compilación del sitio y lo publica el despliegue.
-Contiene las ocho rutas públicas y todas las páginas generadas (libros,
+Contiene las nueve rutas públicas y todas las páginas generadas (libros,
 capítulos, artistas, videos). No hay que enviar nada más: las páginas
 generadas entran por el sitemap, no una por una.
 
@@ -140,14 +140,15 @@ la portada para todo el sitio.
 
 ---
 
-## 3. Pedir la reindexación de las ocho rutas públicas
+## 3. Pedir la reindexación de las nueve rutas públicas
 
-Las ocho rutas con canonical son estas, **con barra final**:
+Las nueve rutas con canonical son estas, **con barra final**:
 
 ```
 https://lavozverdad.com/
 https://lavozverdad.com/programacion/
 https://lavozverdad.com/opiniones/
+https://lavozverdad.com/lectura-de-hoy/
 https://lavozverdad.com/info/who-we-are/
 https://lavozverdad.com/info/privacy/
 https://lavozverdad.com/info/terms/
@@ -178,7 +179,7 @@ búsquedas: es normal, no es un error del sitio. Comprobar el estado en
   diaria de peticiones de indexación.
 - No pedir una por una las páginas generadas (los capítulos de la Biblia,
   los artistas, los videos): hay cientos y para eso está el sitemap. La
-  cuota diaria de peticiones se gasta mejor en las ocho rutas.
+  cuota diaria de peticiones se gasta mejor en las nueve rutas.
 
 ---
 
