@@ -110,11 +110,13 @@ rows are behind `requireAuth` and the AzuraCast API key. So the data comes
 in two halves:
 
 **Half one, in the backend: an export script.** A script in the backend
-(`backend/scripts/export-catalog.ts`) uses the same services the backend
-already has — `azuracastApi` for the playlist items, Prisma for
-`PlaybackEvent` and `YouTubeVideo`, the Bible tables for the chapters — and
-writes one JSON artifact (`backend/data/catalog.json`). It is the only place
-that needs a secret, and it produces a file that can be reviewed in a diff.
+(`backend/src/scripts/export-catalog.ts`) uses the same services the backend
+already has — `azuracastApi` for the requestable songs, Prisma for the Bible
+tables and the YouTube rows — and writes one JSON artifact
+(`apps/web/catalog/catalog.json`). It is the only place that needs a secret,
+and it produces a file that can be reviewed in a diff. The artifact owns the
+slugs: the book and the artist slugs are computed there, with the backend's
+`slugify`, and the web build reads them instead of deriving its own.
 
 **Half two, in the web build: the page generator.** The build reads that
 JSON and writes the pages. It needs no credentials and no running backend,

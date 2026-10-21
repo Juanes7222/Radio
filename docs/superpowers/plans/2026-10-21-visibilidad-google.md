@@ -360,11 +360,13 @@ import { initializeInfisicalSecrets } from "@radio/infisical-config";
 async function main(): Promise<void> {
   await initializeInfisicalSecrets();
   const { exportCatalog } = await import("../modules/catalog/catalog.service");
-  const target = process.argv[2] ?? "../../apps/web/catalog/catalog.json";
+  const target = process.argv[2] ?? path.resolve(__dirname, "../../../apps/web/catalog/catalog.json");
   const counts = await exportCatalog(target);
   console.log(`[catalog] books=${counts.books} chapters=${counts.chapters} artists=${counts.artists} videos=${counts.videos}`);
 }
 ```
+
+The default target is resolved from `__dirname`, not from the process working directory: the script lives in `backend/src/scripts`, so `../../../apps/web/catalog/catalog.json` is the repository's `apps/web/catalog/catalog.json`, which is the same file the web plugin reads. A path relative to the cwd would put the artifact outside the repository, because the deploy runs the script with `backend/` as the cwd.
 
 - [ ] **Step 7: Add the script to `backend/package.json`**
 
