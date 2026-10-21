@@ -24,6 +24,7 @@ import Animated, {
 import { useEffect, useState } from 'react';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { usePrayerAnswers } from '@/hooks/usePrayerAnswers';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Colors, Radii, Typography } from '@/constants/theme';
 import { Durations, Easings, Spring } from '@/constants/motion';
 
@@ -106,13 +107,7 @@ const TAB_BAR_LABEL_ROOM = 24;
 
 function LiveDot() {
   const progress = useSharedValue(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled?.()
-      ?.then((enabled: boolean) => setReduceMotion(!!enabled))
-      .catch(() => {});
-  }, []);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (reduceMotion) return;

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { View, StyleSheet, AppState, AccessibilityInfo } from 'react-native';
+import { View, StyleSheet, AppState } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -17,6 +17,7 @@ import Svg, { Circle, Defs, RadialGradient, LinearGradient, Stop } from 'react-n
 import { Colors, Shadows } from '@/constants/theme';
 import { clamp } from '@/lib/responsive';
 import { Motion, Spring } from '@/constants/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import DefaultAlbumArt from '../../assets/default-album-art.png';
 
 interface DialVivoProps {
@@ -45,17 +46,11 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size, progress, s
   const ringProgress = useSharedValue(0);
   const lastSongIdRef = useRef<number | null>(null);
 
+  const reduced = useReducedMotion();
+
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled?.().then((v) => {
-      reduceMotion.value = !!v;
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sub = (AccessibilityInfo.addEventListener as any)?.('reduceMotionChanged', (v: boolean) => {
-      reduceMotion.value = v;
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return () => (sub as any)?.remove?.();
-  }, [reduceMotion]);
+    reduceMotion.value = reduced;
+  }, [reduced, reduceMotion]);
 
   // Scale spring on playing state
   useEffect(() => {

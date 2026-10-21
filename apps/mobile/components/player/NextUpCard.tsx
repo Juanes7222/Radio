@@ -1,11 +1,12 @@
-import { memo, useEffect, useState } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
+import { memo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import TextTicker from 'react-native-text-ticker';
 import Animated, { FadeInDown, FadeOut, Easing } from 'react-native-reanimated';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { formatMediaTitle } from '@/lib/formatMedia';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface NextUpCardProps {
   song: { title: string; artist: string };
@@ -16,13 +17,7 @@ interface NextUpCardProps {
 }
 
 function NextUpCardImpl({ song, art, active = true }: NextUpCardProps) {
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled?.()
-      ?.then((enabled: boolean) => setReduceMotion(!!enabled))
-      .catch(() => {});
-  }, []);
+  const reduceMotion = useReducedMotion();
 
   const { artist, title } = formatMediaTitle(song.title, song.artist);
 
