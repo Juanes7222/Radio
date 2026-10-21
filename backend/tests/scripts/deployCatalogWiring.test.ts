@@ -12,18 +12,78 @@ const PRISMA_GENERATE = "run prisma:generate";
 const CATALOG_EXPORT = "run catalog:export";
 const WEB_BUILD = '--filter "$WEB_PACKAGE" run build';
 
-/** The `if` blocks the line at `index` sits inside, from the outermost in. */
-function blocksAround(index: number): string[] {
-  const stack: string[] = [];
-  for (let i = 0; i <= index; i++) {
-    const line = lines[i]?.trim() ?? "";
-    if (line.startsWith("if ") && line.endsWith("then")) {
-      stack.push(line);
-    } else if (line === "fi" || line.startsWith("fi ")) {
-      stack.pop();
+interface Scan {
+  readonly openers: number;
+  readonly closers: number;
+  readonly stack: string[];
+}
+
+/**
+ * The code of a line, without the parts inside a single-quoted string.
+ *
+ * The deploy embeds a node script in a single-quoted argument, and that
+ * script carries `if` and `fi` of its own. Counting them would open and close
+ * blocks that do not exist.
+ */
+function codeOutsideStrings(line: string, state: { inString: boolean }): string {
+  let code = "";
+  for (const char of line) {
+    if (char === "'") {
+      state.inString = !state.inString;
+    } else if (!state.inString) {
+      code += char;
     }
   }
-  return stack;
+  return code.trim();
+}
+
+/**
+ * Walks the script and keeps the stack of the `if` blocks that are open.
+ *
+ * A block can be opened with the `then` on its own line, which is what the
+ * audit block does, so the opener waits for its `then`.
+ */
+function scan(upToLine: number): Scan {
+  const state = { inString: false };
+  const stack: string[] = [];
+  let openers = 0;
+  let closers = 0;
+  let pending: string | null = null;
+
+  for (let i = 0; i <= upToLine; i++) {
+    const code = codeOutsideStrings(lines[i] ?? "", state);
+
+    if (code === "then") {
+      if (pending !== null) {
+        stack.push(pending);
+        openers++;
+        pending = null;
+      }
+      continue;
+    }
+
+    if (code.startsWith("if ")) {
+      if (code.endsWith("then")) {
+        stack.push(code);
+        openers++;
+      } else {
+        pending = code;
+      }
+      continue;
+    }
+
+    if (code === "fi" || code.startsWith("fi ")) {
+      stack.pop();
+      closers++;
+    }
+  }
+
+  return { openers, closers, stack };
+}
+
+/** The `if` blocks the line at `index` sits inside, from the outermost in. */
+function blocksAround(index: number): string[] {
+  return scan(index).stack;
 }
 
 function lineOf(fragment: string): number {
@@ -33,6 +93,13 @@ function lineOf(fragment: string): number {
 }
 
 describe("the deploy wiring of the catalog export", () => {
+  it("reads every block of the script, with the `then` on its own line", () => {
+    const whole = scan(lines.length - 1);
+
+    expect(whole.openers).toBe(whole.closers);
+    expect(whole.stack).toEqual([]);
+  });
+
   it("runs the export in the frontend path, right before the web build", () => {
     const exportLine = lineOf(CATALOG_EXPORT);
 

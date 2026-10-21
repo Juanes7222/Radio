@@ -1,9 +1,15 @@
+import os from "os";
+import path from "path";
 import { describe, expect, it } from "vitest";
 import {
   buildCatalogBooks,
+  defaultCatalogPath,
   groupSongsByArtist,
   uniqueSlugs,
 } from "../../src/modules/catalog/catalog.service";
+
+/** The root of the repository, from the location of this test. */
+const repoRoot = path.resolve(__dirname, "..", "..", "..");
 
 describe("groupSongsByArtist", () => {
   it("groups the songs of an artist and sorts them by title", () => {
@@ -81,5 +87,26 @@ describe("buildCatalogBooks", () => {
     ]);
     expect(books.map((book) => book.slug)).toEqual(["job"]);
     expect(books[0]?.chapterCount).toBe(2);
+  });
+});
+
+describe("defaultCatalogPath", () => {
+  it("points at the artifact of the web app, inside the repository", () => {
+    const resolved = defaultCatalogPath();
+
+    expect(resolved.endsWith(path.join("apps", "web", "catalog", "catalog.json"))).toBe(true);
+    expect(resolved.startsWith(repoRoot + path.sep)).toBe(true);
+  });
+
+  it("does not depend on the working directory", () => {
+    const before = defaultCatalogPath();
+    const originalCwd = process.cwd();
+
+    try {
+      process.chdir(os.tmpdir());
+      expect(defaultCatalogPath()).toBe(before);
+    } finally {
+      process.chdir(originalCwd);
+    }
   });
 });

@@ -13,8 +13,8 @@ async function main(): Promise<void> {
   await initializeInfisicalSecrets();
 
   try {
-    const { exportCatalog } = await import("../modules/catalog/catalog.service");
-    const target = process.argv[2] ?? "../../apps/web/catalog/catalog.json";
+    const { exportCatalog, defaultCatalogPath } = await import("../modules/catalog/catalog.service");
+    const target = process.argv[2] ?? defaultCatalogPath();
     const counts = await exportCatalog(target);
     console.log(
       `[catalog] books=${counts.books} chapters=${counts.chapters} artists=${counts.artists} videos=${counts.videos}`

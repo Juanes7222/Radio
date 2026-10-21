@@ -130,6 +130,18 @@ export function buildCatalogBooks(
 }
 
 /**
+ * Where the artifact lives when the caller does not say otherwise.
+ *
+ * The path is resolved from the location of this file and not from the
+ * working directory: the deploy runs the export with the backend as the
+ * working directory, and a relative path resolved from there lands outside
+ * the repository, where the web build never looks.
+ */
+export function defaultCatalogPath(): string {
+  return path.resolve(__dirname, "../../../../apps/web/catalog/catalog.json");
+}
+
+/**
  * Writes the catalog the web build reads.
  *
  * Everything is read before anything is written, so a failure leaves the
