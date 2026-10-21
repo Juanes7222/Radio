@@ -26,13 +26,11 @@ import { ShimmerBox } from '@/components/ui/Shimmer';
 import { ConnectingDial } from '@/components/player/ConnectingDial';
 import { DialVivo } from '@/components/player/DialVivo';
 import { PlayerControls } from '@/components/PlayerControls';
-import { SleepTimerModal } from '@/components/SleepTimerModal';
 import { FacebookLivePlayer } from '@/components/FacebookLivePlayer';
 import { BiblePanel } from '@/components/bible/BiblePanel';
-import { NotificationsModal } from '@/components/NotificationsModal';
 import { ConnectionBanner } from '@/components/player/ConnectionBanner';
 import { PlayerTopBar } from '@/components/player/PlayerTopBar';
-import { QualityModal } from '@/components/QualityModal';
+import { ListeningOptionsSheet } from '@/components/player/ListeningOptionsSheet';
 import { useStreamQuality } from '@/hooks/useStreamQuality';
 import type { StreamQuality } from '@radio/types';
 // Recordatorios deshabilitados temporalmente - codigo conservado en components/player/ReminderBanner.tsx
@@ -171,9 +169,8 @@ export default function PlayerScreen() {
 
 const [showBible, setShowBible] = useState(false);
   const [hasOpenedBible, setHasOpenedBible] = useState(false);
-  const [showSleepMenu, setShowSleepMenu] = useState(false);
-  const [showNotifyMenu, setShowNotifyMenu] = useState(false);
   const [showAlarmMenu, setShowAlarmMenu] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
 
   useEffect(() => {
     if (showBible) {
@@ -231,10 +228,6 @@ const [showBible, setShowBible] = useState(false);
 
   // Recordatorios deshabilitados - hook conservado en hooks/useNotificationReminder.ts
   // const { showReminder, dismissReminder, dismissReminderForever } = useNotificationReminder();
-  const [showTooltip, setShowTooltip] = useState(false);
-
-  // const handleDismissReminder = useCallback(() => { dismissReminder(); setShowTooltip(true); setTimeout(() => setShowTooltip(false), 4000); }, [dismissReminder]);
-
   const listenersCount = data?.listeners?.current ?? 0;
 
   // The now-playing poll hands back a fresh object every cycle, so NextUpCard
@@ -258,8 +251,6 @@ const [showBible, setShowBible] = useState(false);
     await Share.share({ message });
   }, [title, artist]);
 
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
-
   const wasPlayingRef = useRef(false);
   useEffect(() => {
     wasPlayingRef.current = isPlaying;
@@ -279,7 +270,7 @@ const [showBible, setShowBible] = useState(false);
   const handleQualitySelect = useCallback(
     (next: StreamQuality) => {
       setQuality(next);
-      setShowQualityMenu(false);
+      setShowOptions(false);
     },
     [setQuality],
   );
@@ -397,18 +388,8 @@ const [showBible, setShowBible] = useState(false);
       >
         <View style={[styles.topSection, { paddingTop: insets.top + Spacing.sm }]}>
           <PlayerTopBar
-            notifyEnabled={notifyEnabled}
-            sleepTimerActive={sleepTimer.isActive}
-            showTooltip={showTooltip}
             listenersCount={listenersCount}
-            quality={quality}
-            onOpenNotifications={() => {
-              setShowTooltip(false);
-              setShowNotifyMenu(true);
-            }}
-            onOpenSleepTimer={() => setShowSleepMenu(true)}
-            onOpenAlarm={() => setShowAlarmMenu(true)}
-            onOpenQuality={() => setShowQualityMenu(true)}
+            onOpenOptions={() => setShowOptions(true)}
           />
 
           <View>
@@ -465,7 +446,7 @@ const [showBible, setShowBible] = useState(false);
               // `isActive` guarantees endTime is set; the bubble only mounts then.
               endTime={sleepTimer.endTime!}
               totalSeconds={sleepTimer.totalSeconds}
-              onPress={() => setShowSleepMenu(true)}
+              onPress={() => setShowOptions(true)}
               onCancel={sleepTimer.cancel}
             />
           )}
@@ -500,26 +481,29 @@ const [showBible, setShowBible] = useState(false);
         />
       </View>
 
-      <SleepTimerModal
-        visible={showSleepMenu}
-        isTimerActive={sleepTimer.isActive}
-        onClose={() => setShowSleepMenu(false)}
+      <ListeningOptionsSheet
+        visible={showOptions}
+        onClose={() => setShowOptions(false)}
+        notifyEnabled={notifyEnabled}
+        onToggleCurrent={handleToggleNotify}
+        currentSongTitle={title}
+        exactAlarmGranted={exactAlarmGranted}
+        timerEndTime={sleepTimer.endTime}
         onSelectPreset={(minutes) => {
           sleepTimer.start(minutes);
-          setShowSleepMenu(false);
+          setShowOptions(false);
         }}
-        onCancel={() => {
+        onCancelTimer={() => {
           sleepTimer.cancel();
-          setShowSleepMenu(false);
+          setShowOptions(false);
         }}
-      />
-
-      <QualityModal
-        visible={showQualityMenu}
-        currentQuality={quality}
+        quality={quality}
         availableQualities={availableQualities.length > 0 ? availableQualities : ['128']}
-        onClose={() => setShowQualityMenu(false)}
-        onSelect={handleQualitySelect}
+        onSelectQuality={handleQualitySelect}
+        onOpenAlarms={() => {
+          setShowOptions(false);
+          setShowAlarmMenu(true);
+        }}
       />
 
       <AlarmModal
@@ -530,15 +514,6 @@ const [showBible, setShowBible] = useState(false);
         onUpdate={updateAlarm}
         onRemove={removeAlarm}
         onToggle={toggleAlarm}
-      />
-
-      <NotificationsModal
-        visible={showNotifyMenu}
-        onClose={() => setShowNotifyMenu(false)}
-        notifyEnabled={notifyEnabled}
-        onToggleCurrent={handleToggleNotify}
-        currentSongTitle={title}
-        exactAlarmGranted={exactAlarmGranted}
       />
 
       {hasOpenedBible && (
