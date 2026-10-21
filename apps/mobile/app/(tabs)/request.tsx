@@ -35,6 +35,7 @@ import { useResponsive } from '@/lib/responsive';
 import { ShimmerBox } from '@/components/ui/Shimmer';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Snackbar } from '@/components/ui/Snackbar';
+import { PressableScale } from '@/components/ui/PressableScale';
 
 const PAGE_SIZE = 25;
 const CACHE_KEY = 'requestable_songs_cache_v2';
@@ -59,8 +60,6 @@ type SongRowProps = {
   onRequest: (item: SongRequest) => void;
 };
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 const SongRow = memo(function SongRow({
   item,
   isSent,
@@ -72,15 +71,6 @@ const SongRow = memo(function SongRow({
     item.song.artist,
   );
 
-  // This list is a FlashList, so per-row `entering` animations are out — cells
-  // get recycled and the entrance would re-fire as a flicker while scrolling.
-  // Press feedback is safe: it only runs on a real touch.
-  const pressed = useSharedValue(0);
-  const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 - pressed.value * 0.02 }],
-    opacity: 1 - pressed.value * 0.06,
-  }));
-
   const [btnScale, setBtnScale] = useState(1);
   useEffect(() => {
     setBtnScale(isSent ? 1.06 : 1);
@@ -90,7 +80,7 @@ const SongRow = memo(function SongRow({
   const artSize = scale(50);
 
   return (
-    <Animated.View style={[styles.row, pressStyle]}>
+    <Animated.View style={styles.row}>
       {item.song.art ? (
         <Image
           source={{ uri: item.song.art }}
@@ -110,16 +100,13 @@ const SongRow = memo(function SongRow({
         ) : null}
       </View>
 
-      <AnimatedPressable
+      <PressableScale
         onPress={() => {
           Haptics.selectionAsync().catch(() => {});
           onRequest(item);
         }}
-        onPressIn={() => { pressed.value = withTiming(1, { duration: Durations.instant }); }}
-        onPressOut={() => { pressed.value = withTiming(0, { duration: Durations.fast }); }}
         disabled={isSent || isRequesting}
         style={[styles.btn, isSent && styles.btnSent, { transform: [{ scale: btnScale }] }]}
-        hitSlop={{ top: 4, bottom: 4 }}
         accessibilityRole="button"
         accessibilityLabel={isSent ? `Pedida: ${title}` : `Pedir ${title}`}
         accessibilityState={{ disabled: isSent || isRequesting }}
@@ -133,7 +120,7 @@ const SongRow = memo(function SongRow({
         ) : (
           <Text style={styles.btnText}>Pedir</Text>
         )}
-      </AnimatedPressable>
+      </PressableScale>
     </Animated.View>
   );
 });

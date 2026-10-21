@@ -12,6 +12,7 @@ import { BACKEND_URL } from '@/constants/api';
 import { Colors, Typography } from '@/constants/theme';
 import { PressScale } from '@/components/ui/PressScale';
 import { Spring } from '@/constants/motion';
+import { Entrances } from '@/constants/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { formatScheduleTime, getBogotaDayOfWeek } from '@/lib/time';
 import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
@@ -321,7 +322,7 @@ function ScheduleSectionView({
 
       {!collapsed && (
         <Animated.View
-          entering={FadeIn.duration(220).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          entering={Entrances.enterSheet()}
           exiting={FadeOut.duration(180).easing(Easing.bezier(0.4, 0, 1, 1))}
           style={styles.sectionRows}
         >
@@ -586,7 +587,7 @@ export default function ScheduleScreen() {
           {[0,1,2,3].map((i) => (
             <Animated.View
               key={i}
-              entering={FadeInDown.delay(i * 60).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+              entering={Entrances.enterList(i * 60)}
             >
               <View style={[styles.rowCard, { opacity: 0.9 - i*0.08 }]}>
                 <ShimmerBox style={[styles.rowDot, { backgroundColor: Colors.surfaceElevated }]} borderRadius={5} />
@@ -683,7 +684,7 @@ export default function ScheduleScreen() {
           {DAYS.map((day, i) => (
             <Animated.View
               key={day}
-              entering={FadeInDown.delay(Math.min(i * 28, 160)).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+              entering={Entrances.enterList(Math.min(i * 28, 160))}
               layout={LinearTransition.duration(200)}
             >
               <TouchableOpacity

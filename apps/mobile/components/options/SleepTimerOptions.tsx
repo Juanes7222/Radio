@@ -1,4 +1,5 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import * as Haptics from 'expo-haptics';
 import { SLEEP_PRESETS } from '@/hooks/useSleepTimer';
 import { Colors, Spacing, Typography } from '@/constants/theme';
@@ -20,10 +21,9 @@ export function SleepTimerOptions({
     <View>
       <View style={styles.options}>
         {SLEEP_PRESETS.map((minutes) => (
-          <TouchableOpacity
+          <PressableScale
             key={minutes}
             style={styles.option}
-            activeOpacity={0.85}
             onPress={() => {
               Haptics.selectionAsync().catch(() => {});
               onSelectPreset(minutes);
@@ -33,7 +33,7 @@ export function SleepTimerOptions({
             <Text style={styles.optionHint}>
               {minutes === 15 ? 'Siesta' : minutes === 30 ? 'Prédica' : minutes === 60 ? 'Noche' : 'Descanso'}
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         ))}
       </View>
 
@@ -44,16 +44,15 @@ export function SleepTimerOptions({
       )}
 
       {isActive && (
-        <TouchableOpacity
+        <PressableScale
           style={[styles.option, styles.cancelOption]}
-          activeOpacity={0.85}
           onPress={() => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
             onCancel();
           }}
         >
           <Text style={[styles.optionText, { color: Colors.warning }]}>Cancelar temporizador</Text>
-        </TouchableOpacity>
+        </PressableScale>
       )}
     </View>
   );

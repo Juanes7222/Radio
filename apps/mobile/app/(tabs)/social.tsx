@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { WEB_URL } from '@/constants/api';
 import { LEGAL_DOCUMENTS, legalUrl } from '@/constants/legalDocuments';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { Entrances } from '@/constants/motion';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { openExternalUrl } from '@/lib/externalLinks';
@@ -95,14 +96,14 @@ export default function StationScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeInDown.delay(40).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+        <Animated.View entering={Entrances.enterBlock(40)}>
           <ScreenHeader
             title="La estación"
             subtitle="Redes sociales, sitio web y documentos legales."
           />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(80).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+        <Animated.View entering={Entrances.enterBlock(80)}>
           <TouchableOpacity
             style={styles.webCard}
             activeOpacity={0.85}
@@ -128,7 +129,7 @@ export default function StationScreen() {
 
         {/* Banner live */}
         {liveUrl && (
-          <Animated.View entering={FadeInDown.delay(120).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+          <Animated.View entering={Entrances.enterBlock(120)}>
             <TouchableOpacity
               style={styles.liveBanner}
               activeOpacity={0.85}
@@ -153,7 +154,7 @@ export default function StationScreen() {
           {socialLinks.map((link, idx) => (
             <Animated.View
               key={link.id}
-              entering={FadeInDown.delay(160 + idx * 40).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+              entering={Entrances.enterList(160 + idx * 40)}
             >
               <TouchableOpacity
                 style={[styles.linkCard, link.isLive && styles.linkCardLive]}
@@ -181,7 +182,7 @@ export default function StationScreen() {
           ))}
         </View>
 
-        <Animated.View entering={FadeInDown.delay(300).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+        <Animated.View entering={Entrances.enterBlock(300)}>
           <TouchableOpacity
             style={styles.writeCard}
             activeOpacity={0.85}
@@ -207,7 +208,7 @@ export default function StationScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(320).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+        <Animated.View entering={Entrances.enterBlock(320)}>
           <View style={styles.legalPanel}>
             <View style={styles.legalHeader}>
               <Text style={styles.legalSectionLabel}>Documentos legales</Text>

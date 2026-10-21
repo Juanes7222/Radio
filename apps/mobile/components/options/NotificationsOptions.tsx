@@ -10,6 +10,7 @@ import {
   Alert,
   Linking,
 } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
@@ -78,7 +79,7 @@ export function NotificationsOptions({
               Las alertas pueden llegar con retraso. Activa "Alarmas y recordatorios" para hora exacta.
             </Text>
           </View>
-          <TouchableOpacity
+          <PressableScale
             onPress={() => {
               Haptics.selectionAsync().catch(() => {});
               openExactAlarmSettings();
@@ -86,7 +87,7 @@ export function NotificationsOptions({
             style={styles.exactAlarmButton}
           >
             <Text style={styles.exactAlarmButtonText}>Activar</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       )}
 
@@ -118,29 +119,27 @@ export function NotificationsOptions({
           <Text style={styles.sectionTitle}>Programas</Text>
           {programs.length > 0 && (
             <View style={styles.bulkActions}>
-              <TouchableOpacity
+              <PressableScale
                 onPress={() => {
                   Haptics.selectionAsync().catch(() => {});
                   void requestNotificationAccess();
                   subscribeAll(programs);
                 }}
                 style={styles.bulkAction}
-                activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel="Suscribirse a todos los programas"
               >
                 <Text style={styles.bulkText}>Todas</Text>
-              </TouchableOpacity>
+              </PressableScale>
               <Text style={styles.bulkSeparator}>·</Text>
-              <TouchableOpacity
+              <PressableScale
                 onPress={() => { Haptics.selectionAsync().catch(() => {}); unsubscribeAll(); }}
                 style={styles.bulkAction}
-                activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel="Desuscribirse de todos los programas"
               >
                 <Text style={styles.bulkText}>Ninguna</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </View>
           )}
         </View>

@@ -35,6 +35,7 @@ import { BACKEND_URL } from '@/constants/api';
 import { legalUrl } from '@/constants/legalDocuments';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { Durations, Easings, Spring } from '@/constants/motion';
+import { Entrances } from '@/constants/motion';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useDailyVerse } from '@/hooks/useDailyVerse';
 import { getDeviceId } from '@/lib/device';
@@ -197,7 +198,7 @@ export default function PrayerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View
-          entering={FadeInDown.duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          entering={Entrances.enterBlock()}
           style={styles.header}
         >
           <ScreenHeader
@@ -264,7 +265,7 @@ export default function PrayerScreen() {
             </Animated.View>
           </Animated.View>
         ) : (
-          <Animated.View entering={FadeInDown.delay(100).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))} style={styles.form}>
+          <Animated.View entering={Entrances.enterBlock(100)} style={styles.form}>
             <View style={styles.field}>
               <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Nombre</Text>
               <TextInput

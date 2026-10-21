@@ -1,4 +1,5 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import type { StreamQuality } from '@radio/types';
@@ -24,10 +25,9 @@ export function QualityOptions({ currentQuality, availableQualities, onSelect }:
       {availableQualities.map((quality) => {
         const isActive = quality === currentQuality;
         return (
-          <TouchableOpacity
+          <PressableScale
             key={quality}
             style={[styles.option, isActive && styles.optionActive]}
-            activeOpacity={0.85}
             onPress={() => {
               Haptics.selectionAsync().catch(() => {});
               onSelect(quality);
@@ -37,7 +37,7 @@ export function QualityOptions({ currentQuality, availableQualities, onSelect }:
               {QUALITY_LABELS[quality]}
             </Text>
             {isActive && <Ionicons name="checkmark" size={18} color={Colors.signal} />}
-          </TouchableOpacity>
+          </PressableScale>
         );
       })}
     </View>
