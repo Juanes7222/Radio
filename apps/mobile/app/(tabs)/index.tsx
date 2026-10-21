@@ -399,7 +399,6 @@ const [showBible, setShowBible] = useState(false);
           <PlayerTopBar
             notifyEnabled={notifyEnabled}
             sleepTimerActive={sleepTimer.isActive}
-            sleepTimerDisplay={sleepTimer.display}
             showTooltip={showTooltip}
             listenersCount={listenersCount}
             quality={quality}
@@ -463,8 +462,9 @@ const [showBible, setShowBible] = useState(false);
 
           {sleepTimer.isActive && (
             <SleepTimerBubble
-              display={sleepTimer.display}
-              progress={sleepTimer.progress}
+              // `isActive` guarantees endTime is set; the bubble only mounts then.
+              endTime={sleepTimer.endTime!}
+              totalSeconds={sleepTimer.totalSeconds}
               onPress={() => setShowSleepMenu(true)}
               onCancel={sleepTimer.cancel}
             />

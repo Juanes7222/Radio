@@ -21,7 +21,6 @@ const LIVE_BADGE_LISTENERS_MIN_WIDTH = 430;
 interface PlayerTopBarProps {
   notifyEnabled: boolean;
   sleepTimerActive: boolean;
-  sleepTimerDisplay: string;
   showTooltip: boolean;
   listenersCount: number;
   quality: StreamQuality | null;
@@ -58,7 +57,6 @@ function useTopBarMetrics(): TopBarMetrics {
 export function PlayerTopBar({
   notifyEnabled,
   sleepTimerActive,
-  sleepTimerDisplay,
   showTooltip,
   listenersCount,
   quality,
@@ -131,7 +129,9 @@ export function PlayerTopBar({
           onPress={onOpenSleepTimer}
           style={[styles.iconButton, sleepTimerActive && styles.iconButtonActive]}
           activeOpacity={0.7}
-          accessibilityLabel={sleepTimerActive ? `Temporizador de apagado activo, ${sleepTimerDisplay}` : 'Temporizador de apagado'}
+          accessibilityLabel={
+            sleepTimerActive ? 'Temporizador de apagado activo' : 'Temporizador de apagado'
+          }
           accessibilityRole="button"
           accessibilityState={{ selected: sleepTimerActive }}
         >
@@ -140,7 +140,6 @@ export function PlayerTopBar({
             size={metrics.glyphSize}
             color={sleepTimerActive ? Colors.warning : Colors.textFaint}
           />
-          {sleepTimerActive && <Text style={styles.timerBadge}>{sleepTimerDisplay}</Text>}
         </TouchableOpacity>
       </View>
     </View>

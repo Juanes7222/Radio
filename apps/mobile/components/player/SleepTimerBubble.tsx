@@ -1,4 +1,4 @@
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -27,10 +27,9 @@ const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 interface SleepTimerBubbleProps {
-  /** "mm:ss" */
-  display: string;
-  /** 1 = full preset remaining, 0 = about to expire. Null omits the arc. */
-  progress: number | null;
+  endTime: number;
+  /** Duración original del preset en segundos; null omite el arco. */
+  totalSeconds: number | null;
   onPress: () => void;
   onCancel: () => void;
 }
@@ -38,21 +37,50 @@ interface SleepTimerBubbleProps {
 /**
  * Sleep timer as a single object instead of a text row.
  *
+ * The countdown lives here, in its own one-second interval and state, so the
+ * player screen does not re-render every tick. The hook only keeps the end
+ * time and stops the music when the timer runs out, even when this bubble is
+ * not mounted.
+ *
  * The ring is the point: `progress` is the fraction of the chosen preset still
  * left, so the object answers "how much longer" without reading the digits.
- * The clock only refreshes every 5s, so each step is eased over `Durations.fast`
- * to hide the polling granularity the same way DialVivo eases its progress ring.
- *
  * Tapping the bubble opens the preset sheet; the trailing control cancels in
  * one tap, so nothing the previous row offered is lost.
  */
 function SleepTimerBubbleImpl({
-  display,
-  progress,
+  endTime,
+  totalSeconds,
   onPress,
   onCancel,
 }: SleepTimerBubbleProps) {
   const reduceMotion = useReducedMotion();
+  const [remaining, setRemaining] = useState<number | null>(() =>
+    Math.max(0, Math.ceil((endTime - Date.now()) / 1000))
+  );
+
+  // Cuenta atrás propia de un segundo. El hook no toca el estado, así que
+  // la pantalla del reproductor no se vuelve a renderizar cada segundo.
+  useEffect(() => {
+    const tick = () => {
+      setRemaining(Math.max(0, Math.ceil((endTime - Date.now()) / 1000)));
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [endTime]);
+
+  if (remaining === null || remaining <= 0) {
+    return null;
+  }
+
+  const display =
+    `${String(Math.floor(remaining / 60)).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`;
+
+  const progress =
+    totalSeconds === null || totalSeconds <= 0
+      ? null
+      : Math.min(1, Math.max(0, remaining / totalSeconds));
 
   const arc = useSharedValue(progress ?? 0);
   const halo = useSharedValue(0);
