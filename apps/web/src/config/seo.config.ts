@@ -3,9 +3,9 @@
  *
  * Consumed by three places, which is exactly why the values live here and
  * nowhere else:
- *   - `vite.config.ts` (`writeBundle`) bakes a per-route `<head>` into
+ *   - `vite/seoPlugin.ts` (`writeBundle`) bakes a per-route `<head>` into
  *     dist/<route>/index.html, so every public URL ships its own metadata.
- *   - `vite.config.ts` (`transformIndexHtml`) keeps `vite dev` consistent.
+ *   - `vite/seoPlugin.ts` (`transformIndexHtml`) keeps `vite dev` consistent.
  *   - `PublicLayout` syncs the same tags on client-side navigation, so a link
  *     shared after navigating inside the SPA is not mislabelled.
  *

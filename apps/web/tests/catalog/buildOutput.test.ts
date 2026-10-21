@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { build } from "vite";
-import { defaultCatalogPath, perRouteSeoPlugin } from "../../vite/seoPlugin";
+import type { Catalog } from "@radio/types";
+import { catalogArtifactPath, defaultCatalogPath, perRouteSeoPlugin } from "../../vite/seoPlugin";
 
 const webRoot = join(__dirname, "..", "..");
 const distDir = join(webRoot, "dist");
@@ -16,7 +17,8 @@ const indexHtmlPath = join(webRoot, "index.html");
 const catalogIndexPath = join(distDir, "biblia", "index.html");
 
 // One book with one chapter is enough to prove that the build writes the pages
-// and the sitemap entries.
+// and the sitemap entries. The `satisfies` ties the fixture to the type of the
+// artifact: a change to `Catalog` has to reach the fixture too.
 const CATALOG_FIXTURE = {
   generatedAt: "2026-10-21T00:00:00.000Z",
   translation: { abbreviation: "RVG2004", name: "Reina-Valera Gomez 2004" },
@@ -26,7 +28,7 @@ const CATALOG_FIXTURE = {
   ],
   artists: [],
   videos: [],
-};
+} satisfies Catalog;
 
 describe("catalog build output", () => {
   it("writes a page per chapter with its canonical", () => {
@@ -59,7 +61,15 @@ interface PluginBuild {
  * Runs the plugin in a real Vite build over a temporary directory, with the
  * fixture catalog or with an artifact that is not there.
  */
-async function buildWithPlugin(catalog: object | null): Promise<PluginBuild> {
+async function buildWithPlugin(catalog: Catalog | null): Promise<PluginBuild> {
+  return buildWithArtifact(catalog === null ? null : JSON.stringify(catalog));
+}
+
+/**
+ * The same build with the bytes of the artifact, for the artifacts that are
+ * not a catalog.
+ */
+async function buildWithArtifact(content: string | null): Promise<PluginBuild> {
   const root = mkdtempSync(join(tmpdir(), "radio-catalog-"));
   tempRoots.push(root);
   const outDir = join(root, "dist");
@@ -74,13 +84,13 @@ async function buildWithPlugin(catalog: object | null): Promise<PluginBuild> {
   writeFileSync(join(root, "index.html"), template);
 
   let artifactPath: string;
-  if (catalog === null) {
+  if (content === null) {
     // A path that is not there. The artifact of the app may be exported, and
     // the build must not depend on that.
     artifactPath = join(root, "missing", "catalog.json");
   } else {
     artifactPath = join(root, "catalog.json");
-    writeFileSync(artifactPath, JSON.stringify(catalog));
+    writeFileSync(artifactPath, content);
   }
   process.env.CATALOG_PATH = artifactPath;
 
@@ -156,4 +166,52 @@ describe("the catalog writer of the build", () => {
       }
     },
   );
+
+  it.skipIf(typeof process.chdir !== "function")(
+    "resolves a relative override against the app root and not the working directory",
+    () => {
+      process.env.CATALOG_PATH = join("catalog", "catalog.json");
+      const previous = process.cwd();
+      try {
+        process.chdir(tmpdir());
+        expect(catalogArtifactPath()).toBe(join(webRoot, "catalog", "catalog.json"));
+      } finally {
+        process.chdir(previous);
+      }
+    },
+  );
+
+  it("keeps an absolute override as it is", () => {
+    const absolute = join(tmpdir(), "elsewhere", "catalog.json");
+    process.env.CATALOG_PATH = absolute;
+    expect(catalogArtifactPath()).toBe(absolute);
+  });
+
+  it("stops the build naming the file when the artifact is not JSON", async () => {
+    const error = await buildWithArtifact("{ this is not json").catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(Error);
+    const message = (error as Error).message;
+    expect(message).toContain("[catalog] Cannot read the artifact at");
+    expect(message).toContain("catalog.json");
+  });
+
+  it("stops the build naming the field when the artifact is not a catalog", async () => {
+    const drifted = JSON.stringify({ ...CATALOG_FIXTURE, books: "not an array" });
+    const error = await buildWithArtifact(drifted).catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(Error);
+    const message = (error as Error).message;
+    expect(message).toContain("[catalog] The artifact at");
+    expect(message).toContain("catalog.json");
+    expect(message).toContain("books is not an array");
+  });
+
+  it("stops the build naming the field when the artifact is missing a field", async () => {
+    const withoutBooks: Record<string, unknown> = { ...CATALOG_FIXTURE };
+    delete withoutBooks.books;
+    const error = await buildWithArtifact(JSON.stringify(withoutBooks)).catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(Error);
+    const message = (error as Error).message;
+    expect(message).toContain("[catalog] The artifact at");
+    expect(message).toContain("books is missing");
+  });
 });

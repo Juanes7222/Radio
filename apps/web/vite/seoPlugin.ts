@@ -65,18 +65,89 @@ function renderRouteHtml(template: string, route: PublicRoute): string {
 }
 
 /**
+ * The root of the web app: the directory that holds `catalog/` and `public/`.
+ */
+const APP_ROOT = path.resolve(__dirname, "..");
+
+/**
  * The catalog artifact of the app, resolved from the directory of the plugin
  * and not from the working directory: the build can be run from anywhere.
  */
 export function defaultCatalogPath(): string {
-  return path.resolve(__dirname, "..", "catalog", "catalog.json")
+  return path.join(APP_ROOT, "catalog", "catalog.json");
 }
 
-function catalogArtifactPath(): string {
-  // CATALOG_PATH overrides the artifact, for a build that reads it from
-  // somewhere else.
-  const configured = (process.env.CATALOG_PATH ?? "").trim()
-  return configured ? path.resolve(configured) : defaultCatalogPath()
+/**
+ * The artifact the build reads. `CATALOG_PATH` overrides it, and a relative
+ * override is resolved against the app root, so the override does not depend
+ * on the working directory either.
+ */
+export function catalogArtifactPath(): string {
+  const configured = (process.env.CATALOG_PATH ?? "").trim();
+  if (!configured) return defaultCatalogPath();
+  return path.resolve(APP_ROOT, configured);
+}
+
+/**
+ * The fields the artifact has to carry, with the kind each one has to be.
+ *
+ * The artifact crosses a process boundary: the export is another program and
+ * another version, so a drifted shape has to be reported here and not as a
+ * crash inside the generator. The check covers the top level only; the nested
+ * shapes are the generator's business.
+ */
+const CATALOG_FIELDS: readonly {
+  readonly name: string;
+  readonly expected: string;
+  readonly is: (value: unknown) => boolean;
+}[] = [
+  { name: "generatedAt", expected: "a string", is: (value) => typeof value === "string" },
+  { name: "translation", expected: "an object", is: (value) => typeof value === "object" && value !== null },
+  { name: "books", expected: "an array", is: (value) => Array.isArray(value) },
+  { name: "chapters", expected: "an array", is: (value) => Array.isArray(value) },
+  { name: "artists", expected: "an array", is: (value) => Array.isArray(value) },
+  { name: "videos", expected: "an array", is: (value) => Array.isArray(value) },
+];
+
+/** Reports an artifact that is not a catalog, naming what is wrong and where. */
+function assertCatalog(value: unknown, source: string): Catalog {
+  if (typeof value !== "object" || value === null) {
+    throw new Error(`[catalog] The artifact at ${source} is not a catalog: it is not an object.`);
+  }
+
+  const record = value as Record<string, unknown>;
+  const problems: string[] = [];
+  for (const field of CATALOG_FIELDS) {
+    const found = record[field.name];
+    if (found === undefined) {
+      problems.push(`${field.name} is missing`);
+    } else if (!field.is(found)) {
+      problems.push(`${field.name} is not ${field.expected}`);
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(`[catalog] The artifact at ${source} is not a catalog: ${problems.join("; ")}.`);
+  }
+
+  return value as Catalog;
+}
+
+/**
+ * Reads the artifact and checks that it is a catalog.
+ *
+ * A file that cannot be read, cannot be parsed or is not a catalog stops the
+ * build. That path deliberately stops the deploy, so the message is the whole
+ * diagnostic the operator gets: it names the file.
+ */
+async function readCatalog(source: string): Promise<Catalog> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(source, "utf8"));
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(`[catalog] Cannot read the artifact at ${source}: ${detail}`, { cause });
+  }
+  return assertCatalog(parsed, source);
 }
 
 /**
@@ -96,7 +167,7 @@ async function writeCatalogPages(outDir: string): Promise<SitemapEntry[]> {
     return []
   }
 
-  const catalog = JSON.parse(await readFile(source, "utf8")) as Catalog
+  const catalog = await readCatalog(source)
   const entries: SitemapEntry[] = []
 
   for (const page of buildCatalogPages(catalog)) {
