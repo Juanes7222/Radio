@@ -378,6 +378,10 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     padding: Spacing.xs,
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     flex: 1,

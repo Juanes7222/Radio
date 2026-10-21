@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   bulkAction: {
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: 6,
   },

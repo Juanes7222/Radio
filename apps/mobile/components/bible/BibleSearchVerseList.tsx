@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
     padding: 16,
-    minHeight: 44,
+    minHeight: 48,
   },
   resultReference: {
     ...Typography.body,

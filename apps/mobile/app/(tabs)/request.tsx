@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   },
   loadFailText: { ...Typography.body, color: ERROR_TEXT, fontSize: 13, flex: 1 },
   loadFailRetry: {
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: 12,
   },
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
   },
   emptyActionText: { ...Typography.captionStrong, color: Colors.signal, fontSize: 13 },

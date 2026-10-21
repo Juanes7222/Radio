@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceGlass,
     borderWidth: 1,
     borderColor: Colors.borderGlass,
-    minHeight: 44,
+    minHeight: 48,
   },
   optionText: {
     ...Typography.bodyStrong,

@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm + 2,
-    minHeight: 44,
+    minHeight: 48,
     marginTop: Spacing.xs,
   },
   retryButtonText: {
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm + 4,
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: Radii.full,
     gap: Spacing.xs,
     marginBottom: Spacing.sm,

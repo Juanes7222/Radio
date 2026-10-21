@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, gap: Spacing.md },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.lg },
-  backBtn: { minHeight: 44, minWidth: 44, alignItems: 'flex-start', justifyContent: 'center' },
+  backBtn: { minHeight: 48, minWidth: 48, alignItems: 'flex-start', justifyContent: 'center' },
   heading: { ...Typography.display, color: Colors.text, flex: 1 },
 
   lede: { ...Typography.body, color: Colors.textMuted, lineHeight: 21 },
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
     backgroundColor: Colors.surface,
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
   },

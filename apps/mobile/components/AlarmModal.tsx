@@ -543,8 +543,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dayChip: {
-    width: 38,
-    height: 38,
+    width: 48,
+    height: 48,
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',

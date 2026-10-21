@@ -23,8 +23,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   iconButton: {
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: 48,
+    minHeight: 48,
     borderRadius: Radii.full,
     backgroundColor: Colors.surfaceGlass,
     flexDirection: 'row',

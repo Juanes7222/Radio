@@ -222,6 +222,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
     gap: 6,
+    minHeight: 48,
+    minWidth: 48,
   },
   linkText: {
     fontSize: 14,

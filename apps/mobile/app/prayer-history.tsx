@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    minHeight: 44,
+    minHeight: 48,
     marginTop: 8,
   },
   emptyActionText: { ...Typography.captionStrong, color: Colors.textOnSignal },

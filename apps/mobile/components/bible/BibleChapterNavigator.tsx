@@ -186,8 +186,8 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     padding: Spacing.xs,
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: 48,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: 'transparent',
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
   },
   bookPillCurrent: {
