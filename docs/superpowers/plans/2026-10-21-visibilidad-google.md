@@ -163,9 +163,9 @@ Add to `backend/package.json`:
 "seed:bible:published": "ts-node scripts/seed-bible.ts --published"
 ```
 
-`--published` selects `PUBLISHED_TRANSLATION`; without it the script keeps seeding `SpanishRVR1960Bible.xml` as `RVR1960`.
+`--published` selects `PUBLISHED_TRANSLATION`; without it the script keeps seeding `SpanishRVR1960Bible.xml` as `RVR1960`. The script prints its usage when it receives `--help` and exits 0 without touching the database.
 
-- [ ] **Step 6: Run the seed against the fixture-free path and check it does not crash**
+- [ ] **Step 6: Check the usage output**
 
 Run: `pnpm --filter @radio/backend exec ts-node scripts/seed-bible.ts --help`
 Expected: the script prints its usage and exits 0 without touching the database.
@@ -599,6 +599,8 @@ Expected: FAIL, "Cannot find module '../../src/content/catalogPages'".
 
 - [ ] **Step 4: Implement `apps/web/src/content/catalogPages.ts`**
 
+Every import of a shared type is type-only (`import type { Catalog } from "@radio/types"`), so nothing in the web app depends on the built artifact of the types package at runtime.
+
 `buildCatalogPages` returns, in this order:
 
 - One page per chapter: path `/biblia/<bookSlug>/<number>/`, title `"<Book> <n> en español | <Translation name>"`, description `"Texto completo de <Book> <n> en la traducción <Translation name>. Lee la Palabra de Dios y escúchala en La Voz de la Verdad."` shortened to 160 characters, JSON-LD of type `WebPage` with `about` the book, `isPartOf` the book page and `isPartOf` the site, and a body with the chapter heading, the verses with their numbers, a link to the book page, the sibling chapters, and the player.
@@ -641,7 +643,7 @@ git commit -m "feat(content): generate the catalog pages"
 
 **Interfaces:**
 - Consumes: `buildCatalogPages` and `renderCatalogDocument` from `../src/content/catalogPages`; `Catalog` from `@radio/types`; `buildSitemapXml` from `../src/config/seo.config`.
-- Produces: two Vite plugins, `perRouteSeoPlugin()` and `catalogPagesPlugin()`, both used by `vite.config.ts`.
+- Produces: two Vite plugins, `perRouteSeoPlugin()` and `devRouteSeoPlugin()`, both used by `vite.config.ts`. The catalog writing lives inside `perRouteSeoPlugin`, because the sitemap has exactly one writer.
 
 - [ ] **Step 1: Move the SEO plugin code out of `vite.config.ts`**
 
@@ -678,25 +680,24 @@ describe("catalog build output", () => {
 
 The test skips when the artifact is absent, because the artifact is a generated file and the repository does not commit it. The behaviour that matters is pinned by the generator test in Task 5; this one only checks the wiring.
 
-- [ ] **Step 3: Implement `catalogPagesPlugin()`**
+- [ ] **Step 3: Implement the catalog writer inside the SEO plugin**
+
+`dist/sitemap.xml` has exactly one writer, and it must keep having exactly one: the existing test in `apps/web/tests/perf/static-assets.test.ts` requires the sitemap to exist and to carry every public route, and `robots.txt` points at it. So the sitemap is written by the **same plugin** that writes the per-route HTML, and the catalog pages are written by that plugin too. Do not add a second writer.
 
 In `apps/web/vite/seoPlugin.ts`:
 
-```ts
-export function catalogPagesPlugin(): Plugin
-```
-
-- It reads `process.env.CATALOG_PATH ?? "catalog/catalog.json"` relative to the web app root. If the file does not exist, the plugin logs a warning and does nothing: a build without the catalog still produces the eight public routes.
-- It parses the JSON as a `Catalog`, calls `buildCatalogPages`, and writes `dist/<path>/index.html` for each page, creating the directories.
-- It returns the sitemap entries, one per page, with the page's `lastmod`, `priority` and `changefreq`.
-
-The `perRouteSeoPlugin` writes the sitemap, so it needs the entries. The two plugins must coordinate: `catalogPagesPlugin` runs first and stores the entries in a module-level variable that `perRouteSeoPlugin` reads, or the sitemap writing moves into `catalogPagesPlugin`. The simpler of the two is to move the sitemap write into `catalogPagesPlugin` and have it write both the pages and the sitemap, calling `buildSitemapXml(new Date(), entries)`.
+- The plugin reads the catalog from `path.resolve(__dirname, "..", "catalog", "catalog.json")`, where `__dirname` is the `apps/web` root, or from `process.env.CATALOG_PATH` when that is set. It must not depend on the process working directory.
+- If the file does not exist, the plugin logs a warning and writes the sitemap with the public routes only. A build without the catalog still has to produce a valid sitemap.
+- If the file exists, it is parsed as a `Catalog`, `buildCatalogPages` returns the pages, and each page is written to `dist/<path>/index.html`, creating the directories.
+- The sitemap is written with `buildSitemapXml(new Date(), entries)`, where `entries` holds one `SitemapEntry` per generated page with the page's `lastmod`, `priority` and `changefreq`, and is empty when there is no catalog.
 
 - [ ] **Step 4: Register the plugin in `apps/web/vite.config.ts`**
 
 ```ts
-plugins: [react(), ...(command === "serve" ? [inspectAttr()] : []), perRouteSeoPlugin(), catalogPagesPlugin()],
+plugins: [react(), ...(command === "serve" ? [inspectAttr()] : []), perRouteSeoPlugin(), devRouteSeoPlugin()],
 ```
+
+The catalog writing is part of `perRouteSeoPlugin`, so no new plugin is registered.
 
 - [ ] **Step 5: Build and check the output**
 
