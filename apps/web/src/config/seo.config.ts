@@ -166,7 +166,7 @@ export function normalizePathname(pathname: string): string {
   return withoutQuery;
 }
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -251,8 +251,8 @@ export function buildSocialTags(route: PublicRoute): string {
   return buildSocialTagsFor(routePageMeta(route));
 }
 
-/** Identity nodes shared by every public route. */
-function organizationNodes(): readonly Record<string, unknown>[] {
+/** Identity nodes shared by every public route and by the generated pages. */
+export function organizationNodes(): readonly Record<string, unknown>[] {
   return [
     {
       '@type': 'Organization',
