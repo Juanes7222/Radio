@@ -10,9 +10,8 @@ import {
   Alert,
   Linking,
 } from 'react-native';
-import { PressableScale } from '@/components/ui/PressableScale';
+import { PressScale } from '@/components/ui/PressScale';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { tick } from '@/lib/haptics';
 import { useProgramSubscriptions } from '@/hooks/useProgramSubscriptions';
@@ -80,7 +79,8 @@ export function NotificationsOptions({
               Las alertas pueden llegar con retraso. Activa "Alarmas y recordatorios" para hora exacta.
             </Text>
           </View>
-          <PressableScale
+          <PressScale
+            accessibilityLabel="Abrir los ajustes de alarmas y recordatorios"
             onPress={() => {
               tick();
               openExactAlarmSettings();
@@ -88,7 +88,7 @@ export function NotificationsOptions({
             style={styles.exactAlarmButton}
           >
             <Text style={styles.exactAlarmButtonText}>Activar</Text>
-          </PressableScale>
+          </PressScale>
         </View>
       )}
 
@@ -120,27 +120,25 @@ export function NotificationsOptions({
           <Text style={styles.sectionTitle}>Programas</Text>
           {programs.length > 0 && (
             <View style={styles.bulkActions}>
-              <PressableScale
+              <PressScale
                 onPress={() => {
                   tick();
                   void requestNotificationAccess();
                   subscribeAll(programs);
                 }}
                 style={styles.bulkAction}
-                accessibilityRole="button"
                 accessibilityLabel="Suscribirse a todos los programas"
               >
                 <Text style={styles.bulkText}>Todas</Text>
-              </PressableScale>
+              </PressScale>
               <Text style={styles.bulkSeparator}>·</Text>
-              <PressableScale
+              <PressScale
                 onPress={() => { tick(); unsubscribeAll(); }}
                 style={styles.bulkAction}
-                accessibilityRole="button"
                 accessibilityLabel="Desuscribirse de todos los programas"
               >
                 <Text style={styles.bulkText}>Ninguna</Text>
-              </PressableScale>
+              </PressScale>
             </View>
           )}
         </View>

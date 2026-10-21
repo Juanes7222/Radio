@@ -1,6 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { PressableScale } from '@/components/ui/PressableScale';
-import * as Haptics from 'expo-haptics';
+import { PressScale } from '@/components/ui/PressScale';
 import { SLEEP_PRESETS } from '@/hooks/useSleepTimer';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { tick } from '@/lib/haptics';
@@ -22,9 +21,10 @@ export function SleepTimerOptions({
     <View>
       <View style={styles.options}>
         {SLEEP_PRESETS.map((minutes) => (
-          <PressableScale
+          <PressScale
             key={minutes}
             style={styles.option}
+            accessibilityLabel={`${minutes} minutos, ${minutes === 15 ? 'Siesta' : minutes === 30 ? 'Prédica' : minutes === 60 ? 'Noche' : 'Descanso'}`}
             onPress={() => {
               tick();
               onSelectPreset(minutes);
@@ -34,7 +34,7 @@ export function SleepTimerOptions({
             <Text style={styles.optionHint}>
               {minutes === 15 ? 'Siesta' : minutes === 30 ? 'Prédica' : minutes === 60 ? 'Noche' : 'Descanso'}
             </Text>
-          </PressableScale>
+          </PressScale>
         ))}
       </View>
 
@@ -45,15 +45,16 @@ export function SleepTimerOptions({
       )}
 
       {isActive && (
-        <PressableScale
+        <PressScale
           style={[styles.option, styles.cancelOption]}
+          accessibilityLabel="Cancelar temporizador"
           onPress={() => {
             tick();
             onCancel();
           }}
         >
           <Text style={[styles.optionText, { color: Colors.warning }]}>Cancelar temporizador</Text>
-        </PressableScale>
+        </PressScale>
       )}
     </View>
   );

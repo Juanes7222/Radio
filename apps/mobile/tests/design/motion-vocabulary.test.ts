@@ -8,10 +8,22 @@ const read = (file: string) => readFileSync(join(appRoot, file), 'utf8');
 
 describe('motion vocabulary', () => {
   it('has one pressable with a scale response', () => {
-    const pressable = read('components/ui/PressableScale.tsx');
+    const pressable = read('components/ui/PressScale.tsx');
 
-    expect(pressable).toMatch(/0\.97/);
+    expect(pressable).toMatch(/scale: 1 - pressed\.value \* intensity/);
     expect(pressable).toMatch(/useReducedMotion/);
+  });
+
+  it('is the only pressable the app has', () => {
+    for (const file of [
+      'app/(tabs)/request.tsx',
+      'components/options/QualityOptions.tsx',
+      'components/options/SleepTimerOptions.tsx',
+      'components/options/NotificationsOptions.tsx',
+    ]) {
+      expect(read(file)).toMatch(/PressScale/);
+      expect(read(file)).not.toMatch(/PressableScale/);
+    }
   });
 
   it('has three named entrances instead of a copied literal', () => {

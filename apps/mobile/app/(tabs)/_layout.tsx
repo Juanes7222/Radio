@@ -10,7 +10,6 @@ import type { ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
 import Animated, {
   Easing,
   ZoomIn,

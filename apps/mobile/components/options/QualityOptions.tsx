@@ -1,7 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { PressableScale } from '@/components/ui/PressableScale';
+import { PressScale } from '@/components/ui/PressScale';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import type { StreamQuality } from '@radio/types';
 import { Colors, Typography } from '@/constants/theme';
 import { tick } from '@/lib/haptics';
@@ -26,9 +25,10 @@ export function QualityOptions({ currentQuality, availableQualities, onSelect }:
       {availableQualities.map((quality) => {
         const isActive = quality === currentQuality;
         return (
-          <PressableScale
+          <PressScale
             key={quality}
             style={[styles.option, isActive && styles.optionActive]}
+            accessibilityLabel={QUALITY_LABELS[quality]}
             onPress={() => {
               tick();
               onSelect(quality);
@@ -38,7 +38,7 @@ export function QualityOptions({ currentQuality, availableQualities, onSelect }:
               {QUALITY_LABELS[quality]}
             </Text>
             {isActive && <Ionicons name="checkmark" size={18} color={Colors.signal} />}
-          </PressableScale>
+          </PressScale>
         );
       })}
     </View>

@@ -29,7 +29,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { submitFeedback } from '@radio/api';
 import {
   FEEDBACK_CATEGORIES,

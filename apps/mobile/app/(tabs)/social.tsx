@@ -13,7 +13,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from 'expo-router/js-tabs';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { WEB_URL } from '@/constants/api';
 import { LEGAL_DOCUMENTS, legalUrl } from '@/constants/legalDocuments';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';

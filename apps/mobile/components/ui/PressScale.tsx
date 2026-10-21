@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Durations, Spring } from '@/constants/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 const AnimatedPressable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -33,7 +34,9 @@ export interface PressScaleProps {
  * so that "everything responds the same way" stops being a coincidence.
  *
  * The compression is a transform on the UI thread, and it releases on a spring
- * rather than a timing so an interrupted press still settles.
+ * rather than a timing so an interrupted press still settles. With the system
+ * asking for less movement the control only dims: displacement is what
+ * triggers vestibular symptoms, opacity is not.
  */
 export function PressScale({
   children,
@@ -46,10 +49,12 @@ export function PressScale({
   accessibilityState,
   testID,
 }: PressScaleProps) {
+  const reduceMotion = useReducedMotion();
   const pressed = useSharedValue(0);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 - pressed.value * intensity }],
+    transform: reduceMotion ? [] : [{ scale: 1 - pressed.value * intensity }],
+    opacity: 1 - pressed.value * 0.06,
   }));
 
   return (

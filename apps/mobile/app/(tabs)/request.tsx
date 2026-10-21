@@ -24,7 +24,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { fetchRequestableSongs, requestSong } from '@radio/api';
 import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
@@ -36,7 +35,7 @@ import { useResponsive } from '@/lib/responsive';
 import { ShimmerBox } from '@/components/ui/Shimmer';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Snackbar } from '@/components/ui/Snackbar';
-import { PressableScale } from '@/components/ui/PressableScale';
+import { PressScale } from '@/components/ui/PressScale';
 
 const PAGE_SIZE = 25;
 const CACHE_KEY = 'requestable_songs_cache_v2';
@@ -101,14 +100,13 @@ const SongRow = memo(function SongRow({
         ) : null}
       </View>
 
-      <PressableScale
+      <PressScale
         onPress={() => {
           tick();
           onRequest(item);
         }}
         disabled={isSent || isRequesting}
         style={[styles.btn, isSent && styles.btnSent, { transform: [{ scale: btnScale }] }]}
-        accessibilityRole="button"
         accessibilityLabel={isSent ? `Pedida: ${title}` : `Pedir ${title}`}
         accessibilityState={{ disabled: isSent || isRequesting }}
       >
@@ -121,7 +119,7 @@ const SongRow = memo(function SongRow({
         ) : (
           <Text style={styles.btnText}>Pedir</Text>
         )}
-      </PressableScale>
+      </PressScale>
     </Animated.View>
   );
 });
@@ -362,7 +360,6 @@ export default function RequestScreen() {
             onPress={() => setQuery('')}
             activeOpacity={0.7}
             hitSlop={14}
-            accessibilityRole="button"
             accessibilityLabel="Limpiar búsqueda"
           >
             <Ionicons name="close-circle" size={16} color={Colors.textAltFaint} />
@@ -378,7 +375,6 @@ export default function RequestScreen() {
             onPress={handleRetry}
             style={styles.loadFailRetry}
             activeOpacity={0.8}
-            accessibilityRole="button"
             accessibilityLabel="Reintentar carga del catálogo"
           >
             <Text style={styles.loadFailRetryText}>Reintentar</Text>
@@ -431,7 +427,6 @@ export default function RequestScreen() {
                   onPress={() => setQuery('')}
                   style={styles.emptyAction}
                   activeOpacity={0.8}
-                  accessibilityRole="button"
                   accessibilityLabel="Limpiar búsqueda"
                 >
                   <Text style={styles.emptyActionText}>Limpiar búsqueda</Text>

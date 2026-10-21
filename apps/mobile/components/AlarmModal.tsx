@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { TimeWheelPicker } from '@/components/alarm/TimeWheelPicker';
 import type { AlarmInput, RadioAlarm } from '@/hooks/useAlarmClock';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
