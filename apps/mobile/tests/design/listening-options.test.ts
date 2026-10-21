@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -12,38 +12,35 @@ describe('listening options', () => {
 
     expect(bar).toMatch(/onOpenOptions: \(\) => void/);
     expect(bar).not.toMatch(/onOpenNotifications|onOpenSleepTimer|onOpenAlarm|onOpenQuality/);
-    expect(bar).not.toMatch(/timerBadge|qualityBadge/);
   });
 
-  it('hosts every listening setting in one sheet', () => {
+  it('opens an index of three rows instead of one long sheet', () => {
     const sheet = read('components/player/ListeningOptionsSheet.tsx');
 
-    expect(sheet).toMatch(/NotificationsOptions/);
+    expect(sheet).toMatch(/Calidad del audio/);
+    expect(sheet).toMatch(/Notificaciones/);
+    expect(sheet).toMatch(/Alarmas de radio/);
+    expect(sheet).toMatch(/Opciones de escucha/);
+  });
+
+  it('keeps the sleep timer out of the options sheet', () => {
+    const sheet = read('components/player/ListeningOptionsSheet.tsx');
+
+    expect(sheet).not.toMatch(/SleepTimerOptions/);
+    expect(sheet).not.toMatch(/timerEndTime|onSelectPreset/);
+  });
+
+  it('shows the sleep timer in its own short sheet', () => {
+    const sheet = read('components/player/SleepTimerSheet.tsx');
+
+    expect(sheet).toMatch(/Apagar la radio/);
     expect(sheet).toMatch(/SleepTimerOptions/);
-    expect(sheet).toMatch(/QualityOptions/);
-    expect(sheet).toMatch(/onOpenAlarms/);
   });
 
-  it('hides the quality section when there is a single mount', () => {
-    const sheet = read('components/player/ListeningOptionsSheet.tsx');
-
-    expect(sheet).toMatch(/availableQualities\.length > 1/);
-  });
-
-  it('removes the three sheets it replaces', () => {
-    for (const file of [
-      'components/NotificationsModal.tsx',
-      'components/SleepTimerModal.tsx',
-      'components/QualityModal.tsx',
-    ]) {
-      expect(existsSync(join(appRoot, file))).toBe(false);
-    }
-  });
-
-  it('mounts the new sheet and no longer mounts the old ones', () => {
+  it('keeps the timer bubble visible next to the controls', () => {
     const screen = read('app/(tabs)/index.tsx');
 
-    expect(screen).toMatch(/<ListeningOptionsSheet/);
+    expect(screen).toMatch(/SleepTimerSheet/);
     expect(screen).not.toMatch(/NotificationsModal|SleepTimerModal|QualityModal/);
   });
 });

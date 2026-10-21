@@ -31,6 +31,7 @@ import { BiblePanel } from '@/components/bible/BiblePanel';
 import { ConnectionBanner } from '@/components/player/ConnectionBanner';
 import { PlayerTopBar } from '@/components/player/PlayerTopBar';
 import { ListeningOptionsSheet } from '@/components/player/ListeningOptionsSheet';
+import { SleepTimerSheet } from '@/components/player/SleepTimerSheet';
 import { useStreamQuality } from '@/hooks/useStreamQuality';
 import type { StreamQuality } from '@radio/types';
 // Recordatorios deshabilitados temporalmente - codigo conservado en components/player/ReminderBanner.tsx
@@ -171,6 +172,7 @@ const [showBible, setShowBible] = useState(false);
   const [hasOpenedBible, setHasOpenedBible] = useState(false);
   const [showAlarmMenu, setShowAlarmMenu] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const [showSleepMenu, setShowSleepMenu] = useState(false);
 
   useEffect(() => {
     if (showBible) {
@@ -445,16 +447,6 @@ const [showBible, setShowBible] = useState(false);
 
           <NowPlayingInfo title={title} artist={artist} isPreaching={isPreaching} />
 
-          {sleepTimer.isActive && (
-            <SleepTimerBubble
-              // `isActive` guarantees endTime is set; the bubble only mounts then.
-              endTime={sleepTimer.endTime!}
-              totalSeconds={sleepTimer.totalSeconds}
-              onPress={() => setShowOptions(true)}
-              onCancel={sleepTimer.cancel}
-            />
-          )}
-
           {nextUpSong && <NextUpCard song={nextUpSong} art={nextUpSong.art} active={isFocused} />}
         </View>
       </Animated.ScrollView>
@@ -475,6 +467,15 @@ const [showBible, setShowBible] = useState(false);
       <View
         style={[styles.bottomSection, { paddingBottom: tabBarHeight + Spacing.md }]}
       >
+        {sleepTimer.isActive && (
+          <SleepTimerBubble
+            // `isActive` guarantees endTime is set; the bubble only mounts then.
+            endTime={sleepTimer.endTime!}
+            totalSeconds={sleepTimer.totalSeconds}
+            onPress={() => setShowSleepMenu(true)}
+            onCancel={sleepTimer.cancel}
+          />
+        )}
         <PlayerControls
           isPlaying={isPlaying}
           isBuffering={isBuffering}
@@ -492,21 +493,28 @@ const [showBible, setShowBible] = useState(false);
         onToggleCurrent={handleToggleNotify}
         currentSongTitle={title}
         exactAlarmGranted={exactAlarmGranted}
-        timerEndTime={sleepTimer.endTime}
-        onSelectPreset={(minutes) => {
-          sleepTimer.start(minutes);
-          setShowOptions(false);
-        }}
-        onCancelTimer={() => {
-          sleepTimer.cancel();
-          setShowOptions(false);
-        }}
+        alarmsCount={alarms.length}
         quality={quality}
         availableQualities={availableQualities.length > 0 ? availableQualities : ['128']}
         onSelectQuality={handleQualitySelect}
         onOpenAlarms={() => {
           setShowOptions(false);
           setShowAlarmMenu(true);
+        }}
+      />
+
+      <SleepTimerSheet
+        visible={showSleepMenu}
+        onClose={() => setShowSleepMenu(false)}
+        isActive={sleepTimer.isActive}
+        endTime={sleepTimer.endTime}
+        onSelectPreset={(minutes) => {
+          sleepTimer.start(minutes);
+          setShowSleepMenu(false);
+        }}
+        onCancel={() => {
+          sleepTimer.cancel();
+          setShowSleepMenu(false);
         }}
       />
 
