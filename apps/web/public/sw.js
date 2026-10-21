@@ -106,9 +106,13 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((networkResponse) => {
           if (networkResponse.ok && request.method === 'GET') {
+            // Only the root may write /index.html: a catalog page visited
+            // later would replace the cached home page and the offline
+            // fallback would serve the wrong document.
+            const isRoot = url.pathname === '/';
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, networkResponse.clone());
-              cache.put('/index.html', networkResponse.clone());
+              if (isRoot) cache.put('/index.html', networkResponse.clone());
             });
           }
           return networkResponse;
