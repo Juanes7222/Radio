@@ -410,3 +410,71 @@ emit a page whose description is empty rather than publish a thin page.
   it reads in modern Spanish, which matters for a page meant to be read.
 - The generator refuses to publish a page with an empty description, rather
   than publishing a thin one.
+
+## Rulings taken while implementing
+
+Each of these was a decision the plan left open, or a plan defect the
+implementation found. The cost is what it would take to undo it.
+
+- The sitemap has exactly one writer, the SEO plugin, which writes the catalog
+  pages and the sitemap in the same pass, with or without the artifact. Cost:
+  one extra plugin, no behavioural difference.
+- The catalog path is resolved from `__dirname`, never from the process
+  working directory. Cost: the plugin falls back to the environment variable.
+- The shared types are imported type-only in the web app. Cost: the types
+  package has to be built before the web build, which the deploy does.
+- The plan's test fixture used book number 19 for Job, but Job is 18 and 19 is
+  Salmos. The plan text was wrong and the fixture was corrected. Cost: one
+  character in a test fixture.
+- The web app has no slug module: the backend export computes the book and the
+  artist slugs and the artifact carries them, so there is a single
+  implementation of the rule. Cost: the web has to derive a slug on its own
+  when the deferred program pages are unblocked.
+- The export runs inside the frontend deploy, immediately before the web
+  build, and the infisical package and the Prisma client are built
+  unconditionally: the producer has to run with its consumer. Cost: a
+  frontend-only deploy now writes to the production database, and only on a
+  server that never seeded the published translation.
+- The plan's default artifact path resolved against the working directory and
+  landed one level above the repository, where the web build never looks. It
+  is resolved from `__dirname` now. Cost: the deploy ships no catalog pages,
+  silently.
+- The canonical of a generated page is `SITE_URL` plus its path, and the path
+  always ends with a slash. Cost: a second slash expression, which is the
+  thing this avoids.
+- The sibling chapter list became a previous/next pair plus the link to the
+  book page: the full list on every chapter page of a book was quadratic, and
+  Salmos has 150 chapters. The bundle budget keeps measuring the app and the
+  catalog got its own ceilings. Cost: the catalog can grow to 30 MB before
+  anything complains.
+- A corrupt artifact stops the deploy on purpose, so the diagnostic names the
+  file and what is wrong with its shape. Cost: the deploy aborts, which is
+  the intended behaviour.
+- An unknown URL answers 404 with a real status code, and the allowlist is
+  by prefix, because the SPA's own routing is by prefix too. Cost: a few
+  typo URLs under `/info/` and `/admin/` still return the shell.
+- The runbook is in Spanish, because its reader is the operator. Cost: one
+  file in a different language than the rest of `docs/`.
+- The site name is declared with the `WebSite` structured data and
+  `og:site_name`, because `webmasters.google.com/site-names` answers 404.
+  The `alternateName` sits on the `WebSite` node, where Google reads it.
+  Cost: the operator follows a page that does not exist.
+- The build carries the name to slug map to the runtime, and a book that is
+  not in the map renders without a link. Cost: a rotation over another
+  translation produces no link instead of a link to a page that was never
+  published.
+- The backend suite must not need a generated Prisma client, so the
+  `disconnectPrisma` helper and its test are gone and the cleanup is inline
+  in the export CLI. Cost: one helper with a caller.
+- The FTS index is rebuilt before the seed's early return, so a failed
+  rebuild is retried by the next deploy. Cost: one extra rebuild per deploy.
+- A navigation enters the service worker runtime cache only when the response
+  is the application shell, recognised by the `<div id="root">` marker, and
+  the cache version was bumped. Cost: the runtime cache stops refreshing the
+  shell, which degrades the offline fallback without breaking it.
+- The 404 path keeps the limit of `location /`: the measurement in nginx
+  1.30 showed the request is already counted before `try_files` hands it to
+  `@spa`. Cost: on another nginx version the request could be counted twice.
+- The videos index is capped at the 200 most recent and the page says so.
+  Cost: the older videos are not reachable from the site, because there is
+  no per-video page.
