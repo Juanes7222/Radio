@@ -185,16 +185,17 @@ export function escapeHtml(value: string): string {
 }
 
 /**
- * Metadata of a page that is not in the route table. The generated catalog
- * pages carry their own title, description and canonical, so the builders
- * take a page instead of a route.
+ * The identity of a page: what the head builders write.
+ *
+ * Both the public routes and the generated catalog pages are described this
+ * way. The JSON-LD is not part of it: the script is a separate region of the
+ * document and the caller writes it.
  */
 export interface PageMeta {
   readonly title: string;
   readonly description: string;
   readonly ogTitle: string;
   readonly canonical: string;
-  readonly jsonLd: string; // already serialized
 }
 
 /**
@@ -250,7 +251,6 @@ function routePageMeta(route: PublicRoute): PageMeta {
     description: meta.description,
     ogTitle: meta.ogTitle,
     canonical: canonicalUrl(route),
-    jsonLd: buildJsonLd(route),
   };
 }
 
@@ -283,7 +283,6 @@ export function organizationNodes(): readonly Record<string, unknown>[] {
       '@type': 'BroadcastService',
       '@id': `${SITE_URL}/#station`,
       name: SITE_NAME,
-      alternateName: 'La Voz Verdad',
       url: `${SITE_URL}/`,
       description: HOME_DESCRIPTION,
       broadcastDisplayName: SITE_NAME,
@@ -304,6 +303,10 @@ export function organizationNodes(): readonly Record<string, unknown>[] {
       '@type': 'WebSite',
       '@id': `${SITE_URL}/#website`,
       name: SITE_NAME,
+      // Google reads the alternative name of the site from the WebSite node,
+      // not from the station node: the search result shows it next to the
+      // name of the site.
+      alternateName: 'La Voz Verdad',
       url: `${SITE_URL}/`,
       inLanguage: 'es-CO',
       publisher: { '@id': `${SITE_URL}/#organization` },
