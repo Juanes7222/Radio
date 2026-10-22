@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createContext, runInContext } from "node:vm";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
@@ -232,5 +233,136 @@ describe("service worker navigation cache", () => {
     `);
 
     expect(analysis.restrictedToRoot(analysis.writes[0]!)).toBe(false);
+  });
+});
+
+/** The document the application serves for every client-side route. */
+const SHELL_HTML =
+  '<!doctype html><html lang="es"><body><div id="root"></div></body></html>';
+
+/** A generated catalog page: a static document without the mount point. */
+const CATALOG_HTML =
+  "<!doctype html><html lang=\"es\"><body><main><h1>Job 1</h1></main></body></html>";
+
+interface FetchEvent {
+  readonly request: unknown;
+  readonly respondWith: (response: Promise<unknown>) => void;
+}
+
+interface ServiceWorker {
+  readonly handleFetch: (event: FetchEvent) => void;
+  readonly cache: Map<string, unknown>;
+}
+
+/**
+ * Loads the service worker with the browser APIs it uses stubbed.
+ *
+ * The worker is a plain script, so it runs as it is in the browser: the
+ * stubs are the only difference, and the behaviour of the cache is the
+ * behaviour of the real one.
+ */
+function loadServiceWorker(body: string): ServiceWorker {
+  const cache = new Map<string, unknown>();
+  const listeners = new Map<string, (event: FetchEvent) => void>();
+
+  const scope = {
+    console,
+    URL,
+    Response,
+    self: {
+      addEventListener: (type: string, handler: (event: FetchEvent) => void) => {
+        listeners.set(type, handler);
+      },
+      skipWaiting: () => {},
+      clients: { openWindow: () => Promise.resolve() },
+      registration: { showNotification: () => Promise.resolve() },
+    },
+    caches: {
+      open: () =>
+        Promise.resolve({
+          put: (key: unknown, response: unknown) => {
+            const name =
+              typeof key === "string"
+                ? key
+                : String((key as { url?: string }).url);
+            cache.set(name, response);
+            return Promise.resolve();
+          },
+          add: () => Promise.resolve(),
+          match: (key: unknown) => Promise.resolve(cache.get(String(key))),
+        }),
+      match: (key: unknown) => Promise.resolve(cache.get(String(key))),
+      keys: () => Promise.resolve([]),
+      delete: () => Promise.resolve(true),
+    },
+    fetch: () =>
+      Promise.resolve(
+        new Response(body, {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        }),
+      ),
+  };
+
+  const context = createContext(scope);
+  runInContext(readFileSync(swPath, "utf8"), context);
+
+  const handleFetch = listeners.get("fetch");
+  if (handleFetch === undefined) {
+    throw new Error("the service worker has no fetch listener");
+  }
+
+  return { handleFetch, cache };
+}
+
+/** Runs a navigation through the worker and returns what it cached. */
+async function navigate(
+  serviceWorker: ServiceWorker,
+  url: string,
+): Promise<Map<string, unknown>> {
+  let responded: Promise<unknown> | undefined;
+
+  serviceWorker.handleFetch({
+    request: {
+      url,
+      mode: "navigate",
+      method: "GET",
+      headers: { get: () => null },
+    },
+    respondWith: (response) => {
+      responded = response;
+    },
+  });
+
+  await responded;
+  // The write into the cache is not awaited by the handler.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  return serviceWorker.cache;
+}
+
+/**
+ * The runtime cache is bounded by excluding the generated pages: they are
+ * static documents served from disk, and one entry per page visited would
+ * fill the cache of a visitor who reads a few chapters.
+ */
+describe("the navigation cache of the service worker", () => {
+  it("caches the application shell", async () => {
+    const serviceWorker = loadServiceWorker(SHELL_HTML);
+
+    const cache = await navigate(serviceWorker, "https://lavozverdad.com/");
+
+    expect(cache.get("/index.html")).toBeDefined();
+  });
+
+  it("does not cache a generated catalog page", async () => {
+    const serviceWorker = loadServiceWorker(CATALOG_HTML);
+
+    const cache = await navigate(
+      serviceWorker,
+      "https://lavozverdad.com/biblia/job/1/",
+    );
+
+    expect(cache.size).toBe(0);
   });
 });
