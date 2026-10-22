@@ -25,6 +25,7 @@ import {
   type SitemapEntry,
 } from "../src/config/seo.config";
 import { buildCatalogPages, renderCatalogDocument } from "../src/content/catalogPages";
+import { BOOK_SLUGS_PATH } from "../src/config/catalog";
 
 // The public site is a client-rendered SPA, so every URL used to be served the
 // same dist/index.html and therefore the same <head>. These markers delimit the
@@ -184,8 +185,29 @@ async function writeCatalogPages(outDir: string): Promise<SitemapEntry[]> {
     })
   }
 
+  await writeBookSlugs(outDir, catalog)
   console.log(`[catalog] ${entries.length} pages written from ${source}`)
   return entries
+}
+
+/**
+ * Writes the map of the published books next to the pages it writes.
+ *
+ * The runtime links a chapter to the page the build published, and the
+ * artifact is what owns the slugs: the web app reads them from here instead
+ * of deriving them. The map exists only when the catalog was written, so a
+ * build without the artifact has no map and the chapters of the reading are
+ * rendered without a link.
+ */
+async function writeBookSlugs(outDir: string, catalog: Catalog): Promise<void> {
+  const slugs: Record<string, string> = {};
+  for (const book of catalog.books) {
+    slugs[book.name] = book.slug;
+  }
+
+  const target = path.join(outDir, BOOK_SLUGS_PATH);
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, JSON.stringify(slugs));
 }
 
 /**

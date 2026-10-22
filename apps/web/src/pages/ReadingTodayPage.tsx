@@ -2,14 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { motion } from "framer-motion";
 import { BookOpen, ChevronRight, Pause, Play } from "lucide-react";
-import { chapterPath, fetchTodayReading } from "@/lib/bible";
+import { chapterLink, fetchBookSlugs, fetchTodayReading } from "@/lib/bible";
 import { formatChapters } from "@/lib/format";
 import { useGlobalAudio } from "@/hooks/useGlobalAudio";
+import type { BookSlugs } from "@/config/catalog";
 import type { BibleReadingToday } from "@radio/types";
 
 type ReadingState =
   | { status: "loading" }
-  | { status: "ready"; reading: BibleReadingToday["reading"] }
+  | { status: "ready"; reading: BibleReadingToday["reading"]; slugs: BookSlugs }
   | { status: "error"; message: string };
 
 /** The shape of the card while the answer is on its way. */
@@ -93,8 +94,14 @@ export function ReadingTodayPage() {
     let cancelled = false;
 
     fetchTodayReading()
-      .then((payload) => {
-        if (!cancelled) setState({ status: "ready", reading: payload.reading });
+      .then(async (payload) => {
+        const chapters = payload.reading?.chapters ?? [];
+        // The links to the chapter pages need the slugs the build published.
+        // Without that map the chapters are rendered without a link, which is
+        // better than a link to a page that was never built.
+        const slugs = chapters.length > 0 ? await fetchBookSlugs() : {};
+        if (cancelled) return;
+        setState({ status: "ready", reading: payload.reading, slugs });
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
@@ -118,6 +125,7 @@ export function ReadingTodayPage() {
   }, []);
 
   const reading = state.status === "ready" ? state.reading : null;
+  const slugs = state.status === "ready" ? state.slugs : {};
   const chapters = reading?.chapters ?? [];
 
   return (
@@ -195,24 +203,33 @@ export function ReadingTodayPage() {
               </h2>
 
               <ul className="mt-5 border-t border-border/60">
-                {chapters.map((chapter) => (
-                  <li key={`${chapter.book}-${chapter.chapter}`}>
-                    {/*
-                      The chapter pages are generated documents, not routes of
-                      the application, so they are plain links: a client-side
-                      navigation would land on the home page.
-                    */}
-                    <a
-                      href={chapterPath(chapter.book, chapter.chapter)}
-                      className="flex items-center justify-between gap-4 border-b border-border/60 py-3 text-sm transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <span>
-                        {chapter.book} {chapter.chapter}
-                      </span>
-                      <ChevronRight className="size-4 shrink-0 opacity-50" aria-hidden />
-                    </a>
-                  </li>
-                ))}
+                {chapters.map((chapter) => {
+                  const link = chapterLink(chapter.book, chapter.chapter, slugs);
+                  return (
+                    <li key={`${chapter.book}-${chapter.chapter}`}>
+                      {link.href === null ? (
+                        // The build published no page for this book, so there
+                        // is nothing to link to.
+                        <span className="flex items-center justify-between gap-4 border-b border-border/60 py-3 text-sm text-muted-foreground">
+                          {link.label}
+                        </span>
+                      ) : (
+                        /*
+                          The chapter pages are generated documents, not routes
+                          of the application, so they are plain links: a
+                          client-side navigation would land on the home page.
+                        */
+                        <a
+                          href={link.href}
+                          className="flex items-center justify-between gap-4 border-b border-border/60 py-3 text-sm transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span>{link.label}</span>
+                          <ChevronRight className="size-4 shrink-0 opacity-50" aria-hidden />
+                        </a>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

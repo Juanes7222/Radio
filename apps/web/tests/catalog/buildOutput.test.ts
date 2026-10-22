@@ -137,6 +137,27 @@ describe("the catalog writer of the build", () => {
     expect(sitemap).toContain("<loc>https://lavozverdad.com/biblia/</loc>");
   });
 
+  // The runtime links a chapter to the page the build published, and the
+  // artifact is what owns the slugs, so the build writes the map of the
+  // published books next to the pages.
+  it("writes the map of the published books next to the pages", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const { outDir } = await buildWithPlugin(CATALOG_FIXTURE);
+
+    const map = join(outDir, "biblia", "books.json");
+    expect(existsSync(map)).toBe(true);
+    expect(JSON.parse(readFileSync(map, "utf8"))).toEqual({ Job: "job" });
+  });
+
+  it("writes no map when the artifact is absent", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { outDir } = await buildWithPlugin(null);
+
+    // Without the catalog there are no published pages, so there is no map
+    // and the chapters of the reading are rendered without a link.
+    expect(existsSync(join(outDir, "biblia", "books.json"))).toBe(false);
+  });
+
   it("keeps the public routes and the sitemap when the artifact is absent", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { outDir, artifactPath } = await buildWithPlugin(null);

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useAzuraCast, mergeConsecutiveScheduleItems } from '@/hooks';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { apiUrl } from '@/config';
+import { fetchTodayReading } from '@/lib/bible';
 import { formatChapters } from '@/lib/format';
 import type { BibleReadingToday, ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 
@@ -455,9 +455,9 @@ export function ProgramacionPage() {
         const [data, categoryData, readingData] = await Promise.all([
           fetchSchedule(),
           fetchScheduleCategories(),
-          fetch(`${apiUrl('/api/bible')}/reading/today`).then((res) =>
-            res.ok ? res.json() : ({ reading: null } as BibleReadingToday)
-          ),
+          // The reading is a bonus on this page: the grid matters more, so a
+          // failure leaves the page without it instead of without the grid.
+          fetchTodayReading().catch(() => ({ reading: null })),
         ]);
         if (data) setSchedule(data);
         if (categoryData) setCategories(categoryData);
