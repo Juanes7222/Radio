@@ -16,6 +16,7 @@ import {
 } from '@expo-google-fonts/instrument-sans';
 import { IBMPlexMono_500Medium } from '@expo-google-fonts/ibm-plex-mono';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { ReduceMotion, ReducedMotionConfig } from 'react-native-reanimated';
 import { initTrackPlayer, PlaybackService } from '../service';
 import { Colors } from '@/constants/theme';
 import { FacebookLiveProvider } from '@/hooks/useFacebookLive';
@@ -112,6 +113,9 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
+      {/* Applies the system "remove animations" setting to every Reanimated
+          animation in the app, not only to the ones that ask for it. */}
+      <ReducedMotionConfig mode={ReduceMotion.System} />
       <BottomSheetModalProvider>
         <SafeAreaProvider>
           <FacebookLiveProvider>

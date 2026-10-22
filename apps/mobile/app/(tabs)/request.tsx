@@ -24,16 +24,18 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { fetchRequestableSongs, requestSong } from '@radio/api';
 import type { SongRequest } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { tick, success } from '@/lib/haptics';
 import { Durations, Easings } from '@/constants/motion';
 import { formatMediaTitle } from '@/lib/formatMedia';
 import { useResponsive } from '@/lib/responsive';
 import { ShimmerBox } from '@/components/ui/Shimmer';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { Snackbar } from '@/components/ui/Snackbar';
+import { PressScale } from '@/components/ui/PressScale';
 
 const PAGE_SIZE = 25;
 const CACHE_KEY = 'requestable_songs_cache_v2';
@@ -58,8 +60,6 @@ type SongRowProps = {
   onRequest: (item: SongRequest) => void;
 };
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 const SongRow = memo(function SongRow({
   item,
   isSent,
@@ -71,15 +71,6 @@ const SongRow = memo(function SongRow({
     item.song.artist,
   );
 
-  // This list is a FlashList, so per-row `entering` animations are out — cells
-  // get recycled and the entrance would re-fire as a flicker while scrolling.
-  // Press feedback is safe: it only runs on a real touch.
-  const pressed = useSharedValue(0);
-  const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 - pressed.value * 0.02 }],
-    opacity: 1 - pressed.value * 0.06,
-  }));
-
   const [btnScale, setBtnScale] = useState(1);
   useEffect(() => {
     setBtnScale(isSent ? 1.06 : 1);
@@ -89,7 +80,7 @@ const SongRow = memo(function SongRow({
   const artSize = scale(50);
 
   return (
-    <Animated.View style={[styles.row, pressStyle]}>
+    <Animated.View style={styles.row}>
       {item.song.art ? (
         <Image
           source={{ uri: item.song.art }}
@@ -109,30 +100,26 @@ const SongRow = memo(function SongRow({
         ) : null}
       </View>
 
-      <AnimatedPressable
+      <PressScale
         onPress={() => {
-          Haptics.selectionAsync().catch(() => {});
+          tick();
           onRequest(item);
         }}
-        onPressIn={() => { pressed.value = withTiming(1, { duration: Durations.instant }); }}
-        onPressOut={() => { pressed.value = withTiming(0, { duration: Durations.fast }); }}
         disabled={isSent || isRequesting}
         style={[styles.btn, isSent && styles.btnSent, { transform: [{ scale: btnScale }] }]}
-        hitSlop={{ top: 4, bottom: 4 }}
-        accessibilityRole="button"
-        accessibilityLabel={`Pedir ${title}`}
+        accessibilityLabel={isSent ? `Pedida: ${title}` : `Pedir ${title}`}
         accessibilityState={{ disabled: isSent || isRequesting }}
       >
         {isRequesting ? (
-          <ActivityIndicator size="small" color={Colors.textOnSignal} />
+          <ActivityIndicator size="small" color={Colors.textMuted} />
         ) : isSent ? (
           <Animated.View entering={FadeIn.duration(Durations.fast).easing(Easing.bezier(...Easings.enter))}>
-            <Ionicons name="checkmark" size={16} color={Colors.textOnSignal} />
+            <Ionicons name="checkmark" size={16} color={Colors.success} />
           </Animated.View>
         ) : (
           <Text style={styles.btnText}>Pedir</Text>
         )}
-      </AnimatedPressable>
+      </PressScale>
     </Animated.View>
   );
 });
@@ -153,6 +140,7 @@ export default function RequestScreen() {
   const [requesting, setRequesting] = useState<string | null>(null);
   const [sent, setSent] = useState<string[]>([]);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -309,6 +297,7 @@ export default function RequestScreen() {
     async (item: SongRequest) => {
       setRequesting(item.request_id);
       setRequestError(null);
+      const { title } = formatMediaTitle(item.song.title, item.song.artist);
 
       try {
         const result = await requestSong(BACKEND_URL, item.request_id);
@@ -317,6 +306,8 @@ export default function RequestScreen() {
           setSent(prev =>
             prev.includes(item.request_id) ? prev : [...prev, item.request_id],
           );
+          success();
+          setSnackbar(`${title} entra en la cola`);
         } else {
           setRequestError(result.errorMessage);
           setTimeout(() => setRequestError(null), 4000);
@@ -342,7 +333,6 @@ export default function RequestScreen() {
       >
         <View style={styles.headerWrap}>
           <ScreenHeader
-            eyebrow="Pide tu música"
             title="Solicitar canción"
             subtitle="Busca entre nuestra discografía y pide la canción que quieras escuchar"
           />
@@ -370,7 +360,6 @@ export default function RequestScreen() {
             onPress={() => setQuery('')}
             activeOpacity={0.7}
             hitSlop={14}
-            accessibilityRole="button"
             accessibilityLabel="Limpiar búsqueda"
           >
             <Ionicons name="close-circle" size={16} color={Colors.textAltFaint} />
@@ -386,7 +375,6 @@ export default function RequestScreen() {
             onPress={handleRetry}
             style={styles.loadFailRetry}
             activeOpacity={0.8}
-            accessibilityRole="button"
             accessibilityLabel="Reintentar carga del catálogo"
           >
             <Text style={styles.loadFailRetryText}>Reintentar</Text>
@@ -439,7 +427,6 @@ export default function RequestScreen() {
                   onPress={() => setQuery('')}
                   style={styles.emptyAction}
                   activeOpacity={0.8}
-                  accessibilityRole="button"
                   accessibilityLabel="Limpiar búsqueda"
                 >
                   <Text style={styles.emptyActionText}>Limpiar búsqueda</Text>
@@ -475,6 +462,12 @@ export default function RequestScreen() {
           <Text style={styles.errorBannerText}>{requestError}</Text>
         </Animated.View>
       )}
+
+      <Snackbar
+        message={snackbar}
+        onHide={() => setSnackbar(null)}
+        bottom={tabBarHeight + 12}
+      />
     </View>
   );
 }
@@ -511,7 +504,7 @@ const styles = StyleSheet.create({
   },
   loadFailText: { ...Typography.body, color: ERROR_TEXT, fontSize: 13, flex: 1 },
   loadFailRetry: {
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: 12,
   },
@@ -560,7 +553,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
   },
   emptyActionText: { ...Typography.captionStrong, color: Colors.signal, fontSize: 13 },
@@ -572,25 +565,27 @@ const styles = StyleSheet.create({
   preachingBadge: {
     ...Typography.captionStrong,
     color: Colors.signal,
-    fontSize: 10,
-    lineHeight: 14,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.2,
     marginBottom: 2,
   },
   title: { ...Typography.bodyStrong, color: Colors.textSoft },
   artist: { ...Typography.caption, color: Colors.textAltFaint, marginTop: 3 },
   btn: {
-    backgroundColor: Colors.signal,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.borderGlass,
     paddingHorizontal: 14,
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
     borderRadius: 10,
     minWidth: 64,
     alignItems: 'center',
   },
-  btnSent: { backgroundColor: Colors.success },
-  btnText: { ...Typography.captionStrong, color: Colors.textOnSignal, fontSize: 13 },
+  btnSent: {
+    backgroundColor: Colors.successMuted,
+    borderColor: Colors.success,
+  },
+  btnText: { ...Typography.captionStrong, color: Colors.textMuted },
   errorBanner: {
     position: 'absolute',
     left: 16,

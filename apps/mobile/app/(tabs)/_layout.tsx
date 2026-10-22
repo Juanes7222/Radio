@@ -10,7 +10,6 @@ import type { ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
 import Animated, {
   Easing,
   ZoomIn,
@@ -24,7 +23,9 @@ import Animated, {
 import { useEffect, useState } from 'react';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { usePrayerAnswers } from '@/hooks/usePrayerAnswers';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Colors, Radii, Typography } from '@/constants/theme';
+import { tick } from '@/lib/haptics';
 import { Durations, Easings, Spring } from '@/constants/motion';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -64,7 +65,7 @@ function TabBarButton(props: TabBarButtonProps) {
     <AnimatedPressable
       {...props}
       onPress={(e) => {
-        Haptics.selectionAsync().catch(() => {});
+        tick();
         onPress?.(e);
       }}
       onPressIn={(e) => {
@@ -106,13 +107,7 @@ const TAB_BAR_LABEL_ROOM = 24;
 
 function LiveDot() {
   const progress = useSharedValue(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled?.()
-      ?.then((enabled: boolean) => setReduceMotion(!!enabled))
-      .catch(() => {});
-  }, []);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (reduceMotion) return;
@@ -139,7 +134,7 @@ function LiveDot() {
 
 const liveStyles = StyleSheet.create({
   container: { position: 'absolute', top: -2, right: -4, width: 12, height: 12, alignItems: 'center', justifyContent: 'center' },
-  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.tally, borderWidth: 1.5, borderColor: 'rgba(8,10,30,0.9)', zIndex: 1 },
+  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.tally, borderWidth: 1.5, borderColor: Colors.scrimStrong, zIndex: 1 },
   halo: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.tally, opacity: 0.5 },
 });
 
@@ -179,15 +174,15 @@ const badgeStyles = StyleSheet.create({
     height: 16,
     paddingHorizontal: 4,
     borderRadius: Radii.full,
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     borderWidth: 1.5,
-    borderColor: 'rgba(8,10,30,0.9)',
+    borderColor: Colors.scrimStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
   text: {
     ...Typography.captionStrong,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 12,
     letterSpacing: 0,
     color: Colors.textOnSignal,
@@ -229,7 +224,7 @@ export default function TabLayout() {
           <BlurView
             intensity={28}
             tint="dark"
-            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(8,10,30,0.72)', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.borderGlass }]}
+            style={[StyleSheet.absoluteFill, { backgroundColor: Colors.scrim, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.borderGlass }]}
           />
         ),
         tabBarItemStyle: {
@@ -240,11 +235,10 @@ export default function TabLayout() {
           borderRadius: 14,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: '700',
-          letterSpacing: 0.4,
+          letterSpacing: 0.3,
           marginTop: 3,
-          textTransform: 'uppercase',
         },
         tabBarAllowFontScaling: true,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

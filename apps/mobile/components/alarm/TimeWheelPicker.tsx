@@ -11,7 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/theme';
 
-const ITEM_HEIGHT = 44;
+const ITEM_HEIGHT = 48;
 const VISIBLE_ITEMS = 3;
 const COLUMN_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
 const CENTER_PADDING = ITEM_HEIGHT;
@@ -133,7 +133,10 @@ function WheelColumn({ items, selected, onChange, width = 104, label }: WheelCol
             accessibilityLabel={label ? `${item} ${label}` : item}
             onPress={() => handlePress(index)}
           >
-            <Text style={[styles.itemText, index === selected && styles.itemTextActive]}>
+            <Text
+              style={[styles.itemText, index === selected && styles.itemTextActive]}
+              maxFontSizeMultiplier={1.3}
+            >
               {item}
             </Text>
           </Pressable>
@@ -142,12 +145,12 @@ function WheelColumn({ items, selected, onChange, width = 104, label }: WheelCol
       <View style={styles.highlightBar} pointerEvents="none" />
       <LinearGradient
         pointerEvents="none"
-        colors={['#12121f', 'rgba(18,18,31,0)']}
+        colors={[Colors.inkElevated, Colors.inkElevatedFade]}
         style={styles.topFade}
       />
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(18,18,31,0)', '#12121f']}
+        colors={[Colors.inkElevatedFade, Colors.inkElevated]}
         style={styles.bottomFade}
       />
     </View>
@@ -223,7 +226,7 @@ const styles = StyleSheet.create({
     paddingVertical: CENTER_PADDING,
   },
   item: {
-    height: ITEM_HEIGHT,
+    minHeight: ITEM_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
   },

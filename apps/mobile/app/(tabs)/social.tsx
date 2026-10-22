@@ -13,10 +13,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from 'expo-router/js-tabs';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { WEB_URL } from '@/constants/api';
 import { LEGAL_DOCUMENTS, legalUrl } from '@/constants/legalDocuments';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { tick } from '@/lib/haptics';
+import { Entrances } from '@/constants/motion';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { openExternalUrl } from '@/lib/externalLinks';
@@ -72,7 +73,7 @@ export default function StationScreen() {
       : { ...link, isLive: false });
 
   const openLink = useCallback((url: string) => {
-    Haptics.selectionAsync().catch(() => {});
+    tick();
     openExternalUrl(url);
   }, []);
 
@@ -95,15 +96,14 @@ export default function StationScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeInDown.delay(40).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+        <Animated.View entering={Entrances.enterBlock(40)}>
           <ScreenHeader
-            eyebrow="Nuestra comunidad"
             title="La estación"
             subtitle="Redes sociales, sitio web y documentos legales."
           />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(80).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+        <Animated.View entering={Entrances.enterBlock(80)}>
           <TouchableOpacity
             style={styles.webCard}
             activeOpacity={0.85}
@@ -129,7 +129,7 @@ export default function StationScreen() {
 
         {/* Banner live */}
         {liveUrl && (
-          <Animated.View entering={FadeInDown.delay(120).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+          <Animated.View entering={Entrances.enterBlock(120)}>
             <TouchableOpacity
               style={styles.liveBanner}
               activeOpacity={0.85}
@@ -154,7 +154,7 @@ export default function StationScreen() {
           {socialLinks.map((link, idx) => (
             <Animated.View
               key={link.id}
-              entering={FadeInDown.delay(160 + idx * 40).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+              entering={Entrances.enterList(160 + idx * 40)}
             >
               <TouchableOpacity
                 style={[styles.linkCard, link.isLive && styles.linkCardLive]}
@@ -182,12 +182,12 @@ export default function StationScreen() {
           ))}
         </View>
 
-        <Animated.View entering={FadeInDown.delay(300).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+        <Animated.View entering={Entrances.enterBlock(300)}>
           <TouchableOpacity
             style={styles.writeCard}
             activeOpacity={0.85}
             onPress={() => {
-              Haptics.selectionAsync().catch(() => {});
+              tick();
               router.push('/feedback');
             }}
             accessibilityRole="button"
@@ -208,10 +208,10 @@ export default function StationScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(320).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))}>
+        <Animated.View entering={Entrances.enterBlock(320)}>
           <View style={styles.legalPanel}>
             <View style={styles.legalHeader}>
-              <Text style={styles.legalEyebrow}>Documentos legales</Text>
+              <Text style={styles.legalSectionLabel}>Documentos legales</Text>
               <Text style={styles.legalHint}>Se abren en el navegador</Text>
             </View>
             {Object.values(LEGAL_DOCUMENTS).map((document) => (
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   },
   liveBannerSub: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
   },
   liveDot: {
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingBottom: Spacing.sm,
   },
-  legalEyebrow: { ...Typography.eyebrow, color: Colors.signal },
+  legalSectionLabel: { ...Typography.label, color: Colors.signal },
   legalHint: { ...Typography.mono, color: Colors.textAltFaint, flexShrink: 1, textAlign: 'right' },
   legalRow: {
     flexDirection: 'row',
@@ -400,5 +400,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 3,
   },
-  legalTagText: { ...Typography.mono, fontSize: 10, color: Colors.signal },
+  legalTagText: { ...Typography.mono, fontSize: 12, color: Colors.signal },
 });

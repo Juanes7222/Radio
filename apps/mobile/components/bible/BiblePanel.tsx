@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -14,6 +13,7 @@ import { useBible } from '@/hooks/useBible';
 import { BibleChapterNavigator } from './BibleChapterNavigator';
 import { BibleSearch } from './BibleSearch';
 import { Colors, Typography, Radii, Spacing } from '@/constants/theme';
+import { tick, success } from '@/lib/haptics';
 import { Durations, Easings, Motion } from '@/constants/motion';
 import { PressScale } from '@/components/ui/PressScale';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
@@ -41,12 +41,12 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
   const isLastBookAndChapter = currentBook === books[books.length - 1]?.name && currentChapter === (books[books.length - 1]?._count?.chapters || 1);
 
   const handleNextChapter = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    tick();
     actions.nextChapter();
   };
 
   const handlePrevChapter = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    tick();
     actions.prevChapter();
   };
 
@@ -54,7 +54,7 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
     Clipboard.setStringAsync(
       `${currentBook} ${currentChapter}:${verse.number} — ${verse.text}`,
     ).catch(() => {});
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    success();
     setCopiedVerse(verse.number);
     setTimeout(() => {
       setCopiedVerse(null);
@@ -256,8 +256,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderGlass,
     // These are the primary legibility control of a reading surface; at 4dp of
     // vertical padding they were ~28dp tall, well under a reliable touch.
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: 48,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -276,8 +276,8 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     borderWidth: 1,
     borderColor: Colors.borderGlass,
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: 48,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   },
   verseNumber: {
     ...Typography.body,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: Colors.signal,
     opacity: 0.9,
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     width: 200,
-    backgroundColor: 'rgba(8,10,30,0.55)',
+    backgroundColor: Colors.scrimSoft,
   },
   navBtn: {
     padding: Spacing.sm,
@@ -361,8 +361,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceGlass,
     borderWidth: 1,
     borderColor: Colors.borderGlass,
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: 48,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   },
   translationText: {
     ...Typography.body,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.textMuted,
     letterSpacing: 0.8,

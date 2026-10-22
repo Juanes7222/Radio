@@ -2,20 +2,18 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 
 interface ScreenHeaderProps {
-  /** Small uppercase label above the title. */
-  eyebrow: string;
   title: string;
   subtitle?: string;
 }
 
 /**
- * Shared screen header for secondary tabs: eyebrow + Fraunces display title.
+ * Shared screen header for secondary tabs: Fraunces display title and subtitle.
  * Keeps heading typography consistent across screens that scroll freely.
+ * There is no kicker above the title: the heading carries its own weight.
  */
-export function ScreenHeader({ eyebrow, title, subtitle }: ScreenHeaderProps) {
+export function ScreenHeader({ title, subtitle }: ScreenHeaderProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.eyebrow}>{eyebrow}</Text>
       <Text style={styles.title}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </View>
@@ -25,10 +23,6 @@ export function ScreenHeader({ eyebrow, title, subtitle }: ScreenHeaderProps) {
 const styles = StyleSheet.create({
   container: {
     gap: Spacing.xs,
-  },
-  eyebrow: {
-    ...Typography.eyebrow,
-    color: Colors.signal,
   },
   title: {
     ...Typography.display,

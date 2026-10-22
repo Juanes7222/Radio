@@ -281,7 +281,7 @@ export function NoticeOverlay() {
                   </View>
                   {modalNotice.dismissible ? (
                     <Pressable onPress={handlePermanentDismissModal} style={{ marginTop: 8, alignItems: "center" }}>
-                      <Text style={{ fontSize: 11, color: Colors.textMuted, textDecorationLine: "underline" }}>No volver a mostrar</Text>
+                      <Text style={{ fontSize: 13, color: Colors.textMuted, textDecorationLine: "underline" }}>No volver a mostrar</Text>
                     </Pressable>
                   ) : null}
 
@@ -399,7 +399,7 @@ export function NoticeOverlay() {
             </Pressable>
             {current.dismissible ? (
               <Pressable onPress={handlePermanentDismiss} style={[styles.secondary, { paddingVertical: 6 }]}>
-                <Text style={[styles.secondaryText, { fontSize: 11, textDecorationLine: "underline" }]}>No volver a mostrar</Text>
+                <Text style={[styles.secondaryText, { fontSize: 13, textDecorationLine: "underline" }]}>No volver a mostrar</Text>
               </Pressable>
             ) : null}
           </View>
@@ -463,7 +463,7 @@ const mStyles = StyleSheet.create({
   },
   tallyText: {
     color: Colors.text,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "700",
     letterSpacing: 1.4,
   },
@@ -473,7 +473,7 @@ const mStyles = StyleSheet.create({
     gap: 4,
     opacity: 0.55,
   },
-  dialText: { color: Colors.textMuted, fontSize: 9, letterSpacing: 0.6 },
+  dialText: { color: Colors.textMuted, fontSize: 12, letterSpacing: 0.6 },
   dialTick: { width: 1, height: 8, backgroundColor: Colors.border },
   dialNeedle: { width: 1, height: 12, backgroundColor: Colors.signalLight, marginHorizontal: 2 },
   dialFm: { color: Colors.textMuted, fontSize: 8, fontWeight: "700", marginLeft: 2 },
@@ -498,7 +498,7 @@ const mStyles = StyleSheet.create({
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: Colors.border },
   eyebrowDark: {
     marginLeft: "auto",
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: "600",
     letterSpacing: 1.2,
     color: Colors.textMuted,
@@ -513,7 +513,7 @@ const mStyles = StyleSheet.create({
     padding: 18,
   },
   variantLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
     letterSpacing: 1.4,
     color: Colors.textMuted,
@@ -541,7 +541,7 @@ const mStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     paddingHorizontal: 18,
     paddingVertical: 13,
     borderRadius: 999,
@@ -559,7 +559,7 @@ const mStyles = StyleSheet.create({
   secondaryDarkText: { fontSize: 14, fontWeight: "500", color: Colors.textSoft },
   counter: {
     marginTop: 10,
-    fontSize: 11,
+    fontSize: 13,
     color: Colors.textMuted,
     textAlign: "center",
   },
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     marginLeft: "auto",
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "600",
     letterSpacing: 1.4,
     color: Colors.textMuted,
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
@@ -675,13 +675,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   secondaryText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "500",
     color: Colors.textMuted,
   },
   counter: {
     marginTop: 8,
-    fontSize: 11,
+    fontSize: 13,
     color: Colors.textMuted,
     fontFamily: Fonts.mono,
   },

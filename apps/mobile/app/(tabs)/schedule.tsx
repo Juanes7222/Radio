@@ -5,13 +5,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { useBottomTabBarHeight } from 'expo-router/js-tabs';
 import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, Easing, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { fetchSchedule, fetchScheduleCategories, mergeConsecutiveScheduleItems } from '@radio/api';
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
 import { Colors, Typography } from '@/constants/theme';
+import { tick } from '@/lib/haptics';
 import { PressScale } from '@/components/ui/PressScale';
 import { Spring } from '@/constants/motion';
+import { Entrances } from '@/constants/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { formatScheduleTime, getBogotaDayOfWeek } from '@/lib/time';
 import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
@@ -80,7 +81,7 @@ type ViewMode = 'categories' | 'chronological';
 
 function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewMode) => void }) {
   const handleChange = (next: ViewMode) => {
-    if (next !== mode) Haptics.selectionAsync().catch(() => {});
+    if (next !== mode) tick();
     onChange(next);
   };
   return (
@@ -191,7 +192,7 @@ function CategoryPickerModal({
             <TouchableOpacity
               key={option.id ?? '__all__'}
               onPress={() => {
-                Haptics.selectionAsync().catch(() => {});
+                tick();
                 onSelect(option.id);
               }}
               activeOpacity={0.8}
@@ -239,7 +240,7 @@ function ProgramRow({
     >
       <PressScale
         onPress={() => {
-          Haptics.selectionAsync().catch(() => {});
+          tick();
           onPress();
         }}
         style={[styles.rowCard, isNow && styles.rowCardNow]}
@@ -297,7 +298,7 @@ function ScheduleSectionView({
 
   return (
     <Animated.View layout={LinearTransition.duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))} style={styles.section}>
-      <TouchableOpacity onPress={() => { Haptics.selectionAsync().catch(() => {}); onToggle(); }} activeOpacity={0.8} style={styles.sectionHeader}>
+      <TouchableOpacity onPress={() => { tick(); onToggle(); }} activeOpacity={0.8} style={styles.sectionHeader}>
         <View style={[styles.sectionIcon, { backgroundColor: accent.glow }]}>
           <Ionicons name={getCategoryIcon(section.category)} size={16} color={accent.dot} />
         </View>
@@ -321,7 +322,7 @@ function ScheduleSectionView({
 
       {!collapsed && (
         <Animated.View
-          entering={FadeIn.duration(220).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          entering={Entrances.enterSheet()}
           exiting={FadeOut.duration(180).easing(Easing.bezier(0.4, 0, 1, 1))}
           style={styles.sectionRows}
         >
@@ -371,7 +372,7 @@ function TimelineRow({
       </View>
 
       <TouchableOpacity
-        onPress={() => { Haptics.selectionAsync().catch(() => {}); onPress(); }}
+        onPress={() => { tick(); onPress(); }}
         activeOpacity={0.8}
         style={[styles.timelineCard, isNow && styles.timelineCardNow]}
       >
@@ -562,7 +563,7 @@ export default function ScheduleScreen() {
     sectionKeys.length > 0 && sectionKeys.every((key) => collapsedCategories.has(key));
 
   const toggleCategoryCollapse = useCallback((key: string) => {
-    Haptics.selectionAsync().catch(() => {});
+    tick();
     setCollapsedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
@@ -575,7 +576,7 @@ export default function ScheduleScreen() {
   }, []);
 
   const handleToggleAllSections = () => {
-    Haptics.selectionAsync().catch(() => {});
+    tick();
     setCollapsedCategories(allSectionsCollapsed ? new Set() : new Set(sectionKeys));
   };
 
@@ -586,7 +587,7 @@ export default function ScheduleScreen() {
           {[0,1,2,3].map((i) => (
             <Animated.View
               key={i}
-              entering={FadeInDown.delay(i * 60).duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+              entering={Entrances.enterList(i * 60)}
             >
               <View style={[styles.rowCard, { opacity: 0.9 - i*0.08 }]}>
                 <ShimmerBox style={[styles.rowDot, { backgroundColor: Colors.surfaceElevated }]} borderRadius={5} />
@@ -669,7 +670,6 @@ export default function ScheduleScreen() {
       >
         {/* Cabecera */}
         <ScreenHeader
-          eyebrow="Horarios y Emisiones"
           title="Programación"
           subtitle="Todos nuestros programas, de lunes a domingo. Selecciona un día para ver los detalles."
         />
@@ -684,12 +684,12 @@ export default function ScheduleScreen() {
           {DAYS.map((day, i) => (
             <Animated.View
               key={day}
-              entering={FadeInDown.delay(Math.min(i * 28, 160)).duration(260).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+              entering={Entrances.enterList(Math.min(i * 28, 160))}
               layout={LinearTransition.duration(200)}
             >
               <TouchableOpacity
                 onPress={() => {
-                  if (selectedDay !== i) Haptics.selectionAsync().catch(() => {});
+                  if (selectedDay !== i) tick();
                   setSelectedDay(i);
                 }}
                 activeOpacity={0.8}
@@ -864,7 +864,7 @@ const styles = StyleSheet.create({
   },
   dayPill: {
     minWidth: 48,
-    minHeight: 44,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
@@ -907,7 +907,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    minHeight: 44,
+    minHeight: 48,
     paddingVertical: 10,
     borderRadius: 10,
   },
@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 8,
-    minHeight: 44,
+    minHeight: 48,
     backgroundColor: CARD_BG,
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
@@ -963,7 +963,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
     marginTop: 2,
     marginLeft: -8,
@@ -990,7 +990,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    minHeight: 44,
+    minHeight: 48,
     marginBottom: 10,
   },
   sectionIcon: {
@@ -1010,7 +1010,7 @@ const styles = StyleSheet.create({
   },
   sectionCount: {
     ...Typography.caption,
-    fontSize: 11,
+    fontSize: 13,
     lineHeight: 15,
     color: TEXT_MUTED,
     marginTop: 1,
@@ -1072,7 +1072,7 @@ const styles = StyleSheet.create({
   },
   liveBadgeText: {
     ...Typography.captionStrong,
-    fontSize: 10,
+    fontSize: 12,
     lineHeight: 14,
     letterSpacing: 0.5,
   },

@@ -30,12 +30,14 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { BACKEND_URL } from '@/constants/api';
 import { legalUrl } from '@/constants/legalDocuments';
-import { Colors, Typography } from '@/constants/theme';
+import { Colors, Spacing, Typography } from '@/constants/theme';
+import { tick, success } from '@/lib/haptics';
 import { Durations, Easings, Spring } from '@/constants/motion';
+import { Entrances } from '@/constants/motion';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { useDailyVerse } from '@/hooks/useDailyVerse';
 import { getDeviceId } from '@/lib/device';
 import { openExternalUrl } from '@/lib/externalLinks';
 
@@ -77,6 +79,7 @@ export default function PrayerScreen() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<PrayerFieldErrors>({});
+  const verse = useDailyVerse();
   const nameRef = useRef<TextInput>(null);
   const requestRef = useRef<TextInput>(null);
   const draftLoadedRef = useRef(false);
@@ -148,6 +151,7 @@ export default function PrayerScreen() {
 
       if (res.ok) {
         setSent(true);
+        success();
         setName('');
         setRequest('');
         setFieldErrors({});
@@ -195,11 +199,10 @@ export default function PrayerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View
-          entering={FadeInDown.duration(280).easing(Easing.bezier(0.16, 1, 0.3, 1))}
+          entering={Entrances.enterBlock()}
           style={styles.header}
         >
           <ScreenHeader
-            eyebrow="Estamos contigo"
             title="Petición de oración"
             subtitle="Comparte tu petición y nuestro equipo intercederá por ti."
           />
@@ -207,12 +210,22 @@ export default function PrayerScreen() {
 
         {!sent && !loading && (
           <Animated.View entering={FadeIn.delay(80).duration(220)} style={styles.headerActions}>
-            <TouchableOpacity onPress={() => { Haptics.selectionAsync().catch(()=>{}); router.push('/prayer-history'); }} style={styles.historyLink} activeOpacity={0.8}>
+            <TouchableOpacity onPress={() => { tick(); router.push('/prayer-history'); }} style={styles.historyLink} activeOpacity={0.8}>
               <Ionicons name="list-outline" size={14} color={Colors.accent} />
               <Text style={styles.historyLinkText}>Mis peticiones</Text>
             </TouchableOpacity>
           </Animated.View>
         )}
+        {verse && !sent && (
+          <Animated.View
+            entering={FadeIn.delay(40).duration(240).easing(Easing.bezier(...Easings.enter))}
+            style={styles.verseBlock}
+          >
+            <Text style={styles.verseText}>{verse.text}</Text>
+            <Text style={styles.verseReference}>{verse.reference}</Text>
+          </Animated.View>
+        )}
+
         {sent ? (
           <Animated.View
             entering={FadeInDown.duration(Durations.slow).easing(Easing.bezier(...Easings.enter))}
@@ -237,7 +250,7 @@ export default function PrayerScreen() {
               entering={FadeInDown.delay(260).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
               style={[styles.successText, isSmallScreen && styles.successTextSmall]}
             >
-              Tu petición ha sido recibida. Oraremos por ti.
+              Tu petición ha sido recibida. Alguien del equipo la está orando ahora.
             </Animated.Text>
             <Animated.View
               entering={FadeIn.delay(340).duration(Durations.normal)}
@@ -253,7 +266,7 @@ export default function PrayerScreen() {
             </Animated.View>
           </Animated.View>
         ) : (
-          <Animated.View entering={FadeInDown.delay(100).duration(300).easing(Easing.bezier(0.16, 1, 0.3, 1))} style={styles.form}>
+          <Animated.View entering={Entrances.enterBlock(100)} style={styles.form}>
             <View style={styles.field}>
               <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Nombre</Text>
               <TextInput
@@ -314,9 +327,17 @@ export default function PrayerScreen() {
               <Text style={styles.charCounter}>
                 {request.length}/{REQUEST_MAX_LENGTH}
               </Text>
-              <Text style={styles.sensitiveWarning}>
-                Evita incluir datos personales sensibles (salud, situación familiar o económica) o información de otras personas que no sea necesaria para tu petición.
-              </Text>
+              <View style={styles.sensitiveNotice}>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={14}
+                  color={Colors.info}
+                  style={styles.sensitiveIcon}
+                />
+                <Text style={styles.sensitiveWarning}>
+                  Evita incluir datos personales sensibles (salud, situación familiar o económica) o información de otras personas que no sea necesaria para tu petición.
+                </Text>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -412,7 +433,7 @@ const styles = StyleSheet.create({
   },
   inputSmall: {
     paddingVertical: 10,
-    minHeight: 44,
+    minHeight: 48,
     fontSize: 13,
   },
   inputError: {
@@ -426,17 +447,24 @@ const styles = StyleSheet.create({
   charCounter: {
     ...Typography.caption,
     color: Colors.textAltFaint,
-    fontSize: 11,
+    fontSize: 13,
     lineHeight: 15,
     alignSelf: 'flex-end',
     marginTop: 4,
   },
+  sensitiveNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 6,
+  },
+  sensitiveIcon: { marginTop: 2 },
   sensitiveWarning: {
     ...Typography.caption,
-    color: Colors.warning,
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: 6,
+    color: Colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    flex: 1,
   },
   textarea: {
     minHeight: 100,
@@ -470,7 +498,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   submitBtn: {
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     borderRadius: 12,
     paddingVertical: 14,
     flexDirection: 'row',
@@ -484,6 +512,18 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText: { ...Typography.bodyStrong, color: Colors.textOnSignal },
   submitBtnTextSmall: { fontSize: 13 },
+  verseBlock: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    gap: 4,
+  },
+  verseText: {
+    ...Typography.message,
+    color: Colors.textSoft,
+    textAlign: 'center',
+  },
+  verseReference: { ...Typography.caption, color: Colors.textMuted },
   successCard: {
     backgroundColor: Colors.surfaceDim,
     borderRadius: 16,
@@ -512,13 +552,13 @@ const styles = StyleSheet.create({
   successTitle: { ...Typography.screenTitle, color: Colors.text, fontSize: 18, lineHeight: 24 },
   successTitleSmall: { fontSize: 16, lineHeight: 22 },
   successText: { ...Typography.body, color: Colors.textAlt, textAlign: 'center' },
-  successTextSmall: { fontSize: 12 },
+  successTextSmall: { fontSize: 13 },
   headerActions: { flexDirection: 'row', justifyContent: 'flex-end' },
   historyLink: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: 8,
   },
@@ -527,7 +567,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     backgroundColor: Colors.surface,
     borderRadius: 10,
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
@@ -538,7 +578,7 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: Colors.signalSoft,
     borderRadius: 10,
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: 16,
   },

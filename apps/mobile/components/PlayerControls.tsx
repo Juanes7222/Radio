@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import Animated, {
   Easing,
@@ -14,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { memo, useEffect, useMemo } from 'react';
 import { Colors, Radii, Shadows } from '@/constants/theme';
+import { tick, click } from '@/lib/haptics';
 import { clamp, CONTENT_MAX_WIDTH, useResponsive } from '@/lib/responsive';
 import { Durations, Motion, Spring } from '@/constants/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -190,7 +190,7 @@ function PlayerControlsImpl({
   }, [isFavorite, favScale]);
 
   const handleFavorite = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    click();
     // micro burst even when unfaving
     // eslint-disable-next-line react-hooks/immutability
     favScale.value = withSequence(
@@ -200,13 +200,11 @@ function PlayerControlsImpl({
     onToggleFavorite();
   };
   const handlePlay = () => {
-    Haptics.impactAsync(
-      isPlaying ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium
-    ).catch(() => {});
+    click();
     onTogglePlay();
   };
   const handleShare = () => {
-    Haptics.selectionAsync().catch(() => {});
+    tick();
     onShare();
   };
 
@@ -242,7 +240,7 @@ function PlayerControlsImpl({
         <Ionicons
           name={isFavorite ? 'heart' : 'heart-outline'}
           size={metrics.sideIconSize}
-          color={isFavorite ? Colors.tally : Colors.textMuted}
+          color={isFavorite ? Colors.success : Colors.textMuted}
         />
       </AnimatedPressable>
 
@@ -307,7 +305,7 @@ function createStyles(metrics: PlayerControlMetrics) {
       width: metrics.playSize,
       height: metrics.playSize,
       borderRadius: Radii.full,
-      backgroundColor: Colors.signal,
+      backgroundColor: Colors.signalFill,
       alignItems: 'center',
       justifyContent: 'center',
       ...Shadows.signal,

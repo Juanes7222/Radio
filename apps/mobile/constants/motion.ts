@@ -3,6 +3,7 @@
  * All durations use reanimated worklets; spring is default for interactive,
  * timing for ambient.
  */
+import { Easing, FadeIn, FadeInDown } from 'react-native-reanimated';
 
 export const Durations = {
   instant: 120,
@@ -35,3 +36,23 @@ export const Motion = {
   // Entry choreography
   entryStaggerMs: 40,
 } as const;
+
+/**
+ * The three entrances of the app.
+ *
+ * A screen that re-enters with the same animation everywhere reads as
+ * assembled: the movement stops carrying information. These are the three
+ * relationships that actually exist — an item of a list, a sheet, a block of a
+ * form — and each one arrives in its own way.
+ */
+export const Entrances = {
+  /** An item of a list: it slides in and settles. */
+  enterList: (delay = 60) =>
+    FadeInDown.delay(delay).duration(Durations.normal).easing(Easing.bezier(...Easings.enter)),
+  /** A sheet: it fades, because it comes from over the content. */
+  enterSheet: (delay = 0) =>
+    FadeIn.delay(delay).duration(Durations.fast).easing(Easing.bezier(...Easings.enter)),
+  /** A block of a form: it rises from below the header. */
+  enterBlock: (delay = 100) =>
+    FadeInDown.delay(delay).duration(Durations.normal).easing(Easing.bezier(...Easings.enter)),
+};

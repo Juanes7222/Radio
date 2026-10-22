@@ -1,25 +1,23 @@
-import { memo, useEffect, useState } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
+import { memo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import TextTicker from 'react-native-text-ticker';
 import Animated, { FadeInDown, FadeOut, Easing } from 'react-native-reanimated';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { formatMediaTitle } from '@/lib/formatMedia';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface NextUpCardProps {
   song: { title: string; artist: string };
+  /** Cover of the next track, when the station sent one. */
+  art?: string | null;
   /** When false the marquee animation stops (screen not focused). */
   active?: boolean;
 }
 
-function NextUpCardImpl({ song, active = true }: NextUpCardProps) {
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled?.()
-      ?.then((enabled: boolean) => setReduceMotion(!!enabled))
-      .catch(() => {});
-  }, []);
+function NextUpCardImpl({ song, art, active = true }: NextUpCardProps) {
+  const reduceMotion = useReducedMotion();
 
   const { artist, title } = formatMediaTitle(song.title, song.artist);
 
@@ -29,6 +27,9 @@ function NextUpCardImpl({ song, active = true }: NextUpCardProps) {
       exiting={FadeOut.duration(180)}
       style={styles.nextCard}
     >
+      {art ? (
+        <Image source={{ uri: art }} style={styles.nextArt} contentFit="cover" />
+      ) : null}
       <Ionicons name="play-skip-forward" size={13} color={Colors.accent} />
       <Text style={styles.nextLabel}>A continuación: </Text>
 
@@ -69,6 +70,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderWidth: 1,
     borderColor: Colors.signalGlow,
+  },
+  nextArt: {
+    width: 40,
+    height: 40,
+    borderRadius: Radii.sm,
   },
   nextLabel: {
     ...Typography.caption,

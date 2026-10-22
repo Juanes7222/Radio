@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,19 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { Colors, Spacing } from '@/constants/theme';
 import { CONTENT_MAX_WIDTH, useResponsive } from '@/lib/responsive';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+
+const PULSE_MS = 900;
 
 interface FacebookLivePlayerProps {
   liveUrl: string | null;
@@ -27,6 +38,30 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const { width: screenWidth } = useResponsive();
   const playerWidth = Math.min(screenWidth, CONTENT_MAX_WIDTH) - Spacing.lg * 2;
+  const reduceMotion = useReducedMotion();
+  const pulse = useSharedValue(0);
+
+  // The live moment is the one place in the app that should breathe: the dot
+  // swells and fades so the eye reads "the station is on air" without reading
+  // a word. It stops when the system asks for less movement.
+  useEffect(() => {
+    if (reduceMotion) {
+      cancelAnimation(pulse);
+      pulse.value = 0;
+      return;
+    }
+    pulse.value = withRepeat(
+      withTiming(1, { duration: PULSE_MS, easing: Easing.out(Easing.ease) }),
+      -1,
+      false
+    );
+    return () => cancelAnimation(pulse);
+  }, [pulse, reduceMotion]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + pulse.value * 0.9 }],
+    opacity: 0.8 * (1 - pulse.value),
+  }));
 
   if (!liveUrl) {
     return (
@@ -65,7 +100,7 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
       <View style={styles.liveBadgeWrapper}>
         <View style={styles.liveBadge}>
           <View style={styles.pulseContainer}>
-            <View style={styles.pulse} />
+            {!reduceMotion && <Animated.View style={[styles.pulse, pulseStyle]} />}
             <View style={styles.dot} />
           </View>
           <Text style={styles.liveText}>EN VIVO</Text>
@@ -222,6 +257,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
     gap: 6,
+    minHeight: 48,
+    minWidth: 48,
   },
   linkText: {
     fontSize: 14,

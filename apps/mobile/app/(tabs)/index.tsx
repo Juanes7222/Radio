@@ -26,13 +26,12 @@ import { ShimmerBox } from '@/components/ui/Shimmer';
 import { ConnectingDial } from '@/components/player/ConnectingDial';
 import { DialVivo } from '@/components/player/DialVivo';
 import { PlayerControls } from '@/components/PlayerControls';
-import { SleepTimerModal } from '@/components/SleepTimerModal';
 import { FacebookLivePlayer } from '@/components/FacebookLivePlayer';
 import { BiblePanel } from '@/components/bible/BiblePanel';
-import { NotificationsModal } from '@/components/NotificationsModal';
 import { ConnectionBanner } from '@/components/player/ConnectionBanner';
 import { PlayerTopBar } from '@/components/player/PlayerTopBar';
-import { QualityModal } from '@/components/QualityModal';
+import { ListeningOptionsSheet } from '@/components/player/ListeningOptionsSheet';
+import { SleepTimerSheet } from '@/components/player/SleepTimerSheet';
 import { useStreamQuality } from '@/hooks/useStreamQuality';
 import type { StreamQuality } from '@radio/types';
 // Recordatorios deshabilitados temporalmente - codigo conservado en components/player/ReminderBanner.tsx
@@ -171,9 +170,9 @@ export default function PlayerScreen() {
 
 const [showBible, setShowBible] = useState(false);
   const [hasOpenedBible, setHasOpenedBible] = useState(false);
-  const [showSleepMenu, setShowSleepMenu] = useState(false);
-  const [showNotifyMenu, setShowNotifyMenu] = useState(false);
   const [showAlarmMenu, setShowAlarmMenu] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const [showSleepMenu, setShowSleepMenu] = useState(false);
 
   useEffect(() => {
     if (showBible) {
@@ -231,10 +230,6 @@ const [showBible, setShowBible] = useState(false);
 
   // Recordatorios deshabilitados - hook conservado en hooks/useNotificationReminder.ts
   // const { showReminder, dismissReminder, dismissReminderForever } = useNotificationReminder();
-  const [showTooltip, setShowTooltip] = useState(false);
-
-  // const handleDismissReminder = useCallback(() => { dismissReminder(); setShowTooltip(true); setTimeout(() => setShowTooltip(false), 4000); }, [dismissReminder]);
-
   const listenersCount = data?.listeners?.current ?? 0;
 
   // The now-playing poll hands back a fresh object every cycle, so NextUpCard
@@ -244,8 +239,12 @@ const [showBible, setShowBible] = useState(false);
   const nextUpTitle = rawNextUp?.title;
   const nextUpArtist = rawNextUp?.artist;
   const nextUpSong = useMemo(
-    () => (nextUpTitle !== undefined ? { title: nextUpTitle, artist: nextUpArtist ?? '' } : null),
-    [nextUpTitle, nextUpArtist],
+    // `nextUpTitle !== undefined` guarantees rawNextUp is a real song, so
+    // reading .art directly off the payload path is safe here. rawNextUp is a
+    // fresh object each poll, so keying the memo on its primitives keeps the
+    // card from rebuilding (and restarting its marquee) on every tick.
+    () => (nextUpTitle !== undefined ? { title: nextUpTitle, artist: nextUpArtist ?? '', art: data?.playing_next?.song.art ?? null } : null),
+    [nextUpTitle, nextUpArtist, rawNextUp?.art],
   );
 
   const handleShare = useCallback(async () => {
@@ -257,8 +256,6 @@ const [showBible, setShowBible] = useState(false);
       : `Estoy escuchando La Voz de la Verdad en vivo.\n\nDescarga la app gratis y escúchala donde quieras:\n${appLink}`;
     await Share.share({ message });
   }, [title, artist]);
-
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
 
   const wasPlayingRef = useRef(false);
   useEffect(() => {
@@ -279,7 +276,7 @@ const [showBible, setShowBible] = useState(false);
   const handleQualitySelect = useCallback(
     (next: StreamQuality) => {
       setQuality(next);
-      setShowQualityMenu(false);
+      setShowOptions(false);
     },
     [setQuality],
   );
@@ -363,8 +360,8 @@ const [showBible, setShowBible] = useState(false);
         <View style={styles.errorIconWrap}>
           <Ionicons name="wifi-outline" size={40} color={Colors.tally} />
         </View>
-        <Text style={styles.errorText}>{error}</Text>
-        <Text style={styles.errorHint}>Reintentamos automáticamente cuando vuelva la señal</Text>
+        <Text style={styles.errorText} maxFontSizeMultiplier={1.4}>{error}</Text>
+        <Text style={styles.errorHint} maxFontSizeMultiplier={1.4}>Reintentamos automáticamente cuando vuelva la señal</Text>
         <TouchableOpacity
           onPress={() => void refresh()}
           style={styles.retryButton}
@@ -374,7 +371,7 @@ const [showBible, setShowBible] = useState(false);
           accessibilityHint="Vuelve a intentar conectarse con la emisora ahora mismo"
         >
           <Ionicons name="refresh" size={16} color={Colors.textOnSignal} />
-          <Text style={styles.retryButtonText}>Reintentar ahora</Text>
+          <Text style={styles.retryButtonText} maxFontSizeMultiplier={1.4}>Reintentar ahora</Text>
         </TouchableOpacity>
       </Animated.View>
     );
@@ -397,19 +394,8 @@ const [showBible, setShowBible] = useState(false);
       >
         <View style={[styles.topSection, { paddingTop: insets.top + Spacing.sm }]}>
           <PlayerTopBar
-            notifyEnabled={notifyEnabled}
-            sleepTimerActive={sleepTimer.isActive}
-            sleepTimerDisplay={sleepTimer.display}
-            showTooltip={showTooltip}
             listenersCount={listenersCount}
-            quality={quality}
-            onOpenNotifications={() => {
-              setShowTooltip(false);
-              setShowNotifyMenu(true);
-            }}
-            onOpenSleepTimer={() => setShowSleepMenu(true)}
-            onOpenAlarm={() => setShowAlarmMenu(true)}
-            onOpenQuality={() => setShowQualityMenu(true)}
+            onOpenOptions={() => setShowOptions(true)}
           />
 
           <View>
@@ -448,9 +434,11 @@ const [showBible, setShowBible] = useState(false);
                 isPreaching={isPreaching}
                 size={vinylSize}
                 progress={
-                  data && data.now_playing.duration > 0
-                    ? data.now_playing.elapsed / data.now_playing.duration
-                    : null
+                  isPreaching
+                    ? null
+                    : data && data.now_playing.duration > 0
+                      ? data.now_playing.elapsed / data.now_playing.duration
+                      : null
                 }
                 songId={data?.now_playing.sh_id ?? null}
               />
@@ -459,16 +447,7 @@ const [showBible, setShowBible] = useState(false);
 
           <NowPlayingInfo title={title} artist={artist} isPreaching={isPreaching} />
 
-          {sleepTimer.isActive && (
-            <SleepTimerBubble
-              display={sleepTimer.display}
-              progress={sleepTimer.progress}
-              onPress={() => setShowSleepMenu(true)}
-              onCancel={sleepTimer.cancel}
-            />
-          )}
-
-          {nextUpSong && <NextUpCard song={nextUpSong} active={isFocused} />}
+          {nextUpSong && <NextUpCard song={nextUpSong} art={nextUpSong.art} active={isFocused} />}
         </View>
       </Animated.ScrollView>
 
@@ -488,6 +467,15 @@ const [showBible, setShowBible] = useState(false);
       <View
         style={[styles.bottomSection, { paddingBottom: tabBarHeight + Spacing.md }]}
       >
+        {sleepTimer.isActive && (
+          <SleepTimerBubble
+            // `isActive` guarantees endTime is set; the bubble only mounts then.
+            endTime={sleepTimer.endTime!}
+            totalSeconds={sleepTimer.totalSeconds}
+            onPress={() => setShowSleepMenu(true)}
+            onCancel={sleepTimer.cancel}
+          />
+        )}
         <PlayerControls
           isPlaying={isPlaying}
           isBuffering={isBuffering}
@@ -498,10 +486,28 @@ const [showBible, setShowBible] = useState(false);
         />
       </View>
 
-      <SleepTimerModal
+      <ListeningOptionsSheet
+        visible={showOptions}
+        onClose={() => setShowOptions(false)}
+        notifyEnabled={notifyEnabled}
+        onToggleCurrent={handleToggleNotify}
+        currentSongTitle={title}
+        exactAlarmGranted={exactAlarmGranted}
+        alarmsCount={alarms.length}
+        quality={quality}
+        availableQualities={availableQualities.length > 0 ? availableQualities : ['128']}
+        onSelectQuality={handleQualitySelect}
+        onOpenAlarms={() => {
+          setShowOptions(false);
+          setShowAlarmMenu(true);
+        }}
+      />
+
+      <SleepTimerSheet
         visible={showSleepMenu}
-        isTimerActive={sleepTimer.isActive}
         onClose={() => setShowSleepMenu(false)}
+        isActive={sleepTimer.isActive}
+        endTime={sleepTimer.endTime}
         onSelectPreset={(minutes) => {
           sleepTimer.start(minutes);
           setShowSleepMenu(false);
@@ -512,14 +518,6 @@ const [showBible, setShowBible] = useState(false);
         }}
       />
 
-      <QualityModal
-        visible={showQualityMenu}
-        currentQuality={quality}
-        availableQualities={availableQualities.length > 0 ? availableQualities : ['128']}
-        onClose={() => setShowQualityMenu(false)}
-        onSelect={handleQualitySelect}
-      />
-
       <AlarmModal
         visible={showAlarmMenu}
         alarms={alarms}
@@ -528,15 +526,6 @@ const [showBible, setShowBible] = useState(false);
         onUpdate={updateAlarm}
         onRemove={removeAlarm}
         onToggle={toggleAlarm}
-      />
-
-      <NotificationsModal
-        visible={showNotifyMenu}
-        onClose={() => setShowNotifyMenu(false)}
-        notifyEnabled={notifyEnabled}
-        onToggleCurrent={handleToggleNotify}
-        currentSongTitle={title}
-        exactAlarmGranted={exactAlarmGranted}
       />
 
       {hasOpenedBible && (
@@ -585,11 +574,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     borderRadius: Radii.full,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm + 2,
-    minHeight: 44,
+    minHeight: 48,
     marginTop: Spacing.xs,
   },
   retryButtonText: {
@@ -621,7 +610,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm + 4,
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: Radii.full,
     gap: Spacing.xs,
     marginBottom: Spacing.sm,
@@ -657,6 +646,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.borderGlass,
-    backgroundColor: 'rgba(8,10,30,0.92)',
+    backgroundColor: Colors.scrimStrong,
   },
 });

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { View, StyleSheet, AppState, AccessibilityInfo } from 'react-native';
+import { View, StyleSheet, AppState } from 'react-native';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -16,6 +17,7 @@ import Svg, { Circle, Defs, RadialGradient, LinearGradient, Stop } from 'react-n
 import { Colors, Shadows } from '@/constants/theme';
 import { clamp } from '@/lib/responsive';
 import { Motion, Spring } from '@/constants/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import DefaultAlbumArt from '../../assets/default-album-art.png';
 
 interface DialVivoProps {
@@ -44,26 +46,21 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size, progress, s
   const ringProgress = useSharedValue(0);
   const lastSongIdRef = useRef<number | null>(null);
 
+  const reduced = useReducedMotion();
+
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled?.().then((v) => {
-      reduceMotion.value = !!v;
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sub = (AccessibilityInfo.addEventListener as any)?.('reduceMotionChanged', (v: boolean) => {
-      reduceMotion.value = v;
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return () => (sub as any)?.remove?.();
-  }, [reduceMotion]);
+    reduceMotion.value = reduced;
+  }, [reduced, reduceMotion]);
 
   // Scale spring on playing state
   useEffect(() => {
     scale.value = withSpring(isPlaying ? 1 : 0.92, Spring.gentle);
   }, [isPlaying, scale]);
 
-  // Rotation loop
+  // Rotation loop — a live voice stream has nothing to "turn toward", so the
+  // disc holds still while a preaching is on air.
   useEffect(() => {
-    if (isPlaying && !reduceMotion.value) {
+    if (isPlaying && !isPreaching && !reduceMotion.value) {
       rotation.value = withRepeat(
         withTiming(1, { duration: Motion.vinylRotationMs, easing: Easing.linear }),
         -1,
@@ -73,7 +70,7 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size, progress, s
       cancelAnimation(rotation);
     }
     return () => cancelAnimation(rotation);
-  }, [isPlaying, rotation, reduceMotion]);
+  }, [isPlaying, isPreaching, rotation, reduceMotion]);
 
   // Program-clock ring: reset instantly on song change, then ease toward target.
   useEffect(() => {
@@ -84,9 +81,9 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size, progress, s
       ringProgress.value = 0;
       if (progress == null) return;
     }
-    const clamped = progress == null ? 0 : Math.min(1, Math.max(0, progress));
+    const clamped = isPreaching ? 0 : (progress == null ? 0 : Math.min(1, Math.max(0, progress)));
     ringProgress.value = withTiming(clamped, { duration: PROGRESS_EASE_MS, easing: Easing.out(Easing.ease) });
-  }, [progress, songId, ringProgress]);
+  }, [progress, songId, isPreaching, ringProgress]);
 
   // Halo breathing
   useEffect(() => {
@@ -120,7 +117,7 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size, progress, s
         cancelAnimation(rotation);
         cancelAnimation(haloScale);
         cancelAnimation(haloOpacity);
-      } else if (isPlaying && !reduceMotion.value) {
+      } else if (isPlaying && !isPreaching && !reduceMotion.value) {
         rotation.value = withRepeat(
           withTiming(1, { duration: Motion.vinylRotationMs, easing: Easing.linear }),
           -1,
@@ -129,7 +126,7 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size, progress, s
       }
     });
     return () => subscription.remove();
-  }, [isPlaying, rotation, haloScale, haloOpacity, reduceMotion]);
+  }, [isPlaying, isPreaching, rotation, haloScale, haloOpacity, reduceMotion]);
 
   const animatedDiscStyle = useAnimatedStyle(() => {
     const rotate = interpolate(rotation.value, [0, 1], [0, 360]);
@@ -296,14 +293,27 @@ export function DialVivo({ artworkUri, isPlaying, isPreaching, size, progress, s
               backgroundColor: '#0A0A14',
             }}
           >
-            <Image
-              source={artworkUri ? { uri: artworkUri } : DefaultAlbumArt}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              transition={320}
-              cachePolicy="memory-disk"
-              priority="high"
-            />
+            {artworkUri ? (
+              <Image
+                source={{ uri: artworkUri }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                transition={320}
+                cachePolicy="memory-disk"
+                priority="high"
+              />
+            ) : isPreaching ? (
+              <Ionicons name="mic" size={labelSize} color={Colors.signal} style={StyleSheet.absoluteFill} />
+            ) : (
+              <Image
+                source={DefaultAlbumArt}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                transition={320}
+                cachePolicy="memory-disk"
+                priority="high"
+              />
+            )}
             <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.12)' }]} />
           </View>
         </View>

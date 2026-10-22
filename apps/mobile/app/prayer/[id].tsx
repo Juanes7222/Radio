@@ -13,15 +13,12 @@ import Animated, { Easing, FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/constants/api';
-import { Colors, Typography } from '@/constants/theme';
+import { Colors, Spacing, Typography } from '@/constants/theme';
 import { Durations, Easings } from '@/constants/motion';
 import { getDeviceId } from '@/lib/device';
 import { usePrayerAnswers } from '@/hooks/usePrayerAnswers';
-import { getPrayerStatusConfig, type PrayerItem } from '@/lib/prayer';
-
-const RESPONSE_TEXT = '#e0e7ff';
-const ACCENT_BORDER = 'rgba(99,102,241,0.3)';
-const ACCENT_TINT = 'rgba(99,102,241,0.06)';
+import { PrayerNode } from '@/components/prayer/PrayerNode';
+import { formatPrayerMoment, getPrayerStatusConfig, type PrayerItem } from '@/lib/prayer';
 
 export default function PrayerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -111,6 +108,7 @@ export default function PrayerDetailScreen() {
   }
 
   const config = getPrayerStatusConfig(detail.estado);
+  const hasAnswer = Boolean(detail.respuesta);
 
   return (
     <View style={styles.container}>
@@ -119,7 +117,7 @@ export default function PrayerDetailScreen() {
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtn}
@@ -129,61 +127,56 @@ export default function PrayerDetailScreen() {
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.heading}>Mi petición</Text>
-        <View style={{ width: 30 }} />
       </View>
 
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: insets.bottom + 40 },
+          { paddingBottom: insets.bottom + Spacing.xl },
         ]}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View
           entering={FadeIn.duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
-          style={styles.statusBadge}
+          style={styles.threadRow}
         >
-          <Ionicons name={config.icon} size={18} color={config.color} />
-          <Text style={[styles.statusText, { color: config.color }]}>
-            {config.label}
-          </Text>
-        </Animated.View>
+          <View style={styles.nodeColumn}>
+            <PrayerNode tone={detail.estado === 'CERRADA' ? 'muted' : 'waiting'} />
+            {hasAnswer && <View style={styles.threadLine} />}
+          </View>
 
-        <Animated.View
-          entering={FadeIn.delay(60).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
-          style={styles.section}
-        >
-          <Text style={styles.sectionTitle}>Mi mensaje</Text>
-          <Text style={styles.sectionBody}>{detail.request}</Text>
-          <Text style={styles.dateText}>
-            {new Date(detail.createdAt).toLocaleDateString('es', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
-        </Animated.View>
+          <View style={styles.threadBody}>
+            <Text style={styles.momentLabel}>
+              Tu petición ·{' '}
+              <Text style={{ color: config.color }}>{config.label}</Text>
+              {` · ${formatPrayerMoment(detail.createdAt)}`}
+            </Text>
+            <Text style={styles.message}>{detail.request}</Text>
 
-        {detail.respuesta && (
-          <Animated.View
-            entering={FadeIn.delay(120).duration(Durations.slow).easing(Easing.bezier(...Easings.enter))}
-            style={[styles.section, styles.responseSection]}
-          >
-            <Text style={styles.responseTitle}>Respuesta</Text>
-            <Text style={styles.responseBody}>{detail.respuesta}</Text>
-            {detail.answeredAt && (
-              <Text style={styles.dateText}>
-                {new Date(detail.answeredAt).toLocaleDateString('es', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+            {!hasAnswer && (
+              <Text style={styles.waitingNote}>
+                Esta petición está esperando la respuesta del equipo. Te avisaremos
+                aquí en cuanto la tengas.
               </Text>
             )}
+          </View>
+        </Animated.View>
+
+        {hasAnswer && (
+          <Animated.View
+            entering={FadeIn.delay(80).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+            style={styles.threadRow}
+          >
+            <View style={styles.nodeColumn}>
+              <PrayerNode tone="answered" />
+            </View>
+
+            <View style={styles.threadBody}>
+              <Text style={styles.momentLabel}>
+                {`Respuesta del equipo · ${formatPrayerMoment(detail.answeredAt ?? detail.createdAt)}`}
+              </Text>
+              <Text style={[styles.message, styles.answerMessage]}>{detail.respuesta}</Text>
+            </View>
           </Animated.View>
         )}
       </ScrollView>
@@ -197,7 +190,7 @@ const styles = StyleSheet.create({
   errorText: { ...Typography.body, color: Colors.danger, textAlign: 'center' },
   backLink: { ...Typography.bodyStrong, color: Colors.accent },
   backLinkWrap: {
-    minHeight: 44,
+    minHeight: 48,
     minWidth: 88,
     alignItems: 'center',
     justifyContent: 'center',
@@ -205,9 +198,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
   },
   backBtn: {
     width: 48,
@@ -220,53 +213,18 @@ const styles = StyleSheet.create({
     ...Typography.screenTitle,
     color: Colors.text,
   },
-  content: { paddingHorizontal: 20, gap: 20 },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.surfaceDim,
-    borderRadius: 12,
-    padding: 14,
-    alignSelf: 'flex-start',
+  content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, gap: Spacing.lg },
+  threadRow: { flexDirection: 'row', gap: Spacing.md },
+  nodeColumn: { width: 18, alignItems: 'center' },
+  threadLine: {
+    width: 1,
+    flex: 1,
+    backgroundColor: Colors.borderGlass,
+    marginTop: Spacing.xs,
   },
-  statusText: { ...Typography.bodyStrong, fontWeight: '700' },
-  section: {
-    backgroundColor: Colors.surfaceDim,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.surfaceSoft,
-    padding: 18,
-    gap: 10,
-  },
-  sectionTitle: {
-    ...Typography.eyebrow,
-    color: Colors.textAlt,
-  },
-  sectionBody: {
-    ...Typography.body,
-    color: Colors.textSoft,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  dateText: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  responseSection: {
-    borderColor: ACCENT_BORDER,
-    backgroundColor: ACCENT_TINT,
-  },
-  responseTitle: {
-    ...Typography.eyebrow,
-    color: Colors.accentLight,
-  },
-  responseBody: {
-    ...Typography.body,
-    color: RESPONSE_TEXT,
-    fontSize: 15,
-    lineHeight: 22,
-  },
+  threadBody: { flex: 1, gap: Spacing.sm },
+  momentLabel: { ...Typography.caption, color: Colors.textMuted },
+  message: { ...Typography.message, color: Colors.text },
+  answerMessage: { color: Colors.textSoft },
+  waitingNote: { ...Typography.body, color: Colors.textMuted },
 });

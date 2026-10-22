@@ -29,7 +29,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { submitFeedback } from '@radio/api';
 import {
   FEEDBACK_CATEGORIES,
@@ -41,6 +40,7 @@ import {
 import { BACKEND_URL } from '@/constants/api';
 import { legalUrl } from '@/constants/legalDocuments';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
+import { tick, success } from '@/lib/haptics';
 import { Durations, Easings, Spring } from '@/constants/motion';
 import { openExternalUrl } from '@/lib/externalLinks';
 
@@ -206,7 +206,7 @@ export default function FeedbackScreen() {
       });
 
       if (result.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        success();
         setSignedName(trimmedNombre.length > 0 ? trimmedNombre : null);
         setMensaje('');
         setNombre('');
@@ -333,7 +333,7 @@ export default function FeedbackScreen() {
                       <TouchableOpacity
                         key={category}
                         onPress={() => {
-                          Haptics.selectionAsync().catch(() => {});
+                          tick();
                           setCategoria(category);
                         }}
                         disabled={loading}
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, gap: Spacing.md },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.lg },
-  backBtn: { minHeight: 44, minWidth: 44, alignItems: 'flex-start', justifyContent: 'center' },
+  backBtn: { minHeight: 48, minWidth: 48, alignItems: 'flex-start', justifyContent: 'center' },
   heading: { ...Typography.display, color: Colors.text, flex: 1 },
 
   lede: { ...Typography.body, color: Colors.textMuted, lineHeight: 21 },
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   },
   letterheadText: {
     ...Typography.mono,
-    fontSize: 11,
+    fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 1.1,
     color: Colors.textAltFaint,
@@ -607,8 +607,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.sm,
   },
-  rowLabel: { ...Typography.label, color: Colors.textFaint, letterSpacing: 1.2, fontSize: 11 },
-  optionalTag: { ...Typography.caption, color: Colors.textAltFaint, fontSize: 11 },
+  rowLabel: { ...Typography.label, color: Colors.textFaint, letterSpacing: 1.2, fontSize: 13 },
+  optionalTag: { ...Typography.caption, color: Colors.textAltFaint, fontSize: 13 },
 
   // The motive options read as options: quiet pills, where the chosen one
   // carries the signal indigo. Chips are transparent when idle so the sheet
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   textarea: { minHeight: 120, paddingTop: 12 },
   textareaSmall: { minHeight: 96, paddingTop: 10 },
   errorText: { ...Typography.caption, color: Colors.danger },
-  hint: { ...Typography.caption, color: Colors.textAltFaint, fontSize: 11 },
+  hint: { ...Typography.caption, color: Colors.textAltFaint, fontSize: 13 },
   counter: { ...Typography.mono, color: Colors.textAltFaint },
 
   consentBlock: {
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.borderGlass,
   },
   submitBtn: {
-    backgroundColor: Colors.signal,
+    backgroundColor: Colors.signalFill,
     borderRadius: Radii.md,
     paddingVertical: 14,
     flexDirection: 'row',
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
   sealText: {
     ...Typography.mono,
     color: Colors.tally,
-    fontSize: 12,
+    fontSize: 13,
     letterSpacing: 2.2,
     textTransform: 'uppercase',
   },
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
     backgroundColor: Colors.surface,
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
   },

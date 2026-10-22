@@ -1,7 +1,9 @@
 /**
  * Sleep timer for the radio stream. The target end time is persisted in
- * AsyncStorage so the timer survives background suspension and app restarts;
- * the remaining time is recomputed from the clock instead of counted down.
+ * AsyncStorage so the timer survives background suspension and app restarts.
+ * The hook only keeps the end time and stops the music when the timer runs
+ * out (even when the bubble is not mounted); the countdown itself lives in
+ * SleepTimerBubble.
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { AppState } from 'react-native';
@@ -53,18 +55,11 @@ function writeStoredTimer(endTime: number, totalSeconds: number): void {
 }
 
 interface UseSleepTimerReturn {
-  remaining: number | null; // segundos restantes, null si está inactivo
+  endTime: number | null;
+  totalSeconds: number | null;
   isActive: boolean;
-  /**
-   * 1 = tiempo completo, 0 = a punto de expirar. Es null cuando la duración
-   * original es desconocida (temporizador restaurado desde un valor antiguo),
-   * y los consumidores deben entonces omitir el arco en vez de inventarlo.
-   */
-  progress: number | null;
   start: (minutes: number) => void;
   cancel: () => void;
-  /** Formato legible: "mm:ss" */
-  display: string;
 }
 
 /**
@@ -73,7 +68,6 @@ interface UseSleepTimerReturn {
 export function useSleepTimer(onExpire: () => void): UseSleepTimerReturn {
   const [endTime, setEndTime] = useState<number | null>(null);
   const [totalSeconds, setTotalSeconds] = useState<number | null>(null);
-  const [remaining, setRemaining] = useState<number | null>(null);
   const onExpireRef = useRef(onExpire);
   const startedRef = useRef(false);
 
@@ -85,7 +79,6 @@ export function useSleepTimer(onExpire: () => void): UseSleepTimerReturn {
   const clear = useCallback(() => {
     setEndTime(null);
     setTotalSeconds(null);
-    setRemaining(null);
     AsyncStorage.removeItem(END_TIME_KEY).catch(() => {});
   }, []);
 
@@ -103,18 +96,15 @@ export function useSleepTimer(onExpire: () => void): UseSleepTimerReturn {
     writeStoredTimer(newEndTime, total);
   }, []);
 
-  // Tick cada 5s mientras hay un timer activo. La precisión viene del reloj
-  // (Date.now()), no del tick, así que un intervalo largo basta para refrescar
-  // el display y reduce re-renders y wakeups del hilo JS.
+  // Expiry check every 5s. Precision comes from the clock (Date.now()), not
+  // the tick, so a long interval is enough to stop the music in time without
+  // re-rendering the screen every second.
   useEffect(() => {
     if (endTime === null) return;
 
     const tick = () => {
-      const remainingMs = endTime - Date.now();
-      if (remainingMs <= 0) {
+      if (Date.now() >= endTime) {
         expire();
-      } else {
-        setRemaining(Math.ceil(remainingMs / 1000));
       }
     };
 
@@ -123,22 +113,19 @@ export function useSleepTimer(onExpire: () => void): UseSleepTimerReturn {
     return () => clearInterval(interval);
   }, [endTime, expire]);
 
-  // Al volver a foreground, recalcular con el reloj: los timers JS se
-  // suspenden o retrasan en segundo plano y el tick pierde precisión.
+  // When returning to the foreground, recalculate from the clock: JS timers
+  // suspend or delay in the background and the tick loses precision.
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state !== 'active' || endTime === null) return;
-      const remainingMs = endTime - Date.now();
-      if (remainingMs <= 0) {
+      if (Date.now() >= endTime) {
         expire();
-      } else {
-        setRemaining(Math.ceil(remainingMs / 1000));
       }
     });
     return () => subscription.remove();
   }, [endTime, expire]);
 
-  // Restaurar un timer persistido que sobrevivió al cierre de la app.
+  // Restore a persisted timer that survived app closure.
   useEffect(() => {
     let mounted = true;
     AsyncStorage.getItem(END_TIME_KEY).then((raw) => {
@@ -158,22 +145,11 @@ export function useSleepTimer(onExpire: () => void): UseSleepTimerReturn {
     };
   }, []);
 
-  const display =
-    remaining === null
-      ? ''
-      : `${String(Math.floor(remaining / 60)).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`;
-
-  const progress =
-    remaining === null || totalSeconds === null || totalSeconds <= 0
-      ? null
-      : Math.min(1, Math.max(0, remaining / totalSeconds));
-
   return {
-    remaining,
+    endTime,
+    totalSeconds,
     isActive: endTime !== null,
-    progress,
     start,
     cancel: clear,
-    display,
   };
 }
