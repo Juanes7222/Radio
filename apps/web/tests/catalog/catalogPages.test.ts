@@ -42,6 +42,28 @@ const CATALOG_WITH_VIDEO: Catalog = {
   ],
 };
 
+// The station knows the length of a video it processed: 3725 seconds are one
+// hour, two minutes and five seconds.
+const CATALOG_WITH_VIDEO_DURATION: Catalog = {
+  ...CATALOG,
+  videos: [
+    {
+      videoId: "abc123XYZ_-",
+      title: "Predicación de hoy",
+      channelTitle: "La Voz de la Verdad",
+      publishedAt: "2026-10-20T10:00:00.000Z",
+      durationSeconds: 3725,
+    },
+  ],
+};
+
+// The station holds more videos than the index page carries.
+const CATALOG_WITH_MORE_VIDEOS: Catalog = {
+  ...CATALOG,
+  videos: CATALOG_WITH_VIDEO.videos,
+  videosTotal: 437,
+};
+
 const CATALOG_WITH_MISSING_CHAPTERS: Catalog = {
   ...CATALOG,
   // The book declares three chapters, but the artifact carries one with verses
@@ -186,5 +208,46 @@ describe("renderCatalogDocument", () => {
     const document = renderCatalogDocument(pages.find((p) => p.path === "/videos/")!);
     expect(document).not.toContain("<iframe");
     expect(document).toContain("https://www.youtube.com/watch?v=abc123XYZ_-");
+  });
+
+  it("declares the duration of a video the station knows the length of", () => {
+    const pages = buildCatalogPages(CATALOG_WITH_VIDEO_DURATION);
+    const page = pages.find((p) => p.path === "/videos/")!;
+
+    // The structured data wants an ISO 8601 duration.
+    expect(page.jsonLd).toContain('"duration": "PT1H2M5S"');
+  });
+
+  it("says nothing about the duration of a video it does not know", () => {
+    const pages = buildCatalogPages(CATALOG_WITH_VIDEO);
+    const page = pages.find((p) => p.path === "/videos/")!;
+
+    expect(page.jsonLd).not.toContain('"duration"');
+  });
+
+  it("says how many videos the index page left out", () => {
+    const pages = buildCatalogPages(CATALOG_WITH_MORE_VIDEOS);
+    const page = pages.find((p) => p.path === "/videos/")!;
+
+    expect(page.body).toContain("Esta página lista el video más reciente de 437.");
+    // And the description counts the ones the station holds.
+    expect(page.description).toContain("437 videos");
+  });
+
+  it("does not announce a truncation when the list is the whole set", () => {
+    const pages = buildCatalogPages(CATALOG_WITH_VIDEO);
+    const page = pages.find((p) => p.path === "/videos/")!;
+
+    expect(page.body).not.toContain("más recientes");
+    expect(page.description).toContain("1 video");
+  });
+  it("declares the icons of the station", () => {
+    const document = renderCatalogDocument(
+      buildCatalogPages(CATALOG).find((p) => p.path === "/biblia/job/1/")!,
+    );
+
+    // A chapter shared in WhatsApp shows the icon of the station.
+    expect(document).toContain('<link rel="apple-touch-icon" sizes="180x180" href="/apple-icon-180x180.png" />');
+    expect(document).toContain('<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />');
   });
 });

@@ -462,11 +462,34 @@ function praiseIndexPage(catalog: Catalog): CatalogPage {
   };
 }
 
+/**
+ * The ISO 8601 duration of a video, as the structured data wants it.
+ *
+ * `PT1H2M3S`: the hours, the minutes and the seconds. The parts that are
+ * zero are left out, except for the seconds, so the value never ends empty.
+ */
+function isoDuration(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.round(totalSeconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const rest = seconds % 60;
+  const parts = [
+    hours > 0 ? `${hours}H` : "",
+    minutes > 0 ? `${minutes}M` : "",
+    `${rest}S`,
+  ].filter((part) => part.length > 0);
+  return `PT${parts.join("")}`;
+}
+
 function videosPage(catalog: Catalog): CatalogPage {
   const path = "/videos/";
   const title = "Videos y predicaciones | La Voz de la Verdad";
+  // The station may hold more videos than the index page carries. The page
+  // says so instead of pretending that the list is the whole set.
+  const total = catalog.videosTotal ?? catalog.videos.length;
+  const isCapped = total > catalog.videos.length;
   const description = fit(
-    `Los videos y las predicaciones de La Voz de la Verdad: ${plural(catalog.videos.length, "video", "videos")} con mensajes bíblicos, alabanza y adoración`,
+    `Los videos y las predicaciones de La Voz de la Verdad: ${plural(total, "video", "videos")} con mensajes bíblicos, alabanza y adoración`,
     ". Verlos en YouTube y escuchar la radio en vivo.",
     MAX_DESCRIPTION_LENGTH,
   );
@@ -481,10 +504,15 @@ function videosPage(catalog: Catalog): CatalogPage {
     })
     .join("\n");
   const body = [
+    isCapped
+      ? `<p class="meta">Esta página lista ${catalog.videos.length === 1 ? "el video más reciente" : `los ${catalog.videos.length} videos más recientes`} de ${total}.</p>`
+      : "",
     ['<ul class="videos">', videos, "</ul>"].join("\n"),
     sectionsMarkup(catalog, "videos"),
     playerMarkup(),
-  ].join("\n");
+  ]
+    .filter((block) => block.length > 0)
+    .join("\n");
 
   return {
     path,
@@ -510,6 +538,11 @@ function videosPage(catalog: Catalog): CatalogPage {
           url: videoUrl(video),
           contentUrl: videoUrl(video),
           thumbnailUrl: `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`,
+          // The duration is what the model knows; a video the station never
+          // processed carries none, and the node says nothing about it.
+          ...(video.durationSeconds !== undefined
+            ? { duration: isoDuration(video.durationSeconds) }
+            : {}),
         },
       })),
     }),
@@ -591,7 +624,6 @@ export function renderCatalogDocument(page: CatalogPage): string {
     description: page.description,
     ogTitle: page.ogTitle,
     canonical: canonicalOf(page.path),
-    jsonLd: page.jsonLd,
   };
 
   return [
@@ -606,6 +638,13 @@ export function renderCatalogDocument(page: CatalogPage): string {
     `    ${buildSocialTagsFor(meta)}`,
     `    <script type="application/ld+json">${page.jsonLd}</script>`,
     '    <link rel="stylesheet" href="/catalog.css" />',
+    // The same icons the app declares. A chapter shared in WhatsApp shows
+    // the icon of the station instead of a blank page.
+    '    <link rel="apple-touch-icon" sizes="180x180" href="/apple-icon-180x180.png" />',
+    '    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />',
+    '    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />',
+    '    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />',
+    '    <link rel="icon" type="image/png" sizes="192x192" href="/android-icon-192x192.png" />',
     "  </head>",
     "  <body>",
     "    <main>",
