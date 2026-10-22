@@ -35,6 +35,8 @@ export interface CatalogVideo {
   readonly title: string;
   readonly channelTitle: string;
   readonly publishedAt: string; // ISO date
+  /** The length in seconds, when the station knows it. */
+  readonly durationSeconds?: number;
 }
 
 export interface Catalog {
@@ -44,4 +46,9 @@ export interface Catalog {
   readonly chapters: readonly CatalogChapter[];
   readonly artists: readonly CatalogArtist[];
   readonly videos: readonly CatalogVideo[];
+  /**
+   * How many videos the station holds. It is larger than `videos.length`
+   * when the export capped the list, and the page says so.
+   */
+  readonly videosTotal?: number;
 }

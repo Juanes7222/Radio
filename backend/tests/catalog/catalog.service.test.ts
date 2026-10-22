@@ -1,7 +1,9 @@
 import os from "os";
 import path from "path";
+import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 import {
+  MAX_VIDEOS,
   buildCatalogBooks,
   defaultCatalogPath,
   groupSongsByArtist,
@@ -108,5 +110,27 @@ describe("defaultCatalogPath", () => {
     } finally {
       process.chdir(originalCwd);
     }
+  });
+});
+
+/**
+ * The videos of the station grow with every video it receives, and the index
+ * page is a single document. The export reads only the newest ones, so the
+ * page cannot grow without bound.
+ */
+describe("the video cap of the export", () => {
+  const service = readFileSync(
+    path.join(__dirname, "..", "..", "src", "modules", "catalog", "catalog.service.ts"),
+    "utf8",
+  );
+
+  it("reads only the newest videos", () => {
+    expect(MAX_VIDEOS).toBeGreaterThan(0);
+    // The cap is in the query, so the export never reads the whole table.
+    expect(service).toMatch(/take:\s*MAX_VIDEOS/);
+  });
+
+  it("tells the page how many videos the station holds", () => {
+    expect(service).toContain("videosTotal: videos.total");
   });
 });

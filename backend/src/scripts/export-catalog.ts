@@ -16,8 +16,9 @@ async function main(): Promise<void> {
     const { exportCatalog, defaultCatalogPath } = await import("../modules/catalog/catalog.service");
     const target = process.argv[2] ?? defaultCatalogPath();
     const counts = await exportCatalog(target);
+    const capped = counts.videosTotal > counts.videos ? ` (of ${counts.videosTotal})` : "";
     console.log(
-      `[catalog] books=${counts.books} chapters=${counts.chapters} artists=${counts.artists} videos=${counts.videos}`
+      `[catalog] books=${counts.books} chapters=${counts.chapters} artists=${counts.artists} videos=${counts.videos}${capped}`
     );
   } finally {
     await disconnect();

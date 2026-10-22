@@ -41,6 +41,16 @@ interface LibraryRequestRow {
 const MAX_LIBRARY_PAGES = 100;
 
 /**
+ * The number of videos the index page carries.
+ *
+ * The list of the station's videos grows with every video it receives, and
+ * the index page is a single document: without a cap it would grow without
+ * bound and the page would stop being a page. The newest videos are the ones
+ * worth indexing, so the cap keeps those.
+ */
+export const MAX_VIDEOS = 200;
+
+/**
  * Groups the songs by artist, dropping the ones with no artist.
  *
  * The artists come back sorted by name and each one carries its songs sorted
@@ -149,7 +159,13 @@ export function defaultCatalogPath(): string {
  */
 export async function exportCatalog(
   targetPath: string
-): Promise<{ books: number; chapters: number; artists: number; videos: number }> {
+): Promise<{
+  books: number;
+  chapters: number;
+  artists: number;
+  videos: number;
+  videosTotal: number;
+}> {
   const [bible, songs, videos] = await Promise.all([
     readBible(),
     readLibrarySongs(),
@@ -174,7 +190,8 @@ export async function exportCatalog(
     books: bible.books,
     chapters: bible.chapters,
     artists,
-    videos,
+    videos: videos.videos,
+    videosTotal: videos.total,
   };
 
   writeCatalog(targetPath, catalog);
@@ -184,6 +201,7 @@ export async function exportCatalog(
     chapters: catalog.chapters.length,
     artists: catalog.artists.length,
     videos: catalog.videos.length,
+    videosTotal: catalog.videosTotal ?? catalog.videos.length,
   };
 }
 
@@ -299,8 +317,16 @@ function dedupeByRequest(rows: readonly LibraryRequestRow[]): LibraryRequestRow[
   });
 }
 
+/** The videos the station received, and how many it holds. */
+interface CatalogVideos {
+  /** The newest videos, capped at MAX_VIDEOS. */
+  readonly videos: CatalogVideo[];
+  /** How many videos the station holds, capped or not. */
+  readonly total: number;
+}
+
 /** The videos the station received, read from the database. */
-async function readVideos(): Promise<CatalogVideo[]> {
+async function readVideos(): Promise<CatalogVideos> {
   const { prisma } = await import("../../infrastructure/database/prisma");
 
   const channels = await prisma.youTubeChannel.findMany({
@@ -308,23 +334,33 @@ async function readVideos(): Promise<CatalogVideo[]> {
   });
   const titlesByChannel = new Map(channels.map((channel) => [channel.channelId, channel.title]));
 
-  const videos = await prisma.youTubeVideo.findMany({
+  const rows = await prisma.youTubeVideo.findMany({
     orderBy: { createdAt: "desc" },
+    take: MAX_VIDEOS,
     select: {
       videoId: true,
       title: true,
       channelId: true,
       publishedAt: true,
       createdAt: true,
+      duration: true,
     },
   });
 
-  return videos.map((video) => ({
+  // The count is only asked for when the list may have been cut: with fewer
+  // videos than the cap, the list is the whole set.
+  const total =
+    rows.length < MAX_VIDEOS ? rows.length : await prisma.youTubeVideo.count();
+
+  const videos = rows.map((video) => ({
     videoId: video.videoId,
     title: video.title,
     channelTitle: titlesByChannel.get(video.channelId) ?? "",
     publishedAt: (video.publishedAt ?? video.createdAt).toISOString(),
+    ...(video.duration !== null ? { durationSeconds: video.duration } : {}),
   }));
+
+  return { videos, total };
 }
 
 /**
