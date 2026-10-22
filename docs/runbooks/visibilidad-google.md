@@ -132,11 +132,10 @@ la portada para todo el sitio.
 5. Si después de un par de semanas Google sigue mostrando el dominio:
    - primero confirmar que los 301 de `www` y de `vozyverdad.com` apuntan a
      `https://lavozverdad.com` (el nombre se toma de la página de destino);
-   - si los 301 están bien, el nombre alternativo se declara en el nodo
-     `WebSite` (actualmente el `alternateName` está en el nodo
-     `BroadcastService`, y Google lo lee en el nodo `WebSite`). Eso es un
-     cambio de código: se pide al equipo de desarrollo, se redespliega y se
-     vuelve a pedir la reindexación de la portada.
+   - si los 301 están bien, el nombre alternativo ya se declara en el nodo
+     `WebSite` (`alternateName` en `organizationNodes()`,
+     `apps/web/src/config/seo.config.ts`), que es donde Google lo lee. Con
+     el despliegue hecho, se vuelve a pedir la reindexación de la portada.
 
 ---
 
@@ -326,7 +325,7 @@ Reglas de la lista:
 | Nombre del sitio | `apps/web/src/config/seo.config.ts` (`SITE_NAME`), en el JSON-LD `WebSite` y en `og:site_name` |
 | `robots.txt` | `apps/web/public/robots.txt` |
 | 404 de las rutas desconocidas | `scripts/nginx/radio-global.conf` (mapa `$spa_route`) y `scripts/nginx/snippets/web-locations.conf` |
-| Service worker (no guarda una página de catálogo encima de la portada) | `apps/web/public/sw.js` |
+| Service worker (no guarda en la caché las páginas de catálogo) | `apps/web/public/sw.js` |
 
 Plan y diseño completos: `docs/superpowers/specs/2026-10-21-visibilidad-google-design.md`
 y `docs/superpowers/plans/2026-10-21-visibilidad-google.md`.

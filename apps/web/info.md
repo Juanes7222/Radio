@@ -28,4 +28,5 @@ Structure:
   index.html           Entry point for the Webapp
   tailwind.config.js   Configures Tailwind's theme, plugins, etc.
   vite.config.ts       Main build and dev server settings for Vite
+  vite/seoPlugin.ts    Build-time writers: per-route head tags, the catalog pages and the sitemap
   postcss.config.js    Config file for CSS post-processing tools

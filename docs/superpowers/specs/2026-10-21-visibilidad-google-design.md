@@ -211,7 +211,7 @@ not in this plan.
    entry per visited catalog page; that is bounded by the cache version but
    it should be capped or the catalog pages excluded from the runtime cache.
 3. **Sitemap.** `dist/sitemap.xml` has exactly one writer today
-   (`buildSitemapXml` in `vite.config.ts`, called from `writeBundle`), and a
+   (`buildSitemapXml` in `vite/seoPlugin.ts`, called from `writeBundle`), and a
    test requires it to contain every public route. The catalog URLs have to
    be added inside that same function, not by a second writer, or the two
    will fight over the file. `lastmod` should be the real last change per

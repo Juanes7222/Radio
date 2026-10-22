@@ -387,11 +387,14 @@ title and one description. Search metadata is now generated per route.
   `<!--seo:social-->` and `<!--seo:jsonld-->` comment pairs. The build
   replaces each region (markers included) per route; the static values in
   `index.html` are only the `vite dev` / non-public-route fallback.
-- `vite.config.ts` owns two plugins: `perRouteSeo` (`apply: 'build'`) writes
-  `dist/<route>/index.html` for every public route plus `dist/sitemap.xml` in
-  `writeBundle`; `devRouteSeo` (`apply: 'serve'`) does the same substitution
-  through `transformIndexHtml`. In dev the requested route is only in
-  `ctx.originalUrl` — Vite normalises `ctx.path` to `/index.html`.
+- `apps/web/vite/seoPlugin.ts` owns two plugins: `perRouteSeoPlugin()`
+  (`apply: 'build'`) writes `dist/<route>/index.html` for every public
+  route, the generated catalog pages and `dist/sitemap.xml` in
+  `writeBundle`; `devRouteSeoPlugin()` (`apply: 'serve'`) does the same
+  substitution through `transformIndexHtml`. In dev the requested route is
+  only in `ctx.originalUrl` — Vite normalises `ctx.path` to `/index.html`.
+  `vite.config.ts` only registers them. The sitemap has exactly one
+  writer, and it is that plugin.
 - nginx needs no change to serve the per-route files: `try_files $uri $uri/`
   plus `index index.html` already resolves `/programacion` to
   `dist/programacion/index.html`. HTML is absent from
@@ -409,13 +412,11 @@ title and one description. Search metadata is now generated per route.
   `buildSitemapXml` reads the same function, so the sitemap cannot drift from
   the canonical. Re-evaluation after the fix is not instant: Google may hold
   pages in a duplicate cluster for up to two weeks.
-- Known debt: **unknown URLs return 200**, not 404. `main.tsx` routes `*` to
-  `<Navigate to="/" replace />` and nginx falls back to `dist/index.html` for
-  any path, so every typo or scraper URL is served as the home page. Google
-  documents this as a soft 404, and it spends crawl budget on an infinite URL
-  space. Fixing it needs the real status code, which means either an nginx
-  allowlist of the public routes (the admin panel also lives on this host) or
-  a dedicated 404 document served with a 404 status.
+- Unknown URLs answer 404, not the home page. `scripts/nginx/radio-global.conf`
+  maps the client-side routes and `scripts/nginx/snippets/web-locations.conf`
+  returns 404 for anything that is not one of them, so a typo or a scraper URL
+  does not spend crawl budget on an infinite URL space. The admin panel lives
+  on the same host and is in the map, so it stays reachable.
 - `components/layout/useRouteMeta.ts` re-applies the same tags on SPA
   navigation so a link shared after in-app navigation is not mislabelled.
 - Canonical host: `www.lavozverdad.com` and the whole `vozyverdad.com` pair
