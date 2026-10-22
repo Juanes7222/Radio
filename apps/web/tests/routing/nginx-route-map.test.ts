@@ -17,6 +17,11 @@ const nginx = readFileSync(
   "utf8",
 );
 
+const webLocations = readFileSync(
+  join(repoRoot, "scripts", "nginx", "snippets", "web-locations.conf"),
+  "utf8",
+);
+
 /**
  * The patterns of the map that decides which paths may fall back to the
  * application shell.
@@ -71,5 +76,29 @@ describe("the nginx route map", () => {
       patterns.some((pattern) => new RegExp(pattern).test("/admin/login")),
       "the admin panel is not in the map of $spa_route",
     ).toBe(true);
+  });
+});
+
+/**
+ * The 404 path is a sibling of `location /`, not a nested one, so the limit
+ * of that block does not cover it. A scanner hitting invented paths would be
+ * unthrottled, which is the opposite of what the limit is for.
+ */
+describe("the limit of the 404 path", () => {
+  it("gives the 404 path the same limit as the rest of the site", () => {
+    const site = /location \/ \{([^}]*)\}/.exec(webLocations);
+    const spa = /location @spa \{([^}]*)\}/.exec(webLocations);
+
+    expect(site, "the location of the site was not found").not.toBeNull();
+    expect(spa, "the location of the 404 path was not found").not.toBeNull();
+
+    const limitOf = (block: string | undefined): string | undefined =>
+      /limit_req\s+[^;]+;/.exec(block ?? "")?.[0];
+
+    const siteLimit = limitOf(site?.[1]);
+    const spaLimit = limitOf(spa?.[1]);
+
+    expect(siteLimit, "the site has no limit").toBeDefined();
+    expect(spaLimit, "the 404 path has no limit").toBe(siteLimit);
   });
 });
