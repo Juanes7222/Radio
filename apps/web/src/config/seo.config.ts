@@ -3,9 +3,9 @@
  *
  * Consumed by three places, which is exactly why the values live here and
  * nowhere else:
- *   - `vite.config.ts` (`writeBundle`) bakes a per-route `<head>` into
+ *   - `vite/seoPlugin.ts` (`writeBundle`) bakes a per-route `<head>` into
  *     dist/<route>/index.html, so every public URL ships its own metadata.
- *   - `vite.config.ts` (`transformIndexHtml`) keeps `vite dev` consistent.
+ *   - `vite/seoPlugin.ts` (`transformIndexHtml`) keeps `vite dev` consistent.
  *   - `PublicLayout` syncs the same tags on client-side navigation, so a link
  *     shared after navigating inside the SPA is not mislabelled.
  *
@@ -35,6 +35,7 @@ export const PUBLIC_ROUTES = [
   '/',
   '/programacion',
   '/opiniones',
+  '/lectura-de-hoy',
   '/info/who-we-are',
   '/info/privacy',
   '/info/terms',
@@ -88,6 +89,15 @@ export const ROUTE_META: Readonly<Record<PublicRoute, RouteMeta>> = {
     ogTitle: 'Opiniones y sugerencias | La Voz de la Verdad',
     priority: 0.7,
     changefreq: 'monthly',
+  },
+  '/lectura-de-hoy': {
+    kind: 'schedule',
+    title: 'Lectura bíblica de hoy | La Voz de la Verdad',
+    description:
+      'Los capítulos de la Biblia que se leen hoy en La Voz de la Verdad, con el enlace al texto completo de cada capítulo y la radio en vivo.',
+    ogTitle: 'Lectura bíblica de hoy',
+    priority: 0.7,
+    changefreq: 'daily',
   },
   '/info/who-we-are': {
     kind: 'about',
@@ -166,7 +176,7 @@ export function normalizePathname(pathname: string): string {
   return withoutQuery;
 }
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -175,17 +185,33 @@ function escapeHtml(value: string): string {
 }
 
 /**
- * Core `<head>` tags for a route: identity plus the canonical that tells
- * search engines which of the four served hosts owns this URL.
+ * The identity of a page: what the head builders write.
+ *
+ * Both the public routes and the generated catalog pages are described this
+ * way. The JSON-LD is not part of it: the script is a separate region of the
+ * document and the caller writes it.
  */
-export function buildHeadTags(route: PublicRoute): string {
-  const meta = ROUTE_META[route];
+export interface PageMeta {
+  readonly title: string;
+  readonly description: string;
+  readonly ogTitle: string;
+  readonly canonical: string;
+}
+
+/**
+ * Core `<head>` tags for a page: identity plus the canonical that tells
+ * search engines which of the four served hosts owns this URL.
+ *
+ * The JSON-LD is not part of it: the script is a separate region of the
+ * document and the caller writes it.
+ */
+export function buildHeadTagsFor(page: PageMeta): string {
   return [
-    `<title>${escapeHtml(meta.title)}</title>`,
-    `<meta name="description" content="${escapeHtml(meta.description)}" />`,
+    `<title>${escapeHtml(page.title)}</title>`,
+    `<meta name="description" content="${escapeHtml(page.description)}" />`,
     `<meta name="author" content="${escapeHtml(SITE_NAME)}" />`,
     '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />',
-    `<link rel="canonical" href="${escapeHtml(canonicalUrl(route))}" />`,
+    `<link rel="canonical" href="${escapeHtml(page.canonical)}" />`,
   ].join('\n    ');
 }
 
@@ -194,17 +220,15 @@ export function buildHeadTags(route: PublicRoute): string {
  * relative asset path is resolved against SITE_URL here rather than at each
  * call site.
  */
-export function buildSocialTags(route: PublicRoute): string {
-  const meta = ROUTE_META[route];
-  const canonical = canonicalUrl(route);
+export function buildSocialTagsFor(page: PageMeta): string {
   const image = absoluteUrl(DEFAULT_OG_IMAGE_PATH);
   return [
     `<meta property="og:site_name" content="${escapeHtml(SITE_NAME)}" />`,
     `<meta property="og:locale" content="${LOCALE}" />`,
     `<meta property="og:type" content="website" />`,
-    `<meta property="og:url" content="${escapeHtml(canonical)}" />`,
-    `<meta property="og:title" content="${escapeHtml(meta.ogTitle)}" />`,
-    `<meta property="og:description" content="${escapeHtml(meta.description)}" />`,
+    `<meta property="og:url" content="${escapeHtml(page.canonical)}" />`,
+    `<meta property="og:title" content="${escapeHtml(page.ogTitle)}" />`,
+    `<meta property="og:description" content="${escapeHtml(page.description)}" />`,
     `<meta property="og:image" content="${escapeHtml(image)}" />`,
     `<meta property="og:image:secure_url" content="${escapeHtml(image)}" />`,
     `<meta property="og:image:type" content="image/png" />`,
@@ -212,15 +236,36 @@ export function buildSocialTags(route: PublicRoute): string {
     `<meta property="og:image:height" content="${String(OG_IMAGE_HEIGHT)}" />`,
     `<meta property="og:image:alt" content="${escapeHtml(SITE_NAME)}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
-    `<meta name="twitter:title" content="${escapeHtml(meta.ogTitle)}" />`,
-    `<meta name="twitter:description" content="${escapeHtml(meta.description)}" />`,
+    `<meta name="twitter:title" content="${escapeHtml(page.ogTitle)}" />`,
+    `<meta name="twitter:description" content="${escapeHtml(page.description)}" />`,
     `<meta name="twitter:image" content="${escapeHtml(image)}" />`,
     `<meta name="twitter:image:alt" content="${escapeHtml(SITE_NAME)}" />`,
   ].join('\n    ');
 }
 
-/** Identity nodes shared by every public route. */
-function organizationNodes(): readonly Record<string, unknown>[] {
+/** A public route described as a page, so both builders read the same values. */
+function routePageMeta(route: PublicRoute): PageMeta {
+  const meta = ROUTE_META[route];
+  return {
+    title: meta.title,
+    description: meta.description,
+    ogTitle: meta.ogTitle,
+    canonical: canonicalUrl(route),
+  };
+}
+
+/** `<head>` tags of a public route. */
+export function buildHeadTags(route: PublicRoute): string {
+  return buildHeadTagsFor(routePageMeta(route));
+}
+
+/** Social tags of a public route. */
+export function buildSocialTags(route: PublicRoute): string {
+  return buildSocialTagsFor(routePageMeta(route));
+}
+
+/** Identity nodes shared by every public route and by the generated pages. */
+export function organizationNodes(): readonly Record<string, unknown>[] {
   return [
     {
       '@type': 'Organization',
@@ -238,7 +283,6 @@ function organizationNodes(): readonly Record<string, unknown>[] {
       '@type': 'BroadcastService',
       '@id': `${SITE_URL}/#station`,
       name: SITE_NAME,
-      alternateName: 'La Voz Verdad',
       url: `${SITE_URL}/`,
       description: HOME_DESCRIPTION,
       broadcastDisplayName: SITE_NAME,
@@ -259,6 +303,10 @@ function organizationNodes(): readonly Record<string, unknown>[] {
       '@type': 'WebSite',
       '@id': `${SITE_URL}/#website`,
       name: SITE_NAME,
+      // Google reads the alternative name of the site from the WebSite node,
+      // not from the station node: the search result shows it next to the
+      // name of the site.
+      alternateName: 'La Voz Verdad',
       url: `${SITE_URL}/`,
       inLanguage: 'es-CO',
       publisher: { '@id': `${SITE_URL}/#organization` },
@@ -316,12 +364,23 @@ function escapeXml(value: string): string {
     .replace(/'/g, '&apos;');
 }
 
+/** A page outside the route table, as it appears in the sitemap. */
+export interface SitemapEntry {
+  readonly loc: string;
+  readonly priority: number;
+  readonly changefreq: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  readonly lastmod?: string; // "YYYY-MM-DD"
+}
+
 /**
- * Sitemap covering the public routes only. Generated at build time rather than
- * shipped from public/ so `lastmod` carries the real deploy date instead of a
- * hardcoded one that would silently go stale.
+ * Sitemap covering the public routes and the generated pages. Generated at
+ * build time rather than shipped from public/ so `lastmod` carries the real
+ * deploy date instead of a hardcoded one that would silently go stale.
  */
-export function buildSitemapXml(lastModified: Date): string {
+export function buildSitemapXml(
+  lastModified: Date,
+  extra: readonly SitemapEntry[] = [],
+): string {
   const lastmod = lastModified.toISOString().slice(0, 10);
   const ordered = [...PUBLIC_ROUTES].sort(
     (a, b) => ROUTE_META[b].priority - ROUTE_META[a].priority,
@@ -339,10 +398,22 @@ export function buildSitemapXml(lastModified: Date): string {
     ].join('\n');
   });
 
+  const generated = extra.map((entry) =>
+    [
+      '  <url>',
+      `    <loc>${escapeXml(entry.loc)}</loc>`,
+      `    <lastmod>${escapeXml(entry.lastmod ?? lastmod)}</lastmod>`,
+      `    <changefreq>${entry.changefreq}</changefreq>`,
+      `    <priority>${entry.priority.toFixed(1)}</priority>`,
+      '  </url>',
+    ].join('\n'),
+  );
+
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ...entries,
+    ...generated,
     '</urlset>',
     '',
   ].join('\n');

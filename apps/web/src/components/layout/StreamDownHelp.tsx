@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { BookOpen, CalendarDays } from "lucide-react";
 import { fetchSchedule, mergeConsecutiveScheduleItems } from "@radio/api";
-import { API_BASE_URL, apiUrl } from "@/config";
+import { API_BASE_URL } from "@/config";
+import { fetchTodayReading } from "@/lib/bible";
 import { formatChapters } from "@/lib/format";
-import type { BibleReadingToday, ScheduleItem } from "@radio/types";
+import type { ScheduleItem } from "@radio/types";
 
 const UPCOMING_LIMIT = 2;
 
@@ -38,19 +39,6 @@ function selectUpcomingPrograms(schedule: ScheduleItem[]): UpcomingProgram[] {
     }));
 }
 
-async function fetchTodayReading(): Promise<string | null> {
-  try {
-    const response = await fetch(apiUrl("/api/bible/reading/today"));
-    if (!response.ok) return null;
-
-    const data = (await response.json()) as BibleReadingToday;
-    const chapters = data.reading?.chapters ?? [];
-    return chapters.length > 0 ? formatChapters(chapters) : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Content shown only while the stream is down: what airs next and the Bible
  * reading of the day, so a listener without audio still has something useful
@@ -67,9 +55,14 @@ export function StreamDownHelp() {
     fetchSchedule(API_BASE_URL).then((schedule) => {
       if (!cancelled && schedule) setPrograms(selectUpcomingPrograms(schedule));
     });
-    fetchTodayReading().then((value) => {
-      if (!cancelled) setReading(value);
-    });
+    fetchTodayReading()
+      .then((payload) => {
+        const chapters = payload.reading?.chapters ?? [];
+        if (!cancelled && chapters.length > 0) setReading(formatChapters(chapters));
+      })
+      .catch(() => {
+        // The banner is optional: without a reading it stays hidden.
+      });
 
     return () => {
       cancelled = true;

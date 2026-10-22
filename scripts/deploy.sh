@@ -337,6 +337,16 @@ fi
 info "Building shared package @radio/types..."
 "$PNPM_BIN" --filter "$TYPES_PACKAGE" run build
 
+# @radio/infisical-config ships compiled output too, and the catalog export
+# imports it. The export runs with the web build, so this package has to be
+# built for both targets as well.
+info "Building shared package @radio/infisical-config..."
+"$PNPM_BIN" --filter "$INFISICAL_PACKAGE" run build
+
+# The catalog export reads the database, so it needs the Prisma client too.
+info "Generating Prisma client..."
+"$PNPM_BIN" --filter "$BACKEND_PACKAGE" run prisma:generate
+
 if [[ "$DEPLOY_BACKEND" == "true" ]] && [[ -d "$BACKEND_DIR/dist" ]]; then
   BACKUP_BACKEND="$(mktemp -d)"
   cp -r "$BACKEND_DIR/dist/." "$BACKUP_BACKEND"
@@ -348,12 +358,6 @@ if [[ "$DEPLOY_FRONTEND" == "true" ]] && [[ -d "$FRONTEND_DIR/dist" ]]; then
 fi
 
 if [[ "$DEPLOY_BACKEND" == "true" ]]; then
-  info "Building shared package @radio/infisical-config..."
-  "$PNPM_BIN" --filter "$INFISICAL_PACKAGE" run build
-
-  info "Generating Prisma client..."
-  "$PNPM_BIN" --filter "$BACKEND_PACKAGE" run prisma:generate
-
   info "Building backend..."
   "$PNPM_BIN" --filter "$BACKEND_PACKAGE" run build
 
@@ -375,6 +379,19 @@ if [[ "$DEPLOY_BACKEND" == "true" ]]; then
 fi
 
 if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
+  # The published pages carry the free-to-redistribute translation and the
+  # export reads it from the database, so the seed travels with the export
+  # that needs it. The seed skips the write when the translation is already
+  # there, so it costs a parse and not 31.000 verses.
+  info "Seeding the published Bible translation..."
+  "$PNPM_BIN" --filter "$BACKEND_PACKAGE" run seed:bible:published
+
+  # The web build reads the artifact this writes. The export runs here, right
+  # before its consumer, so a frontend-only deploy ships a fresh artifact
+  # instead of the one the last backend deploy left behind.
+  info "Exporting the catalog..."
+  "$PNPM_BIN" --filter "$BACKEND_PACKAGE" run catalog:export
+
   info "Building frontend..."
   "$PNPM_BIN" --filter "$WEB_PACKAGE" run build
 

@@ -110,11 +110,13 @@ rows are behind `requireAuth` and the AzuraCast API key. So the data comes
 in two halves:
 
 **Half one, in the backend: an export script.** A script in the backend
-(`backend/scripts/export-catalog.ts`) uses the same services the backend
-already has — `azuracastApi` for the playlist items, Prisma for
-`PlaybackEvent` and `YouTubeVideo`, the Bible tables for the chapters — and
-writes one JSON artifact (`backend/data/catalog.json`). It is the only place
-that needs a secret, and it produces a file that can be reviewed in a diff.
+(`backend/src/scripts/export-catalog.ts`) uses the same services the backend
+already has — `azuracastApi` for the requestable songs, Prisma for the Bible
+tables and the YouTube rows — and writes one JSON artifact
+(`apps/web/catalog/catalog.json`). It is the only place that needs a secret,
+and it produces a file that can be reviewed in a diff. The artifact owns the
+slugs: the book and the artist slugs are computed there, with the backend's
+`slugify`, and the web build reads them instead of deriving its own.
 
 **Half two, in the web build: the page generator.** The build reads that
 JSON and writes the pages. It needs no credentials and no running backend,
@@ -191,40 +193,67 @@ where it does exist. Opening a public media route for the library is a
 separate project with its own bandwidth and permission questions, and it is
 not in this plan.
 
-## Remaining technical work
+## Technical work: what is done and what is left
 
-1. **404 for unknown URLs.** Today every unknown path returns 200 with the
-   home page (`main.tsx` routes `*` to a redirect, nginx falls back to
-   `dist/index.html`). Google documents this as a soft 404. The fix needs
-   the real status code, so nginx needs an allowlist of the public routes
-   and the admin routes, or a dedicated 404 document served with a 404
-   status. The admin panel lives on the same host, which is why a blanket
-   `=404` is not enough.
-2. **The service worker must not swallow the new pages.**
-   `apps/web/public/sw.js` is network-first for navigations, but it also
-   writes every visited navigation into the cache under `/index.html`. A
-   visit to a program page would replace the cached home page with the
-   program page, and the offline fallback would be wrong. The write has to
-   happen only for the root request. The runtime cache also accumulates one
-   entry per visited catalog page; that is bounded by the cache version but
-   it should be capped or the catalog pages excluded from the runtime cache.
-3. **Sitemap.** `dist/sitemap.xml` has exactly one writer today
-   (`buildSitemapXml` in `vite.config.ts`, called from `writeBundle`), and a
-   test requires it to contain every public route. The catalog URLs have to
-   be added inside that same function, not by a second writer, or the two
-   will fight over the file. `lastmod` should be the real last change per
-   page instead of the build date for every URL.
-4. **Site names.** Declare the site name in Search Console
-   (`webmasters.google.com/site-names`). "La Voz de la Verdad" competes with
-   many similarly named entities, and this is what makes Google use the
-   station's name in the result instead of a generic title.
-5. **Core Web Vitals.** Unmeasured: the PageSpeed Insights API needs a key.
-   The home page loads framer-motion, a live player and several vendor
-   chunks, so INP is the metric at risk. Measure before and after.
-6. **Reindex.** Ask Google to re-crawl the eight current URLs after the
-   canonical fix. Canonical re-evaluation can take up to two weeks.
+1. **404 for unknown URLs — done.** `scripts/nginx/radio-global.conf` maps the
+   client-side routes and `scripts/nginx/snippets/web-locations.conf` answers
+   404 for anything else, so a typo or a scraper URL no longer spends crawl
+   budget on an infinite URL space. The admin panel lives on the same host and
+   is in the map, so it stays reachable. A typo under an existing prefix
+   (`/info/typo/`, `/admin/typo`) is still a soft 404, the same behaviour the
+   SPA has.
+2. **The service worker — done.** It no longer overwrites the cached home
+   page, and a navigation only enters the runtime cache when the response is
+   the application shell, so the catalog pages stay out of it. The cache
+   version was bumped, so the devices that installed the old worker get the
+   new one.
+3. **Sitemap — done, except the `lastmod`.** `dist/sitemap.xml` has exactly
+   one writer, the SEO plugin, and it is written whether or not the catalog
+   is present. The catalog URLs are added inside that same writer. What is
+   left is the `lastmod`: it is still the deploy date for every URL, because
+   the artists have no date of their own. The effect is low — Google
+   re-crawls the URLs anyway — but it is not what this document asked for.
+4. **Site names — done, with a different mechanism.** The Search Console
+   page `webmasters.google.com/site-names` answers 404; the name is now
+   declared the way Google documents it, with the `WebSite` structured data
+   and `og:site_name`, and the `alternateName` sits on the `WebSite` node,
+   where Google reads it.
+5. **Core Web Vitals — still unmeasured.** The PageSpeed Insights API needs
+   a key. The home page loads framer-motion, a live player and several
+   vendor chunks, so INP is the metric at risk. Measure before and after.
+6. **Reindex — the operator's job.** Ask Google to re-crawl the nine public
+   routes after the canonical fix. Canonical re-evaluation can take up to
+   two weeks. The runbook is `docs/runbooks/visibilidad-google.md`.
+7. **The video rich result — deliberately not qualified.** The `VideoObject`
+   declares the name, the description, the upload date, the thumbnail and
+   the duration, which is what the data has. What it still lacks is a
+   `contentUrl` pointing at a video file the site hosts: the page links to
+   the watch page on YouTube instead, because the station does not serve its
+   own video files. Until that changes, the page is an `ItemList` of videos
+   and not a video rich result.
 
-## Off-site work
+## Known gaps left open on purpose
+
+- **The catalog has no visible entrance inside the application.**
+  `/biblia/`, `/alabanza/` and `/videos/` are reachable from the sitemap and
+  from a search, but not from a link in the React navigation: the only
+  in-app path is the schedule to the reading of the day and from there to
+  the chapters. Where the catalog should be linked from is a product
+  decision, not a technical one, so it was left to whoever owns the screens.
+- **The `lastmod` of the sitemap is the deploy date for every URL.** The
+  artists have no date of their own; the chapters do. The effect on the
+  crawl is low.
+- **The program and the sermon pages are built but not published.** The
+  generator refuses to publish a page with an empty description, and
+  nobody has written those descriptions yet.
+- **The videos index is capped at the 200 most recent**, and the older
+  videos have no page of their own. There is no per-video page, only the
+  index. 
+
+## Off-site work (deferred by decision)
+
+Deferred by decision on 2026-10-21: it needs a person to own it, and the
+work that a person can do alone was done first. When it comes back:
 
 - **Google Business Profile for the church in Cartago.** "Iglesia
   pentecostal en Cartago" is a real local query with a real local pack, and
@@ -251,6 +280,11 @@ not in this plan.
   and it exists in the admin panel.
 
 ## Phases
+
+Status as of 2026-10-21: phases 0, 1 and 2 are implemented on the branch
+`feat/visibilidad-google`, and phase 3 is deferred by decision. The
+implementation plan with the task by task detail is
+`docs/superpowers/plans/2026-10-21-visibilidad-google.md`.
 
 ### Phase 0 — technical corrections (days)
 
@@ -333,9 +367,10 @@ mentions and directories.
 2. **The published Bible text is a free-to-redistribute translation.** The
    submodule `packages/assets/bible/Holy-Bible-XML-Format` ships about
    thirty Spanish translations. `SpanishRVGBible.xml` (Reina-Valera Gómez
-   2004) declares "Copyright Allowed To Use" in its own header, is a
-   modernisation of the public-domain 1909 and reads in modern Spanish:
-   that is the one to publish. `Spanish1569Bible.xml` and
+   2004) declares `info="Copyright Allowed To Use - Reina Valera Gómez 2004"`
+   in its own header (the typo is upstream's), is a modernisation of the
+   public-domain 1909 and reads in modern Spanish: that is the one to
+   publish. `Spanish1569Bible.xml` and
    `Spanish1858Bible.xml` carry the literal status "Public Domain" and are
    the zero-ambiguity fallback; `SpanishPDTBible.xml` (La Palabra de Dios
    para todos, Bible League International) is the most readable but comes
@@ -375,3 +410,71 @@ emit a page whose description is empty rather than publish a thin page.
   it reads in modern Spanish, which matters for a page meant to be read.
 - The generator refuses to publish a page with an empty description, rather
   than publishing a thin one.
+
+## Rulings taken while implementing
+
+Each of these was a decision the plan left open, or a plan defect the
+implementation found. The cost is what it would take to undo it.
+
+- The sitemap has exactly one writer, the SEO plugin, which writes the catalog
+  pages and the sitemap in the same pass, with or without the artifact. Cost:
+  one extra plugin, no behavioural difference.
+- The catalog path is resolved from `__dirname`, never from the process
+  working directory. Cost: the plugin falls back to the environment variable.
+- The shared types are imported type-only in the web app. Cost: the types
+  package has to be built before the web build, which the deploy does.
+- The plan's test fixture used book number 19 for Job, but Job is 18 and 19 is
+  Salmos. The plan text was wrong and the fixture was corrected. Cost: one
+  character in a test fixture.
+- The web app has no slug module: the backend export computes the book and the
+  artist slugs and the artifact carries them, so there is a single
+  implementation of the rule. Cost: the web has to derive a slug on its own
+  when the deferred program pages are unblocked.
+- The export runs inside the frontend deploy, immediately before the web
+  build, and the infisical package and the Prisma client are built
+  unconditionally: the producer has to run with its consumer. Cost: a
+  frontend-only deploy now writes to the production database, and only on a
+  server that never seeded the published translation.
+- The plan's default artifact path resolved against the working directory and
+  landed one level above the repository, where the web build never looks. It
+  is resolved from `__dirname` now. Cost: the deploy ships no catalog pages,
+  silently.
+- The canonical of a generated page is `SITE_URL` plus its path, and the path
+  always ends with a slash. Cost: a second slash expression, which is the
+  thing this avoids.
+- The sibling chapter list became a previous/next pair plus the link to the
+  book page: the full list on every chapter page of a book was quadratic, and
+  Salmos has 150 chapters. The bundle budget keeps measuring the app and the
+  catalog got its own ceilings. Cost: the catalog can grow to 30 MB before
+  anything complains.
+- A corrupt artifact stops the deploy on purpose, so the diagnostic names the
+  file and what is wrong with its shape. Cost: the deploy aborts, which is
+  the intended behaviour.
+- An unknown URL answers 404 with a real status code, and the allowlist is
+  by prefix, because the SPA's own routing is by prefix too. Cost: a few
+  typo URLs under `/info/` and `/admin/` still return the shell.
+- The runbook is in Spanish, because its reader is the operator. Cost: one
+  file in a different language than the rest of `docs/`.
+- The site name is declared with the `WebSite` structured data and
+  `og:site_name`, because `webmasters.google.com/site-names` answers 404.
+  The `alternateName` sits on the `WebSite` node, where Google reads it.
+  Cost: the operator follows a page that does not exist.
+- The build carries the name to slug map to the runtime, and a book that is
+  not in the map renders without a link. Cost: a rotation over another
+  translation produces no link instead of a link to a page that was never
+  published.
+- The backend suite must not need a generated Prisma client, so the
+  `disconnectPrisma` helper and its test are gone and the cleanup is inline
+  in the export CLI. Cost: one helper with a caller.
+- The FTS index is rebuilt before the seed's early return, so a failed
+  rebuild is retried by the next deploy. Cost: one extra rebuild per deploy.
+- A navigation enters the service worker runtime cache only when the response
+  is the application shell, recognised by the `<div id="root">` marker, and
+  the cache version was bumped. Cost: the runtime cache stops refreshing the
+  shell, which degrades the offline fallback without breaking it.
+- The 404 path keeps the limit of `location /`: the measurement in nginx
+  1.30 showed the request is already counted before `try_files` hands it to
+  `@spa`. Cost: on another nginx version the request could be counted twice.
+- The videos index is capped at the 200 most recent and the page says so.
+  Cost: the older videos are not reachable from the site, because there is
+  no per-video page.

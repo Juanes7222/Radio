@@ -1,0 +1,176 @@
+/* The stylesheet of the generated catalog pages.
+ *
+ * These documents are static and live outside the React app, so they carry
+ * their own small stylesheet with the dark palette of the public site:
+ * slate-950 surfaces, indigo-400 accents and the muted foreground of the
+ * design tokens. */
+
+:root {
+  --catalog-bg: #0a0e1a;
+  --catalog-surface: #151b2b;
+  --catalog-border: #2b3547;
+  --catalog-text: #e8ecf5;
+  --catalog-muted: #9aa8bf;
+  --catalog-accent: #a5b4fc;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--catalog-bg);
+  color: var(--catalog-text);
+  font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+main {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+h1 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.75rem, 1.3rem + 2vw, 2.5rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  margin: 2rem 0 0.75rem;
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+p {
+  margin: 0 0 1rem;
+}
+
+a {
+  color: var(--catalog-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+a:focus-visible {
+  outline: 3px solid var(--catalog-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+ul {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+li {
+  margin: 0.3rem 0;
+}
+
+.meta {
+  color: var(--catalog-muted);
+  font-size: 0.9rem;
+}
+
+/* The verses keep a readable measure: the line never runs wider than the
+   column of the page, so the eye returns to the left edge on every line. */
+.verses {
+  margin: 1.5rem 0 2rem;
+}
+
+.verse {
+  margin: 0 0 0.9rem;
+  max-width: 42rem;
+}
+
+.verse-number {
+  margin-right: 0.4rem;
+  color: var(--catalog-accent);
+  font-size: 0.75em;
+  font-weight: 600;
+  vertical-align: super;
+}
+
+.chapters ul {
+  columns: 2 11rem;
+  column-gap: 2rem;
+}
+
+.siblings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 1.75rem 0;
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--catalog-border);
+  border-bottom: 1px solid var(--catalog-border);
+}
+
+.siblings .next {
+  margin-left: auto;
+}
+
+.songs,
+.artists,
+.videos {
+  list-style: none;
+  padding-left: 0;
+}
+
+.songs li,
+.artists li,
+.videos li {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--catalog-border);
+}
+
+.song-album,
+.song-genre,
+.count {
+  color: var(--catalog-muted);
+  font-size: 0.9rem;
+}
+
+.sections ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  padding-left: 0;
+}
+
+.player {
+  margin-top: 3rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--catalog-border);
+  border-radius: 0.75rem;
+  background-color: var(--catalog-surface);
+}
+
+.player h2 {
+  margin-top: 0;
+}
+
+.player audio {
+  width: 100%;
+}
+
+@media (max-width: 32rem) {
+  .chapters ul {
+    columns: 1;
+  }
+}

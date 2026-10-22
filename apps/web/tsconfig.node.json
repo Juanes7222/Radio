@@ -7,7 +7,7 @@
        the suite can only cover code that never touches a browser global. */
     "lib": ["ES2023", "DOM"],
     "module": "ESNext",
-    "types": ["node"],
+    "types": ["node", "vite/client"],
     "skipLibCheck": true,
 
     /* Bundler mode */
@@ -16,6 +16,14 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
+
+    /* The tests import application code, and that code uses the "@/" alias
+       the application project declares. Without it here the same import is a
+       module the node project cannot resolve. */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
 
     /* Linting */
     "strict": true,

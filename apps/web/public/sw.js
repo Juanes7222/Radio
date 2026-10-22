@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lavozverdad-v8';
+const CACHE_NAME = 'lavozverdad-v9';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -57,6 +57,27 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// The mount point of the React app. Every document the application serves
+// carries it, and the generated catalog pages do not: they are standalone
+// documents, not the shell. The marker is what tells the two apart.
+const SHELL_MARKER = '<div id="root">';
+
+/**
+ * Whether a navigation response is the application shell.
+ *
+ * The catalog pages are static documents that are served from disk, so
+ * caching them would fill the runtime cache with one entry per page the
+ * visitor opens. The shell is the only document worth keeping.
+ */
+async function isShellDocument(response) {
+  try {
+    const html = await response.clone().text();
+    return html.includes(SHELL_MARKER);
+  } catch {
+    return false;
+  }
+}
+
 // Fetch strategy: navigations are network-first so a fresh deploy is never
 // hidden behind a stale cached index.html; hashed assets use stale-while-revalidate.
 self.addEventListener('fetch', (event) => {
@@ -104,11 +125,23 @@ self.addEventListener('fetch', (event) => {
   if (isNavigation) {
     event.respondWith(
       fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse.ok && request.method === 'GET') {
+        .then(async (networkResponse) => {
+          // Only the shell enters the runtime cache. A generated catalog
+          // page is a static document served from disk: caching it would
+          // put one entry per page in the cache, and the offline fallback
+          // would serve a chapter instead of the home page.
+          const isShell =
+            networkResponse.ok &&
+            request.method === 'GET' &&
+            (await isShellDocument(networkResponse));
+          if (isShell) {
+            // Only the root may write /index.html: a catalog page visited
+            // later would replace the cached home page and the offline
+            // fallback would serve the wrong document.
+            const isRoot = url.pathname === '/';
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, networkResponse.clone());
-              cache.put('/index.html', networkResponse.clone());
+              if (isRoot) cache.put('/index.html', networkResponse.clone());
             });
           }
           return networkResponse;
