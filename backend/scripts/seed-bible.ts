@@ -85,6 +85,11 @@ async function seedBible(target: SeedTarget) {
         console.log(
           `${target.abbreviation} already holds ${seededVerses} verses. Skipping the seed.`
         );
+        // The index is rebuilt even when there is nothing to write: a rebuild
+        // that failed during a deploy (a locked database, a missing table)
+        // is never retried otherwise, and the biblical search stays broken
+        // until someone intervenes by hand.
+        await rebuildBibleFts(prisma);
         return;
       }
     }
