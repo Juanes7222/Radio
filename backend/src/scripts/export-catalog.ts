@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { initializeInfisicalSecrets } from "@radio/infisical-config";
-import { disconnectPrisma } from "../infrastructure/database/prisma";
+import { prisma } from "../infrastructure/database/prisma";
 
 /**
  * Writes the catalog artifact the web build reads.
@@ -20,7 +20,21 @@ async function main(): Promise<void> {
       `[catalog] books=${counts.books} chapters=${counts.chapters} artists=${counts.artists} videos=${counts.videos}`
     );
   } finally {
-    await disconnectPrisma();
+    await disconnect();
+  }
+}
+
+/**
+ * Closes the client without throwing.
+ *
+ * A cleanup that throws replaces the error the operator has to read, and the
+ * one that says what actually went wrong is the one that matters.
+ */
+async function disconnect(): Promise<void> {
+  try {
+    await prisma.$disconnect();
+  } catch {
+    // The cleanup never masks a real failure.
   }
 }
 
