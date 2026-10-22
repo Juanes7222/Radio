@@ -193,40 +193,67 @@ where it does exist. Opening a public media route for the library is a
 separate project with its own bandwidth and permission questions, and it is
 not in this plan.
 
-## Remaining technical work
+## Technical work: what is done and what is left
 
-1. **404 for unknown URLs.** Today every unknown path returns 200 with the
-   home page (`main.tsx` routes `*` to a redirect, nginx falls back to
-   `dist/index.html`). Google documents this as a soft 404. The fix needs
-   the real status code, so nginx needs an allowlist of the public routes
-   and the admin routes, or a dedicated 404 document served with a 404
-   status. The admin panel lives on the same host, which is why a blanket
-   `=404` is not enough.
-2. **The service worker must not swallow the new pages.**
-   `apps/web/public/sw.js` is network-first for navigations, but it also
-   writes every visited navigation into the cache under `/index.html`. A
-   visit to a program page would replace the cached home page with the
-   program page, and the offline fallback would be wrong. The write has to
-   happen only for the root request. The runtime cache also accumulates one
-   entry per visited catalog page; that is bounded by the cache version but
-   it should be capped or the catalog pages excluded from the runtime cache.
-3. **Sitemap.** `dist/sitemap.xml` has exactly one writer today
-   (`buildSitemapXml` in `vite/seoPlugin.ts`, called from `writeBundle`), and a
-   test requires it to contain every public route. The catalog URLs have to
-   be added inside that same function, not by a second writer, or the two
-   will fight over the file. `lastmod` should be the real last change per
-   page instead of the build date for every URL.
-4. **Site names.** Declare the site name in Search Console
-   (`webmasters.google.com/site-names`). "La Voz de la Verdad" competes with
-   many similarly named entities, and this is what makes Google use the
-   station's name in the result instead of a generic title.
-5. **Core Web Vitals.** Unmeasured: the PageSpeed Insights API needs a key.
-   The home page loads framer-motion, a live player and several vendor
-   chunks, so INP is the metric at risk. Measure before and after.
-6. **Reindex.** Ask Google to re-crawl the eight current URLs after the
-   canonical fix. Canonical re-evaluation can take up to two weeks.
+1. **404 for unknown URLs — done.** `scripts/nginx/radio-global.conf` maps the
+   client-side routes and `scripts/nginx/snippets/web-locations.conf` answers
+   404 for anything else, so a typo or a scraper URL no longer spends crawl
+   budget on an infinite URL space. The admin panel lives on the same host and
+   is in the map, so it stays reachable. A typo under an existing prefix
+   (`/info/typo/`, `/admin/typo`) is still a soft 404, the same behaviour the
+   SPA has.
+2. **The service worker — done.** It no longer overwrites the cached home
+   page, and a navigation only enters the runtime cache when the response is
+   the application shell, so the catalog pages stay out of it. The cache
+   version was bumped, so the devices that installed the old worker get the
+   new one.
+3. **Sitemap — done, except the `lastmod`.** `dist/sitemap.xml` has exactly
+   one writer, the SEO plugin, and it is written whether or not the catalog
+   is present. The catalog URLs are added inside that same writer. What is
+   left is the `lastmod`: it is still the deploy date for every URL, because
+   the artists have no date of their own. The effect is low — Google
+   re-crawls the URLs anyway — but it is not what this document asked for.
+4. **Site names — done, with a different mechanism.** The Search Console
+   page `webmasters.google.com/site-names` answers 404; the name is now
+   declared the way Google documents it, with the `WebSite` structured data
+   and `og:site_name`, and the `alternateName` sits on the `WebSite` node,
+   where Google reads it.
+5. **Core Web Vitals — still unmeasured.** The PageSpeed Insights API needs
+   a key. The home page loads framer-motion, a live player and several
+   vendor chunks, so INP is the metric at risk. Measure before and after.
+6. **Reindex — the operator's job.** Ask Google to re-crawl the nine public
+   routes after the canonical fix. Canonical re-evaluation can take up to
+   two weeks. The runbook is `docs/runbooks/visibilidad-google.md`.
+7. **The video rich result — deliberately not qualified.** The `VideoObject`
+   declares the name, the description, the upload date, the thumbnail and
+   the duration, which is what the data has. What it still lacks is a
+   `contentUrl` pointing at a video file the site hosts: the page links to
+   the watch page on YouTube instead, because the station does not serve its
+   own video files. Until that changes, the page is an `ItemList` of videos
+   and not a video rich result.
 
-## Off-site work
+## Known gaps left open on purpose
+
+- **The catalog has no visible entrance inside the application.**
+  `/biblia/`, `/alabanza/` and `/videos/` are reachable from the sitemap and
+  from a search, but not from a link in the React navigation: the only
+  in-app path is the schedule to the reading of the day and from there to
+  the chapters. Where the catalog should be linked from is a product
+  decision, not a technical one, so it was left to whoever owns the screens.
+- **The `lastmod` of the sitemap is the deploy date for every URL.** The
+  artists have no date of their own; the chapters do. The effect on the
+  crawl is low.
+- **The program and the sermon pages are built but not published.** The
+  generator refuses to publish a page with an empty description, and
+  nobody has written those descriptions yet.
+- **The videos index is capped at the 200 most recent**, and the older
+  videos have no page of their own. There is no per-video page, only the
+  index. 
+
+## Off-site work (deferred by decision)
+
+Deferred by decision on 2026-10-21: it needs a person to own it, and the
+work that a person can do alone was done first. When it comes back:
 
 - **Google Business Profile for the church in Cartago.** "Iglesia
   pentecostal en Cartago" is a real local query with a real local pack, and
@@ -253,6 +280,11 @@ not in this plan.
   and it exists in the admin panel.
 
 ## Phases
+
+Status as of 2026-10-21: phases 0, 1 and 2 are implemented on the branch
+`feat/visibilidad-google`, and phase 3 is deferred by decision. The
+implementation plan with the task by task detail is
+`docs/superpowers/plans/2026-10-21-visibilidad-google.md`.
 
 ### Phase 0 — technical corrections (days)
 
