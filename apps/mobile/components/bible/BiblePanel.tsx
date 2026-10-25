@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { ReadingSettingsPanel } from './ReadingSettingsPanel';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -20,9 +20,6 @@ import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import type { BibleVerse } from '@radio/types';
 
-const FONT_SIZE_MIN = 14;
-const FONT_SIZE_MAX = 22;
-const FONT_SIZE_STEP = 2;
 const BASE_FONT_SIZE = 18;
 
 interface BiblePanelProps {
@@ -34,7 +31,10 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
   const { chapterData, isLoading, currentBook, currentChapter, currentTranslation, actions, books } = useBible();
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [fontSize, setFontSize] = useState(BASE_FONT_SIZE);
+  const [readingTheme, setReadingTheme] = useState<'night' | 'sepia' | 'high-contrast'>('night');
+  const [highlightedVerses, setHighlightedVerses] = useState<Set<number>>(new Set());
   const [copiedVerse, setCopiedVerse] = useState<number | null>(null);
 
   const isFirstBookAndChapter = currentBook === books[0]?.name && currentChapter === 1;
@@ -43,6 +43,16 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
   const handleNextChapter = () => {
     tick();
     actions.nextChapter();
+  };
+
+  const toggleHighlight = (verseNumber: number) => {
+    tick();
+    setHighlightedVerses((prev) => {
+      const next = new Set(prev);
+      if (next.has(verseNumber)) next.delete(verseNumber);
+      else next.add(verseNumber);
+      return next;
+    });
   };
 
   const handlePrevChapter = () => {
@@ -61,9 +71,23 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
     }, 1500);
   };
 
+  const themeBg =
+    readingTheme === 'sepia'
+      ? '#2E2418'
+      : readingTheme === 'high-contrast'
+        ? Colors.ink
+        : Colors.inkElevated;
+  const themeText =
+    readingTheme === 'sepia'
+      ? '#E8DCC8'
+      : readingTheme === 'high-contrast'
+        ? Colors.textBright
+        : 'rgba(255, 255, 255, 0.92)';
+
   return (
-    <AppBottomSheet visible={isOpen} onClose={onClose} snapPoints={['92%', '96%']}>
-      <View style={styles.container}>
+    <>
+      <AppBottomSheet visible={isOpen} onClose={onClose} snapPoints={['92%', '96%']}>
+      <View style={[styles.container, { backgroundColor: themeBg }]}>
         {/* Header Minimalista */}
         <View style={styles.header}>
           <View style={styles.headerPill}>
@@ -77,19 +101,10 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
           <View style={styles.headerActions}>
             <PressScale
               style={styles.fontSizeBtn}
-              disabled={fontSize <= FONT_SIZE_MIN}
-              onPress={() => setFontSize((s) => Math.max(FONT_SIZE_MIN, s - FONT_SIZE_STEP))}
-              accessibilityLabel="Reducir tamaño de texto"
+              onPress={() => setIsSettingsOpen(true)}
+              accessibilityLabel="Ajustes de lectura"
             >
-              <Text style={[styles.fontSizeBtnText, fontSize <= FONT_SIZE_MIN && styles.fontSizeBtnDisabled]}>A-</Text>
-            </PressScale>
-            <PressScale
-              style={styles.fontSizeBtn}
-              disabled={fontSize >= FONT_SIZE_MAX}
-              onPress={() => setFontSize((s) => Math.min(FONT_SIZE_MAX, s + FONT_SIZE_STEP))}
-              accessibilityLabel="Aumentar tamaño de texto"
-            >
-              <Text style={[styles.fontSizeBtnText, fontSize >= FONT_SIZE_MAX && styles.fontSizeBtnDisabled]}>A+</Text>
+              <Text style={styles.fontSizeBtnText}>Aa</Text>
             </PressScale>
             <TouchableOpacity style={styles.iconBtn} onPress={() => setIsSearchOpen(true)}>
               <Ionicons name="search" size={20} color={Colors.text} />
@@ -138,9 +153,11 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
                   return (
                     <TouchableOpacity
                       key={verse.id}
-                      style={styles.verseRow}
+                      style={[styles.verseRow, highlightedVerses.has(verse.number) && styles.verseRowHighlighted]}
                       activeOpacity={0.6}
                       onPress={() => handleCopyVerse(verse)}
+                      onLongPress={() => toggleHighlight(verse.number)}
+                      accessibilityLabel={`Versículo ${verse.number}`}
                     >
                       <View style={styles.verseNumberColumn}>
                         <Text style={styles.verseNumber}>{verse.number}</Text>
@@ -154,7 +171,12 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
                         )}
                       </View>
                       <Text
-                        style={[styles.verseText, { fontSize }, isCopied && styles.verseTextCopied]}
+                        style={[
+                          styles.verseText,
+                          { fontSize, color: themeText },
+                          highlightedVerses.has(verse.number) && styles.verseTextHighlighted,
+                          isCopied && styles.verseTextCopied,
+                        ]}
                       >
                         {verse.text}
                       </Text>
@@ -170,8 +192,8 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
           )}
         </View>
 
-        {/* Navegación Flotante (Glassmorphism) */}
-        <BlurView intensity={80} tint="dark" style={styles.floatingNavContainer}>
+        {/* Barra de navegación inferior fija */}
+        <View style={styles.bottomBar}>
           <View style={styles.bottomNav}>
             <PressScale
               style={[styles.navBtn, (isLoading || isFirstBookAndChapter) && styles.navBtnDisabled]}
@@ -195,12 +217,22 @@ export function BiblePanel({ isOpen, onClose }: BiblePanelProps) {
               <Ionicons name="arrow-forward" size={18} color={isLoading || isLastBookAndChapter ? Colors.textMuted : Colors.text} />
             </PressScale>
           </View>
-        </BlurView>
+        </View>
 
         <BibleChapterNavigator isOpen={isNavOpen} onClose={() => setIsNavOpen(false)} books={books} currentBook={currentBook} onSelect={(bookName, chapterNum) => { actions.setBook(bookName); actions.setChapter(chapterNum); }} />
         <BibleSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} onSearch={actions.searchBible} onSelect={(bookName, chapterNum) => { actions.setBook(bookName); actions.setChapter(chapterNum); }} />
       </View>
     </AppBottomSheet>
+
+    <ReadingSettingsPanel
+      visible={isSettingsOpen}
+      onClose={() => setIsSettingsOpen(false)}
+      fontSize={fontSize}
+      onFontSizeChange={setFontSize}
+      theme={readingTheme}
+      onThemeChange={setReadingTheme}
+    />
+    </>
   );
 }
 
@@ -314,6 +346,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
+  verseRowHighlighted: {
+    backgroundColor: Colors.signalMuted,
+    borderRadius: Radii.md,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.xs,
+  },
   verseNumberColumn: {
     alignItems: 'center',
     width: 22,
@@ -337,23 +375,26 @@ const styles = StyleSheet.create({
   verseTextCopied: {
     color: Colors.success,
   },
-  floatingNavContainer: {
+  verseTextHighlighted: {
+    color: Colors.signalLight,
+  },
+  bottomBar: {
     position: 'absolute',
-    bottom: Spacing.md,
-    alignSelf: 'center',
-    borderRadius: Radii.full,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderGlass,
+    backgroundColor: Colors.inkElevated,
+    paddingBottom: 12,
   },
   bottomNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    width: 200,
-    backgroundColor: Colors.scrimSoft,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.inkElevated,
   },
   navBtn: {
     padding: Spacing.sm,

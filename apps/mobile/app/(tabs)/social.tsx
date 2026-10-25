@@ -12,7 +12,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from 'expo-router/js-tabs';
 import { useRouter } from 'expo-router';
-import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { WEB_URL } from '@/constants/api';
 import { LEGAL_DOCUMENTS, legalUrl } from '@/constants/legalDocuments';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
@@ -32,7 +32,6 @@ const SOCIAL_LINKS = [
     subtitle: 'Síguenos y comparte',
     url: 'https://www.facebook.com/profile.php?id=100074024491964',
     icon: 'logo-facebook' as const,
-    color: '#1877f2',
   },
   {
     id: 'instagram',
@@ -40,7 +39,6 @@ const SOCIAL_LINKS = [
     subtitle: 'Síguenos y comparte',
     url: 'https://www.instagram.com/iglesiacartagommm/',
     icon: 'logo-instagram' as const,
-    color: '#e1306c',
   },
   {
     id: 'youtube',
@@ -48,7 +46,6 @@ const SOCIAL_LINKS = [
     subtitle: 'Suscríbete a nuestro canal',
     url: 'https://www.youtube.com/@emisoralavozdelaverdad9188',
     icon: 'logo-youtube' as const,
-    color: '#ff0000',
   },
   {
     id: 'spotify',
@@ -56,7 +53,6 @@ const SOCIAL_LINKS = [
     subtitle: 'Síguenos en Spotify',
     url: 'https://open.spotify.com/show/7hSkCQDHvdjr4aYE5X6Gv4?si=a4cfd87d109543a2',
     icon: null,
-    color: '#1DB954',
   },
 ] as const;
 
@@ -98,7 +94,7 @@ export default function StationScreen() {
       >
         <Animated.View entering={Entrances.enterBlock(40)}>
           <ScreenHeader
-            title="La estación"
+            title="Estación"
             subtitle="Redes sociales, sitio web y documentos legales."
           />
         </Animated.View>
@@ -155,6 +151,7 @@ export default function StationScreen() {
             <Animated.View
               key={link.id}
               entering={Entrances.enterList(160 + idx * 40)}
+              style={styles.linkItem}
             >
               <TouchableOpacity
                 style={[styles.linkCard, link.isLive && styles.linkCardLive]}
@@ -163,20 +160,20 @@ export default function StationScreen() {
                 accessibilityRole="link"
                 accessibilityLabel={`${link.label}. ${link.isLive ? 'En vivo ahora' : link.subtitle}`}
               >
-              <View style={[styles.iconCircle, { backgroundColor: link.color + '22', width: scale(50), height: scale(50) }]}>
-                {link.isLive && <View style={styles.liveIndicator} />}
-                {link.icon === null
-                  ? <FontAwesome name="spotify" size={26} color={link.color} />
-                  : <Ionicons name={link.icon} size={26} color={link.color} />
-                }
-              </View>
-              <View style={styles.linkTextGroup}>
-                <Text style={styles.linkLabel}>{link.label}</Text>
-                <Text style={styles.linkSubtitle}>
-                  {link.isLive ? 'En vivo ahora' : link.subtitle}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.textFaint} />
+                <View style={[styles.iconCircle, { backgroundColor: Colors.signalMuted, width: scale(50), height: scale(50) }]}>
+                  {link.isLive && <View style={styles.liveIndicator} />}
+                  {link.icon === null
+                    ? <FontAwesome name="spotify" size={26} color={Colors.signalLight} />
+                    : <Ionicons name={link.icon} size={26} color={Colors.signalLight} />
+                  }
+                </View>
+                <View style={styles.linkTextGroup}>
+                  <Text style={styles.linkLabel}>{link.label}</Text>
+                  <Text style={styles.linkSubtitle}>
+                    {link.isLive ? 'En vivo ahora' : link.subtitle}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.textFaint} />
               </TouchableOpacity>
             </Animated.View>
           ))}
@@ -188,17 +185,18 @@ export default function StationScreen() {
             activeOpacity={0.85}
             onPress={() => {
               tick();
-              router.push('/feedback');
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              router.push('/feedback' as any);
             }}
             accessibilityRole="button"
-            accessibilityLabel="Escríbanos"
+            accessibilityLabel="Escríbenos"
             accessibilityHint="Abre el formulario para enviar una opinión o una sugerencia"
           >
             <View style={[styles.writeIcon, { width: scale(44), height: scale(44) }]}>
               <Ionicons name="chatbubble-ellipses-outline" size={20} color={Colors.signal} />
             </View>
             <View style={styles.linkTextGroup}>
-              <Text style={styles.writeTitle}>Escríbanos</Text>
+              <Text style={styles.writeTitle}>Escríbenos</Text>
               <Text style={styles.writeBody}>
                 Una sugerencia, una consulta o un problema con la emisión. Puedes hacerlo
                 sin dar ningún dato.
@@ -274,7 +272,15 @@ const styles = StyleSheet.create({
   webCta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.xs },
   webCtaLabel: { ...Typography.captionStrong, color: Colors.signal },
 
-  linkList: { gap: Spacing.sm },
+  linkList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  linkItem: {
+    width: '50%',
+    paddingHorizontal: Spacing.xs / 2,
+  },
 
   writeCard: {
     flexDirection: 'row',
@@ -348,7 +354,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   linkCardLive: {
-    borderColor: '#1877f2',
+    borderColor: Colors.signal,
     borderWidth: 1.5,
   },
   liveIndicator: {

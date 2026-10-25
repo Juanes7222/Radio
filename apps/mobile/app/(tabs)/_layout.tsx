@@ -5,9 +5,13 @@
 // option types all come from one supported entry point.
 import { Tabs } from 'expo-router/js-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, StyleSheet, Pressable, AccessibilityInfo, PixelRatio } from 'react-native';
+import { View, Text, StyleSheet, Pressable, PixelRatio } from 'react-native';
+import { PrayerIcon } from '@/components/icons/PrayerIcon';
+import { MiniPlayer } from '@/components/player/MiniPlayer';
 import type { ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
+import { State, usePlaybackState } from 'react-native-track-player';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import Animated, {
@@ -20,7 +24,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useFacebookLive } from '@/hooks/useFacebookLive';
 import { usePrayerAnswers } from '@/hooks/usePrayerAnswers';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -193,6 +197,10 @@ export default function TabLayout() {
   const { liveUrl } = useFacebookLive();
   const { unreadAnswerCount } = usePrayerAnswers();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  const playbackState = usePlaybackState();
+  const isPlaying = playbackState.state === State.Playing;
 
   // The tab bar's height is ours to set: BottomTabBar spreads the screen
   // options' style LAST, so anything left unset falls back to its own
@@ -203,7 +211,12 @@ export default function TabLayout() {
   const tabBarHeight = TAB_BAR_CONTENT_BASE + tabBarPaddingBottom;
 
   return (
-    <Tabs
+    <>
+      {isPlaying && (
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        <MiniPlayer onPress={() => router.push('index' as any)} />
+      )}
+      <Tabs
       initialRouteName="social"
       screenOptions={{
         headerShown: false,
@@ -244,7 +257,7 @@ export default function TabLayout() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         tabBarButton: (props: any) => (
           <TabBarButton {...(props as TabBarButtonProps)} />
-        ),
+        ) as any // eslint-disable-line @typescript-eslint/no-explicit-any
       }}
     >
       <Tabs.Screen
@@ -284,7 +297,7 @@ export default function TabLayout() {
           title: 'Oración',
           tabBarIcon: ({ color, size }) => (
             <View>
-              <Ionicons name="body-outline" size={size - 2} color={color} />
+              <PrayerIcon width={size - 2} height={size - 2} color={color} />
               <UnreadAnswersBadge count={unreadAnswerCount} />
             </View>
           ),
@@ -305,7 +318,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="social"
         options={{
-          title: 'Redes',
+          title: 'Estación',
           tabBarIcon: ({ color, size }) => (
             <View>
               <Ionicons name="earth-outline" size={size - 2} color={color} />
@@ -315,5 +328,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </>
   );
 }

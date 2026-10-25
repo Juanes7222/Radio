@@ -4,16 +4,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { useBottomTabBarHeight } from 'expo-router/js-tabs';
-import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, Easing, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { FadeOut, LinearTransition, Easing, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { fetchSchedule, fetchScheduleCategories, mergeConsecutiveScheduleItems } from '@radio/api';
 import type { ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 import { BACKEND_URL } from '@/constants/api';
-import { Colors, Typography } from '@/constants/theme';
+import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { tick } from '@/lib/haptics';
 import { PressScale } from '@/components/ui/PressScale';
 import { Spring } from '@/constants/motion';
 import { Entrances } from '@/constants/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useProgramSubscriptions } from '@/hooks/useProgramSubscriptions';
 import { formatScheduleTime, getBogotaDayOfWeek } from '@/lib/time';
 import { SCHEDULE_CACHE_TTL_MS, readScheduleCache, writeScheduleCache } from '@/lib/scheduleCache';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
@@ -66,6 +67,101 @@ function getAccent(category: ScheduleCategorySummary | null | undefined) {
 function getCategoryIcon(category: ScheduleCategorySummary | null | undefined): keyof typeof Ionicons.glyphMap {
   if (!category) return 'musical-notes';
   return CATEGORY_ICONS[category.icon] ?? 'radio';
+}
+
+/**
+ * Tarjeta destacada del programa que está al aire ahora. Fondo índigo elevado,
+ * insignia en vivo y rango horario. Es el único lugar de esta pantalla donde se
+ * usa la luz violeta con fuerza.
+ */
+/**
+ * Fila de chips desplazables para filtrar por categoría. Cada chip lleva el
+ * punto de color de su categoría; tocar uno filtra inmediatamente, sin abrir
+ * una hoja intermedia.
+ */
+function CategoryChips({
+  categories,
+  selectedCategoryId,
+  onSelect,
+}: {
+  categories: ScheduleCategorySummary[];
+  selectedCategoryId: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  return (
+    <View style={styles.chipsContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsContent}
+        scrollEventThrottle={16}
+      >
+        <PressScale
+          style={[styles.chip, selectedCategoryId === null && styles.chipActive]}
+          onPress={() => {
+            tick();
+            onSelect(null);
+          }}
+          accessibilityState={{ selected: selectedCategoryId === null }}
+          accessibilityLabel="Todas las categorías"
+        >
+          <Text style={[styles.chipText, selectedCategoryId === null && styles.chipTextActive]}>
+            Todas
+          </Text>
+        </PressScale>
+        {categories.map((category) => (
+          <PressScale
+            key={category.id}
+            style={[
+              styles.chip,
+              selectedCategoryId === category.id && styles.chipActive,
+              { borderColor: category.color },
+            ]}
+            onPress={() => {
+              tick();
+              onSelect(category.id);
+            }}
+            accessibilityState={{ selected: selectedCategoryId === category.id }}
+            accessibilityLabel={`Filtrar por ${category.name}`}
+          >
+            <View style={[styles.chipDot, { backgroundColor: category.color }]} />
+            <Text style={[styles.chipText, selectedCategoryId === category.id && styles.chipTextActive]}>
+              {category.name}
+            </Text>
+          </PressScale>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function OnAirCard({ program, onPress }: { program: ScheduleItem; onPress: () => void }) {
+  const startTime = formatScheduleTime(program.start_timestamp);
+  const endTime = formatScheduleTime(program.end_timestamp);
+  const accent = getAccent(program.category);
+
+  return (
+    <PressScale
+      onPress={() => onPress()}
+      style={styles.onAirCard}
+      accessibilityLabel={`${program.title}, ${startTime} a ${endTime}, al aire ahora`}
+    >
+      <View style={styles.onAirHeader}>
+        <View style={[styles.onAirDot, { backgroundColor: accent.dot }]} />
+        <Text style={styles.onAirLabel}>Al aire ahora</Text>
+      </View>
+      <Text style={styles.onAirTitle}>{program.title}</Text>
+      <View style={styles.onAirTime}>
+        <Text style={styles.onAirTimeText}>{startTime} – {endTime}</Text>
+      </View>
+      <View style={styles.onAirRow}>
+        <View style={[styles.onAirCategoryDot, { backgroundColor: accent.dot }]} />
+        <Text style={styles.onAirCategory}>
+          {program.category?.name ?? 'Otros programas'}
+        </Text>
+      </View>
+    </PressScale>
+  );
 }
 
 interface ScheduleSection {
@@ -127,32 +223,6 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewM
 /* ------------------------------------------------------------------ */
 /* Filtro de categorías                                                */
 /* ------------------------------------------------------------------ */
-
-function CategoryFilterButton({
-  selectedCategory,
-  onPress,
-}: {
-  selectedCategory: ScheduleCategorySummary | null;
-  onPress: () => void;
-}) {
-  const accent = getAccent(selectedCategory);
-
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.8}
-      style={styles.filterButton}
-      accessibilityRole="button"
-      accessibilityLabel={selectedCategory ? `Filtrar por ${selectedCategory.name}` : 'Filtrar por categoría'}
-    >
-      <Ionicons name="funnel-outline" size={15} color={accent.dot} />
-      <Text style={styles.filterButtonText} numberOfLines={1}>
-        {selectedCategory ? selectedCategory.name : 'Todas las categorías'}
-      </Text>
-      <Ionicons name="chevron-down" size={15} color={TEXT_MUTED} />
-    </TouchableOpacity>
-  );
-}
 
 function CategoryPickerModal({
   visible,
@@ -224,10 +294,14 @@ function ProgramRow({
   program,
   accent,
   onPress,
+  isSubscribed,
+  onToggleSubscription,
 }: {
   program: ScheduleItem;
   accent: { dot: string; glow: string };
   onPress: () => void;
+  isSubscribed: boolean;
+  onToggleSubscription: () => void;
 }) {
   const startTime = formatScheduleTime(program.start_timestamp);
   const endTime = formatScheduleTime(program.end_timestamp);
@@ -264,6 +338,28 @@ function ProgramRow({
             </Text>
           </View>
         )}
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation();
+            tick();
+            onToggleSubscription();
+          }}
+          style={styles.bellButton}
+          accessibilityRole="button"
+          accessibilityLabel={
+            isSubscribed
+              ? 'Desactivar aviso de programa'
+              : 'Activar aviso de programa'
+          }
+          accessibilityState={{ selected: isSubscribed }}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={isSubscribed ? 'notifications' : 'notifications-outline'}
+            size={20}
+            color={isSubscribed ? Colors.signal : Colors.textMuted}
+          />
+        </Pressable>
       </PressScale>
     </Animated.View>
   );
@@ -274,11 +370,15 @@ function ScheduleSectionView({
   collapsed,
   onToggle,
   onSelect,
+  isSubscribed,
+  onToggleSubscription,
 }: {
   section: ScheduleSection;
   collapsed: boolean;
   onToggle: () => void;
   onSelect: (program: ScheduleItem) => void;
+  isSubscribed: (title: string) => boolean;
+  onToggleSubscription: (title: string) => void;
 }) {
   const accent = getAccent(section.category);
   const reduceMotion = useReducedMotion();
@@ -332,6 +432,8 @@ function ScheduleSectionView({
               program={program}
               accent={accent}
               onPress={() => onSelect(program)}
+              isSubscribed={isSubscribed(program.title)}
+              onToggleSubscription={() => onToggleSubscription(program.title)}
             />
           ))}
         </Animated.View>
@@ -348,10 +450,14 @@ function TimelineRow({
   program,
   isLast,
   onPress,
+  isSubscribed,
+  onToggleSubscription,
 }: {
   program: ScheduleItem;
   isLast: boolean;
   onPress: () => void;
+  isSubscribed: boolean;
+  onToggleSubscription: () => void;
 }) {
   const accent = getAccent(program.category);
   const startTime = formatScheduleTime(program.start_timestamp);
@@ -376,18 +482,42 @@ function TimelineRow({
         activeOpacity={0.8}
         style={[styles.timelineCard, isNow && styles.timelineCardNow]}
       >
-        <View style={styles.timelineCardTop}>
-          <Text style={styles.timelineTitle} numberOfLines={1}>
-            {program.title}
-          </Text>
-          {isLive && (
-            <View style={[styles.liveBadge, { backgroundColor: accent.glow }]}>
-              <View style={[styles.liveBadgeDot, { backgroundColor: accent.dot }]} />
-              <Text style={[styles.liveBadgeText, { color: accent.dot }]}>
-                {isNow ? 'AHORA' : 'EN VIVO'}
-              </Text>
-            </View>
-          )}
+        <View style={[styles.timelineCardTop, { justifyContent: 'space-between' }]}>
+          <View style={styles.timelineCardTitleWrap}>
+            <Text style={styles.timelineTitle} numberOfLines={1}>
+              {program.title}
+            </Text>
+            {isLive && (
+              <View style={[styles.liveBadge, { backgroundColor: accent.glow }]}>
+                <View style={[styles.liveBadgeDot, { backgroundColor: accent.dot }]} />
+                <Text style={[styles.liveBadgeText, { color: accent.dot }]}>
+                  {isNow ? 'AHORA' : 'EN VIVO'}
+                </Text>
+              </View>
+            )}
+          </View>
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation();
+              tick();
+              onToggleSubscription();
+            }}
+            style={styles.bellButton}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isSubscribed
+                ? 'Desactivar aviso de programa'
+                : 'Activar aviso de programa'
+            }
+            accessibilityState={{ selected: isSubscribed }}
+            hitSlop={8}
+          >
+            <Ionicons
+              name={isSubscribed ? 'notifications' : 'notifications-outline'}
+              size={20}
+              color={isSubscribed ? Colors.signal : Colors.textMuted}
+            />
+          </Pressable>
         </View>
         <View style={styles.timelineMeta}>
           <View style={[styles.timelineCategoryDot, { backgroundColor: accent.dot }]} />
@@ -429,6 +559,10 @@ export default function ScheduleScreen() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('categories');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+
+  const { subscribedPrograms, toggleSubscription } = useProgramSubscriptions();
+  const isSubscribed = (title: string) =>
+    subscribedPrograms.some((t) => normalizeTitle(t) === normalizeTitle(title));
 
   const currentDay = getBogotaDayOfWeek(new Date());
   const [selectedDay, setSelectedDay] = useState(dayToPosition(currentDay));
@@ -533,6 +667,8 @@ export default function ScheduleScreen() {
     return mergeConsecutiveScheduleItems(programsForDay);
   }, [schedule, selectedDay, selectedCategoryId]);
 
+  const onAirProgram = dayPrograms.find((p) => p.is_now);
+
   const sections: ScheduleSection[] = React.useMemo(() => {
     const groups = new Map<string, ScheduleSection>();
     for (const item of dayPrograms) {
@@ -631,6 +767,8 @@ export default function ScheduleScreen() {
               program={program}
               isLast={index === dayPrograms.length - 1}
               onPress={() => setSelectedProgram(program)}
+              isSubscribed={isSubscribed(program.title)}
+              onToggleSubscription={() => toggleSubscription(program.title)}
             />
           ))}
         </Animated.View>
@@ -648,6 +786,8 @@ export default function ScheduleScreen() {
               collapsed={collapsedCategories.has(sectionKey)}
               onToggle={() => toggleCategoryCollapse(sectionKey)}
               onSelect={setSelectedProgram}
+              isSubscribed={isSubscribed}
+              onToggleSubscription={toggleSubscription}
             />
           );
         })}
@@ -720,9 +860,10 @@ export default function ScheduleScreen() {
         <ViewToggle mode={viewMode} onChange={setViewMode} />
 
         {/* Filtro por categoría */}
-        <CategoryFilterButton
-          selectedCategory={selectedCategory}
-          onPress={() => setShowCategoryPicker(true)}
+        <CategoryChips
+          categories={categories}
+          selectedCategoryId={selectedCategoryId}
+          onSelect={setSelectedCategoryId}
         />
 
         {/* Cabecera del día */}
@@ -759,6 +900,12 @@ export default function ScheduleScreen() {
             )}
           </View>
         </View>
+
+        {onAirProgram && (
+          <View style={styles.onAirCardWrapper}>
+            <OnAirCard program={onAirProgram} onPress={() => setSelectedProgram(onAirProgram)} />
+          </View>
+        )}
 
         {/* Contenido según la vista */}
         {renderContent()}
@@ -922,25 +1069,42 @@ const styles = StyleSheet.create({
   viewToggleTextActive: {
     color: Colors.textBright,
   },
-  filterButton: {
+  chipsContainer: {
+    marginBottom: 20,
+  },
+  chipsContent: {
+    gap: 8,
+    paddingHorizontal: 20,
+  },
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 8,
-    minHeight: 48,
-    backgroundColor: CARD_BG,
+    gap: 6,
+    backgroundColor: Colors.surfaceGlass,
     borderWidth: 1,
-    borderColor: Colors.surfaceBorder,
-    borderRadius: 12,
+    borderColor: Colors.borderGlass,
+    borderRadius: Radii.full,
     paddingHorizontal: 12,
-    marginBottom: 20,
-    maxWidth: '100%',
+    paddingVertical: 8,
+    minHeight: 40,
   },
-  filterButtonText: {
-    ...Typography.bodyStrong,
+  chipActive: {
+    backgroundColor: Colors.signalMuted,
+    borderColor: Colors.signal,
+  },
+  chipText: {
+    ...Typography.body,
+    color: Colors.textMuted,
     fontSize: 13,
-    color: Colors.textBright,
-    flexShrink: 1,
+  },
+  chipTextActive: {
+    color: Colors.signal,
+    fontWeight: '700' as const,
+  },
+  chipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   dayHeader: {
     flexDirection: 'row',
@@ -1128,6 +1292,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    justifyContent: 'space-between',
+  },
+  timelineCardTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+  },
+  bellButton: {
+    padding: 4,
+    marginLeft: 4,
   },
   timelineTitle: {
     ...Typography.bodyStrong,
@@ -1183,6 +1359,67 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: TEXT_MUTED,
     textAlign: 'center',
+  },
+  onAirCardWrapper: {
+    marginBottom: 20,
+  },
+  onAirCard: {
+    backgroundColor: Colors.inkElevated,
+    borderRadius: Radii.xl,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.surfaceFaint,
+  },
+  onAirHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  onAirDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  onAirLabel: {
+    ...Typography.captionStrong,
+    color: Colors.signal,
+    fontSize: 12,
+    letterSpacing: 0.5,
+  },
+  onAirTitle: {
+    ...Typography.bodyStrong,
+    color: Colors.textBright,
+    fontSize: 18,
+    lineHeight: 24,
+    marginBottom: Spacing.sm,
+  },
+  onAirTime: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  onAirTimeText: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    fontSize: 13,
+  },
+  onAirRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  onAirCategoryDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  onAirCategory: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    fontSize: 13,
   },
   pickerTitle: {
     ...Typography.screenTitle,

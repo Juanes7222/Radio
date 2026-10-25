@@ -1,11 +1,10 @@
-import { memo, useState, useCallback, useEffect, useMemo } from 'react';
+import { memo, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';

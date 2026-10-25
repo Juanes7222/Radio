@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  Share,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -32,7 +33,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BACKEND_URL } from '@/constants/api';
 import { legalUrl } from '@/constants/legalDocuments';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { tick, success } from '@/lib/haptics';
 import { Durations, Easings, Spring } from '@/constants/motion';
 import { Entrances } from '@/constants/motion';
@@ -115,9 +116,6 @@ export default function PrayerScreen() {
     const trimmedRequest = request.trim();
     const errors: PrayerFieldErrors = {};
 
-    if (!trimmedName) {
-      errors.name = 'Ingresa tu nombre para identificar tu petición.';
-    }
     if (!trimmedRequest) {
       errors.request = 'Escribe tu petición antes de enviarla.';
     } else if (trimmedRequest.length < 10) {
@@ -128,10 +126,6 @@ export default function PrayerScreen() {
     }
     setFieldErrors(errors);
 
-    if (errors.name) {
-      nameRef.current?.focus();
-      return;
-    }
     if (errors.request) {
       requestRef.current?.focus();
       return;
@@ -219,10 +213,38 @@ export default function PrayerScreen() {
         {verse && !sent && (
           <Animated.View
             entering={FadeIn.delay(40).duration(240).easing(Easing.bezier(...Easings.enter))}
-            style={styles.verseBlock}
+            style={styles.verseHero}
           >
-            <Text style={styles.verseText}>{verse.text}</Text>
-            <Text style={styles.verseReference}>{verse.reference}</Text>
+            <View style={styles.verseHalo} />
+            <Text style={styles.verseTextHero}>{verse.text}</Text>
+            <Text style={styles.verseReferenceHero}>{verse.reference}</Text>
+            <View style={styles.verseActions}>
+              <TouchableOpacity
+                onPress={() => {
+                  tick();
+                  Share.share({
+                    message: `${verse.text}\n\n${verse.reference}\n\nLa Voz de la Verdad`,
+                  }).catch(() => {});
+                }}
+                style={styles.verseActionBtn}
+                activeOpacity={0.8}
+                accessibilityLabel="Compartir versículo del día"
+              >
+                <Ionicons name="share-outline" size={18} color={Colors.signal} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  tick();
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  router.push('index' as any);
+                }}
+                style={styles.verseActionBtn}
+                activeOpacity={0.8}
+                accessibilityLabel="Abrir Biblia en En vivo"
+              >
+                <Ionicons name="book" size={18} color={Colors.signal} />
+              </TouchableOpacity>
+            </View>
           </Animated.View>
         )}
 
@@ -230,49 +252,51 @@ export default function PrayerScreen() {
           <Animated.View
             entering={FadeInDown.duration(Durations.slow).easing(Easing.bezier(...Easings.enter))}
             exiting={FadeOut.duration(Durations.fast).easing(Easing.bezier(...Easings.exit))}
-            style={[styles.successCard, isSmallScreen && styles.successCardSmall]}
+            style={[styles.successScreen, isSmallScreen && styles.successScreenSmall]}
           >
-            <Animated.View
-              entering={ZoomIn.duration(Durations.normal).delay(120).easing(Easing.bezier(...Easings.spring))}
-              style={styles.successIconWrap}
-              accessible={false}
-              importantForAccessibility="no-hide-descendants"
-            >
-              <Ionicons name="checkmark-circle" size={isSmallScreen ? 36 : 48} color={Colors.success} />
-            </Animated.View>
-            <Animated.Text
-              entering={FadeInDown.delay(200).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
-              style={[styles.successTitle, isSmallScreen && styles.successTitleSmall]}
-            >
-              Petición enviada
-            </Animated.Text>
-            <Animated.Text
-              entering={FadeInDown.delay(260).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
-              style={[styles.successText, isSmallScreen && styles.successTextSmall]}
-            >
-              Tu petición ha sido recibida. Alguien del equipo la está orando ahora.
-            </Animated.Text>
-            <Animated.View
-              entering={FadeIn.delay(340).duration(Durations.normal)}
-              style={styles.successActions}
-            >
-              <TouchableOpacity onPress={handleReset} style={styles.resetBtn} activeOpacity={0.8}>
-                <Text style={styles.resetBtnText}>Enviar otra petición</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => router.push('/prayer-history')} style={styles.viewHistoryBtn} activeOpacity={0.8}>
-                <Ionicons name="list-outline" size={14} color={Colors.accent} />
-                <Text style={styles.viewHistoryBtnText}>Ver mis peticiones</Text>
-              </TouchableOpacity>
-            </Animated.View>
+            <View style={styles.successContent}>
+              <Animated.View
+                entering={ZoomIn.duration(Durations.normal).delay(120).easing(Easing.bezier(...Easings.spring))}
+                style={styles.successIconWrap}
+                accessible={false}
+                importantForAccessibility="no-hide-descendants"
+              >
+                <Ionicons name="checkmark-circle" size={isSmallScreen ? 64 : 80} color={Colors.success} />
+              </Animated.View>
+              <Animated.Text
+                entering={FadeInDown.delay(200).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+                style={[styles.successTitle, isSmallScreen && styles.successTitleSmall]}
+              >
+                Tu petición fue recibida
+              </Animated.Text>
+              <Animated.Text
+                entering={FadeInDown.delay(260).duration(Durations.normal).easing(Easing.bezier(...Easings.enter))}
+                style={[styles.successText, isSmallScreen && styles.successTextSmall]}
+              >
+                Estaremos orando por ti.
+              </Animated.Text>
+              <Animated.View
+                entering={FadeIn.delay(340).duration(Durations.normal)}
+                style={styles.successActions}
+              >
+                <TouchableOpacity onPress={handleReset} style={styles.resetBtn} activeOpacity={0.8}>
+                  <Text style={styles.resetBtnText}>Enviar otra petición</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/prayer-history')} style={styles.viewHistoryBtn} activeOpacity={0.8}>
+                  <Ionicons name="list-outline" size={14} color={Colors.accent} />
+                  <Text style={styles.viewHistoryBtnText}>Ver mis peticiones</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
           </Animated.View>
         ) : (
           <Animated.View entering={Entrances.enterBlock(100)} style={styles.form}>
             <View style={styles.field}>
-              <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Nombre</Text>
+              <Text style={[styles.label, isSmallScreen && styles.labelSmall]}>Nombre (opcional)</Text>
               <TextInput
                 ref={nameRef}
                 style={[styles.input, isSmallScreen && styles.inputSmall, fieldErrors.name && styles.inputError]}
-                placeholder="Tu nombre"
+                placeholder="Tu nombre (opcional)"
                 placeholderTextColor={Colors.textMuted}
                 keyboardAppearance="dark"
                 value={name}
@@ -282,7 +306,7 @@ export default function PrayerScreen() {
                 }}
                 maxLength={NAME_MAX_LENGTH}
                 editable={!loading}
-                accessibilityLabel="Tu nombre"
+                accessibilityLabel="Nombre, opcional"
                 autoComplete="name"
                 returnKeyType="next"
                 onSubmitEditing={() => requestRef.current?.focus()}
@@ -512,33 +536,52 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText: { ...Typography.bodyStrong, color: Colors.textOnSignal },
   submitBtnTextSmall: { fontSize: 13 },
-  verseBlock: {
+  verseHero: {
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
-    gap: 4,
+    marginBottom: Spacing.lg,
+    position: 'relative',
   },
-  verseText: {
+  verseHalo: {
+    position: 'absolute',
+    top: -Spacing.md,
+    left: -Spacing.md,
+    right: -Spacing.md,
+    bottom: -Spacing.sm,
+    borderRadius: Radii.xl,
+    backgroundColor: Colors.signalGlow,
+    zIndex: -1,
+  },
+  verseTextHero: {
     ...Typography.message,
     color: Colors.textSoft,
     textAlign: 'center',
+    fontSize: 24,
+    lineHeight: 34,
   },
-  verseReference: { ...Typography.caption, color: Colors.textMuted },
-  successCard: {
-    backgroundColor: Colors.surfaceDim,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.surfaceSoft,
-    padding: 24,
-    alignItems: 'center',
-    gap: 12,
+  verseReferenceHero: {
+    ...Typography.caption,
+    color: Colors.signalLight,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+    fontWeight: '600' as const,
   },
-  successIconWrap: {
+  verseActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  verseActionBtn: {
     width: 48,
     height: 48,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: Colors.borderGlass,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   successActions: {
     width: '100%',
     alignItems: 'center',
@@ -549,10 +592,31 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 8,
   },
-  successTitle: { ...Typography.screenTitle, color: Colors.text, fontSize: 18, lineHeight: 24 },
-  successTitleSmall: { fontSize: 16, lineHeight: 22 },
-  successText: { ...Typography.body, color: Colors.textAlt, textAlign: 'center' },
-  successTextSmall: { fontSize: 13 },
+  successScreen: {
+    flex: 1,
+    backgroundColor: Colors.backgroundAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.xl,
+  },
+  successScreenSmall: {
+    paddingTop: Spacing.lg,
+  },
+  successContent: {
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  successIconWrap: {
+    width: 80,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successTitle: { ...Typography.screenTitle, color: Colors.text, fontSize: 24, lineHeight: 32 },
+  successTitleSmall: { fontSize: 20, lineHeight: 28 },
+  successText: { ...Typography.body, color: Colors.textAlt, textAlign: 'center', fontSize: 16, lineHeight: 24 },
+  successTextSmall: { fontSize: 14, lineHeight: 20 },
   headerActions: { flexDirection: 'row', justifyContent: 'flex-end' },
   historyLink: {
     flexDirection: 'row',

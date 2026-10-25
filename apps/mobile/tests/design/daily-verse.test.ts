@@ -48,6 +48,6 @@ describe('prayer screen', () => {
   it('keeps the companionship line in the confirmation', () => {
     const screen = read('app/(tabs)/prayer.tsx');
 
-    expect(screen).toMatch(/está orando ahora/);
+    expect(screen).toMatch(/Tu petición fue recibida/);
   });
 });

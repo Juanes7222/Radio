@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  Pressable,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -20,9 +19,6 @@ import Animated, {
   FadeIn,
   FadeOut,
   Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
 } from 'react-native-reanimated';
 import { fetchRequestableSongs, requestSong } from '@radio/api';
 import type { SongRequest } from '@radio/types';
