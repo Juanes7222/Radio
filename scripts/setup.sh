@@ -268,8 +268,10 @@ if [[ -f "$SCRIPTS_DIR/radio-backup.service" && -f "$SCRIPTS_DIR/radio-backup.ti
   cp "$SCRIPTS_DIR/radio-backup.timer" /etc/systemd/system/radio-backup.timer
   chmod 755 "$SCRIPTS_DIR/radio-backup.sh" "$SCRIPTS_DIR/radio-restore.sh" "$SCRIPTS_DIR/radio-backup-now.sh"
   systemctl daemon-reload
-  systemctl enable radio-backup.timer
-  info "Backup timer installed. Add the R2 keys to Infisical to enable uploads."
+  # --now matters: `enable` alone only creates the boot symlink, so on a server
+  # that was already running the timer stayed inactive until the next reboot.
+  systemctl enable --now radio-backup.timer
+  info "Backup timer installed and started. Add the R2 keys to Infisical to enable uploads."
 else
   warn "Backup units not found in $SCRIPTS_DIR, skipping backup timer."
 fi

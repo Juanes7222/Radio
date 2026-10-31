@@ -185,17 +185,22 @@ export default function AdminBackups() {
                 <Badge className="border-destructive/25 bg-destructive/10 text-destructive">Último: error</Badge>
               ) : (
                 <Badge variant="outline" className="border-border bg-sunken text-faint">
-                  Sin respaldos aún
+                  {(overview?.backups.length ?? 0) > 0
+                    ? "Sin registro de la última ejecución"
+                    : "Sin respaldos aún"}
                 </Badge>
               )}
               <span className="font-mono text-[11px] text-faint">
-                Archivo: {status?.archive ?? "—"}
+                Archivo: {status?.archive ?? overview?.backups[0]?.name ?? "—"}
               </span>
               <span className="font-mono text-[11px] text-faint">
-                Fecha: {status ? formatDateTime(status.time) : "—"}
+                Fecha:{" "}
+                {status
+                  ? formatDateTime(status.time)
+                  : formatDateTime(overview?.backups[0]?.mtime ?? null)}
               </span>
               <span className="font-mono text-[11px] text-faint">
-                Tamaño: {formatBytes(status?.bytes ?? null)}
+                Tamaño: {formatBytes(status?.bytes ?? overview?.backups[0]?.size ?? null)}
               </span>
               {overview?.run.triggeredBy && (
                 <span className="font-mono text-[11px] text-faint">

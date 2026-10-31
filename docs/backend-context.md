@@ -357,6 +357,18 @@ node dist/index.js   # then curl http://localhost:18888/health
 
 ## Backups (SQLite -> Cloudflare R2)
 
+- **El respaldo diario también corre desde el backend, no solo desde el
+  timer.** `src/modules/backups/backup.job.ts` lo programa a las 05:05 en la
+  zona de la emisora, después de la generación nocturna (02:30) y las rotaciones
+  (03:30). El timer de systemd (05:00 hora del servidor) sigue existiendo, pero
+  `setup.sh` lo instalaba con `systemctl enable` sin `--now`: en un servidor ya
+  encendido quedaba inactivo hasta el siguiente reinicio, y un servidor
+  provisionado antes de que existieran las units no lo recibió nunca. Medido el
+  30 de octubre de 2026, el último bundle era del 30 de septiembre y todos eran
+  de horario de tarde, es decir, manuales. Para que las dos rutas no se pisen,
+  `runScheduledBackup()` omite la pasada si el bundle más nuevo tiene menos de
+  12 horas, así que el que llegue segundo no gasta disco ni cuota de R2. El
+  mismo job aparece en Jobs de procesamiento como `backup`.
 - `scripts/radio-backup.sh` — daily automatic backup via systemd timer
   (`scripts/radio-backup.timer`, 05:00 server time). Uses the SQLite backup
   API (safe in WAL mode while the backend runs), bundles `prisma/dev.db`

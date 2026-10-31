@@ -13,6 +13,7 @@ import { runHealthCycle } from "../health/health.service";
 import { discardStaleDrafts, syncAllPrograms } from "../programs/program.episode.service";
 import { reconcileAllBumpers } from "../bumpers/bumper.service";
 import { refreshChannelSubscriptions } from "../youtube/subscription.service";
+import { runBackupNow } from "../backups/backups.service";
 
 export type SystemJobKey =
   | "nightly-generation"
@@ -29,7 +30,8 @@ export type SystemJobKey =
   | "health-watchdog"
   | "programs-archive"
   | "bumpers-reconcile"
-  | "youtube-subscriptions";
+  | "youtube-subscriptions"
+  | "backup";
 
 export interface SystemJobMeta {
   key: SystemJobKey;
@@ -114,6 +116,14 @@ export const SYSTEM_JOB_CATALOG: SystemJobMeta[] = [
     requiresConfirm: false,
   },
   {
+    key: "backup",
+    label: "Respaldo de la base de datos",
+    description:
+      "Ejecuta scripts/radio-backup.sh ahora: snapshot de SQLite, subida a R2 y poda de bundles viejos. Espera a que termine.",
+    schedule: "05:05",
+    requiresConfirm: false,
+  },
+  {
     key: "rotations",
     label: "Rotaciones de playlists",
     description: "Ejecuta todas las rotaciones activas y reconstruye sus playlists destino.",
@@ -175,6 +185,7 @@ export const SYSTEM_JOB_RUNNERS: Record<SystemJobKey, () => Promise<unknown>> = 
   "programs-archive": runProgramsArchive,
   "bumpers-reconcile": reconcileAllBumpers,
   "youtube-subscriptions": refreshChannelSubscriptions,
+  backup: () => runBackupNow("system-job"),
 };
 
 export function isSystemJobKey(value: string): value is SystemJobKey {
