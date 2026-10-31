@@ -2,8 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { prisma } from "../../infrastructure/database/prisma";
 import { parseWebhookXml } from "../../shared/utils/xml-parser";
 import { logger } from "../../shared/logger/logger";
-import { config } from "../../config";
-import { markChannelNotified } from "./channel.service";
+import { ingestVideo } from "./ingest.service";
 
 const router = Router();
 
@@ -53,27 +52,12 @@ router.post("/webhook", async (req: Request, res: Response) => {
     return;
   }
 
-  const existing = await prisma.youTubeVideo.findUnique({ where: { videoId } });
-  if (existing) {
-    logger.info("YouTubeRouter", "Duplicate video, skipping", { videoId, status: existing.status });
-    return;
+  // The poller reports the same uploads, so the duplicate is not an error: the
+  // first report created the video and its job.
+  const created = await ingestVideo({ videoId, channelId, title, publishedAt });
+  if (!created) {
+    logger.info("YouTubeRouter", "Duplicate video, skipping", { videoId });
   }
-
-  await prisma.youTubeVideo.create({
-    data: { videoId, channelId, title, publishedAt, status: "RECEIVED", attempts: 0 },
-  });
-
-  await markChannelNotified(channelId);
-
-  await prisma.processingJob.create({
-    data: {
-      videoId,
-      status: "PENDING",
-      deadlineAt: new Date(Date.now() + config.processing.jobDeadlineHours * 60 * 60 * 1000),
-    },
-  });
-
-  logger.info("YouTubeRouter", "Job created", { videoId });
 });
 
 export default router;

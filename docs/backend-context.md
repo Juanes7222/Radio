@@ -490,21 +490,18 @@ cuántos archivos suenen adentro. Los de un solo archivo ya lo hacían por ffmpe
 La lista de canales que sigue la estación se administra en el panel admin, no en
 el entorno. Es el primer paso de mover configuración a la base de datos.
 
-- **El topic del hub es `https://www.youtube.com/feeds/videos.xml`, no
-  `https://www.youtube.com/xml/feeds/videos.xml`.** La ingesta estuvo muda del 5 al
-  18 de octubre de 2026 y la ruta equivocada es la causa. Medido el 18 de octubre:
-  la ruta con `/xml/` responde `200` con los mismos 463 bytes para un canal real,
-  para el canal de ejemplo de Google y para un id inventado, sin `<entry>` ni
-  `yt:channelId`: es un stub que ignora el `channel_id`, y un topic así no tiene
-  nada que publicar. La ruta sin `/xml/` devuelve el feed real, con `yt:videoId`,
-  `yt:channelId`, `<title>` y `<published>`, y da `404` para un id que no existe.
-  Nota: una versión anterior de esta documentación afirmó que el feed había
-  muerto y dejó pendiente una migración a la Data API v3. Era una conclusión
-  correcta sobre una medición incompleta: no se contrastó la ruta alternativa.
-  **No hace falta la Data API** para esto, que es la conclusión a la que se llegó
-  después. Las dos rutas del hub conviven: `pubsubhubbub.appspot.com` sigue
-  devolviendo `202` sin tarjeta ni cuota, y ese `202` se emite antes de verificar
-  el callback, así que un `202` no prueba que exista una suscripción.
+- **La ingesta es un sondeo de la Data API v3, no WebSub.** Medido el 31 de
+  octubre de 2026: `https://www.youtube.com/feeds/videos.xml` responde `404`
+  para un canal real y para un id inventado, y
+  `https://www.youtube.com/xml/feeds/videos.xml` responde `200` con los mismos
+  463 bytes sin `<entry>` para ambos. El hub `pubsubhubbub.appspot.com` sigue
+  devolviendo `202`, pero se emite antes de verificar el callback y el topic no
+  tiene nada que publicar, así que la cadena push no puede entregar videos.
+  `channelUploads.service.ts` consulta `playlistItems.list` sobre la playlist de
+  subidas (`UC` → `UU`) y `subscription.service.ts` encola lo publicado desde que
+  se agregó el canal. Requiere `YOUTUBE_API_KEY`; sin ella el canal queda
+  `unverified` y el log lo dice. La suscripción al hub se conserva por si YouTube
+  restaura el feed, pero no es el transporte que ingiere.
 - **El webhook se monta antes que el router de administración, no después.** El
   router de admin lleva `router.use(requireAuth)` sobre todas sus rutas, así que
   montado primero responde `401` a la verificación del hub y la suscripción nunca
@@ -547,12 +544,12 @@ el entorno. Es el primer paso de mover configuración a la base de datos.
   viene vacío — un canal existe aunque YouTube no avise, y bloquearlo dejaría al
   admin sin forma de registrarlo — sino que la fila queda con `0` y el panel lo
   dice.
-- **La renovación es un cron, no un `setInterval`.**
-  `youtube/youtube.subscription.job.ts` corre `17 */6 * * *` (minuto 17 a
-  propósito: los demás jobs usan minutos redondos) contra un lease de 24 h, así
-  que quedan tres intentos antes de que expire de verdad. `index.ts` solo hace
-  una pasada sin `await` al arrancar, para que un reinicio no espere seis horas.
-  También está en `systemJobs.registry.ts` como `youtube-subscriptions`.
+- **La ingesta es un cron, no un `setInterval`.**
+  `youtube/youtube.subscription.job.ts` corre `7,22,37,52 * * * *` (cada 15 min,
+  en minutos no redondos a propósito) contra un lease de 24 h que se renueva
+  cuando le quedan menos de 6 h. `index.ts` solo hace una pasada sin `await` al
+  arrancar, para que un reinicio no espere al siguiente ciclo. También está en
+  `systemJobs.registry.ts` como `youtube-subscriptions`.
 - **Borrar un canal borra la fila primero y avisa al hub después.** El orden
   inverso dejaría una fila que el hub ya no sirve y que nadie puede volver a
   suscribir. Si el unsubscribe falla, la fila sigue borrada y el error va al log.

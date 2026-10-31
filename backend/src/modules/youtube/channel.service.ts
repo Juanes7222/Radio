@@ -6,7 +6,7 @@ import type {
 import { prisma } from "../../infrastructure/database/prisma";
 import { AppError } from "../../shared/errors/app-error";
 import { logger } from "../../shared/logger/logger";
-import { fetchChannelFeed } from "./channelFeed.service";
+import { fetchChannelUploads } from "./channelUploads.service";
 import { parseChannelId } from "./channelId";
 import {
   RESUBSCRIBE_MARGIN_MS,
@@ -124,10 +124,10 @@ export async function createChannel(input: {
   }
 
   try {
-    const { entries } = await fetchChannelFeed(channelId);
+    const uploads = await fetchChannelUploads(channelId);
     await prisma.youTubeChannel.update({
       where: { channelId },
-      data: { feedEntryCount: entries.length, feedCheckedAt: new Date() },
+      data: { feedEntryCount: uploads.length, feedCheckedAt: new Date() },
     });
   } catch (err) {
     logger.warn("YoutubeChannels", "Could not check the channel feed", { channelId, error: String(err) });
@@ -176,14 +176,6 @@ export async function resubscribeChannel(channelId: string): Promise<YouTubeChan
   const refreshed = await prisma.youTubeChannel.findUnique({ where: { channelId } });
   if (!refreshed) throw new AppError(404, "Ese canal no está en la lista.");
   return toChannelInfo(refreshed, null);
-}
-
-/** Records that a channel spoke. An annotation, so a missing row is not an error. */
-export async function markChannelNotified(channelId: string): Promise<void> {
-  await prisma.youTubeChannel.updateMany({
-    where: { channelId },
-    data: { lastNotifiedAt: new Date() },
-  });
 }
 
 /**

@@ -14,6 +14,7 @@ import { programsConfig } from "./programs.config";
 import { bumpersConfig } from "./bumpers.config";
 import { webhookConfig } from "./webhook.config";
 import { workersConfig } from "./workers.config";
+import { youtubeConfig } from "./youtube.config";
 
 export const config = {
   ...appConfig,
@@ -31,4 +32,5 @@ export const config = {
   live: liveConfig,
   backups: backupsConfig,
   health: healthConfig,
+  youtube: youtubeConfig,
 };

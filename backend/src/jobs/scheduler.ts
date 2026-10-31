@@ -35,6 +35,6 @@ export function startScheduler() {
   registerYoutubeSubscriptionJob();
   logger.info(
     "Scheduler",
-    "Jobs registered: Nightly (2:30 AM), Hourly Check (:45), Folder Cleanup (07:00, 13:00, 19:00), Playback (random announcements in safe hours), Job Recovery (every 5 min), Program Notify (every 5 min), Listener Sampling (every 5 min), Playback Capture (every 5 min), Rotations (3:30 AM), GeoIP Update (Tue/Fri 03:00), Notice Media Cleanup (04:15), Health Watchdog (every 2 min), Program Archive (every 5 min), Bumper Reconcile (every 5 min), YouTube Subscriptions (every 6 h)"
+    "Jobs registered: Nightly (2:30 AM), Hourly Check (:45), Folder Cleanup (07:00, 13:00, 19:00), Playback (random announcements in safe hours), Job Recovery (every 5 min), Program Notify (every 5 min), Listener Sampling (every 5 min), Playback Capture (every 5 min), Rotations (3:30 AM), GeoIP Update (Tue/Fri 03:00), Notice Media Cleanup (04:15), Health Watchdog (every 2 min), Program Archive (every 5 min), Bumper Reconcile (every 5 min), YouTube Channel Poll (every 15 min)"
   );
 }

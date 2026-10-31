@@ -1,7 +1,8 @@
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
 import { prisma } from "../../infrastructure/database/prisma";
-import { channelFeedUrl, fetchChannelFeed } from "./channelFeed.service";
+import { fetchChannelUploads } from "./channelUploads.service";
+import { ingestVideo } from "./ingest.service";
 
 const PUBSUBHUBBUB_HUB = "https://pubsubhubbub.appspot.com/subscribe";
 const LEASE_SECONDS = 86400; // 24 hours
@@ -13,6 +14,22 @@ const LEASE_SECONDS = 86400; // 24 hours
 export const RESUBSCRIBE_MARGIN_MS = 6 * 60 * 60 * 1000;
 
 export const WEBHOOK_PATH = "/admin-api/youtube/webhook";
+
+/**
+ * Tolerance on the channel's creation date, so a clock difference between this
+ * process and YouTube does not drop the first upload of a freshly added channel.
+ */
+const INGEST_CLOCK_SKEW_MS = 60_000;
+
+/**
+ * The topic the hub keeps accepting. YouTube stopped serving entries on it, so
+ * this subscription cannot deliver anything today; the uploads poll below is the
+ * transport that actually ingests. The call stays because the hub still honours
+ * the lease, and a restored feed would resume push without touching the panel.
+ */
+function channelFeedUrl(channelId: string): string {
+  return `https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`;
+}
 
 async function callHub(mode: "subscribe" | "unsubscribe", channelId: string): Promise<void> {
   const params = new URLSearchParams({
@@ -74,11 +91,14 @@ export async function unsubscribeFromChannel(channelId: string): Promise<void> {
 }
 
 /**
- * Renews the lease and rechecks the feed of every registered channel.
+ * Renews the lease and polls the uploads of every registered channel.
  *
- * Both steps are isolated per channel: one unreachable hub or one dead feed must
- * not stop the rest of the list from being refreshed, which is why neither failure
- * leaves this function.
+ * Polling is the transport of record because the feed the hub watches is empty,
+ * so a channel that publishes only notifies through here. Uploads older than the
+ * channel row are skipped: adding a channel must not download its back catalogue.
+ *
+ * Both steps are isolated per channel: one unreachable hub or one missing API key
+ * must not stop the rest of the list from being refreshed.
  */
 export async function refreshChannelSubscriptions(): Promise<void> {
   const channels = await prisma.youTubeChannel.findMany();
@@ -99,13 +119,30 @@ export async function refreshChannelSubscriptions(): Promise<void> {
     }
 
     try {
-      const { entries } = await fetchChannelFeed(channel.channelId);
+      const uploads = await fetchChannelUploads(channel.channelId);
+      const publishedSince = channel.createdAt.getTime() - INGEST_CLOCK_SKEW_MS;
+
+      // Oldest first: the queue should process uploads in the order YouTube published them.
+      let ingested = 0;
+      for (const upload of [...uploads].reverse()) {
+        if (upload.publishedAt !== null && upload.publishedAt.getTime() < publishedSince) continue;
+        const created = await ingestVideo({ ...upload, channelId: channel.channelId });
+        if (created) ingested += 1;
+      }
+
       await prisma.youTubeChannel.update({
         where: { channelId: channel.channelId },
-        data: { feedEntryCount: entries.length, feedCheckedAt: new Date() },
+        data: { feedEntryCount: uploads.length, feedCheckedAt: new Date() },
       });
+
+      if (ingested > 0) {
+        logger.info("SubscriptionService", "Uploads ingested", {
+          channelId: channel.channelId,
+          ingested,
+        });
+      }
     } catch (err) {
-      logger.warn("SubscriptionService", "Could not check the channel feed", {
+      logger.warn("SubscriptionService", "Could not check the channel uploads", {
         channelId: channel.channelId,
         error: String(err),
       });

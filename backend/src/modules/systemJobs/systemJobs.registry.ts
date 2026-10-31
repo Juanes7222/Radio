@@ -107,9 +107,10 @@ export const SYSTEM_JOB_CATALOG: SystemJobMeta[] = [
   },
   {
     key: "youtube-subscriptions",
-    label: "Suscripciones de YouTube",
-    description: "Renueva el lease de cada canal de YouTube y vuelve a comprobar su feed.",
-    schedule: "cada 6 h",
+    label: "Sondeo de canales de YouTube",
+    description:
+      "Renueva el lease de cada canal y consulta sus últimas subidas para encolar los videos nuevos.",
+    schedule: "cada 15 min",
     requiresConfirm: false,
   },
   {

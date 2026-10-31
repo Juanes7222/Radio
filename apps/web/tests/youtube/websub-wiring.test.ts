@@ -10,12 +10,16 @@ function read(...parts: string[]): string {
 }
 
 /**
- * The ingestion went quiet for two independent reasons and the panel reported
- * neither: the hub could not verify the callback because a guarded router was
- * mounted in front of it, and the topic it was watching answered an empty stub.
- * Both are invisible in a screenshot, so they are pinned here.
+ * Ingestion went quiet while the panel claimed the subscription was healthy: the
+ * hub could not verify the callback because a guarded router was mounted in front
+ * of it, and later the topic it watched stopped serving entries at all. None of
+ * that is visible in a screenshot, so the wiring is pinned here.
+ *
+ * Measured on 31 Oct 2026: `/feeds/videos.xml` answers 404 for a real and for an
+ * invented channel, and `/xml/feeds/videos.xml` answers the same 463 byte stub
+ * for both. The panel check and the poller therefore read the Data API.
  */
-describe('the websub ingestion', () => {
+describe('the youtube ingestion', () => {
   it('mounts the webhook before the admin router', () => {
     const app = read('backend', 'src', 'app.ts');
     const webhook = app.indexOf('app.use("/admin-api/youtube", youtubeRouter)');
@@ -28,19 +32,20 @@ describe('the websub ingestion', () => {
     expect(webhook).toBeLessThan(admin);
   });
 
-  it('points the hub and the feed check at the same live feed', () => {
-    const feed = read('backend', 'src', 'modules', 'youtube', 'channelFeed.service.ts');
+  it('reads uploads from the Data API instead of the retired feed', () => {
+    const uploads = read('backend', 'src', 'modules', 'youtube', 'channelUploads.service.ts');
+
+    expect(uploads).toContain('googleapis.com/youtube/v3/playlistItems');
+    expect(uploads).toContain('uploadsPlaylistId');
+    expect(uploads).not.toMatch(/feeds\/videos\.xml\?channel_id/);
+  });
+
+  it('feeds the queue from polling and from the webhook through one path', () => {
     const subscription = read('backend', 'src', 'modules', 'youtube', 'subscription.service.ts');
+    const webhook = read('backend', 'src', 'modules', 'youtube', 'youtube.routes.ts');
 
-    // /xml/feeds/videos.xml answers 200 with the same 463 byte stub for a real
-    // channel, for someone else's channel and for an invented id, so a topic
-    // there can never have anything to publish. Naming it in a comment is fine;
-    // building a URL on it is not.
-    expect(feed).not.toMatch(/xml\/feeds\/videos\.xml\?channel_id/);
-    expect(feed).toMatch(/feeds\/videos\.xml\?channel_id/);
-
-    // One URL for both readers, or the hub watches a feed the panel never reports on.
-    expect(subscription).toContain('channelFeedUrl');
-    expect(subscription).not.toMatch(/feeds\/videos\.xml/);
+    expect(subscription).toContain('fetchChannelUploads');
+    expect(subscription).toContain('ingestVideo');
+    expect(webhook).toContain('ingestVideo');
   });
 });

@@ -40,6 +40,7 @@ Optional secrets that can also live in Infisical:
 - `MEDIA_DIR`
 - `TIMEZONE`
 - `STATION_NAME`
+- `YOUTUBE_API_KEY` (Data API v3 key; required by the YouTube uploads poll, see `docs/backend-context.md`)
 
 ## Voice engine secrets
 
