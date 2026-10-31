@@ -408,6 +408,25 @@ node dist/index.js   # then curl http://localhost:18888/health
   no en `announcement_settings`: el catálogo ya tiene defaults, respaldo de
   entorno y auditoría. La fila singleton sigue gobernando lo anterior.
 
+## Motor de voz desde el panel (30 Oct 2026)
+
+- La sección `voice` del catálogo gobierna el motor: `voice.provider`
+  (`auto` / `elevenlabs` / `kokoro`), modelo, estabilidad, similitud, formato de
+  salida, voz por defecto, mapa de voces y URL de Kokoro. La página de ajustes
+  se arma desde el catálogo, así que los campos aparecen sin tocar el frontend.
+- `voice.provider=auto` intenta ElevenLabs y cae a Kokoro; `elevenlabs` no cae,
+  para que una configuración incompleta falle a la vista; `kokoro` ahorra cuota
+  a propósito. Antes el orden era fijo y el descarte de ElevenLabs por falta de
+  mapa de voces era mudo.
+- `elevenLabs.provider.ts` y `kokoro.provider.ts` leen la voz y la URL en cada
+  llamada. El proveedor capturaba `config.locutor.tts.elevenLabs` al importar,
+  así que un cambio del panel no se habría visto hasta reiniciar.
+- `voice.voiceMap` es `etiqueta=id` separado por coma y se valida al guardar:
+  un par mal formado es un 400, no un mapa a medio escribir. Las etiquetas son
+  las de las plantillas (`ef_dora`, `em_alex`).
+- Las claves de API siguen en el entorno (`ELEVENLABS_API_KEYS`); la sección 9
+  del diseño, que las mueve cifradas a la base, todavía no está implementada.
+
 ## Backups (SQLite -> Cloudflare R2)
 
 - **El respaldo diario también corre desde el backend, no solo desde el

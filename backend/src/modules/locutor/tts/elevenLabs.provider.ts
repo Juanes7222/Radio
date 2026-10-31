@@ -1,7 +1,9 @@
 import axios from "axios";
 import { config } from "../../../config";
 import { logger } from "../../../shared/logger/logger";
+import { getNumberSetting, getTextSetting } from "../../settings/settings.cache";
 import { ApiKeyLease, ApiKeyPool, type ApiKeySnapshot } from "./apiKeyPool.service";
+import { parseVoiceMap } from "./voiceMap";
 import {
   TtsProviderConfigError,
   type TtsProvider,
@@ -9,8 +11,23 @@ import {
   type TtsSynthesisRequest,
 } from "./tts.types";
 
-const settings = config.locutor.tts.elevenLabs;
-const pool = new ApiKeyPool(settings.apiKeys);
+const connectionSettings = config.locutor.tts.elevenLabs;
+const pool = new ApiKeyPool(connectionSettings.apiKeys);
+
+/**
+ * La configuración de voz se lee en cada llamada: el panel es su dueño y un
+ * valor capturado al importar dejaría la voz anterior hasta reiniciar.
+ */
+function voiceSettings() {
+  return {
+    modelId: getTextSetting("voice.elevenLabsModel"),
+    outputFormat: getTextSetting("voice.elevenLabsOutputFormat"),
+    defaultVoiceId: getTextSetting("voice.defaultVoiceId"),
+    stability: getNumberSetting("voice.elevenLabsStability"),
+    similarityBoost: getNumberSetting("voice.elevenLabsSimilarity"),
+    voiceIdByTemplateVoice: parseVoiceMap(getTextSetting("voice.voiceMap")),
+  };
+}
 
 const LOG = "TtsElevenLabs";
 
@@ -41,7 +58,7 @@ const subscriptions = new Map<number, SubscriptionInfo>();
  */
 async function readSubscription(lease: ApiKeyLease): Promise<SubscriptionInfo> {
   const now = new Date();
-  const ttlMs = settings.subscriptionCacheMinutes * 60_000;
+  const ttlMs = connectionSettings.subscriptionCacheMinutes * 60_000;
   const cached = subscriptions.get(lease.index);
 
   if (cached && now.getTime() - cached.checkedAt.getTime() < ttlMs) {
@@ -55,7 +72,7 @@ async function readSubscription(lease: ApiKeyLease): Promise<SubscriptionInfo> {
       character_count?: number;
       character_limit?: number;
       next_character_count_reset_unix?: number | null;
-    }>(`${settings.baseUrl}/v1/user/subscription`, {
+    }>(`${connectionSettings.baseUrl}/v1/user/subscription`, {
       headers: { "xi-api-key": lease.key },
       timeout: config.locutor.tts.requestTimeoutMs,
     });
@@ -151,10 +168,11 @@ function readFailureDetail(err: unknown): { httpStatus: number | null; status: s
  * not configured for ElevenLabs at all.
  */
 function resolveVoiceId(templateVoice: string | null): string | null {
+  const current = voiceSettings();
   const mapped =
-    templateVoice === null ? undefined : settings.voiceIdByTemplateVoice[templateVoice];
+    templateVoice === null ? undefined : current.voiceIdByTemplateVoice[templateVoice];
 
-  return mapped || settings.defaultVoiceId || null;
+  return mapped || current.defaultVoiceId || null;
 }
 
 /**
@@ -165,7 +183,10 @@ function resolveVoiceId(templateVoice: string | null): string | null {
  */
 function isConfigured(): boolean {
   if (pool.isEmpty) return false;
-  return Boolean(settings.defaultVoiceId) || Object.keys(settings.voiceIdByTemplateVoice).length > 0;
+  const current = voiceSettings();
+  return (
+    Boolean(current.defaultVoiceId) || Object.keys(current.voiceIdByTemplateVoice).length > 0
+  );
 }
 
 function clampSpeed(speed: number): number {
@@ -179,15 +200,16 @@ async function requestAudio(
   text: string,
   speed: number
 ): Promise<Buffer> {
+  const current = voiceSettings();
   const response = await axios.post(
-    `${settings.baseUrl}/v1/text-to-speech/${encodeURIComponent(voiceId)}` +
-      `?output_format=${encodeURIComponent(settings.outputFormat)}`,
+    `${connectionSettings.baseUrl}/v1/text-to-speech/${encodeURIComponent(voiceId)}` +
+      `?output_format=${encodeURIComponent(current.outputFormat)}`,
     {
       text,
-      model_id: settings.modelId,
+      model_id: current.modelId,
       voice_settings: {
-        stability: settings.stability,
-        similarity_boost: settings.similarityBoost,
+        stability: current.stability,
+        similarity_boost: current.similarityBoost,
         speed,
       },
     },
@@ -210,13 +232,13 @@ async function handleFailure(lease: ApiKeyLease, voiceId: string, err: unknown):
 
   if (status === "voice_not_found") {
     throw new TtsProviderConfigError(
-      `ElevenLabs no reconoce la voz ${voiceId}: ${message}. Revisa ELEVENLABS_VOICE_IDS.`
+      `ElevenLabs no reconoce la voz ${voiceId}: ${message}. Revisa el mapa de voces en los ajustes de voz.`
     );
   }
 
   if (status === "max_character_limit_exceeded") {
     throw new TtsProviderConfigError(
-      `El texto supera el límite de caracteres de ${settings.modelId}: ${message}`
+      `El texto supera el límite de caracteres de ${voiceSettings().modelId}: ${message}`
     );
   }
 
@@ -235,7 +257,7 @@ async function handleFailure(lease: ApiKeyLease, voiceId: string, err: unknown):
     const subscription = await readSubscription(lease);
     const until =
       subscription.resetAt ??
-      new Date(Date.now() + settings.quotaCooldownMinutes * 60_000);
+      new Date(Date.now() + connectionSettings.quotaCooldownMinutes * 60_000);
 
     lease.block("quota", message, until);
     logger.warn(LOG, "Quota exhausted on this key, moving to the next one", {
@@ -248,7 +270,7 @@ async function handleFailure(lease: ApiKeyLease, voiceId: string, err: unknown):
     return err instanceof Error ? err : new Error(message);
   }
 
-  const until = new Date(Date.now() + settings.transientCooldownMinutes * 60_000);
+  const until = new Date(Date.now() + connectionSettings.transientCooldownMinutes * 60_000);
   lease.block("transient", message, until);
   logger.warn(LOG, "Request failed without touching the quota, parking the key briefly", {
     keyIndex: lease.index,
@@ -274,7 +296,7 @@ export const elevenLabsProvider: TtsProvider = {
 
     if (!voiceId) {
       throw new TtsProviderConfigError(
-        "No hay una voz de ElevenLabs para esta plantilla. Define ELEVENLABS_VOICE_IDS o ELEVENLABS_DEFAULT_VOICE_ID."
+        "No hay una voz de ElevenLabs para esta plantilla. Configura el mapa de voces o la voz por defecto en los ajustes de voz."
       );
     }
 
@@ -367,7 +389,7 @@ export function getElevenLabsStatus(): ElevenLabsStatus {
 
   return {
     configured: isConfigured(),
-    modelId: settings.modelId,
+    modelId: voiceSettings().modelId,
     keys,
     availableKeys: pool.availableCount(),
     balance: totalBalance(keys),

@@ -30,6 +30,12 @@ type BooleanSettingKey = {
     : never;
 }[keyof typeof SETTINGS_CATALOG];
 
+type TextSettingKey = {
+  [K in keyof typeof SETTINGS_CATALOG]: (typeof SETTINGS_CATALOG)[K]["defaultValue"] extends string
+    ? K
+    : never;
+}[keyof typeof SETTINGS_CATALOG];
+
 /** Rows as they came out of `station_settings` at the last hydration. */
 const storedRows = new Map<string, SettingRow>();
 
@@ -126,6 +132,23 @@ export function getNumberSetting(key: NumberSettingKey): number {
   // Structural: a key that is not in the catalog cannot reach a reader, whose
   // parameter type is built from the catalog. Kept so a future caller that
   // widens that type fails loudly instead of reading something meaningless.
+  throw new Error(`Setting "${key}" is not in the catalog`);
+}
+
+/** The text counterpart of {@link getNumberSetting}. */
+export function getTextSetting(key: TextSettingKey): string {
+  const { value, definition } = resolveCurrent(key);
+  if (typeof value === "string") return value;
+
+  const fallback = definition?.defaultValue;
+  if (typeof fallback === "string") {
+    logger.error("Settings", "Text reader resolved a non-string; using the catalog default", {
+      key,
+      received: typeof value,
+    });
+    return fallback;
+  }
+
   throw new Error(`Setting "${key}" is not in the catalog`);
 }
 

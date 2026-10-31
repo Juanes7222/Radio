@@ -6,7 +6,12 @@ import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
 import { elevenLabsProvider, getElevenLabsStatus } from "./tts/elevenLabs.provider";
 import { isKokoroReachable, kokoroProvider } from "./tts/kokoro.provider";
-import type { TtsProvider, TtsProviderId } from "./tts/tts.types";
+import { getTextSetting } from "../settings/settings.cache";
+import {
+  TtsProviderConfigError,
+  type TtsProvider,
+  type TtsProviderId,
+} from "./tts/tts.types";
 
 const execFileAsync = promisify(execFile);
 
@@ -18,6 +23,17 @@ const LOG = "TtsService";
  * with no ElevenLabs key configured behaves exactly as it did before.
  */
 const PROVIDERS: TtsProvider[] = [elevenLabsProvider, kokoroProvider];
+
+export type VoiceProviderMode = "auto" | "elevenlabs" | "kokoro";
+
+/**
+ * `auto` intenta el proveedor externo y cae a Kokoro; `elevenlabs` no cae, para
+ * que un problema de configuración se vea; `kokoro` ahorra cuota a propósito.
+ */
+function voiceProviderMode(): VoiceProviderMode {
+  const raw = getTextSetting("voice.provider").trim().toLowerCase();
+  return raw === "elevenlabs" || raw === "kokoro" ? raw : "auto";
+}
 
 let lastProvider: TtsProviderId | null = null;
 let lastProviderAt: Date | null = null;
@@ -45,6 +61,9 @@ export interface SynthesizeResult {
  * station would sound robotic for weeks with nothing pointing at the cause.
  */
 export function preferredProviderId(templateVoice: string | null): TtsProviderId {
+  const mode = voiceProviderMode();
+  if (mode === "kokoro") return "kokoro";
+  if (mode === "elevenlabs") return "elevenlabs";
   return PROVIDERS.find((provider) => provider.isAvailable(templateVoice))?.id ?? "kokoro";
 }
 
@@ -66,10 +85,25 @@ export async function synthesize({
     );
   }
 
+  const mode = voiceProviderMode();
+  const attempts =
+    mode === "kokoro"
+      ? [kokoroProvider]
+      : mode === "elevenlabs"
+      ? [elevenLabsProvider]
+      : PROVIDERS;
+
+  if (mode === "elevenlabs" && !elevenLabsProvider.isAvailable(voice)) {
+    throw new TtsProviderConfigError(
+      "El motor de voz está fijado en ElevenLabs, pero el proveedor no está configurado. " +
+        "Revisa el mapa de voces, la voz por defecto y las claves de API."
+    );
+  }
+
   const firstChoice = preferredProviderId(voice);
   let lastError: Error | null = null;
 
-  for (const provider of PROVIDERS) {
+  for (const provider of attempts) {
     if (!provider.isAvailable(voice)) continue;
 
     try {

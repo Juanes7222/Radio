@@ -1,5 +1,6 @@
-import { boolEnvOr, intEnvOr } from "../../config/env";
-import type { SettingDefinition, SettingSectionId } from "./settings.types";
+import { boolEnvOr, envOr, floatEnvOr, intEnvOr, keyValueEnvOr } from "../../config/env";
+import { formatVoiceMap, parseVoiceMap } from "../locutor/tts/voiceMap";
+import type { SettingDefinition, SettingSectionId, SettingValue } from "./settings.types";
 
 /**
  * The catalog is the only place a setting is declared: its key, type, range,
@@ -178,6 +179,102 @@ export const SETTINGS_CATALOG = {
     parse: parseNumber,
     format: String,
   },
+  "voice.provider": {
+    key: "voice.provider",
+    section: "voice",
+    label: "Motor de voz",
+    description:
+      "auto intenta ElevenLabs y cae a Kokoro; elevenlabs no cae, para que un problema de configuración se vea; kokoro ahorra cuota a propósito.",
+    type: "text",
+    defaultValue: "auto",
+    envFallback: () => envOr("TTS_PROVIDER", "auto"),
+    parse: parseProvider,
+    format: String,
+  },
+  "voice.elevenLabsModel": {
+    key: "voice.elevenLabsModel",
+    section: "voice",
+    label: "Modelo de ElevenLabs",
+    description: "Modelo de síntesis. Cambiarlo cambia el timbre y el consumo de caracteres.",
+    type: "text",
+    defaultValue: "eleven_multilingual_v2",
+    envFallback: () => envOr("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"),
+    parse: parseText,
+    format: String,
+  },
+  "voice.elevenLabsStability": {
+    key: "voice.elevenLabsStability",
+    section: "voice",
+    label: "Estabilidad de la voz",
+    description:
+      "Cuánto se parece cada locución a la anterior. Bajo suena más expresivo y menos predecible.",
+    type: "number",
+    defaultValue: 0.5,
+    envFallback: () => floatEnvOr("ELEVENLABS_STABILITY", 0.5),
+    min: 0,
+    max: 1,
+    parse: parseNumber,
+    format: String,
+  },
+  "voice.elevenLabsSimilarity": {
+    key: "voice.elevenLabsSimilarity",
+    section: "voice",
+    label: "Similitud con la voz original",
+    description: "Cuánto se fuerza el parecido con la muestra de la voz clonada.",
+    type: "number",
+    defaultValue: 0.75,
+    envFallback: () => floatEnvOr("ELEVENLABS_SIMILARITY_BOOST", 0.75),
+    min: 0,
+    max: 1,
+    parse: parseNumber,
+    format: String,
+  },
+  "voice.elevenLabsOutputFormat": {
+    key: "voice.elevenLabsOutputFormat",
+    section: "voice",
+    label: "Formato de salida",
+    description: "Formato que se pide al proveedor. mp3_44100_128 es el que espera el harbor.",
+    type: "text",
+    defaultValue: "mp3_44100_128",
+    envFallback: () => envOr("ELEVENLABS_OUTPUT_FORMAT", "mp3_44100_128"),
+    parse: parseText,
+    format: String,
+  },
+  "voice.defaultVoiceId": {
+    key: "voice.defaultVoiceId",
+    section: "voice",
+    label: "Voz por defecto",
+    description:
+      "Id de ElevenLabs que se usa cuando la plantilla no aparece en el mapa de voces. Vacío significa que ninguna plantilla sin mapear puede usar ElevenLabs.",
+    type: "text",
+    defaultValue: "",
+    envFallback: () => envOr("ELEVENLABS_DEFAULT_VOICE_ID", ""),
+    parse: parseText,
+    format: String,
+  },
+  "voice.voiceMap": {
+    key: "voice.voiceMap",
+    section: "voice",
+    label: "Mapa de voces",
+    description:
+      "Pares etiqueta=id separados por coma, por ejemplo ef_dora=<id>,em_alex=<id>. La etiqueta es la que llevan las plantillas.",
+    type: "text",
+    defaultValue: "",
+    envFallback: () => formatVoiceMap(keyValueEnvOr("ELEVENLABS_VOICE_IDS")),
+    parse: parseVoiceMapSetting,
+    format: formatVoiceMapSetting,
+  },
+  "voice.kokoroUrl": {
+    key: "voice.kokoroUrl",
+    section: "voice",
+    label: "URL de Kokoro",
+    description: "Servicio local de síntesis que actúa como respaldo y como motor barato.",
+    type: "text",
+    defaultValue: "http://localhost:8880",
+    envFallback: () => envOr("KOKORO_URL", "http://localhost:8880"),
+    parse: parseText,
+    format: String,
+  },
   "health.pushEnabled": {
     key: "health.pushEnabled",
     section: "health",
@@ -210,6 +307,11 @@ export const SETTING_SECTIONS: ReadonlyArray<{
     label: "Avisos de hora",
     description: "Cuántos avisos suenan al día, en qué franja y cómo se reintentan.",
   },
+  {
+    id: "voice",
+    label: "Voz",
+    description: "Motor de síntesis, voces y parámetros del proveedor.",
+  },
 ];
 
 /**
@@ -231,6 +333,32 @@ function parseBoolean(raw: string): boolean {
   if (normalized === "true" || normalized === "1") return true;
   if (normalized === "false" || normalized === "0") return false;
   throw new Error(`Not a boolean: "${raw}"`);
+}
+
+/** El panel solo puede guardar uno de los tres modos que el servicio entiende. */
+function parseProvider(raw: string): string {
+  const value = raw.trim().toLowerCase();
+  if (value === "auto" || value === "elevenlabs" || value === "kokoro") return value;
+  throw new Error(`Motor de voz desconocido: "${raw}"`);
+}
+
+/** Texto sin recortar el contenido, salvo los espacios de los extremos. */
+function parseText(raw: string): string {
+  return raw.trim();
+}
+
+/**
+ * El mapa se valida aquí y se guarda tal cual: `parseVoiceMap` lanza en un par
+ * mal formado, y el guardado del panel lo convierte en un 400 en vez de dejar
+ * medio mapa almacenado.
+ */
+function parseVoiceMapSetting(raw: string): string {
+  parseVoiceMap(raw);
+  return raw.trim();
+}
+
+function formatVoiceMapSetting(value: SettingValue): string {
+  return typeof value === "string" ? formatVoiceMap(parseVoiceMap(value)) : "";
 }
 
 /** Rejects an empty string, which `Number` would otherwise read as zero. */
