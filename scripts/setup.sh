@@ -196,7 +196,7 @@ certbot certonly --nginx --non-interactive --agree-tos \
   --email "$CERTBOT_EMAIL" --no-eff-email \
   -d lavozverdad.com -d www.lavozverdad.com -d panel.lavozverdad.com
 
-certbot certonly --nginx --non-interactive --agree-tos \
+certbot certonly --nginx --non-interactive --agree-tos --expand \
   --email "$CERTBOT_EMAIL" --no-eff-email \
   -d vozyverdad.com -d www.vozyverdad.com -d panel.vozyverdad.com
 
