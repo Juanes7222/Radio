@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock,
@@ -22,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useAzuraCast, mergeConsecutiveScheduleItems } from '@/hooks';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { apiUrl } from '@/config';
+import { fetchTodayReading } from '@/lib/bible';
 import { formatChapters } from '@/lib/format';
 import type { BibleReadingToday, ScheduleItem, ScheduleCategorySummary } from '@radio/types';
 
@@ -454,9 +455,9 @@ export function ProgramacionPage() {
         const [data, categoryData, readingData] = await Promise.all([
           fetchSchedule(),
           fetchScheduleCategories(),
-          fetch(`${apiUrl('/api/bible')}/reading/today`).then((res) =>
-            res.ok ? res.json() : ({ reading: null } as BibleReadingToday)
-          ),
+          // The reading is a bonus on this page: the grid matters more, so a
+          // failure leaves the page without it instead of without the grid.
+          fetchTodayReading().catch(() => ({ reading: null })),
         ]);
         if (data) setSchedule(data);
         if (categoryData) setCategories(categoryData);
@@ -560,24 +561,29 @@ export function ProgramacionPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="mb-6 rounded-2xl border border-border bg-card p-4 sm:p-5 flex items-start gap-3.5"
+            className="mb-6 rounded-2xl border border-border bg-card p-4 sm:p-5"
           >
-            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-brand/15 text-brand">
-              <Book className="w-4 h-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand">
-                Lectura de hoy
-              </p>
-              <p className="font-semibold text-sm sm:text-base mt-0.5 leading-snug">
-                {formatChapters(reading.chapters)}
-              </p>
-              {reading.rotationName && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {reading.rotationName}
+            <Link
+              to="/lectura-de-hoy"
+              className="flex items-start gap-3.5 rounded-xl transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-brand/15 text-brand">
+                <Book className="w-4 h-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand">
+                  Lectura de hoy
                 </p>
-              )}
-            </div>
+                <p className="font-semibold text-sm sm:text-base mt-0.5 leading-snug">
+                  {formatChapters(reading.chapters)}
+                </p>
+                {reading.rotationName && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {reading.rotationName}
+                  </p>
+                )}
+              </div>
+            </Link>
           </motion.div>
         )}
 

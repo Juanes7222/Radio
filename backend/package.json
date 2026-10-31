@@ -11,6 +11,8 @@
     "prisma:migrate:status": "prisma migrate status --schema prisma/schema",
     "prisma:migrate:resolve": "prisma migrate resolve --schema prisma/schema",
     "youtube-channels:backfill": "ts-node src/scripts/backfillYoutubeChannels.ts",
+    "seed:bible:published": "ts-node scripts/seed-bible.ts --published",
+    "catalog:export": "ts-node src/scripts/export-catalog.ts",
     "dev": "pnpm run swagger && ts-node-dev --respawn --transpile-only --exit-child src/index.ts",
     "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && pnpm run prisma:generate && pnpm run swagger && tsc",
     "test": "vitest run",

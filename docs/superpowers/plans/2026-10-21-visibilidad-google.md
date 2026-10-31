@@ -16,7 +16,7 @@
 - Code comments, docstrings and JSDoc are written in English. User-facing copy (page titles, descriptions, page body) is in Spanish.
 - No `any`. Explicit types on every exported function.
 - No new runtime dependency. Everything here uses what is already installed.
-- Canonical URLs always carry a trailing slash, because that is the form nginx answers with 200 (`try_files $uri $uri/`). The existing `canonicalUrl()` in `apps/web/src/config/seo.config.ts` is the only place that decides it.
+- Canonical URLs always carry a trailing slash, because that is the form nginx answers with 200 (`try_files $uri $uri/`). `canonicalUrl()` in `apps/web/src/config/seo.config.ts` decides it for the eight public routes, and the generated pages obey the same rule because their path ends with a slash and their canonical is `SITE_URL` plus that path. There is no second rule and no second expression for the slash.
 - The site is `https://lavozverdad.com`. `SITE_URL` in `seo.config.ts` is the only source for that value.
 - The published Bible text is the free-to-redistribute translation (Reina-Valera Gómez 2004), never RVR1960.
 - The service worker must not serve a cached page in place of a catalog page, and must not overwrite the cached home page with a catalog page.
@@ -28,7 +28,7 @@
 
 Five input classes the spec implies but no task's test would otherwise exercise. Each one gets a test in the task that owns the code.
 
-1. **Two different names that fold to the same slug** ("José Soto" and "Jose Soto"; an artist called "Job" next to the book of Job). A collision would silently overwrite a page. The slug builder must detect a collision and disambiguate it, and the test must pin that.
+1. **Two different names that fold to the same slug** ("José Soto" and "Jose Soto"; an artist called "Job" next to the book of Job). A collision would silently overwrite a page. The backend export detects the collision and disambiguates it with `uniqueSlugs`, and the test must pin that.
 2. **Titles and verse text containing HTML characters.** A song titled "Grace & Truth" or a verse with `<` would break the page if it is not escaped. Every text that reaches the HTML goes through the escaper.
 3. **A chapter with no verses in the database.** A partially seeded translation would publish an empty page. Such a chapter is skipped, not published.
 4. **A song with no artist.** AzuraCast returns `artist: null` for some files. Those songs must not create an artist page called "null" or "Unknown".
@@ -54,7 +54,6 @@ Five input classes the spec implies but no task's test would otherwise exercise.
 
 **Web (the generation half)**
 
-- `apps/web/src/content/slug.ts` — the slug builder with collision detection. New.
 - `apps/web/src/content/catalogPages.ts` — the catalog to page list, and the HTML of each page. New.
 - `apps/web/src/config/seo.config.ts` — modified: head/social builders that accept any page, and a sitemap that accepts extra entries.
 - `apps/web/vite/seoPlugin.ts` — the Vite plugins, moved out of `vite.config.ts` and extended with the catalog writer. New.
@@ -163,9 +162,9 @@ Add to `backend/package.json`:
 "seed:bible:published": "ts-node scripts/seed-bible.ts --published"
 ```
 
-`--published` selects `PUBLISHED_TRANSLATION`; without it the script keeps seeding `SpanishRVR1960Bible.xml` as `RVR1960`.
+`--published` selects `PUBLISHED_TRANSLATION`; without it the script keeps seeding `SpanishRVR1960Bible.xml` as `RVR1960`. The script prints its usage when it receives `--help` and exits 0 without touching the database.
 
-- [ ] **Step 6: Run the seed against the fixture-free path and check it does not crash**
+- [ ] **Step 6: Check the usage output**
 
 Run: `pnpm --filter @radio/backend exec ts-node scripts/seed-bible.ts --help`
 Expected: the script prints its usage and exits 0 without touching the database.
@@ -268,10 +267,13 @@ git commit -m "feat(types): add the catalog artifact type"
     readonly genre: string | null;
   }
   export function groupSongsByArtist(songs: readonly LibrarySong[]): { name: string; songs: CatalogSong[] }[];
+  export function uniqueSlugs(names: readonly string[]): Map<string, string>;
   export function buildCatalogBooks(books: readonly { slug: string; name: string; order: number; testament: "AT" | "NT"; chapterCount: number }[]): CatalogBook[];
   export function chapterSlugParts(bookName: string, chapterNumber: number): { bookSlug: string; path: string };
   export async function exportCatalog(targetPath: string): Promise<{ books: number; chapters: number; artists: number; videos: number }>;
   ```
+
+  **The artifact owns the slugs.** The export computes the book slug and the artist slug with the backend's `slugify`, and `uniqueSlugs` disambiguates two names that fold to the same slug (adding `-2`, `-3`, and so on to the later ones, in the order they were given). The web build reads the slugs from the artifact and never derives one, so there is a single implementation of the rule.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -279,7 +281,7 @@ git commit -m "feat(types): add the catalog artifact type"
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { groupSongsByArtist, chapterSlugParts } from "../../src/modules/catalog/catalog.service";
+import { groupSongsByArtist, chapterSlugParts, uniqueSlugs } from "../../src/modules/catalog/catalog.service";
 
 describe("groupSongsByArtist", () => {
   it("groups the songs of an artist and sorts them by title", () => {
@@ -305,6 +307,19 @@ describe("chapterSlugParts", () => {
     expect(chapterSlugParts("1 Corintios", 13)).toEqual({ bookSlug: "1-corintios", path: "1-corintios/13" });
   });
 });
+
+describe("uniqueSlugs", () => {
+  it("disambiguates two names that fold to the same slug", () => {
+    const slugs = uniqueSlugs(["José Soto", "Jose Soto"]);
+    expect(slugs.get("José Soto")).toBe("jose-soto");
+    expect(slugs.get("Jose Soto")).toBe("jose-soto-2");
+  });
+
+  it("keeps the same slug for the same name twice", () => {
+    const slugs = uniqueSlugs(["Job", "Job"]);
+    expect(slugs.get("Job")).toBe("job");
+  });
+});
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -315,6 +330,8 @@ Expected: FAIL, "Cannot find module '../../src/modules/catalog/catalog.service'"
 - [ ] **Step 3: Implement the pure functions in `backend/src/modules/catalog/catalog.service.ts`**
 
 `groupSongsByArtist` returns the artists sorted by name, each with its songs sorted by title, skipping every song whose artist is null or blank. A song with a null album becomes an empty string, and a null genre becomes an empty string.
+
+`uniqueSlugs` maps each name to its slug, built with the backend's `slugify`, and when two names produce the same slug it appends `-2`, `-3`, and so on to the later ones, in the order they were given. The map is keyed by the original name.
 
 `chapterSlugParts` uses `slugify` from `../../shared/utils/text` for the book name and returns the chapter path segment.
 
@@ -343,11 +360,13 @@ import { initializeInfisicalSecrets } from "@radio/infisical-config";
 async function main(): Promise<void> {
   await initializeInfisicalSecrets();
   const { exportCatalog } = await import("../modules/catalog/catalog.service");
-  const target = process.argv[2] ?? "../../apps/web/catalog/catalog.json";
+  const target = process.argv[2] ?? path.resolve(__dirname, "../../../apps/web/catalog/catalog.json");
   const counts = await exportCatalog(target);
   console.log(`[catalog] books=${counts.books} chapters=${counts.chapters} artists=${counts.artists} videos=${counts.videos}`);
 }
 ```
+
+The default target is resolved from `__dirname`, not from the process working directory: the script lives in `backend/src/scripts`, so `../../../apps/web/catalog/catalog.json` is the repository's `apps/web/catalog/catalog.json`, which is the same file the web plugin reads. A path relative to the cwd would put the artifact outside the repository, because the deploy runs the script with `backend/` as the cwd.
 
 - [ ] **Step 7: Add the script to `backend/package.json`**
 
@@ -488,7 +507,6 @@ git commit -m "feat(seo): head and sitemap builders for generated pages"
 ### Task 5: The page generator
 
 **Files:**
-- Create: `apps/web/src/content/slug.ts`
 - Create: `apps/web/src/content/catalogPages.ts`
 - Create: `apps/web/public/catalog.css`
 - Test: `apps/web/tests/catalog/catalogPages.test.ts`
@@ -497,10 +515,6 @@ git commit -m "feat(seo): head and sitemap builders for generated pages"
 - Consumes: `Catalog` from `@radio/types`; `PageMeta` from `../config/seo.config`; `SITE_URL` from `../config/seo.config`.
 - Produces:
   ```ts
-  // apps/web/src/content/slug.ts
-  export function slugifyName(value: string): string;
-  export function uniqueSlugs(names: readonly string[]): Map<string, string>; // name -> slug, collisions disambiguated
-
   // apps/web/src/content/catalogPages.ts
   export interface CatalogPage {
     readonly path: string;          // "/biblia/job/1/" with leading and trailing slash
@@ -517,6 +531,8 @@ git commit -m "feat(seo): head and sitemap builders for generated pages"
   export function renderCatalogDocument(page: CatalogPage): string; // the whole <!doctype html>
   ```
 
+  The web app does not have a slug module: every slug it needs is in the artifact (`CatalogBook.slug`, `CatalogChapter.bookSlug`, `CatalogArtist.slug`), computed by the backend export, which is the single implementation of the rule.
+
 - [ ] **Step 1: Write the failing test**
 
 `apps/web/tests/catalog/catalogPages.test.ts`:
@@ -525,7 +541,6 @@ git commit -m "feat(seo): head and sitemap builders for generated pages"
 import { describe, expect, it } from "vitest";
 import type { Catalog } from "@radio/types";
 import { buildCatalogPages, renderCatalogDocument } from "../../src/content/catalogPages";
-import { slugifyName, uniqueSlugs } from "../../src/content/slug";
 
 const CATALOG: Catalog = {
   generatedAt: "2026-10-21T00:00:00.000Z",
@@ -539,22 +554,6 @@ const CATALOG: Catalog = {
   ],
   videos: [],
 };
-
-describe("uniqueSlugs", () => {
-  it("disambiguates two names that fold to the same slug", () => {
-    const slugs = uniqueSlugs(["José Soto", "Jose Soto"]);
-    expect(new Set(slugs.values()).size).toBe(2);
-  });
-
-  it("produces the same slug the backend wrote in the catalog", () => {
-    // The backend has its own slugify, in shared/utils/text. The two have to
-    // agree, or the links between the pages break. This assertion and the
-    // one in backend/tests/catalog/catalog.service.test.ts are the same
-    // fixture on purpose.
-    expect(slugifyName("1 Corintios")).toBe("1-corintios");
-    expect(slugifyName("Job")).toBe("job");
-  });
-});
 
 describe("buildCatalogPages", () => {
   it("builds one page per chapter with its text in the body", () => {
@@ -593,11 +592,9 @@ describe("renderCatalogDocument", () => {
 Run: `pnpm --filter @radio/web test`
 Expected: FAIL, "Cannot find module '../../src/content/catalogPages'".
 
-- [ ] **Step 3: Implement `apps/web/src/content/slug.ts`**
+- [ ] **Step 3: Implement `apps/web/src/content/catalogPages.ts`**
 
-`slugifyName` lowercases, strips diacritics, replaces every run of non-alphanumeric characters with a single dash and trims the dashes. `uniqueSlugs` maps each name to its slug and, when two names produce the same slug, appends `-2`, `-3`, and so on to the later ones, in the order they were given. The map is keyed by the original name.
-
-- [ ] **Step 4: Implement `apps/web/src/content/catalogPages.ts`**
+Every import of a shared type is type-only (`import type { Catalog } from "@radio/types"`), so nothing in the web app depends on the built artifact of the types package at runtime.
 
 `buildCatalogPages` returns, in this order:
 
@@ -614,19 +611,19 @@ Every text that reaches the HTML goes through the same escaping the rest of the 
 
 `renderCatalogDocument` writes the whole document: doctype, `<html lang="es">`, the head built with `buildHeadTagsFor` and `buildSocialTagsFor`, the JSON-LD script, a link to `/catalog.css`, and the body with the page's `<h1>` and body HTML.
 
-- [ ] **Step 5: Write `apps/web/public/catalog.css`**
+- [ ] **Step 4: Write `apps/web/public/catalog.css`**
 
 A small stylesheet: the dark palette the site already uses, a readable measure for the verses, and a visible focus state on the links. It must stay under 20 KB so it passes the `MAX_PUBLIC_FILE_BYTES` ceiling in `apps/web/tests/perf/static-assets.test.ts`.
 
-- [ ] **Step 6: Run the test to verify it passes**
+- [ ] **Step 5: Run the test to verify it passes**
 
 Run: `pnpm --filter @radio/web test`
 Expected: PASS, the new tests and the 45 existing ones.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add apps/web/src/content/slug.ts apps/web/src/content/catalogPages.ts apps/web/public/catalog.css apps/web/tests/catalog/catalogPages.test.ts
+git add apps/web/src/content/catalogPages.ts apps/web/public/catalog.css apps/web/tests/catalog/catalogPages.test.ts
 git commit -m "feat(content): generate the catalog pages"
 ```
 
@@ -641,7 +638,7 @@ git commit -m "feat(content): generate the catalog pages"
 
 **Interfaces:**
 - Consumes: `buildCatalogPages` and `renderCatalogDocument` from `../src/content/catalogPages`; `Catalog` from `@radio/types`; `buildSitemapXml` from `../src/config/seo.config`.
-- Produces: two Vite plugins, `perRouteSeoPlugin()` and `catalogPagesPlugin()`, both used by `vite.config.ts`.
+- Produces: two Vite plugins, `perRouteSeoPlugin()` and `devRouteSeoPlugin()`, both used by `vite.config.ts`. The catalog writing lives inside `perRouteSeoPlugin`, because the sitemap has exactly one writer.
 
 - [ ] **Step 1: Move the SEO plugin code out of `vite.config.ts`**
 
@@ -678,25 +675,24 @@ describe("catalog build output", () => {
 
 The test skips when the artifact is absent, because the artifact is a generated file and the repository does not commit it. The behaviour that matters is pinned by the generator test in Task 5; this one only checks the wiring.
 
-- [ ] **Step 3: Implement `catalogPagesPlugin()`**
+- [ ] **Step 3: Implement the catalog writer inside the SEO plugin**
+
+`dist/sitemap.xml` has exactly one writer, and it must keep having exactly one: the existing test in `apps/web/tests/perf/static-assets.test.ts` requires the sitemap to exist and to carry every public route, and `robots.txt` points at it. So the sitemap is written by the **same plugin** that writes the per-route HTML, and the catalog pages are written by that plugin too. Do not add a second writer.
 
 In `apps/web/vite/seoPlugin.ts`:
 
-```ts
-export function catalogPagesPlugin(): Plugin
-```
-
-- It reads `process.env.CATALOG_PATH ?? "catalog/catalog.json"` relative to the web app root. If the file does not exist, the plugin logs a warning and does nothing: a build without the catalog still produces the eight public routes.
-- It parses the JSON as a `Catalog`, calls `buildCatalogPages`, and writes `dist/<path>/index.html` for each page, creating the directories.
-- It returns the sitemap entries, one per page, with the page's `lastmod`, `priority` and `changefreq`.
-
-The `perRouteSeoPlugin` writes the sitemap, so it needs the entries. The two plugins must coordinate: `catalogPagesPlugin` runs first and stores the entries in a module-level variable that `perRouteSeoPlugin` reads, or the sitemap writing moves into `catalogPagesPlugin`. The simpler of the two is to move the sitemap write into `catalogPagesPlugin` and have it write both the pages and the sitemap, calling `buildSitemapXml(new Date(), entries)`.
+- The plugin reads the catalog from `path.resolve(__dirname, "..", "catalog", "catalog.json")`, where `__dirname` is the `apps/web` root, or from `process.env.CATALOG_PATH` when that is set. It must not depend on the process working directory.
+- If the file does not exist, the plugin logs a warning and writes the sitemap with the public routes only. A build without the catalog still has to produce a valid sitemap.
+- If the file exists, it is parsed as a `Catalog`, `buildCatalogPages` returns the pages, and each page is written to `dist/<path>/index.html`, creating the directories.
+- The sitemap is written with `buildSitemapXml(new Date(), entries)`, where `entries` holds one `SitemapEntry` per generated page with the page's `lastmod`, `priority` and `changefreq`, and is empty when there is no catalog.
 
 - [ ] **Step 4: Register the plugin in `apps/web/vite.config.ts`**
 
 ```ts
-plugins: [react(), ...(command === "serve" ? [inspectAttr()] : []), perRouteSeoPlugin(), catalogPagesPlugin()],
+plugins: [react(), ...(command === "serve" ? [inspectAttr()] : []), perRouteSeoPlugin(), devRouteSeoPlugin()],
 ```
+
+The catalog writing is part of `perRouteSeoPlugin`, so no new plugin is registered.
 
 - [ ] **Step 5: Build and check the output**
 
@@ -978,6 +974,6 @@ git commit -m "docs: runbook for the Google visibility work"
 
 **Type consistency.** `Catalog` and its members are defined in Task 2 and used unchanged in Tasks 3, 5 and 6. `PageMeta` and `SitemapEntry` are defined in Task 4 and used in Task 5. `CatalogPage` is defined in Task 5 and consumed in Task 6. `slugifyName` and `uniqueSlugs` are defined in Task 5 and used there and in Task 3's `chapterSlugParts` — note that the backend has its own `slugify` in `shared/utils/text`, and the web one is a separate implementation on purpose: the backend and the web app do not share runtime code beyond `@radio/types`.
 
-**Review Focus.** Line 1 is pinned by the `uniqueSlugs` test. Line 2 by the escaping test in Task 5 and the `buildHeadTagsFor` escaping test in Task 4. Line 3 by the "a chapter with no verses is skipped" rule in Task 3. Line 4 by the "drops the songs without an artist" test in Task 3. Line 5 by the title and description length test in Task 5.
+**Review Focus.** Line 1 is pinned by the `uniqueSlugs` test in the backend. Line 2 by the escaping test in Task 5 and the `buildHeadTagsFor` escaping test in Task 4. Line 3 by the "a chapter with no verses is skipped" rule in Task 3. Line 4 by the "drops the songs without an artist" test in Task 3. Line 5 by the title and description length test in Task 5.
 
 **Proportion.** The plan is longer than the spec because the spec is a vision and this is a sequence of nine changes, each with its own test cycle. It contains no implementation bodies beyond the fixtures and the exact values the tests pin.

@@ -22,5 +22,5 @@ Disallow: /live-relay/
 # Static fallback page: not part of the public navigation
 Disallow: /maintenance.html
 
-# Generated at build time by vite.config.ts (writeBundle)
+# Generated at build time by vite/seoPlugin.ts (writeBundle)
 Sitemap: https://lavozverdad.com/sitemap.xml
