@@ -1,5 +1,3 @@
-import { registerNightlyJob } from "../modules/locutor/nightly.job";
-import { registerHourlyJob } from "../modules/locutor/hourly.job";
 import { registerFolderCleanupJob } from "../modules/azuracast/cleanup/folderCleanup.job";
 import { registerPlaybackJob } from "../modules/locutor/playback.job";
 import { registerJobRecovery } from "../modules/workers/jobRecovery.job";
@@ -17,8 +15,6 @@ import { registerBackupJob } from "../modules/backups/backup.job";
 import { logger } from "../shared/logger/logger";
 
 export function startScheduler() {
-  registerNightlyJob();
-  registerHourlyJob();
   registerFolderCleanupJob();
   registerPlaybackJob();
   registerJobRecovery();
@@ -37,6 +33,6 @@ export function startScheduler() {
   registerBackupJob();
   logger.info(
     "Scheduler",
-    "Jobs registered: Nightly (2:30 AM), Hourly Check (:45), Folder Cleanup (07:00, 13:00, 19:00), Playback (random announcements in safe hours), Job Recovery (every 5 min), Program Notify (every 5 min), Listener Sampling (every 5 min), Playback Capture (every 5 min), Rotations (3:30 AM), GeoIP Update (Tue/Fri 03:00), Notice Media Cleanup (04:15), Health Watchdog (every 2 min), Program Archive (every 5 min), Bumper Reconcile (every 5 min), YouTube Channel Poll (every 15 min), Backup (05:05)"
+    "Jobs registered: Announcements (slots planned daily), Folder Cleanup (07:00, 13:00, 19:00), Playback (random announcements in safe hours), Job Recovery (every 5 min), Program Notify (every 5 min), Listener Sampling (every 5 min), Playback Capture (every 5 min), Rotations (3:30 AM), GeoIP Update (Tue/Fri 03:00), Notice Media Cleanup (04:15), Health Watchdog (every 2 min), Program Archive (every 5 min), Bumper Reconcile (every 5 min), YouTube Channel Poll (every 15 min), Backup (05:05)"
   );
 }

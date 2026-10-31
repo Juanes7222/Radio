@@ -11,9 +11,8 @@ import {
   generateOrReuseAudio,
   scheduleAudioForDate,
 } from "./audioGeneration.service";
-import { uploadAudioToAzuraCast } from "../azuracast/playback.service";
-import { playFileAsLive } from "./streamer.service";
-import { runNightlyGeneration } from "./nightly.job";
+import { disconnectLiveSource, uploadAudioToAzuraCast } from "../azuracast/playback.service";
+import { isOwnAnnouncementLive, playFileAsLive } from "./streamer.service";
 import { asyncHandler } from "../../shared/errors/async-handler";
 import { AppError } from "../../shared/errors/app-error";
 import { config } from "../../config";
@@ -297,6 +296,38 @@ router.post(
   })
 );
 
+// --- LIVE SOURCE ---
+
+/**
+ * Releases the harbour when it is held by the announcement account. A human on
+ * air is never disconnected: the answer says who was occupying it.
+ */
+router.post(
+  "/live/release",
+  asyncHandler(async (req, res) => {
+    const live = await isOwnAnnouncementLive();
+
+    if (!live.active) {
+      res.json({ released: false, active: false, streamer: null });
+      return;
+    }
+
+    if (live.humanStreamer) {
+      throw new AppError(
+        409,
+        `El puerto en vivo lo ocupa una persona (${live.humanStreamer}); no se desconecta.`
+      );
+    }
+
+    await disconnectLiveSource();
+    logger.warn("LocutorRoutes", "Live source released from the panel", {
+      by: req.session?.email ?? null,
+    });
+
+    res.json({ released: true, active: true, streamer: null });
+  })
+);
+
 // --- STATUS ---
 
 router.get(
@@ -431,7 +462,7 @@ router.post(
     });
 
     try {
-      await playFileAsLive(filepath);
+      await playFileAsLive(filepath, synthesis.durationMs);
 
       res.json({
         success: true,
@@ -543,20 +574,6 @@ router.post(
 // --- SAFE HOURS DEBUG ---
 // Reemplazado por /announcement/*: la lógica por hora quedó obsoleta porque
 // un programa puede no cumplir su horario. Ver announcement.routes.ts.
-
-// --- TRIGGER NIGHTLY JOB MANUALLY ---
-
-router.post(
-  "/run-nightly",
-  asyncHandler(async (_req, res) => {
-    res.json({ message: "Nightly generation started in background" });
-    runNightlyGeneration().catch((err) => {
-      logger.error("LocutorRoutes", "Manual nightly run failed", {
-        error: err instanceof Error ? err.message : String(err),
-      });
-    });
-  })
-);
 
 // --- TEST THE VOICE CHAIN ---
 

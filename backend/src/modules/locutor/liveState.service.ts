@@ -1,5 +1,9 @@
 import { azuracastApi, STATION_ID } from "../azuracast/azuracast.client";
 import { getStationTime } from "../../shared/utils/date";
+import {
+  getAnnouncementStreamerIdentities,
+  normalizeStreamerName,
+} from "./streamer.service";
 
 /**
  * Estado real de la estación en el momento de decidir un aviso.
@@ -13,8 +17,12 @@ import { getStationTime } from "../../shared/utils/date";
 
 const REQUEST_TIMEOUT_MS = 8_000;
 
-/** Nombre del streamer propio de los avisos. */
-const ANNOUNCEMENT_STREAMER = "avsisos_auto";
+/**
+ * Login del streamer propio, used only when the identity lookup fails. AzuraCast
+ * reports the display name, not this value, so comparing against it alone is
+ * what made the station's own source look like a human.
+ */
+const FALLBACK_ANNOUNCEMENT_STREAMER = "avsisos_auto";
 
 interface AzuraNowPlayingPlaylist {
   id?: number;
@@ -94,6 +102,20 @@ export async function fetchScheduledPlaylistNames(): Promise<Set<string>> {
   return names;
 }
 
+/**
+ * Whether a name AzuraCast reports belongs to the announcement account. The
+ * lookup goes to the panel settings and the account list; the constant is only
+ * the fallback for an unreachable AzuraCast.
+ */
+async function matchesAnnouncementStreamer(streamer: string): Promise<boolean> {
+  try {
+    const identities = await getAnnouncementStreamerIdentities();
+    return identities.has(normalizeStreamerName(streamer));
+  } catch {
+    return sameName(streamer, FALLBACK_ANNOUNCEMENT_STREAMER);
+  }
+}
+
 export interface LiveCheckOptions {
   respectLiveStreamer: boolean;
   respectScheduledPrograms: boolean;
@@ -149,7 +171,7 @@ export async function evaluateLiveState(
   const streamerName = readStreamerName(response.live?.streamer_name);
   const isLive = response.live?.is_live === true;
   const liveStreamer = isLive ? streamerName : null;
-  const liveIsOwnAnnouncement = liveStreamer !== null && sameName(liveStreamer, ANNOUNCEMENT_STREAMER);
+  const liveIsOwnAnnouncement = liveStreamer !== null && (await matchesAnnouncementStreamer(liveStreamer));
   const playingPlaylist =
     typeof response.now_playing?.playlist === "string" ? response.now_playing.playlist : null;
 
@@ -210,4 +232,4 @@ export async function evaluateLiveState(
   };
 }
 
-export { ANNOUNCEMENT_STREAMER };
+export { FALLBACK_ANNOUNCEMENT_STREAMER };

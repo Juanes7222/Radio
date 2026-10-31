@@ -31,7 +31,7 @@ router.get("/settings", async (_req: Request, res: Response) => {
 
 /** Actualización parcial: solo toca los campos presentes en el cuerpo. */
 router.put("/settings", async (req: Request, res: Response) => {
-  const updated = await updateSettings(req.body ?? {});
+  const updated = await updateSettings(req.body ?? {}, req.session?.email ?? "panel");
   res.json(toPublicSettings(updated));
 });
 
@@ -181,7 +181,10 @@ router.post("/plan/rebuild", async (_req: Request, res: Response) => {
 /** Alterna el sistema de avisos sin perder el plan ya calculado. */
 router.post("/toggle", async (req: Request, res: Response) => {
   const settings = await getSettings();
-  const updated = await updateSettings({ enabled: !settings.enabled });
+  const updated = await updateSettings(
+    { enabled: !settings.enabled },
+    req.session?.email ?? "panel"
+  );
 
   if (!updated.enabled) {
     await prisma.announcementSlot.updateMany({

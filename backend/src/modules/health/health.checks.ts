@@ -5,6 +5,10 @@ import { getAllWorkers } from "../workers/workerPool";
 import { prisma } from "../../infrastructure/database/prisma";
 import { getBackupStatus } from "../backups/backups.service";
 import { config } from "../../config";
+import { logger } from "../../shared/logger/logger";
+import { disconnectLiveSource } from "../azuracast/playback.service";
+import { isAnnouncementInFlight, isOwnAnnouncementLive } from "../locutor/streamer.service";
+import { getAnnouncementPolicy } from "../locutor/settings.service";
 import type {
   HealthCheckResult,
   HealthCheckIssue,
@@ -72,6 +76,31 @@ export async function checkAzuracast(): Promise<HealthCheckResult> {
 }
 
 /**
+ * The harbour is shared with human DJs, so a source left attached by an
+ * announcement silences the station. It is released only when the account on
+ * air is the announcement one and no notice is running.
+ */
+async function releaseStuckAnnouncementLive(broadcastStart: unknown): Promise<boolean> {
+  if (isAnnouncementInFlight()) return false;
+
+  const ownership = await isOwnAnnouncementLive();
+  if (!ownership.active || ownership.humanStreamer) return false;
+
+  const startedAtSeconds = Number(broadcastStart);
+  const ageMinutes =
+    startedAtSeconds > 0
+      ? (Date.now() / 1000 - startedAtSeconds) / 60
+      : Number.POSITIVE_INFINITY;
+  if (ageMinutes < getAnnouncementPolicy().stuckLiveMinutes) return false;
+
+  logger.warn("HealthCheck", "Announcement live source stuck, releasing the harbour", {
+    ageMinutes: Math.round(ageMinutes),
+  });
+  await disconnectLiveSource();
+  return true;
+}
+
+/**
  * AutoDJ must be playing. During silence the backend type stays valid but
  * media stops advancing, so we track the current song start time.
  */
@@ -87,6 +116,18 @@ export async function checkAutoDj(): Promise<HealthCheckResult> {
     // let the AutoDJ restart remediation kick the live streamer off air.
     if (np?.live?.is_live) {
       const streamer = np.live.streamer_name ?? "streamer";
+
+      if (await releaseStuckAnnouncementLive(np.live.broadcast_start)) {
+        return {
+          key,
+          label: "AutoDJ",
+          status: "degraded",
+          detail: `El puerto en vivo quedó ocupado por el locutor automático y se liberó: ${streamer}`,
+          issues: [toIssue("autodj_live_released", `streamer=${streamer}`, checkedAt)],
+          checkedAt,
+        };
+      }
+
       return {
         key,
         label: "AutoDJ",

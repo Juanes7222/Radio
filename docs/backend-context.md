@@ -355,6 +355,59 @@ $env:WORKER_AUTH_SECRET = "x"; $env:PORT = "18888"; $env:WS_PORT = "18889"
 node dist/index.js   # then curl http://localhost:18888/health
 ```
 
+## Avisos de hora: identidad del locutor y puerto en vivo (30 Oct 2026)
+
+- **AzuraCast reporta el `display_name`, no el login.** La cuenta de los avisos
+  se crea como `avsisos_auto` con `display_name = STATION_NAME`, y
+  `liveState.service.ts` comparaba solo contra `"avsisos_auto"`. El propio
+  locutor se leía como humano: `liveIsOwnAnnouncement` quedaba en `false`,
+  `verifyLiveSwitchBack()` tomaba la rama de seguridad que nunca desconecta, y
+  el harbor quedaba ocupado para siempre. El 30 de octubre de 2026 la estación
+  llevaba más de un día bloqueada, con la cuenta del locutor conectada y la
+  radio en silencio.
+- `streamer.service.ts` reconoce la cuenta por login y por `display_name`
+  (`getAnnouncementStreamerIdentities()`, caché de 5 minutos) y lee usuario y
+  contraseña de `announcement_settings.streamer_user/password` antes que del
+  entorno. Esas dos columnas existían y no las leía nadie.
+- Antes de sintetizar, `playback.job.ts` libera el harbor si lo ocupa la cuenta
+  del locutor: un aviso mal cerrado ya no bloquea el resto del día. Dos slots
+  no pueden coincidir (`isAnnouncementInFlight()`), y `POST
+  /admin-api/locutor/live/release` permite liberar el puerto a mano sin cortar
+  nunca a una persona.
+- El timeout del stream ya no es fijo: `duración del archivo + 15 s`, con un
+  mínimo de 30 s. Antes, 30 s constantes cortaban cualquier aviso más largo con
+  el audio a medio enviar.
+- El vigilante de salud libera un live propio que lleve más de
+  `announcements.stuckLiveMinutes` (5 por defecto) sin ningún aviso en curso,
+  usando `broadcast_start` de AzuraCast.
+
+## Planificador de avisos: presupuesto y muestreo (30 Oct 2026)
+
+- **Hay un solo productor de avisos: el slot.** Los jobs nocturno y horario ya
+  no se registran en el scheduler ni aparecen en Jobs de procesamiento; el banco
+  de audio deja de recibir filas nuevas. Un audio pre-generado nombra una hora
+  exacta, así que reutilizarlo y sortear minutos son incompatibles.
+- **El presupuesto cuenta emisiones, no intentos.** `announcementPlan.service.ts`
+  calcula `perDay` menos los slots `played` del día de estación
+  (`announcements.perDay`, 12 por defecto). Un slot bloqueado o fallido no gasta
+  cupo; el replan solo lo reemplaza si queda separación mínima.
+- **El muestreo cubre el día completo** (`announcements.activeFromHour` a
+  `activeToHour`, 0 a 24 por defecto) y ya no parte de las ventanas libres: un
+  programa que termina antes libera su hora en vivo, así que sembrar ahí cuesta
+  una consulta y cero caracteres. `analyzeDay` se conserva solo para lo que el
+  panel muestra del día.
+- **El replan conserva los slots pendientes** que aún están por delante y solo
+  sortea los que faltan. `persistPlan` inserta la diferencia y descarta con
+  `skipped` los que sobran del presupuesto; antes borraba y volvía a sortear
+  cada quince minutos, lo que regalaba cupo y movía avisos ya elegidos.
+- **Los reintentos dependen del motivo**: `live_streamer` no reintenta (hay una
+  persona al aire, martillar cada cinco minutos solo ensucia la bitácora),
+  `scheduled_program` reintenta `announcements.programRetries` (3 por defecto) y
+  `unknown` se descarta porque no se puede afirmar que la ventana siga libre.
+- Los parámetros nuevos viven en el catálogo de ajustes (`station_settings`),
+  no en `announcement_settings`: el catálogo ya tiene defaults, respaldo de
+  entorno y auditoría. La fila singleton sigue gobernando lo anterior.
+
 ## Backups (SQLite -> Cloudflare R2)
 
 - **El respaldo diario también corre desde el backend, no solo desde el

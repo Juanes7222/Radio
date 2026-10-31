@@ -1,6 +1,8 @@
 import { prisma } from "../../infrastructure/database/prisma";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
+import { getNumberSetting } from "../settings/settings.cache";
+import { applyPatch } from "../settings/settings.service";
 
 /**
  * Configuración del planificador de avisos de hora, persistida para que el
@@ -29,6 +31,29 @@ export interface AnnouncementSettings {
 }
 
 const SINGLETON_ID = "singleton";
+
+/**
+ * Parámetros que viven en el catálogo de ajustes y no en la fila singleton:
+ * el catálogo ya trae defaults, respaldo de entorno y auditoría, y es hacia
+ * donde se está moviendo el resto de la configuración.
+ */
+export interface AnnouncementPolicy {
+  perDay: number;
+  activeFromHour: number;
+  activeToHour: number;
+  programRetries: number;
+  stuckLiveMinutes: number;
+}
+
+export function getAnnouncementPolicy(): AnnouncementPolicy {
+  return {
+    perDay: getNumberSetting("announcements.perDay"),
+    activeFromHour: getNumberSetting("announcements.activeFromHour"),
+    activeToHour: getNumberSetting("announcements.activeToHour"),
+    programRetries: getNumberSetting("announcements.programRetries"),
+    stuckLiveMinutes: getNumberSetting("announcements.stuckLiveMinutes"),
+  };
+}
 
 function fromEnv(): Omit<AnnouncementSettings, "id" | "updatedAt"> {
   return {
@@ -114,14 +139,39 @@ export interface AnnouncementSettingsPatch {
   bedsDir?: string;
   bedVolume?: number;
   trailingSilenceSeconds?: number;
+  perDay?: number;
+  activeFromHour?: number;
+  activeToHour?: number;
+  programRetries?: number;
+  stuckLiveMinutes?: number;
 }
 
 /**
  * Aplica un parche parcial. Solo toca los campos presentes, para que el panel
  * pueda enviar un formulario parcial sin borrar lo que no envió.
  */
-export async function updateSettings(patch: AnnouncementSettingsPatch): Promise<AnnouncementSettings> {
+export async function updateSettings(
+  patch: AnnouncementSettingsPatch,
+  changedBy = "panel"
+): Promise<AnnouncementSettings> {
   const current = await getSettings();
+
+  // The catalog keys are written first: it validates every value before writing
+  // anything, so a rejected number leaves the row untouched as well.
+  const policyPatch: Record<string, unknown> = {};
+  if ("perDay" in patch) policyPatch["announcements.perDay"] = patch.perDay;
+  if ("activeFromHour" in patch) policyPatch["announcements.activeFromHour"] = patch.activeFromHour;
+  if ("activeToHour" in patch) policyPatch["announcements.activeToHour"] = patch.activeToHour;
+  if ("programRetries" in patch) {
+    policyPatch["announcements.programRetries"] = patch.programRetries;
+  }
+  if ("stuckLiveMinutes" in patch) {
+    policyPatch["announcements.stuckLiveMinutes"] = patch.stuckLiveMinutes;
+  }
+
+  if (Object.keys(policyPatch).length > 0) {
+    await applyPatch(policyPatch, changedBy);
+  }
 
   const data: Record<string, unknown> = {};
 
@@ -197,6 +247,7 @@ export async function updateSettings(patch: AnnouncementSettingsPatch): Promise<
 export function toPublicSettings(settings: AnnouncementSettings) {
   return {
     ...settings,
+    ...getAnnouncementPolicy(),
     streamerUser: settings.streamerUser,
     streamerPassword: null,
     hasStreamerPassword: Boolean(settings.streamerPassword),

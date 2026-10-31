@@ -1,5 +1,3 @@
-import { runNightlyGeneration } from "../locutor/nightly.job";
-import { runHourlyCheck } from "../locutor/hourly.job";
 import { cleanupNewsFolder } from "../azuracast/cleanup/folderCleanup.service";
 import { rescheduleAnnouncements } from "../locutor/playback.job";
 import { recoverStaleJobs } from "../workers/jobDispatcher";
@@ -16,8 +14,6 @@ import { refreshChannelSubscriptions } from "../youtube/subscription.service";
 import { runBackupNow } from "../backups/backups.service";
 
 export type SystemJobKey =
-  | "nightly-generation"
-  | "hourly-check"
   | "folder-cleanup"
   | "playback-reschedule"
   | "job-recovery"
@@ -51,20 +47,6 @@ async function runProgramsArchive(): Promise<unknown> {
 }
 
 export const SYSTEM_JOB_CATALOG: SystemJobMeta[] = [
-  {
-    key: "nightly-generation",
-    label: "Generación nocturna del locutor",
-    description: "Genera y programa los audios de las próximas 48 horas. Puede tardar varios minutos y consume TTS.",
-    schedule: "02:30",
-    requiresConfirm: true,
-  },
-  {
-    key: "hourly-check",
-    label: "Revisión horaria del locutor",
-    description: "Verifica que la próxima hora tenga audio listo y lo genera si falta.",
-    schedule: "minuto 45 de cada hora",
-    requiresConfirm: false,
-  },
   {
     key: "folder-cleanup",
     label: "Limpieza de carpeta de noticias",
@@ -170,8 +152,6 @@ export const SYSTEM_JOB_CATALOG: SystemJobMeta[] = [
 ];
 
 export const SYSTEM_JOB_RUNNERS: Record<SystemJobKey, () => Promise<unknown>> = {
-  "nightly-generation": runNightlyGeneration,
-  "hourly-check": runHourlyCheck,
   "folder-cleanup": cleanupNewsFolder,
   "playback-reschedule": rescheduleAnnouncements,
   "job-recovery": recoverStaleJobs,

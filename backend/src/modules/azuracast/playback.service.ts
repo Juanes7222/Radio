@@ -63,7 +63,7 @@ export async function playScheduledAnnouncementForHour(hour: number): Promise<bo
   }
 
   try {
-    await playFileAsLive(filePath);
+    await playFileAsLive(filePath, audio.durationMs ?? 0);
 
     await prisma.audioSchedule.update({
       where: { id: schedule.id },

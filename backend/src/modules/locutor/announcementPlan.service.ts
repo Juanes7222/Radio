@@ -2,17 +2,21 @@ import { prisma } from "../../infrastructure/database/prisma";
 import { logger } from "../../shared/logger/logger";
 import { getStationTime } from "../../shared/utils/date";
 import { analyzeDay, MINUTES_PER_DAY, type DayAnalysis } from "./freeWindows.service";
-import { getSettings } from "./settings.service";
+import { getAnnouncementPolicy, getSettings } from "./settings.service";
 
 /**
  * Construcción del plan diario de avisos.
  *
- * El plan es una propuesta, no un compromiso. Coloca slots candidatos dentro de
- * las ventanas libres que la programación declara, y la decisión final se toma
- * en vivo al momento de cada slot (liveState.service.ts). Esa separación es lo
- * que permite que un programa que termina antes de lo previsto devuelva su
- * hora: el slot existe porque la ventana estaba libre al planear, y si el
- * programa se alarga el estado en vivo lo bloquea y lo difiere.
+ * El plan es una propuesta, no un compromiso: la decisión final se toma en vivo
+ * al momento de cada slot (liveState.service.ts). Lo que el plan sí garantiza es
+ * el presupuesto: se sortean `perDay` avisos repartidos por el día completo y el
+ * contador cuenta solo los emitidos, no los intentos.
+ *
+ * El muestreo es sobre el día entero y no sobre las ventanas libres de la
+ * programación. Un programa que termina antes de lo previsto libera su hora en
+ * vivo, así que sembrar ahí no cuesta nada: un slot bloqueado gasta una consulta
+ * y cero caracteres. Sembrar solo en huecos era lo que perdía la hora de una
+ * predica que acabó temprano.
  */
 
 export interface PlannedSlot {
@@ -22,10 +26,17 @@ export interface PlannedSlot {
 
 export interface PlanResult {
   dayKey: string;
+  /** Plan completo del día: los slots conservados más los nuevos. */
   slots: PlannedSlot[];
+  /** Solo los slots que hay que insertar. */
+  newSlots: PlannedSlot[];
+  /** Pendientes que sobran del presupuesto y hay que descartar. */
+  cancelledIds: string[];
   analysis: DayAnalysis;
-  /** Cuántos slots se perdió por colisión de separación mínima. */
+  /** Candidatos que se perdieron por la separación mínima. */
   droppedByGap: number;
+  budget: number;
+  played: number;
 }
 
 /**
@@ -64,103 +75,144 @@ function stationInstantFor(timezone: string, dayKey: string, minuteOfDay: number
   return result;
 }
 
-/**
- * Candidatos aleatorios dentro de una ventana. Se muestrea en lugar de elegir
- * un extremo para que los avisos no se peguen al borde de un programa.
- */
-function pickCandidateMinutes(
-  window: { startMinute: number; endMinute: number },
-  count: number,
-  gapMinutes: number
-): number[] {
-  const span = window.endMinute - window.startMinute;
-  if (span <= 0) return [];
-
-  const chosen: number[] = [];
-  const minimumSpacing = Math.min(gapMinutes, Math.floor(span / Math.max(1, count)));
-
-  let attempts = 0;
-  while (chosen.length < count && attempts < 200) {
-    attempts++;
-    const offset = Math.floor(Math.random() * (span + 1));
-    const candidate = window.startMinute + offset;
-    if (chosen.some((m) => Math.abs(m - candidate) < minimumSpacing)) continue;
-    chosen.push(candidate);
-  }
-
-  return chosen.sort((a, b) => a - b);
+interface SampleParams {
+  from: number;
+  to: number;
+  count: number;
+  minGapMinutes: number;
+  maxPerHour: number;
+  taken: number[];
 }
 
 /**
- * Reparte los slots entre las ventanas libres del día. Se empieza con uno por
- * ventana y se distribuyen los restantes de forma proporcional a su tamaño,
- * para que una ventana de cinco horas no reciba la misma cantidad que una de
- * veinte minutos.
+ * Sortea minutos uniformes en la franja activa respetando las dos restricciones
+ * que el operador configura: separación mínima entre avisos y techo por hora de
+ * reloj. Si la franja no admite tantos avisos, se siembran los que caben:
+ * perder uno tarde en el día es correcto, amontonarlos no.
+ */
+function sampleMinutes(params: SampleParams): { minutes: number[]; dropped: number } {
+  const { from, to, count, minGapMinutes, maxPerHour, taken } = params;
+
+  if (count <= 0 || to <= from) return { minutes: [], dropped: 0 };
+
+  const chosen: number[] = [];
+  const perHour = new Map<number, number>();
+  for (const minute of taken) {
+    const hour = Math.floor(minute / 60);
+    perHour.set(hour, (perHour.get(hour) ?? 0) + 1);
+  }
+
+  let attempts = 0;
+  const maxAttempts = Math.max(500, count * 400);
+
+  while (chosen.length < count && attempts < maxAttempts) {
+    attempts++;
+    const candidate = from + Math.floor(Math.random() * (to - from));
+    const hour = Math.floor(candidate / 60);
+
+    if ((perHour.get(hour) ?? 0) >= maxPerHour) continue;
+    if (taken.some((minute) => Math.abs(minute - candidate) < minGapMinutes)) continue;
+    if (chosen.some((minute) => Math.abs(minute - candidate) < minGapMinutes)) continue;
+
+    chosen.push(candidate);
+    perHour.set(hour, (perHour.get(hour) ?? 0) + 1);
+  }
+
+  chosen.sort((a, b) => a - b);
+  return { minutes: chosen, dropped: count - chosen.length };
+}
+
+/**
+ * Arma el plan del día: conserva los slots pendientes que todavía están por
+ * delante, descarta los que sobran del presupuesto y sortea solo los que faltan.
+ *
+ * El día no se reconstruye desde cero porque el replan corre cada quince
+ * minutos: borrar y volver a sortear regalaba cupo y movía avisos ya elegidos.
  */
 export async function buildPlan(date: Date = new Date()): Promise<PlanResult> {
   const settings = await getSettings();
+  const policy = getAnnouncementPolicy();
+  const station = getStationTime(date);
+  const nowMinute = station.hour * 60 + station.minute;
 
   const analysis = await analyzeDay(date, {
     edgeMarginMinutes: settings.windowEdgeMarginMinutes,
     minWindowMinutes: settings.minWindowMinutes,
   });
 
-  const nowMinute = getStationTime(date).hour * 60 + getStationTime(date).minute;
+  const [playedRows, openRows] = await Promise.all([
+    prisma.announcementSlot.findMany({
+      where: { planDate: analysis.dayKey, status: "played" },
+      select: { minuteOfDay: true },
+    }),
+    prisma.announcementSlot.findMany({
+      where: { planDate: analysis.dayKey, status: { in: ["pending", "deferred"] } },
+      orderBy: { minuteOfDay: "asc" },
+      select: { id: true, minuteOfDay: true, plannedFor: true },
+    }),
+  ]);
 
-  // Trim each window to its future before sampling. Sampling the whole window and
-  // dropping the past afterwards left the rest of the day unannounced whenever the
-  // window had been open for hours: over 200 replans, 57% of plans were empty with
-  // the window a quarter in the future, against 0% when it was entirely ahead.
-  const usable = analysis.freeWindows
-    .map((window) => ({
-      startMinute: Math.max(window.startMinute, nowMinute + 2),
-      endMinute: window.endMinute,
-    }))
-    .filter((window) => window.endMinute > window.startMinute);
+  const budget = Math.max(0, policy.perDay - playedRows.length);
 
-  const totalFree = usable.reduce((sum, w) => sum + (w.endMinute - w.startMinute), 0);
+  const upcoming = openRows.filter((row) => row.minuteOfDay > nowMinute + 1);
+  const kept = upcoming.slice(0, budget);
+  const cancelledIds = upcoming.slice(budget).map((row) => row.id);
 
-  const candidates: number[] = [];
-  let droppedByGap = 0;
+  const needed = Math.max(0, budget - kept.length);
+  const from = Math.max(policy.activeFromHour * 60, nowMinute + 2);
+  const to = Math.min(MINUTES_PER_DAY, policy.activeToHour * 60);
 
-  if (totalFree > 0) {
-    for (const window of usable) {
-      const share = Math.max(1, Math.round((settings.perHour * (window.endMinute - window.startMinute)) / totalFree));
-      const wanted = Math.min(share, settings.perHour);
-      candidates.push(...pickCandidateMinutes(window, wanted, settings.minGapMinutes));
-    }
-  }
+  const { minutes, dropped } = sampleMinutes({
+    from,
+    to,
+    count: needed,
+    minGapMinutes: settings.minGapMinutes,
+    maxPerHour: settings.perHour,
+    taken: [...playedRows, ...kept].map((row) => row.minuteOfDay),
+  });
 
-  candidates.sort((a, b) => a - b);
+  const newSlots: PlannedSlot[] = minutes.map((minute) => ({
+    minuteOfDay: minute,
+    plannedFor: stationInstantFor(settings.timezone, analysis.dayKey, minute),
+  }));
 
-  const slots: PlannedSlot[] = [];
-  for (const minute of candidates) {
-    if (slots.length > 0 && minute - slots[slots.length - 1].minuteOfDay < settings.minGapMinutes) {
-      droppedByGap++;
-      continue;
-    }
-    slots.push({
-      minuteOfDay: minute,
-      plannedFor: stationInstantFor(settings.timezone, analysis.dayKey, minute),
-    });
-  }
+  const slots: PlannedSlot[] = [
+    ...kept.map((row) => ({ minuteOfDay: row.minuteOfDay, plannedFor: row.plannedFor })),
+    ...newSlots,
+  ].sort((a, b) => a.minuteOfDay - b.minuteOfDay);
 
-  return { dayKey: analysis.dayKey, slots, analysis, droppedByGap };
+  return {
+    dayKey: analysis.dayKey,
+    slots,
+    newSlots,
+    cancelledIds,
+    analysis,
+    droppedByGap: dropped,
+    budget,
+    played: playedRows.length,
+  };
 }
 
 /**
- * Persiste el plan del día y limpia el anterior. Los slots quedan en
- * `pending`; los settled de un día anterior se conservan en la bitácora para
+ * Persiste el plan: inserta solo los slots nuevos y descarta los pendientes que
+ * quedaron fuera del presupuesto. Los settled se conservan en la bitácora para
  * poder auditar por qué no sonó una hora concreta.
  */
 export async function persistPlan(plan: PlanResult): Promise<number> {
-  await prisma.announcementSlot.deleteMany({
-    where: { planDate: plan.dayKey, status: "pending" },
-  });
+  if (plan.cancelledIds.length > 0) {
+    await prisma.announcementSlot.updateMany({
+      where: { id: { in: plan.cancelledIds } },
+      data: {
+        status: "skipped",
+        reason: "Fuera del presupuesto diario",
+        settledAt: new Date(),
+      },
+    });
+  }
 
-  if (plan.slots.length > 0) {
+  if (plan.newSlots.length > 0) {
     await prisma.announcementSlot.createMany({
-      data: plan.slots.map((slot) => ({
+      data: plan.newSlots.map((slot) => ({
         minuteOfDay: slot.minuteOfDay,
         plannedFor: slot.plannedFor,
         planDate: plan.dayKey,
@@ -171,10 +223,12 @@ export async function persistPlan(plan: PlanResult): Promise<number> {
 
   logger.info("AnnouncementPlan", "Plan persisted", {
     dayKey: plan.dayKey,
-    slotCount: plan.slots.length,
+    slots: plan.slots.length,
+    added: plan.newSlots.length,
+    cancelled: plan.cancelledIds.length,
+    budget: plan.budget,
+    played: plan.played,
     droppedByGap: plan.droppedByGap,
-    freeWindows: plan.analysis.freeWindows.length,
-    freeMinutes: plan.analysis.freeMinutes,
     degraded: plan.analysis.degraded,
   });
 
@@ -203,7 +257,8 @@ export async function replanAnnouncements(date: Date = new Date()): Promise<numb
 
 /**
  * Minutos libres del día ya calculados, reutilizados por el panel para no
- * repetir la consulta a AzuraCast en cada render.
+ * repetir la consulta a AzuraCast en cada render. El análisis ya no decide
+ * dónde se siembran los avisos: solo explica el día en el panel.
  */
 export async function getDayAnalysis(date: Date = new Date()): Promise<DayAnalysis> {
   const settings = await getSettings();
@@ -215,7 +270,7 @@ export async function getDayAnalysis(date: Date = new Date()): Promise<DayAnalys
 
 /**
  * Horas con al menos una ventana libre utilizable en la fecha dada. Lo usa el
- * job nocturno para no pre-generar audio de horas que jamás podrán anunciar.
+ * job nocturno heredado; el camino de emisión ya no depende de él.
  */
 export async function getHoursWithFreeWindow(date: Date): Promise<Set<number>> {
   const settings = await getSettings();
