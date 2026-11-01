@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   PUBLIC_ROUTES,
   ROUTE_META,
+  buildFacebookAppIdTag,
   buildHeadTags,
   buildHeadTagsFor,
   buildSocialTags,
@@ -41,6 +42,28 @@ describe("buildSocialTagsFor", () => {
       `<meta property="og:description" content="${escapeHtml(PAGE.description)}" />`,
     );
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image" />');
+  });
+
+  it("leaves fb:app_id out while the site has no Meta app", () => {
+    // An empty content is worse than the warning the debugger reports: it
+    // claims the URL belongs to an app that does not exist.
+    expect(buildSocialTagsFor(PAGE)).not.toContain('property="fb:app_id"');
+  });
+});
+
+describe("buildFacebookAppIdTag", () => {
+  it("emits the tag the Facebook debugger asks for", () => {
+    expect(buildFacebookAppIdTag("1234567890123456")).toBe(
+      '<meta property="fb:app_id" content="1234567890123456" />',
+    );
+  });
+
+  it("emits nothing without an app id", () => {
+    expect(buildFacebookAppIdTag("")).toBe("");
+  });
+
+  it("rejects an id that is not numeric instead of shipping it", () => {
+    expect(() => buildFacebookAppIdTag("lavozverdad")).toThrow(/numeric/);
   });
 });
 

@@ -100,6 +100,85 @@ async function releaseStuckAnnouncementLive(broadcastStart: unknown): Promise<bo
   return true;
 }
 
+// Media Liquidsoap reports while it is airing the AutoDJ instead of the live
+// input. Anything else means the harbour's source is really being mixed.
+const AUTO_DJ_SOURCES = new Set(["songs", "jingles", "playlist"]);
+
+// AutoDJ playhead seen during the last live check. While real live audio airs,
+// the AutoDJ track under it never advances, so a moving playhead is the proof
+// that the attached source is not the one being aired.
+const livePlayhead: { playedAt: number | null; movingSince: number | null } = {
+  playedAt: null,
+  movingSince: null,
+};
+
+function resetLivePlayhead(): void {
+  livePlayhead.playedAt = null;
+  livePlayhead.movingSince = null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readPlayhead(nowPlaying: unknown): number | null {
+  const playedAt = asRecord(asRecord(nowPlaying)?.now_playing)?.played_at;
+  if (typeof playedAt === "number" && Number.isFinite(playedAt)) return playedAt;
+  if (typeof playedAt === "string" && playedAt.trim() !== "") {
+    const parsed = Number(playedAt);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function isAutoDjAiring(nowPlaying: unknown): boolean {
+  const source = asRecord(asRecord(nowPlaying)?.now_playing)?.playlist_source;
+  return typeof source === "string" && AUTO_DJ_SOURCES.has(source);
+}
+
+/**
+ * A source can stay attached to the harbour after its encoder is gone: the
+ * station keeps reporting `is_live`, Liquidsoap keeps airing the AutoDJ, and
+ * every new source authenticating as that streamer is dropped seconds later.
+ * Releasing the harbour needs proof that the airing audio is not the attached
+ * source, and the advancing AutoDJ playhead is exactly that proof. A live
+ * source that is really on air never advances it, so a human DJ is safe.
+ */
+async function releaseGhostLiveSource(
+  nowPlaying: unknown,
+  broadcastStart: unknown
+): Promise<boolean> {
+  const playedAt = readPlayhead(nowPlaying);
+  if (playedAt === null) {
+    resetLivePlayhead();
+    return false;
+  }
+
+  if (livePlayhead.playedAt !== null && livePlayhead.playedAt !== playedAt) {
+    livePlayhead.movingSince ??= Date.now();
+  }
+  livePlayhead.playedAt = playedAt;
+
+  if (livePlayhead.movingSince === null) return false;
+  if (!isAutoDjAiring(nowPlaying)) return false;
+
+  const startedAtSeconds = Number(broadcastStart);
+  const ageMinutes =
+    startedAtSeconds > 0
+      ? (Date.now() / 1000 - startedAtSeconds) / 60
+      : Number.POSITIVE_INFINITY;
+  if (ageMinutes < getAnnouncementPolicy().stuckLiveMinutes) return false;
+
+  logger.warn("HealthCheck", "Live source is attached but the AutoDJ is airing, releasing the harbour", {
+    ageMinutes: Math.round(ageMinutes),
+  });
+  await disconnectLiveSource();
+  resetLivePlayhead();
+  return true;
+}
+
 /**
  * AutoDJ must be playing. During silence the backend type stays valid but
  * media stops advancing, so we track the current song start time.
@@ -128,6 +207,17 @@ export async function checkAutoDj(): Promise<HealthCheckResult> {
         };
       }
 
+      if (await releaseGhostLiveSource(np, np.live.broadcast_start)) {
+        return {
+          key,
+          label: "AutoDJ",
+          status: "degraded",
+          detail: `La fuente en vivo (${streamer}) quedó pegada sin audio y se liberó el puerto`,
+          issues: [toIssue("autodj_ghost_source_released", `streamer=${streamer}`, checkedAt)],
+          checkedAt,
+        };
+      }
+
       return {
         key,
         label: "AutoDJ",
@@ -137,6 +227,8 @@ export async function checkAutoDj(): Promise<HealthCheckResult> {
         checkedAt,
       };
     }
+
+    resetLivePlayhead();
 
     const isPlaying = Boolean(np?.is_online);
     const startedAt: string | null = np?.now_playing?.played_at ?? null;

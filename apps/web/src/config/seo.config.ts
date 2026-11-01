@@ -17,6 +17,18 @@ export const SITE_URL = 'https://lavozverdad.com';
 
 export const SITE_NAME = 'La Voz de la Verdad';
 
+/**
+ * Numeric id of the Meta app registered for lavozverdad.com.
+ *
+ * The Facebook Sharing Debugger reports a missing `fb:app_id` as a warning: it
+ * is the tag that attributes the URL to an app, and without it the debugger
+ * shows zero like and comment counts. While it is empty the tag is omitted,
+ * because an empty content is worse than the warning. The id comes from Meta
+ * for Developers, in the settings of the app the station already uses for its
+ * Facebook webhooks.
+ */
+export const FACEBOOK_APP_ID = '';
+
 /** Content locale. Colombia is the only market the station broadcasts to. */
 export const LOCALE = 'es_CO';
 
@@ -192,6 +204,23 @@ export function escapeHtml(value: string): string {
 }
 
 /**
+ * `<meta property="fb:app_id">`, the tag the Facebook debugger asks for.
+ *
+ * Meta only requires it to attribute the URL to an app: with an empty id the
+ * tag is left out so no site ships an empty property. A non-numeric value is a
+ * configuration mistake, and it stops the build instead of reaching the HTML.
+ */
+export function buildFacebookAppIdTag(appId: string): string {
+  if (appId === '') return '';
+  if (!/^\d+$/.test(appId)) {
+    throw new Error(
+      `FACEBOOK_APP_ID must be the numeric id of a Meta app; received "${appId}".`,
+    );
+  }
+  return `<meta property="fb:app_id" content="${appId}" />`;
+}
+
+/**
  * The identity of a page: what the head builders write.
  *
  * Both the public routes and the generated catalog pages are described this
@@ -229,7 +258,8 @@ export function buildHeadTagsFor(page: PageMeta): string {
  */
 export function buildSocialTagsFor(page: PageMeta): string {
   const image = absoluteUrl(DEFAULT_OG_IMAGE_PATH);
-  return [
+  const tags = [
+    buildFacebookAppIdTag(FACEBOOK_APP_ID),
     `<meta property="og:site_name" content="${escapeHtml(SITE_NAME)}" />`,
     `<meta property="og:locale" content="${LOCALE}" />`,
     `<meta property="og:type" content="website" />`,
@@ -247,7 +277,8 @@ export function buildSocialTagsFor(page: PageMeta): string {
     `<meta name="twitter:description" content="${escapeHtml(page.description)}" />`,
     `<meta name="twitter:image" content="${escapeHtml(image)}" />`,
     `<meta name="twitter:image:alt" content="${escapeHtml(SITE_NAME)}" />`,
-  ].join('\n    ');
+  ];
+  return tags.filter((tag) => tag.length > 0).join('\n    ');
 }
 
 /** A public route described as a page, so both builders read the same values. */
