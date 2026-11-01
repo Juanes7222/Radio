@@ -77,10 +77,10 @@ Follow Clean Code principles strictly:
 
 ## Tests
 
-- This project does not have a test suite yet.
-- Do not invent a test framework or test structure unless the user asks for it or the repository already defines one.
-- When tests are added later, prefer behavior-focused tests over implementation details.
-- If a change would benefit from tests, explain which tests should exist and why.
+- Vitest runs in `apps/web`, `apps/mobile` and `backend`; `pnpm test` runs all three through Turbo.
+- Run the tests of the workspace you touched before finishing, and `pnpm test` when the change crosses workspaces.
+- Design guardrails live in `apps/web/tests/design/` and `apps/mobile/tests/design/`. They assert tokens, contrast, touch targets, motion and accessibility against source text; do not weaken them to make a change pass.
+- After touching UI or copy, run `pnpm design:review` and answer its manual checklist. See `docs/testing.md` for the inventory, each layer's guarantees and the known gaps.
 
 ## Output style
 

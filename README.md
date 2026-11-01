@@ -244,7 +244,8 @@ A worker is a Windows box running the bundled client plus `yt-dlp` and `ffmpeg`.
 | Command | What it does |
 | --- | --- |
 | `pnpm dev` / `build` / `lint` | Turborepo tasks across all workspaces |
-| `pnpm --filter @radio/web test` | Vitest suite (the web app is the only workspace with tests) |
+| `pnpm test` | Vitest suites across web, mobile and backend (Turbo) |
+| `pnpm design:review` | Design review of the current diff, for agents |
 | `pnpm --filter @radio/mobile build:android` | EAS build for Android |
 | `pnpm --filter radio-admin-backend run build` | Prisma generate + Swagger + `tsc` |
 | `pnpm --filter radio-admin-backend exec prisma migrate deploy` | Apply migrations |

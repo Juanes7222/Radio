@@ -1,11 +1,17 @@
 {
   "name": "radio-monorepo",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "turbo dev",
     "dev:docker": "docker compose -f docker-compose.dev.yml up --build",
     "build": "turbo build",
     "lint": "turbo lint",
+    "test": "turbo run test",
+    "test:design": "pnpm --filter @radio/web run test tests/design && pnpm --filter @radio/mobile run test tests/design",
+    "typecheck": "turbo run typecheck",
+    "design:review": "node scripts/design-review/cli.ts",
+    "verify": "pnpm run typecheck && pnpm run test && pnpm run design:review",
     "dev:web": "turbo dev --filter=@radio/web",
     "dev:mobile": "turbo dev --filter=@radio/mobile",
     "dev:backend": "turbo dev --filter=radio-admin-backend"
