@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   AlertTriangle,
   Ban,
   CheckCircle2,
   History,
+  KeyRound,
   Radio,
   RefreshCw,
   Repeat,
@@ -24,6 +25,7 @@ import type {
   LocutorLiveState,
   LocutorPlanPreview,
   LocutorRunLogEntry,
+  LocutorStreamerPasswordStatus,
 } from '@radio/types';
 import { DayRail } from './DayRail';
 import { EmptyNote, Section, Faceplate, FaceplateReading } from './Section';
@@ -49,6 +51,29 @@ const REASON: Record<LocutorAnnouncementReason, { label: string; tone: Tone }> =
   live_streamer: { label: 'Persona transmitiendo en vivo', tone: 'tally' },
   scheduled_program: { label: 'Hay un programa en curso', tone: 'warning' },
   unknown: { label: 'Estado desconocido', tone: 'warning' },
+};
+
+/**
+ * The password field is write-only, so its placeholder and its caption carry
+ * everything the operator needs: whether a usable value exists, and what to do
+ * when the stored one cannot be decrypted.
+ */
+const PASSWORD_STATUS: Record<
+  LocutorStreamerPasswordStatus,
+  { placeholder: string; hint: string }
+> = {
+  stored: {
+    placeholder: '••••••••',
+    hint: 'Contraseña guardada y cifrada. Si la cambias, escribe la nueva completa.',
+  },
+  missing: {
+    placeholder: 'Contraseña de AzuraCast',
+    hint: 'Sin contraseña guardada: se usará la del entorno si existe.',
+  },
+  unreadable: {
+    placeholder: 'Escríbela de nuevo',
+    hint: 'Hay una contraseña guardada que no se puede descifrar porque cambió la clave maestra. Escríbela de nuevo.',
+  },
 };
 
 const OUTCOME: Record<string, { label: string; tone: Tone }> = {
@@ -228,6 +253,7 @@ export default function AnnouncementSettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [passwordDraft, setPasswordDraft] = useState('');
 
   const load = useCallback(async () => {
     const result = await Promise.allSettled([
@@ -319,6 +345,27 @@ export default function AnnouncementSettingsPanel() {
       setSaving(false);
     },
     [updateAnnouncementSettings]
+  );
+
+  const saveStreamerPassword = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const password = passwordDraft.trim();
+      if (password === '') return;
+
+      setSaving(true);
+      try {
+        const next = await updateAnnouncementSettings({ streamerPassword: password });
+        setSettings(next);
+        setPasswordDraft('');
+        toast.success('Contraseña guardada y cifrada');
+      } catch {
+        toast.error('No se pudo guardar la contraseña');
+      } finally {
+        setSaving(false);
+      }
+    },
+    [passwordDraft, updateAnnouncementSettings]
   );
 
   const rebuild = useCallback(async () => {
@@ -587,6 +634,41 @@ export default function AnnouncementSettingsPanel() {
             />
           </div>
         </div>
+      </div>
+
+      {/* The account AzuraCast asks for before letting the notice into the
+          harbour. The value is write-only: it is encrypted on save and never
+          sent back, so the field always starts empty. */}
+      <div className="rounded-xl border border-border bg-card p-4">
+        <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+          <KeyRound className="size-3" />
+          Cuenta del locutor
+        </p>
+
+        <form
+          className="mt-3 flex flex-wrap items-end gap-2"
+          onSubmit={(event) => void saveStreamerPassword(event)}
+        >
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <Label htmlFor="streamer-password">Contraseña del locutor automático</Label>
+            <Input
+              id="streamer-password"
+              type="password"
+              autoComplete="new-password"
+              value={passwordDraft}
+              placeholder={PASSWORD_STATUS[settings.streamerPasswordStatus].placeholder}
+              disabled={saving}
+              onChange={(event) => setPasswordDraft(event.target.value)}
+            />
+          </div>
+          <Button type="submit" disabled={saving || passwordDraft.trim() === ''}>
+            Guardar contraseña
+          </Button>
+        </form>
+
+        <p className="mt-2 text-xs leading-snug text-faint">
+          {PASSWORD_STATUS[settings.streamerPasswordStatus].hint}
+        </p>
       </div>
 
       {/* The rundown of what is holding the schedule. Kept as a list because

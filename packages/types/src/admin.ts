@@ -475,6 +475,14 @@ export interface LocutorStatus {
   timestamp: string;
 }
 
+/**
+ * Whether the stored streamer password can be used.
+ *
+ * `unreadable` means a value exists but the current master key cannot decrypt
+ * it, which is the one case the operator has to fix by writing it again.
+ */
+export type LocutorStreamerPasswordStatus = "stored" | "missing" | "unreadable";
+
 /** Configuration of the hourly announcement scheduler, editable from the panel */
 export interface LocutorAnnouncementSettings {
   id: string;
@@ -487,9 +495,10 @@ export interface LocutorAnnouncementSettings {
   respectLiveStreamer: boolean;
   respectScheduledPrograms: boolean;
   streamerUser: string | null;
-  /** Never sent by the backend; read hasStreamerPassword instead */
+  /** Never sent by the backend; the value is write-only through the patch type */
   streamerPassword: null;
-  hasStreamerPassword: boolean;
+  /** stored: usable password; missing: none; unreadable: cannot be decrypted */
+  streamerPasswordStatus: LocutorStreamerPasswordStatus;
   bedsDir: string;
   bedVolume: number;
   trailingSilenceSeconds: number;
@@ -498,8 +507,11 @@ export interface LocutorAnnouncementSettings {
 
 /** Partial update: only the fields present are applied */
 export type LocutorAnnouncementSettingsPatch = Partial<
-  Omit<LocutorAnnouncementSettings, "id" | "updatedAt" | "hasStreamerPassword">
->;
+  Omit<LocutorAnnouncementSettings, "id" | "updatedAt" | "streamerPassword" | "streamerPasswordStatus">
+> & {
+  /** Write-only; an empty value removes the stored password */
+  streamerPassword?: string | null;
+};
 
 /** Why the system would or would not announce right now */
 export type LocutorAnnouncementReason = "ok" | "live_streamer" | "scheduled_program" | "unknown";

@@ -5,19 +5,23 @@
 // un programa puede terminar antes de lo previsto y la ventana que el plan
 // descartó vuelve a estar disponible (ver liveState.service.ts).
 
-/// Credencial del locutor automático en AzuraCast.
+/// Credencial del locutor automático en AzuraCast, cifrada.
 ///
 /// Es lo único que no vive en el catálogo de ajustes, y por una razón: la
 /// contraseña no puede estar en una tabla que entra completa en cada respaldo y
-/// se sirve desde el panel. Tampoco se devuelve nunca al navegador; el panel
-/// solo recibe el booleano `hasStreamerPassword`.
+/// se sirve desde el panel. Se cifra con AES-256-GCM y `SECRETS_ENCRYPTION_KEY`,
+/// igual que las claves de proveedor, y el panel solo recibe el estado del
+/// secreto, nunca el valor. Si esa variable se pierde, la contraseña guardada no
+/// se puede descifrar y hay que escribirla otra vez desde el panel.
 ///
 /// El usuario sí es un ajuste (`announcements.streamerUser`), porque no es un
 /// secreto y se cambia sin riesgo.
 model AnnouncementStreamerCredential {
   id String @id @default("singleton")
 
-  streamerPassword String? @map("streamer_password")
+  ciphertext String
+  iv         String
+  tag        String
 
   updatedAt DateTime @updatedAt @map("updated_at")
 

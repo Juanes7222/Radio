@@ -370,6 +370,12 @@ node dist/index.js   # then curl http://localhost:18888/health
   `announcements.streamerUser` y la contraseña de
   `announcement_streamer_credentials`, antes que del entorno. El usuario estaba
   escrito en la fila anterior y no lo leía nadie.
+- La contraseña de esa cuenta se guarda cifrada con AES-256-GCM y
+  `SECRETS_ENCRYPTION_KEY`, igual que las claves de voz. El panel tiene un campo
+  de escritura única en la sección Avisos: nunca devuelve el valor, solo
+  `streamerPasswordStatus` (`stored`, `missing` o `unreadable`). Si la clave
+  maestra cambia, el último estado avisa y la contraseña se vuelve a escribir
+  desde ahí.
 - Antes de sintetizar, `playback.job.ts` libera el harbor si lo ocupa la cuenta
   del locutor: un aviso mal cerrado ya no bloquea el resto del día. Dos slots
   no pueden coincidir (`isAnnouncementInFlight()`), y `POST
@@ -411,11 +417,11 @@ node dist/index.js   # then curl http://localhost:18888/health
   horaria. `getSettings()` arma ese objeto desde el catálogo, así que los jobs
   no cambiaron una línea y el panel gana auditoría y respaldo de entorno.
 - La tabla `announcement_settings` ya no existe. Quedó reducida a la contraseña
-  del locutor automático, que ahora vive en `announcement_streamer_credentials`:
-  es lo único que no puede estar en una tabla que entra completa en cada respaldo
-  ni se sirve desde el panel. Sus dos márgenes de ventana pasaron a constantes
-  del análisis del día, porque dejaron de ser ajustes al retirar el muestreo por
-  franjas.
+  del locutor automático, que ahora vive cifrada en
+  `announcement_streamer_credentials`: es lo único que no puede estar en una
+  tabla que entra completa en cada respaldo ni se sirve desde el panel. Sus dos
+  márgenes de ventana pasaron a constantes del análisis del día, porque dejaron
+  de ser ajustes al retirar el muestreo por franjas.
 
 ## Motor de voz desde el panel (30 Oct 2026)
 

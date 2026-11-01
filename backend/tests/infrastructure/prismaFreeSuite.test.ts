@@ -28,13 +28,7 @@ function testFiles(): string[] {
  * import, on the other hand, loads the module when the suite loads it.
  */
 function staticImports(file: string): string[] {
-  const source = ts.createSourceFile(
-    file,
-    readFileSync(file, "utf8"),
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  );
+  const source = parse(file);
   const specifiers: string[] = [];
   const visit = (node: ts.Node): void => {
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
@@ -53,6 +47,50 @@ function staticImports(file: string): string[] {
   return specifiers;
 }
 
+/**
+ * The modules a test file replaces with `vi.mock`.
+ *
+ * Vitest answers those from the mock registry instead of loading them, so the
+ * edge the static import declares does not exist at runtime. Reading the file
+ * that mocks is the only accurate way to tell a module the suite boots from one
+ * it substitutes.
+ */
+function mockedModules(testFile: string): Set<string> {
+  const mocked = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && isViMock(node)) {
+      const [first] = node.arguments;
+      if (first !== undefined && ts.isStringLiteral(first)) {
+        const target = resolveSpecifier(first.text, testFile);
+        if (target !== null) mocked.add(target);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parse(testFile));
+  return mocked;
+}
+
+function isViMock(node: ts.CallExpression): boolean {
+  const callee = node.expression;
+  return (
+    ts.isPropertyAccessExpression(callee) &&
+    ts.isIdentifier(callee.expression) &&
+    callee.expression.text === "vi" &&
+    callee.name.text === "mock"
+  );
+}
+
+function parse(file: string): ts.SourceFile {
+  return ts.createSourceFile(
+    file,
+    readFileSync(file, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
+}
+
 /** The file a relative specifier points at, when there is one. */
 function resolveSpecifier(specifier: string, from: string): string | null {
   if (!specifier.startsWith(".")) return null;
@@ -63,20 +101,49 @@ function resolveSpecifier(specifier: string, from: string): string | null {
   return null;
 }
 
-/** Every file the suite loads, following the static imports from the tests. */
-function reachableFiles(): string[] {
+/**
+ * The import edges a single test file really loads, following the static
+ * imports and stopping at every module that file mocks.
+ *
+ * Traversal is per test file because that is how vitest isolates mocks: a module
+ * mocked in one file is still booted by another. A shared walk would report a
+ * clean suite that one test file alone breaks.
+ */
+function loadedEdges(testFile: string): Array<{ file: string; specifier: string }> {
+  const mocked = mockedModules(testFile);
   const seen = new Set<string>();
-  const queue = testFiles();
+  const queue = [testFile];
+  const edges: Array<{ file: string; specifier: string }> = [];
+
   while (queue.length > 0) {
     const file = queue.pop();
     if (file === undefined || seen.has(file)) continue;
     seen.add(file);
+
     for (const specifier of staticImports(file)) {
       const target = resolveSpecifier(specifier, file);
+      const isMocked = target !== null && mocked.has(target);
+      if (isMocked) continue;
+
+      edges.push({ file, specifier });
       if (target !== null) queue.push(target);
     }
   }
-  return [...seen];
+
+  return edges;
+}
+
+/** The modules the suite boots that match, named by the edge that reaches them. */
+function offenders(matches: (specifier: string) => boolean): string[] {
+  const found = new Set<string>();
+  for (const testFile of testFiles()) {
+    for (const edge of loadedEdges(testFile)) {
+      if (matches(edge.specifier.replace(/\\/g, "/"))) {
+        found.add(`${edge.file} -> ${edge.specifier}`);
+      }
+    }
+  }
+  return [...found];
 }
 
 /**
@@ -87,31 +154,18 @@ function reachableFiles(): string[] {
  */
 describe("the backend suite", () => {
   it("never loads the Prisma client", () => {
-    const offenders: string[] = [];
-    for (const file of reachableFiles()) {
-      for (const specifier of staticImports(file)) {
-        if (
-          specifier === "@prisma/client" ||
-          specifier.replace(/\\/g, "/").endsWith("infrastructure/database/prisma")
-        ) {
-          offenders.push(`${file} -> ${specifier}`);
-        }
-      }
-    }
+    const found = offenders(
+      (specifier) =>
+        specifier === "@prisma/client" ||
+        specifier.endsWith("infrastructure/database/prisma")
+    );
 
-    expect(offenders, "the suite loads the Prisma client").toEqual([]);
+    expect(found, "the suite loads the Prisma client").toEqual([]);
   });
 
   it("never loads the AzuraCast client", () => {
-    const offenders: string[] = [];
-    for (const file of reachableFiles()) {
-      for (const specifier of staticImports(file)) {
-        if (specifier.replace(/\\/g, "/").endsWith("azuracast/azuracast.client")) {
-          offenders.push(`${file} -> ${specifier}`);
-        }
-      }
-    }
+    const found = offenders((specifier) => specifier.endsWith("azuracast/azuracast.client"));
 
-    expect(offenders, "the suite loads the AzuraCast client").toEqual([]);
+    expect(found, "the suite loads the AzuraCast client").toEqual([]);
   });
 });

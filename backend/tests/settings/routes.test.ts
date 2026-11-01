@@ -9,6 +9,17 @@ vi.mock("../../src/modules/auth/auth.middleware", () => ({
   requirePermission: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
+// The router also reaches the service, and the service reaches Prisma. These
+// tests only exercise the request guards, so the service is replaced with
+// stubs: the suite stays a pure one and needs neither a database nor a
+// generated Prisma client.
+vi.mock("../../src/modules/settings/settings.service", () => ({
+  applyPatch: vi.fn(),
+  listChanges: vi.fn(),
+  readSettings: vi.fn(),
+  resetKeys: vi.fn(),
+}));
+
 // Imported after the mock above, which vitest hoists ahead of every import.
 import {
   asPlainObject,

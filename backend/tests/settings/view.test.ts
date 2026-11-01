@@ -2,11 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   getDefinition,
   SETTINGS_CATALOG,
+  SETTING_SECTIONS,
 } from "../../src/modules/settings/settings.catalog";
 import {
   buildSettingsView,
   REDACTED_PLACEHOLDER,
   redactForAudit,
+  type StationSettingsSection,
+  type StationSettingValue,
 } from "../../src/modules/settings/settings.view";
 import type { SettingRow } from "../../src/modules/settings/settings.types";
 
@@ -37,20 +40,42 @@ const row = (key: string, value: string): SettingRow => ({
   updatedBy: "admin@radio",
 });
 
+/**
+ * The view is grouped by section, so the item an assertion cares about lives
+ * somewhere other than the first section. Reading it by key keeps the tests
+ * about the value and not about the paint order.
+ */
+function items(sections: StationSettingsSection[]): StationSettingValue[] {
+  return sections.flatMap((section) => section.items);
+}
+
+function itemFor(
+  sections: StationSettingsSection[],
+  key: string
+): StationSettingValue | undefined {
+  return items(sections).find((item) => item.key === key);
+}
+
 describe("buildSettingsView", () => {
-  it("groups the catalog into sections in the declared order", () => {
+  it("groups the catalog into the sections it declares, in the declared order", () => {
     const sections = buildSettingsView(new Map());
 
-    expect(sections).toHaveLength(1);
-    expect(sections[0].id).toBe("health");
-    expect(sections[0].items.length).toBe(Object.keys(SETTINGS_CATALOG).length);
+    expect(sections.map((section) => section.id)).toEqual(
+      SETTING_SECTIONS.map((section) => section.id)
+    );
+  });
+
+  it("paints every catalog entry exactly once", () => {
+    const painted = items(buildSettingsView(new Map())).map((item) => item.key);
+
+    // A key that lands in two sections, or in none, is a settings page that
+    // either lies about the value or hides it.
+    expect([...painted].sort()).toEqual(Object.keys(SETTINGS_CATALOG).sort());
+    expect(new Set(painted).size).toBe(painted.length);
   });
 
   it("flags a setting that only takes effect after a restart", () => {
-    const sections = buildSettingsView(new Map());
-    const interval = sections[0].items.find(
-      (item) => item.key === "health.checkIntervalMinutes"
-    );
+    const interval = itemFor(buildSettingsView(new Map()), "health.checkIntervalMinutes");
 
     expect(interval?.requiresRestart).toBe(true);
   });
@@ -59,9 +84,7 @@ describe("buildSettingsView", () => {
     const sections = buildSettingsView(
       new Map([["health.diskMinFreePercent", row("health.diskMinFreePercent", "20")]])
     );
-    const item = sections[0].items.find(
-      (entry) => entry.key === "health.diskMinFreePercent"
-    );
+    const item = itemFor(sections, "health.diskMinFreePercent");
 
     expect(item?.value).toBe(20);
     expect(item?.source).toBe("panel");
@@ -71,8 +94,7 @@ describe("buildSettingsView", () => {
   });
 
   it("carries the range for a setting with no row, so the form can constrain it", () => {
-    const sections = buildSettingsView(new Map());
-    const item = sections[0].items.find((entry) => entry.key === "health.diskMinFreePercent");
+    const item = itemFor(buildSettingsView(new Map()), "health.diskMinFreePercent");
 
     expect(item?.source).toBe("default");
     expect(item?.min).toBe(1);
@@ -83,50 +105,47 @@ describe("buildSettingsView", () => {
   // station still carries the variable in its environment.
   it("names the environment as the source when it overrides the default", () => {
     process.env.HEALTH_DISK_MIN_FREE_PERCENT = "42";
-    const sections = buildSettingsView(new Map());
-    const item = sections[0].items.find((entry) => entry.key === "health.diskMinFreePercent");
+    const sectionless = itemFor(buildSettingsView(new Map()), "health.diskMinFreePercent");
 
-    expect(item?.value).toBe(42);
-    expect(item?.source).toBe("env");
+    expect(sectionless?.value).toBe(42);
+    expect(sectionless?.source).toBe("env");
   });
 
   it("reports who changed the value and when, as a date the panel can print", () => {
     const sections = buildSettingsView(
       new Map([["health.diskMinFreePercent", row("health.diskMinFreePercent", "20")]])
     );
-    const item = sections[0].items.find(
-      (entry) => entry.key === "health.diskMinFreePercent"
-    );
+    const item = itemFor(sections, "health.diskMinFreePercent");
 
     expect(item?.updatedAt).toBe("2026-10-18T12:00:00.000Z");
     expect(item?.updatedBy).toBe("admin@radio");
   });
 
   it("leaves the audit fields empty for a setting nobody has stored", () => {
-    const sections = buildSettingsView(new Map());
-    const item = sections[0].items.find((entry) => entry.key === "health.diskMinFreePercent");
+    const item = itemFor(buildSettingsView(new Map()), "health.diskMinFreePercent");
 
     expect(item?.updatedAt).toBeNull();
     expect(item?.updatedBy).toBeNull();
   });
 
   it("does not ask for a restart on a setting that is read live", () => {
-    const sections = buildSettingsView(new Map());
-    const silence = sections[0].items.find(
-      (item) => item.key === "health.nowPlayingSilenceSeconds"
-    );
+    const silence = itemFor(buildSettingsView(new Map()), "health.nowPlayingSilenceSeconds");
 
     // The flag the panel shows as "surte efecto al reiniciar" is false for the
-    // six entries that do not declare it, not absent.
+    // entries that do not declare it, not absent.
     expect(silence?.requiresRestart).toBe(false);
   });
 
-  it("keeps the order the catalog declares, so the panel paints it as written", () => {
+  it("keeps the order the catalog declares inside each section", () => {
     const sections = buildSettingsView(new Map());
 
-    expect(sections[0].items.map((item) => item.key)).toEqual(
-      Object.keys(SETTINGS_CATALOG)
-    );
+    for (const section of sections) {
+      const declared = Object.values(SETTINGS_CATALOG)
+        .filter((definition) => definition.section === section.id)
+        .map((definition) => definition.key);
+
+      expect(section.items.map((item) => item.key), section.id).toEqual(declared);
+    }
   });
 });
 
@@ -141,9 +160,9 @@ describe("getDefinition", () => {
 });
 
 describe("redactForAudit", () => {
-  // Phase 1 ships no sensitive key, so the mechanism is pinned against
-  // `health.pushTokens`, a key the catalog does not know yet: a definition the
-  // catalog cannot vouch for is redacted rather than written in clear text.
+  // The mechanism is pinned against `health.pushTokens`, a key the catalog does
+  // not know: a definition the catalog cannot vouch for is redacted rather than
+  // written in clear text.
   it("hides the value of a key the catalog marks sensitive", () => {
     expect(redactForAudit("health.pushTokens", "token-abc")).toBe(REDACTED_PLACEHOLDER);
   });

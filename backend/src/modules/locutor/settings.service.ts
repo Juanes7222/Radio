@@ -1,5 +1,12 @@
 import { prisma } from "../../infrastructure/database/prisma";
 import { logger } from "../../shared/logger/logger";
+import { AppError } from "../../shared/errors/app-error";
+import {
+  decryptSecret,
+  encryptSecret,
+  isSecretsKeyConfigured,
+  type EncryptedSecret,
+} from "../../shared/crypto/secrets";
 import {
   currentRows,
   getBooleanSetting,
@@ -17,7 +24,8 @@ import { applyPatch } from "../settings/settings.service";
  *
  * Lo único que no vive en el catálogo es la contraseña del streamer: no puede
  * estar en una tabla que entra completa en cada respaldo ni se devuelve al
- * panel. El análisis del día usa constantes, porque sus dos márgenes dejaron de
+ * panel, así que se guarda cifrada en su propia tabla y aquí solo se expone su
+ * estado. El análisis del día usa constantes, porque sus dos márgenes dejaron de
  * ser ajustes cuando el muestreo dejó de hacerse por franjas.
  */
 export interface AnnouncementSettings {
@@ -32,13 +40,24 @@ export interface AnnouncementSettings {
   respectScheduledPrograms: boolean;
   streamerUser: string | null;
   streamerPassword: string | null;
+  streamerPasswordStatus: StreamerPasswordStatus;
   bedsDir: string;
   bedVolume: number;
   trailingSilenceSeconds: number;
   updatedAt: Date;
 }
 
+/**
+ * `stored` es una contraseña utilizable, `missing` es que no hay ninguna y
+ * `unreadable` es que hay una guardada que no se descifra con la clave maestra
+ * actual: el operador tiene que volver a escribirla.
+ */
+export type StreamerPasswordStatus = "stored" | "missing" | "unreadable";
+
 const SINGLETON_ID = "singleton";
+
+/** Margen generoso: una contraseña de AzuraCast ronda las 24 letras. */
+const MAX_STREAMER_PASSWORD_LENGTH = 200;
 
 /**
  * Parámetros del plan nuevo que solo existen en el catálogo. Se exponen aparte
@@ -64,12 +83,10 @@ export function getAnnouncementPolicy(): AnnouncementPolicy {
 
 /**
  * Reads every catalog value synchronously, so a job that already runs on a
- * synchronous path keeps working, and takes the password from its own table.
+ * synchronous path keeps working, and decrypts the password from its own table.
  */
 export async function getSettings(): Promise<AnnouncementSettings> {
-  const row = await prisma.announcementStreamerCredential.findUnique({
-    where: { id: SINGLETON_ID },
-  });
+  const credential = await readStreamerPassword();
 
   return {
     id: SINGLETON_ID,
@@ -83,7 +100,8 @@ export async function getSettings(): Promise<AnnouncementSettings> {
     respectLiveStreamer: getBooleanSetting("announcements.respectLiveStreamer"),
     respectScheduledPrograms: getBooleanSetting("announcements.respectScheduledPrograms"),
     streamerUser: getTextSetting("announcements.streamerUser") || null,
-    streamerPassword: row?.streamerPassword ?? null,
+    streamerPassword: credential.password,
+    streamerPasswordStatus: credential.status,
     bedsDir: getTextSetting("announcements.bedsDir"),
     bedVolume: getNumberSetting("announcements.bedVolume"),
     trailingSilenceSeconds: getNumberSetting("announcements.trailingSilenceSeconds"),
@@ -139,13 +157,14 @@ const PATCH_KEYS: Record<keyof AnnouncementSettingsPatch, string | null> = {
  * validates the whole patch before writing, so a rejected number leaves the
  * rest untouched and no half-applied configuration reaches the jobs.
  *
- * A nullable text field (`streamerUser`) becomes the empty string, which is how
- * "use the automatic account" is stored.
+ * The password is prepared first for the same reason: a missing master key or an
+ * oversized value must fail before the catalog is written, not after.
  */
 export async function updateSettings(
   patch: AnnouncementSettingsPatch,
   changedBy = "panel"
 ): Promise<AnnouncementSettings> {
+  const passwordWrite = prepareStreamerPassword(patch);
   const catalogPatch: Record<string, unknown> = {};
 
   for (const [field, value] of Object.entries(patch)) {
@@ -159,33 +178,86 @@ export async function updateSettings(
     await applyPatch(catalogPatch, changedBy);
   }
 
-  await updateRowSettings(patch);
+  await writeStreamerPassword(passwordWrite);
 
   logger.info("AnnouncementSettings", "Settings updated", {
     fields: Object.keys(patch),
     catalogKeys: Object.keys(catalogPatch),
+    passwordChanged: passwordWrite.kind !== "keep",
   });
 
   return getSettings();
 }
 
 /**
- * The only value outside the catalog. The row is created on demand so a station
- * that never saved a password still has somewhere to store it.
+ * The encrypted row is the only value outside the catalog. An empty string is
+ * how the panel says "remove the stored password".
  */
-async function updateRowSettings(patch: AnnouncementSettingsPatch): Promise<void> {
-  if (!("streamerPassword" in patch)) return;
+type StreamerPasswordWrite =
+  | { kind: "keep" }
+  | { kind: "clear" }
+  | { kind: "write"; secret: EncryptedSecret };
 
-  const streamerPassword =
-    typeof patch.streamerPassword === "string" && patch.streamerPassword.trim() !== ""
-      ? patch.streamerPassword.trim()
-      : null;
+function prepareStreamerPassword(patch: AnnouncementSettingsPatch): StreamerPasswordWrite {
+  if (!("streamerPassword" in patch)) return { kind: "keep" };
+
+  const password = typeof patch.streamerPassword === "string" ? patch.streamerPassword.trim() : "";
+  if (password === "") return { kind: "clear" };
+
+  if (password.length > MAX_STREAMER_PASSWORD_LENGTH) {
+    throw new AppError(
+      400,
+      `La contraseña del locutor no puede pasar de ${MAX_STREAMER_PASSWORD_LENGTH} caracteres.`
+    );
+  }
+
+  if (!isSecretsKeyConfigured()) {
+    throw new AppError(
+      503,
+      "El servidor no tiene SECRETS_ENCRYPTION_KEY, así que no puede cifrar la contraseña. Configúrala y vuelve a intentarlo."
+    );
+  }
+
+  return { kind: "write", secret: encryptSecret(password) };
+}
+
+async function writeStreamerPassword(write: StreamerPasswordWrite): Promise<void> {
+  if (write.kind === "keep") return;
+
+  if (write.kind === "clear") {
+    await prisma.announcementStreamerCredential.deleteMany({ where: { id: SINGLETON_ID } });
+    return;
+  }
 
   await prisma.announcementStreamerCredential.upsert({
     where: { id: SINGLETON_ID },
-    create: { id: SINGLETON_ID, streamerPassword },
-    update: { streamerPassword },
+    create: { id: SINGLETON_ID, ...write.secret },
+    update: { ...write.secret },
   });
+}
+
+/**
+ * A stored password that cannot be decrypted is reported as `unreadable` and
+ * logged: the master key changed or is missing, and guessing would only hide it.
+ */
+async function readStreamerPassword(): Promise<{
+  password: string | null;
+  status: StreamerPasswordStatus;
+}> {
+  const row = await prisma.announcementStreamerCredential.findUnique({
+    where: { id: SINGLETON_ID },
+  });
+
+  if (!row) return { password: null, status: "missing" };
+
+  try {
+    return { password: decryptSecret(row), status: "stored" };
+  } catch (error) {
+    logger.warn("AnnouncementSettings", "The stored streamer password cannot be decrypted", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { password: null, status: "unreadable" };
+  }
 }
 
 /** Newest write among the keys this object reads, for the panel's timestamp. */
@@ -202,7 +274,7 @@ function latestUpdatedAt(): Date {
 
 /**
  * Vista sin secretos: la contraseña del streamer nunca sale del backend.
- * El panel solo necesita saber si hay una configurada.
+ * El panel solo necesita saber si hay una utilizable.
  */
 export function toPublicSettings(settings: AnnouncementSettings) {
   return {
@@ -210,6 +282,6 @@ export function toPublicSettings(settings: AnnouncementSettings) {
     ...getAnnouncementPolicy(),
     streamerUser: settings.streamerUser,
     streamerPassword: null,
-    hasStreamerPassword: Boolean(settings.streamerPassword),
+    streamerPasswordStatus: settings.streamerPasswordStatus,
   };
 }
