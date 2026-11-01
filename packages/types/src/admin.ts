@@ -482,8 +482,6 @@ export interface LocutorAnnouncementSettings {
   timezone: string;
   perHour: number;
   minGapMinutes: number;
-  windowEdgeMarginMinutes: number;
-  minWindowMinutes: number;
   retryIntervalMinutes: number;
   maxRetries: number;
   respectLiveStreamer: boolean;
@@ -1360,4 +1358,64 @@ export interface StationSettingChange {
 
 export interface StationSettingsChangesResponse {
   rows: StationSettingChange[];
+}
+
+/**
+ * Where the voice key pool came from. `environment` is the legacy mode: the
+ * table is empty and `ELEVENLABS_API_KEYS` still seeds the pool.
+ */
+export type VoiceKeySource = 'panel' | 'environment';
+
+/** One row of the encrypted provider key table, as the panel reads it. */
+export interface VoiceKeyView {
+  id: string;
+  label: string;
+  /** Last four characters, or `****` when the stored value cannot be decrypted. */
+  hint: string;
+  enabled: boolean;
+  /** False when the master key changed or is missing. */
+  readable: boolean;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy: string | null;
+  available: boolean;
+  blockReason: TtsKeyStatus['blockReason'];
+  blockedUntil: string | null;
+  lastUsedAt: string | null;
+  lastError: string | null;
+  /** Null while the balance of that key has never been read. */
+  balance: TtsBalance | null;
+}
+
+export interface VoiceKeyOverview {
+  keys: VoiceKeyView[];
+  /** Whether the server can encrypt and decrypt at all. */
+  encryptionConfigured: boolean;
+  keySource: VoiceKeySource;
+  poolSize: number;
+  availableKeys: number;
+  /** Pool totals: the number that decides how many keys the station needs. */
+  balance: TtsBalance;
+}
+
+/** Answer of the one-shot synthesis that says which engine is actually working. */
+export interface VoiceKeyTestResult {
+  provider: TtsProviderId;
+  voice: string;
+  durationMs: number;
+}
+
+/**
+ * What a full purge of the old audio bank removed. The counts are separate
+ * because each destination can fail on its own: the panel says what stayed
+ * behind instead of reporting a success it cannot back up.
+ */
+export interface AudioBankPurgeResult {
+  rowsDeleted: number;
+  localFilesRemoved: number;
+  localFilesFailed: number;
+  azuracastFilesRemoved: number;
+  azuracastFilesFailed: number;
+  playlistRemoved: string | null;
+  playlistWarning: string | null;
 }

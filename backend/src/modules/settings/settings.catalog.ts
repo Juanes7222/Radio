@@ -179,6 +179,150 @@ export const SETTINGS_CATALOG = {
     parse: parseNumber,
     format: String,
   },
+  "announcements.enabled": {
+    key: "announcements.enabled",
+    section: "announcements",
+    label: "Avisos de hora activos",
+    description: "Con esto apagado el planificador no siembra slots ni emite ningún aviso.",
+    type: "boolean",
+    defaultValue: true,
+    envFallback: () => boolEnvOr("LOCUTOR_ANNOUNCEMENTS_ENABLED", true),
+    parse: parseBoolean,
+    format: String,
+  },
+  "announcements.maxPerHour": {
+    key: "announcements.maxPerHour",
+    section: "announcements",
+    label: "Tope de avisos por hora",
+    description:
+      "Ningún hora de reloj pasa de este número, aunque el muestreo del día dejara cupo de sobra.",
+    type: "number",
+    defaultValue: 2,
+    envFallback: () => intEnvOr("LOCUTOR_ANNOUNCEMENTS_PER_HOUR", 2),
+    unit: "avisos",
+    min: 1,
+    max: 12,
+    parse: parseNumber,
+    format: String,
+  },
+  "announcements.minGapMinutes": {
+    key: "announcements.minGapMinutes",
+    section: "announcements",
+    label: "Separación mínima entre avisos",
+    description:
+      "Minutos que deben pasar entre una emisión real y la siguiente, medidos contra el último aviso que sonó.",
+    type: "number",
+    defaultValue: 20,
+    envFallback: () => intEnvOr("LOCUTOR_ANNOUNCEMENT_MIN_GAP_MINUTES", 20),
+    unit: "min",
+    min: 0,
+    max: 180,
+    parse: parseNumber,
+    format: String,
+  },
+  "announcements.retryIntervalMinutes": {
+    key: "announcements.retryIntervalMinutes",
+    section: "announcements",
+    label: "Espera entre reintentos",
+    description:
+      "Minutos antes de reevaluar un slot bloqueado por un programa en curso. Al terminar el programa, el aviso sale en la primera reevaluación.",
+    type: "number",
+    defaultValue: 5,
+    envFallback: () => intEnvOr("ANNOUNCEMENTS_RETRY_INTERVAL_MINUTES", 5),
+    unit: "min",
+    min: 1,
+    max: 60,
+    parse: parseNumber,
+    format: String,
+  },
+  "announcements.respectLiveStreamer": {
+    key: "announcements.respectLiveStreamer",
+    section: "announcements",
+    label: "Respetar a la persona en vivo",
+    description:
+      "Con esto activo, una persona transmitiendo en vivo bloquea los avisos. Nunca se corta a un DJ al micrófono.",
+    type: "boolean",
+    defaultValue: true,
+    envFallback: () => boolEnvOr("ANNOUNCEMENTS_RESPECT_LIVE_STREAMER", true),
+    parse: parseBoolean,
+    format: String,
+  },
+  "announcements.respectScheduledPrograms": {
+    key: "announcements.respectScheduledPrograms",
+    section: "announcements",
+    label: "Respetar el programa en curso",
+    description:
+      "Con esto activo, un programa agendado bloquea los avisos mientras su playlist siga sonando, aunque haya terminado antes de la hora prevista.",
+    type: "boolean",
+    defaultValue: true,
+    envFallback: () => boolEnvOr("ANNOUNCEMENTS_RESPECT_SCHEDULED_PROGRAMS", true),
+    parse: parseBoolean,
+    format: String,
+  },
+  "announcements.streamerUser": {
+    key: "announcements.streamerUser",
+    section: "announcements",
+    label: "Usuario del locutor automático",
+    description:
+      "Cuenta de AzuraCast con la que se abre el puerto en vivo para un aviso. Es la misma cuenta que hay que reconocer para no confundirla con una persona.",
+    type: "text",
+    defaultValue: "",
+    envFallback: () => envOr("LOCUTOR_STREAMER_USER", ""),
+    parse: parseText,
+    format: String,
+  },
+  "announcements.bedsDir": {
+    key: "announcements.bedsDir",
+    section: "announcements",
+    label: "Carpeta de instrumentales",
+    description: "Ruta con los fondos musicales que se mezclan bajo la voz, relativa al directorio del backend.",
+    type: "text",
+    defaultValue: "../packages/assets/audio",
+    envFallback: () => envOr("LOCUTOR_BEDS_DIR", "../packages/assets/audio"),
+    parse: parseText,
+    format: String,
+  },
+  "announcements.bedVolume": {
+    key: "announcements.bedVolume",
+    section: "announcements",
+    label: "Volumen del instrumental",
+    description: "Ganancia aplicada al fondo bajo la voz. 0 lo silencia y 1 lo deja al mismo nivel que la locución.",
+    type: "number",
+    defaultValue: 0.15,
+    envFallback: () => floatEnvOr("LOCUTOR_BED_VOLUME", 0.15),
+    min: 0,
+    max: 1,
+    parse: parseNumber,
+    format: String,
+  },
+  "announcements.trailingSilenceSeconds": {
+    key: "announcements.trailingSilenceSeconds",
+    section: "announcements",
+    label: "Silencio final",
+    description:
+      "Segundos de silencio añadidos al final del audio para que Liquidsoap vuelva al AutoDJ sin cortar la pista.",
+    type: "number",
+    defaultValue: 3,
+    envFallback: () => intEnvOr("ANNOUNCEMENTS_TRAILING_SILENCE_SECONDS", 3),
+    unit: "s",
+    min: 0,
+    max: 30,
+    parse: parseNumber,
+    format: String,
+  },
+  "station.timezone": {
+    key: "station.timezone",
+    section: "identity",
+    label: "Zona horaria de la emisora",
+    description:
+      "Zona con la que se calculan el día de estación y todas las horas de los avisos. Cambiarla exige reiniciar el servicio: las tareas programadas congelan la zona al registrarse.",
+    type: "text",
+    defaultValue: "America/Bogota",
+    envFallback: () => envOr("TIMEZONE", "America/Bogota"),
+    parse: parseTimezone,
+    format: String,
+    requiresRestart: true,
+  },
   "voice.provider": {
     key: "voice.provider",
     section: "voice",
@@ -298,6 +442,11 @@ export const SETTING_SECTIONS: ReadonlyArray<{
   description: string;
 }> = [
   {
+    id: "identity",
+    label: "Emisora",
+    description: "Datos que cambian cómo se leen las horas del sistema.",
+  },
+  {
     id: "health",
     label: "Salud",
     description: "Cuándo el vigilante considera que algo anda mal y a quién avisa.",
@@ -345,6 +494,20 @@ function parseProvider(raw: string): string {
 /** Texto sin recortar el contenido, salvo los espacios de los extremos. */
 function parseText(raw: string): string {
   return raw.trim();
+}
+
+/**
+ * A zone name is accepted only if `Intl` can use it; otherwise every hour the
+ * scheduler reasons about would fall back to UTC without saying so.
+ */
+function parseTimezone(raw: string): string {
+  const value = raw.trim();
+  try {
+    new Intl.DateTimeFormat("en-CA", { timeZone: value });
+  } catch {
+    throw new Error(`Zona horaria desconocida: "${raw}"`);
+  }
+  return value;
 }
 
 /**

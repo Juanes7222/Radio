@@ -15,6 +15,15 @@ const connectionSettings = config.locutor.tts.elevenLabs;
 const pool = new ApiKeyPool(connectionSettings.apiKeys);
 
 /**
+ * Where the current pool came from. "environment" is the legacy mode that
+ * `voice-keys:backfill` retires: the table is empty and `ELEVENLABS_API_KEYS`
+ * still seeds it.
+ */
+let apiKeySource: ElevenLabsKeySource = "environment";
+
+export type ElevenLabsKeySource = "panel" | "environment";
+
+/**
  * La configuración de voz se lee en cada llamada: el panel es su dueño y un
  * valor capturado al importar dejaría la voz anterior hasta reiniciar.
  */
@@ -333,15 +342,6 @@ export interface ElevenLabsKeyStatus extends ApiKeySnapshot {
   balance: ElevenLabsBalance;
 }
 
-export interface ElevenLabsStatus {
-  configured: boolean;
-  modelId: string;
-  keys: ElevenLabsKeyStatus[];
-  availableKeys: number;
-  /** Pool totals. `resetAt` is the earliest reset, i.e. the first key to return. */
-  balance: ElevenLabsBalance;
-}
-
 function toBalance(info: SubscriptionInfo | undefined): ElevenLabsBalance {
   const used = info?.charactersUsed ?? null;
   const limit = info?.characterLimit ?? null;
@@ -381,6 +381,41 @@ function totalBalance(keys: ElevenLabsKeyStatus[]): ElevenLabsBalance {
   };
 }
 
+export interface ElevenLabsStatus {
+  configured: boolean;
+  modelId: string;
+  keys: ElevenLabsKeyStatus[];
+  availableKeys: number;
+  /** Pool totals. `resetAt` is the earliest reset, i.e. the first key to return. */
+  balance: ElevenLabsBalance;
+  /** The pool was seeded from the panel table or from the environment. */
+  apiKeySource: ElevenLabsKeySource;
+}
+
+/**
+ * Replaces the pool with the keys the panel holds. An empty list falls back to
+ * `ELEVENLABS_API_KEYS` and says so in the log, so a deployment that has not
+ * run the backfill keeps announcing.
+ *
+ * The subscription cache is dropped because it is indexed by pool position: a
+ * key that moved would otherwise be credited with another account's balance.
+ */
+export function reloadApiKeys(keys: readonly string[]): void {
+  const fromPanel = keys.length > 0;
+
+  apiKeySource = fromPanel ? "panel" : "environment";
+  pool.reload(fromPanel ? keys : connectionSettings.apiKeys);
+  subscriptions.clear();
+
+  logger.info(
+    LOG,
+    fromPanel
+      ? "API key pool rebuilt from the panel"
+      : "API key pool rebuilt from the environment (legacy mode)",
+    { keys: pool.size }
+  );
+}
+
 export function getElevenLabsStatus(): ElevenLabsStatus {
   const keys = pool.snapshot().map((key) => ({
     ...key,
@@ -393,6 +428,7 @@ export function getElevenLabsStatus(): ElevenLabsStatus {
     keys,
     availableKeys: pool.availableCount(),
     balance: totalBalance(keys),
+    apiKeySource,
   };
 }
 

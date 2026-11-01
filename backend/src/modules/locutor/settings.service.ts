@@ -1,14 +1,24 @@
 import { prisma } from "../../infrastructure/database/prisma";
-import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
-import { getNumberSetting } from "../settings/settings.cache";
+import {
+  currentRows,
+  getBooleanSetting,
+  getNumberSetting,
+  getTextSetting,
+} from "../settings/settings.cache";
 import { applyPatch } from "../settings/settings.service";
 
 /**
- * Configuración del planificador de avisos de hora, persistida para que el
- * panel sea la única fuente de verdad. Los valores por defecto del schema
- * coinciden con los del `.env`, de modo que una instalación nueva arranca
- * funcionando sin tocar la base.
+ * Configuración del planificador de avisos de hora.
+ *
+ * La fuente de verdad es el catálogo de ajustes (`station_settings`): trae
+ * defaults, respaldo de entorno, validación y auditoría. La interfaz que
+ * consume el panel no cambia, así que los jobs siguen leyendo este objeto.
+ *
+ * Lo único que no vive en el catálogo es la contraseña del streamer: no puede
+ * estar en una tabla que entra completa en cada respaldo ni se devuelve al
+ * panel. El análisis del día usa constantes, porque sus dos márgenes dejaron de
+ * ser ajustes cuando el muestreo dejó de hacerse por franjas.
  */
 export interface AnnouncementSettings {
   id: string;
@@ -16,8 +26,6 @@ export interface AnnouncementSettings {
   timezone: string;
   perHour: number;
   minGapMinutes: number;
-  windowEdgeMarginMinutes: number;
-  minWindowMinutes: number;
   retryIntervalMinutes: number;
   maxRetries: number;
   respectLiveStreamer: boolean;
@@ -33,9 +41,8 @@ export interface AnnouncementSettings {
 const SINGLETON_ID = "singleton";
 
 /**
- * Parámetros que viven en el catálogo de ajustes y no en la fila singleton:
- * el catálogo ya trae defaults, respaldo de entorno y auditoría, y es hacia
- * donde se está moviendo el resto de la configuración.
+ * Parámetros del plan nuevo que solo existen en el catálogo. Se exponen aparte
+ * para que los jobs no tengan que conocer las claves.
  */
 export interface AnnouncementPolicy {
   perDay: number;
@@ -55,72 +62,33 @@ export function getAnnouncementPolicy(): AnnouncementPolicy {
   };
 }
 
-function fromEnv(): Omit<AnnouncementSettings, "id" | "updatedAt"> {
-  return {
-    enabled: true,
-    timezone: config.locutor.timezone,
-    perHour: config.locutor.announcementsPerHour,
-    minGapMinutes: config.locutor.minAnnouncementGapMinutes,
-    windowEdgeMarginMinutes: 3,
-    minWindowMinutes: 10,
-    retryIntervalMinutes: 5,
-    maxRetries: 4,
-    respectLiveStreamer: true,
-    respectScheduledPrograms: true,
-    streamerUser: config.locutor.streamerUser || null,
-    streamerPassword: config.locutor.streamerPassword || null,
-    bedsDir: config.locutor.bedsDir,
-    bedVolume: config.locutor.bedVolume,
-    trailingSilenceSeconds: 3,
-  };
-}
-
 /**
- * Lectura de la configuración. Crea la fila la primera vez usando el `.env`
- * como origen, para que un despliegue que ya define variables no requiera
- * una migración manual.
+ * Reads every catalog value synchronously, so a job that already runs on a
+ * synchronous path keeps working, and takes the password from its own table.
  */
 export async function getSettings(): Promise<AnnouncementSettings> {
-  const existing = await prisma.announcementSettings.findUnique({
+  const row = await prisma.announcementStreamerCredential.findUnique({
     where: { id: SINGLETON_ID },
   });
-  if (existing) return existing;
 
-  return prisma.announcementSettings.create({
-    data: { id: SINGLETON_ID, ...fromEnv() },
-  });
-}
-
-/** Límites de lo que el panel puede enviar. El backend no confía en la UI. */
-const LIMITS = {
-  perHour: { min: 1, max: 12 },
-  minGapMinutes: { min: 0, max: 180 },
-  windowEdgeMarginMinutes: { min: 0, max: 30 },
-  minWindowMinutes: { min: 1, max: 120 },
-  retryIntervalMinutes: { min: 1, max: 60 },
-  maxRetries: { min: 0, max: 20 },
-  trailingSilenceSeconds: { min: 0, max: 30 },
-  bedVolume: { min: 0, max: 1 },
-} as const;
-
-function clampInt(value: unknown, fallback: number, range: { min: number; max: number }): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return Math.min(range.max, Math.max(range.min, Math.round(value)));
-}
-
-function clampFloat(value: unknown, fallback: number, range: { min: number; max: number }): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return Math.min(range.max, Math.max(range.min, value));
-}
-
-function boolOr(value: unknown, fallback: boolean): boolean {
-  return typeof value === "boolean" ? value : fallback;
-}
-
-function textOrNull(value: unknown, fallback: string | null): string | null {
-  if (typeof value !== "string") return fallback;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  return {
+    id: SINGLETON_ID,
+    enabled: getBooleanSetting("announcements.enabled"),
+    timezone: getTextSetting("station.timezone"),
+    perHour: getNumberSetting("announcements.maxPerHour"),
+    minGapMinutes: getNumberSetting("announcements.minGapMinutes"),
+    retryIntervalMinutes: getNumberSetting("announcements.retryIntervalMinutes"),
+    // The old form and the new policy name the same retry budget differently.
+    maxRetries: getNumberSetting("announcements.programRetries"),
+    respectLiveStreamer: getBooleanSetting("announcements.respectLiveStreamer"),
+    respectScheduledPrograms: getBooleanSetting("announcements.respectScheduledPrograms"),
+    streamerUser: getTextSetting("announcements.streamerUser") || null,
+    streamerPassword: row?.streamerPassword ?? null,
+    bedsDir: getTextSetting("announcements.bedsDir"),
+    bedVolume: getNumberSetting("announcements.bedVolume"),
+    trailingSilenceSeconds: getNumberSetting("announcements.trailingSilenceSeconds"),
+    updatedAt: latestUpdatedAt(),
+  };
 }
 
 export interface AnnouncementSettingsPatch {
@@ -128,8 +96,6 @@ export interface AnnouncementSettingsPatch {
   timezone?: string;
   perHour?: number;
   minGapMinutes?: number;
-  windowEdgeMarginMinutes?: number;
-  minWindowMinutes?: number;
   retryIntervalMinutes?: number;
   maxRetries?: number;
   respectLiveStreamer?: boolean;
@@ -146,98 +112,92 @@ export interface AnnouncementSettingsPatch {
   stuckLiveMinutes?: number;
 }
 
+/** Panel field -> catalog key. The panel keeps its names; storage uses the catalog's. */
+const PATCH_KEYS: Record<keyof AnnouncementSettingsPatch, string | null> = {
+  enabled: "announcements.enabled",
+  timezone: "station.timezone",
+  perHour: "announcements.maxPerHour",
+  minGapMinutes: "announcements.minGapMinutes",
+  retryIntervalMinutes: "announcements.retryIntervalMinutes",
+  maxRetries: "announcements.programRetries",
+  respectLiveStreamer: "announcements.respectLiveStreamer",
+  respectScheduledPrograms: "announcements.respectScheduledPrograms",
+  streamerUser: "announcements.streamerUser",
+  streamerPassword: null,
+  bedsDir: "announcements.bedsDir",
+  bedVolume: "announcements.bedVolume",
+  trailingSilenceSeconds: "announcements.trailingSilenceSeconds",
+  perDay: "announcements.perDay",
+  activeFromHour: "announcements.activeFromHour",
+  activeToHour: "announcements.activeToHour",
+  programRetries: "announcements.programRetries",
+  stuckLiveMinutes: "announcements.stuckLiveMinutes",
+};
+
 /**
- * Aplica un parche parcial. Solo toca los campos presentes, para que el panel
- * pueda enviar un formulario parcial sin borrar lo que no envió.
+ * Applies a partial save. Every catalog value goes through `applyPatch`, which
+ * validates the whole patch before writing, so a rejected number leaves the
+ * rest untouched and no half-applied configuration reaches the jobs.
+ *
+ * A nullable text field (`streamerUser`) becomes the empty string, which is how
+ * "use the automatic account" is stored.
  */
 export async function updateSettings(
   patch: AnnouncementSettingsPatch,
   changedBy = "panel"
 ): Promise<AnnouncementSettings> {
-  const current = await getSettings();
+  const catalogPatch: Record<string, unknown> = {};
 
-  // The catalog keys are written first: it validates every value before writing
-  // anything, so a rejected number leaves the row untouched as well.
-  const policyPatch: Record<string, unknown> = {};
-  if ("perDay" in patch) policyPatch["announcements.perDay"] = patch.perDay;
-  if ("activeFromHour" in patch) policyPatch["announcements.activeFromHour"] = patch.activeFromHour;
-  if ("activeToHour" in patch) policyPatch["announcements.activeToHour"] = patch.activeToHour;
-  if ("programRetries" in patch) {
-    policyPatch["announcements.programRetries"] = patch.programRetries;
-  }
-  if ("stuckLiveMinutes" in patch) {
-    policyPatch["announcements.stuckLiveMinutes"] = patch.stuckLiveMinutes;
+  for (const [field, value] of Object.entries(patch)) {
+    const key = PATCH_KEYS[field as keyof AnnouncementSettingsPatch];
+    if (!key) continue;
+    catalogPatch[key] = typeof value === "string" && value.trim() === "" ? "" : value;
+    if (value === null && key === "announcements.streamerUser") catalogPatch[key] = "";
   }
 
-  if (Object.keys(policyPatch).length > 0) {
-    await applyPatch(policyPatch, changedBy);
+  if (Object.keys(catalogPatch).length > 0) {
+    await applyPatch(catalogPatch, changedBy);
   }
 
-  const data: Record<string, unknown> = {};
-
-  if ("enabled" in patch) data.enabled = boolOr(patch.enabled, current.enabled);
-  if ("timezone" in patch) data.timezone = textOrNull(patch.timezone, current.timezone) ?? current.timezone;
-  if ("perHour" in patch) data.perHour = clampInt(patch.perHour, current.perHour, LIMITS.perHour);
-  if ("minGapMinutes" in patch) {
-    data.minGapMinutes = clampInt(patch.minGapMinutes, current.minGapMinutes, LIMITS.minGapMinutes);
-  }
-  if ("windowEdgeMarginMinutes" in patch) {
-    data.windowEdgeMarginMinutes = clampInt(
-      patch.windowEdgeMarginMinutes,
-      current.windowEdgeMarginMinutes,
-      LIMITS.windowEdgeMarginMinutes
-    );
-  }
-  if ("minWindowMinutes" in patch) {
-    data.minWindowMinutes = clampInt(
-      patch.minWindowMinutes,
-      current.minWindowMinutes,
-      LIMITS.minWindowMinutes
-    );
-  }
-  if ("retryIntervalMinutes" in patch) {
-    data.retryIntervalMinutes = clampInt(
-      patch.retryIntervalMinutes,
-      current.retryIntervalMinutes,
-      LIMITS.retryIntervalMinutes
-    );
-  }
-  if ("maxRetries" in patch) data.maxRetries = clampInt(patch.maxRetries, current.maxRetries, LIMITS.maxRetries);
-  if ("respectLiveStreamer" in patch) {
-    data.respectLiveStreamer = boolOr(patch.respectLiveStreamer, current.respectLiveStreamer);
-  }
-  if ("respectScheduledPrograms" in patch) {
-    data.respectScheduledPrograms = boolOr(
-      patch.respectScheduledPrograms,
-      current.respectScheduledPrograms
-    );
-  }
-  if ("streamerUser" in patch) data.streamerUser = textOrNull(patch.streamerUser, current.streamerUser);
-  if ("streamerPassword" in patch) {
-    data.streamerPassword = textOrNull(patch.streamerPassword, current.streamerPassword);
-  }
-  if ("bedsDir" in patch) data.bedsDir = textOrNull(patch.bedsDir, current.bedsDir) ?? current.bedsDir;
-  if ("bedVolume" in patch) data.bedVolume = clampFloat(patch.bedVolume, current.bedVolume, LIMITS.bedVolume);
-  if ("trailingSilenceSeconds" in patch) {
-    data.trailingSilenceSeconds = clampInt(
-      patch.trailingSilenceSeconds,
-      current.trailingSilenceSeconds,
-      LIMITS.trailingSilenceSeconds
-    );
-  }
-
-  const updated = await prisma.announcementSettings.update({
-    where: { id: SINGLETON_ID },
-    data,
-  });
+  await updateRowSettings(patch);
 
   logger.info("AnnouncementSettings", "Settings updated", {
-    fields: Object.keys(data),
-    enabled: updated.enabled,
-    perHour: updated.perHour,
+    fields: Object.keys(patch),
+    catalogKeys: Object.keys(catalogPatch),
   });
 
-  return updated;
+  return getSettings();
+}
+
+/**
+ * The only value outside the catalog. The row is created on demand so a station
+ * that never saved a password still has somewhere to store it.
+ */
+async function updateRowSettings(patch: AnnouncementSettingsPatch): Promise<void> {
+  if (!("streamerPassword" in patch)) return;
+
+  const streamerPassword =
+    typeof patch.streamerPassword === "string" && patch.streamerPassword.trim() !== ""
+      ? patch.streamerPassword.trim()
+      : null;
+
+  await prisma.announcementStreamerCredential.upsert({
+    where: { id: SINGLETON_ID },
+    create: { id: SINGLETON_ID, streamerPassword },
+    update: { streamerPassword },
+  });
+}
+
+/** Newest write among the keys this object reads, for the panel's timestamp. */
+function latestUpdatedAt(): Date {
+  let latest: Date | null = null;
+
+  for (const [key, row] of currentRows()) {
+    if (key !== "station.timezone" && !key.startsWith("announcements.")) continue;
+    if (!latest || row.updatedAt > latest) latest = row.updatedAt;
+  }
+
+  return latest ?? new Date();
 }
 
 /**

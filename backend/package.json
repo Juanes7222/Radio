@@ -11,6 +11,7 @@
     "prisma:migrate:status": "prisma migrate status --schema prisma/schema",
     "prisma:migrate:resolve": "prisma migrate resolve --schema prisma/schema",
     "youtube-channels:backfill": "ts-node src/scripts/backfillYoutubeChannels.ts",
+    "voice-keys:backfill": "ts-node src/scripts/backfillVoiceKeys.ts",
     "seed:bible:published": "ts-node scripts/seed-bible.ts --published",
     "catalog:export": "ts-node src/scripts/export-catalog.ts",
     "dev": "pnpm run swagger && ts-node-dev --respawn --transpile-only --exit-child src/index.ts",

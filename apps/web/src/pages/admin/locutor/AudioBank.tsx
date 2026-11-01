@@ -83,7 +83,8 @@ function BankCount({
 }
 
 export default function AudioBank() {
-  const { getLocutorAudios, deleteLocutorAudio, bulkDeleteLocutorAudios } = useAdminApi();
+  const { getLocutorAudios, deleteLocutorAudio, bulkDeleteLocutorAudios, purgeAudioBank } =
+    useAdminApi();
   const { token } = useAdminAuth();
   const shouldReduceMotion = useReducedMotion();
   const [audios, setAudios] = useState<LocutorAudio[]>([]);
@@ -94,6 +95,8 @@ export default function AudioBank() {
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [pendingBulkDelete, setPendingBulkDelete] = useState(false);
+  const [pendingPurge, setPendingPurge] = useState(false);
+  const [purging, setPurging] = useState(false);
   const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
@@ -185,6 +188,44 @@ export default function AudioBank() {
     }
   };
 
+  /**
+   * The old bank is spent: the new scheduler synthesizes and plays in the same
+   * step, so these files will never be reused. This is the only action that
+   * also empties the AzuraCast folder and the orphan playlist.
+   */
+  const handlePurge = async () => {
+    setPurging(true);
+    try {
+      const result = await purgeAudioBank();
+      setAudios([]);
+      setSelection(new Set());
+      setPendingPurge(false);
+
+      const parts = [
+        `${result.rowsDeleted} fila${result.rowsDeleted === 1 ? '' : 's'}`,
+        `${result.localFilesRemoved} archivo${result.localFilesRemoved === 1 ? '' : 's'} local${
+          result.localFilesRemoved === 1 ? '' : 'es'
+        }`,
+        `${result.azuracastFilesRemoved} en AzuraCast`,
+      ];
+      if (result.playlistRemoved) parts.push(`playlist "${result.playlistRemoved}"`);
+
+      toast.success(`Banco purgado: ${parts.join(', ')}`);
+
+      const leftovers = result.localFilesFailed + result.azuracastFilesFailed;
+      if (leftovers > 0) {
+        toast.warning(`${leftovers} archivo${leftovers === 1 ? '' : 's'} no se pudo eliminar`);
+      }
+      if (result.playlistWarning) {
+        toast.warning(result.playlistWarning);
+      }
+    } catch (err) {
+      setError(describeRequestError(err));
+    } finally {
+      setPurging(false);
+    }
+  };
+
   const handlePlay = async (audio: LocutorAudio) => {
     if (playingId === audio.id) {
       playerRef.current?.pause();
@@ -216,16 +257,29 @@ export default function AudioBank() {
       title="Banco de audios"
       description="Cada locución ya generada. El sistema solo reutiliza las que están listas, así que borrar una es la forma de forzar una nueva."
       actions={
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void loadAudios()}
-          disabled={loading}
-          className="gap-2"
-        >
-          <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPendingPurge(true)}
+            disabled={purging || audios.length === 0}
+            title="Borra el banco, los MP3 de la biblioteca de AzuraCast y la playlist huérfana. No se puede deshacer."
+            className="gap-2 border-destructive/25 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Eraser className="size-3.5" />
+            Purgar banco
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void loadAudios()}
+            disabled={loading}
+            className="gap-2"
+          >
+            <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </Button>
+        </div>
       }
     >
       {/* The counts lead because they decide what the operator does next:
@@ -497,6 +551,16 @@ export default function AudioBank() {
         confirmLabel="Eliminar"
         loading={deletingId !== null}
         onConfirm={() => pendingDelete && void handleDelete(pendingDelete.id)}
+      />
+
+      <ConfirmDialog
+        open={pendingPurge}
+        onOpenChange={(open) => !open && setPendingPurge(false)}
+        title="¿Purgar todo el banco de audio?"
+        description="Se borran todas las locuciones guardadas, sus archivos en disco, los MP3 subidos a la biblioteca de AzuraCast y la playlist huérfana. El planificador nuevo no las usa, pero la acción no se puede deshacer."
+        confirmLabel="Purgar"
+        loading={purging}
+        onConfirm={() => void handlePurge()}
       />
 
       <ConfirmDialog

@@ -1,5 +1,6 @@
 import { config } from "../../config";
 import { logger } from "../logger/logger";
+import { getTextSetting } from "../../modules/settings/settings.cache";
 
 export const BOGOTA_TIME_ZONE = "America/Bogota";
 
@@ -69,18 +70,29 @@ const STATION_TIME_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
 };
 
 let stationTimeFormat: Intl.DateTimeFormat | null = null;
+/** Zone the cached formatter was built for, so a panel change is noticed. */
+let stationTimeFormatZone: string | null = null;
+
+/**
+ * The station zone lives in the settings catalog: it is the same value the
+ * announcement scheduler and the panel read. `TIMEZONE` only seeds it.
+ */
+function stationTimeZone(): string {
+  return getTextSetting("station.timezone");
+}
 
 function getStationTimeFormat(): Intl.DateTimeFormat {
-  if (stationTimeFormat) return stationTimeFormat;
+  const timeZone = stationTimeZone();
+  if (stationTimeFormat && stationTimeFormatZone === timeZone) return stationTimeFormat;
 
   try {
     stationTimeFormat = new Intl.DateTimeFormat("en-CA", {
       ...STATION_TIME_FORMAT_OPTIONS,
-      timeZone: config.locutor.timezone,
+      timeZone,
     });
   } catch {
-    logger.warn("DateUtils", "Invalid TIMEZONE, falling back to UTC", {
-      timezone: config.locutor.timezone,
+    logger.warn("DateUtils", "Invalid station timezone, falling back to UTC", {
+      timezone: timeZone,
     });
     stationTimeFormat = new Intl.DateTimeFormat("en-CA", {
       ...STATION_TIME_FORMAT_OPTIONS,
@@ -88,6 +100,7 @@ function getStationTimeFormat(): Intl.DateTimeFormat {
     });
   }
 
+  stationTimeFormatZone = timeZone;
   return stationTimeFormat;
 }
 

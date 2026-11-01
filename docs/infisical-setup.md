@@ -45,19 +45,32 @@ Optional secrets that can also live in Infisical:
 ## Voice engine secrets
 
 The announcements are synthesized by ElevenLabs and fall back to the local
-Kokoro service. The API keys are the only secret in that chain, and they are
-a pool rather than a single value:
+Kokoro service. The provider keys are stored in the database, encrypted with
+AES-256-GCM, and edited from the panel (`/admin/settings`, section "Voz").
+
+The only secret that stays here is the master key that makes those rows
+readable:
 
 | Secret Name | Description |
 |-------------|-------------|
-| `ELEVENLABS_API_KEYS` | Comma-separated pool of ElevenLabs API keys |
+| `SECRETS_ENCRYPTION_KEY` | 32 bytes (64 hex or 44 base64) for the voice key table |
+| `ELEVENLABS_API_KEYS` | Only while the table is empty: the legacy seed |
 
-Every announcement picks the first key that is free, rotating so the monthly
-credits are spread evenly. The pool state is in memory, so restarting the
-backend re-probes every key once. The non-secret tuning values
-(`ELEVENLABS_VOICE_IDS`, `ELEVENLABS_MODEL_ID`, `ELEVENLABS_STABILITY`, the
-cooldowns) belong in `.env` or in Infisical depending on the deployment; see
-`backend/.env.example` for the full list.
+Without `SECRETS_ENCRYPTION_KEY` the panel can neither save nor read a provider
+key, because the ciphertext is useless without it. Losing it means pasting the
+keys again from the panel; nothing else is lost, since the backups never held
+the secret in clear text.
+
+To retire `ELEVENLABS_API_KEYS`, run `pnpm --filter @radio/backend
+voice-keys:backfill` once (it encrypts and copies the keys already stored in the
+table), then delete the variable. Until then the backend keeps working: an empty
+table seeds the pool from the environment and the log says it is in legacy mode.
+Every announcement picks the first free key, rotating so the monthly credits are
+spread evenly. The pool state is in memory, so restarting the backend re-probes
+every key once. The non-secret tuning values (`ELEVENLABS_VOICE_IDS`,
+`ELEVENLABS_MODEL_ID`, `ELEVENLABS_STABILITY`, the cooldowns) belong in `.env` or
+in Infisical depending on the deployment; see `backend/.env.example` for the
+full list.
 
 ## Backend local setup
 

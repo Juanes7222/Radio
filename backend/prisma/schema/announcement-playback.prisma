@@ -5,61 +5,23 @@
 // un programa puede terminar antes de lo previsto y la ventana que el plan
 // descartó vuelve a estar disponible (ver liveState.service.ts).
 
-/// Configuración del planificador de avisos de hora. Una sola fila: la
-/// identidad es fija para que el panel nunca tenga que crear ni borrar.
-model AnnouncementSettings {
+/// Credencial del locutor automático en AzuraCast.
+///
+/// Es lo único que no vive en el catálogo de ajustes, y por una razón: la
+/// contraseña no puede estar en una tabla que entra completa en cada respaldo y
+/// se sirve desde el panel. Tampoco se devuelve nunca al navegador; el panel
+/// solo recibe el booleano `hasStreamerPassword`.
+///
+/// El usuario sí es un ajuste (`announcements.streamerUser`), porque no es un
+/// secreto y se cambia sin riesgo.
+model AnnouncementStreamerCredential {
   id String @id @default("singleton")
 
-  enabled   Boolean @default(true)
-  timezone  String  @default("America/Bogota")
-
-  /// Anuncios objetivo por hora en las ventanas libres.
-  perHour Int @default(2) @map("per_hour")
-
-  /// Separación mínima entre dos avisos consecutivos, en minutos.
-  minGapMinutes Int @default(20) @map("min_gap_minutes")
-
-  /// Margen respecto al inicio y al fin de cada ventana libre. Un aviso que
-  /// arranca pegado al programa puede pisar la entrada o la salida de este.
-  windowEdgeMarginMinutes Int @default(3) @map("window_edge_margin_minutes")
-
-  /// Ventana libre mínima para alojar un aviso. Descarta huecos de minutos que
-  /// solo existen porque un bloque se agendó con precisión de 5 minutos.
-  minWindowMinutes Int @default(10) @map("min_window_minutes")
-
-  /// Cuánto espera un slot diferido antes de volver a evaluarse. Al terminar
-  /// un programa se anuncia en la primera reevaluación viable, no al día
-  /// siguiente.
-  retryIntervalMinutes Int @default(5) @map("retry_interval_minutes")
-
-  /// Tope de intentos por slot. Evita que un bloque largo consuma reevaluaciones
-  /// infinitas y termine pisando el slot siguiente.
-  maxRetries Int @default(4) @map("max_retries")
-
-  /// Si está activo, un humano transmitiendo en vivo bloquea los avisos. Es el
-  /// caso de un DJ almicrofono: cortarlo nunca es aceptable.
-  respectLiveStreamer Boolean @default(true) @map("respect_live_streamer")
-
-  /// Si está activo, un programa agendado bloquea los avisos aunque haya
-  /// terminado antes de lo previsto. Se comprueba en vivo contra la playlist
-  /// que está sonando, no contra la hora del plan.
-  respectScheduledPrograms Boolean @default(true) @map("respect_scheduled_programs")
-
-  /// Credenciales del streamer de avisos. Vacías = usar el streamer
-  /// automático avsisos_auto.
-  streamerUser     String? @map("streamer_user")
   streamerPassword String? @map("streamer_password")
-
-  /// Bed musical y su volumen mezclado bajo la voz.
-  bedsDir    String  @default("../packages/assets/audio") @map("beds_dir")
-  bedVolume  Float   @default(0.15) @map("bed_volume")
-
-  /// Silencio añadido al final para que Liquidsoap no corte la pista.
-  trailingSilenceSeconds Int @default(3) @map("trailing_silence_seconds")
 
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@map("announcement_settings")
+  @@map("announcement_streamer_credentials")
 }
 
 /// Slot del plan. `status` refleja el ciclo de vida completo para que el panel

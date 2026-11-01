@@ -19,6 +19,7 @@ async function bootstrap(): Promise<void> {
   const { config } = await import("./config");
   const { logger } = await import("./shared/logger/logger");
   const { hydrateSettings } = await import("./modules/settings/settings.service");
+  const { initVoiceKeyPool } = await import("./modules/settings/voiceKeys.service");
 
   // Announcements read the station clock explicitly, but the day keys stored in
   // the database still come from the process clock: a mismatch shifts them.
@@ -36,6 +37,10 @@ async function bootstrap(): Promise<void> {
   // registered, so a job registered against an empty cache would decide its
   // first cycle with catalog defaults instead of the stored values.
   await hydrateSettings();
+
+  // Fails soft: an empty table leaves the environment keys in the pool, which is
+  // the state a deployment is in before the backfill runs.
+  await initVoiceKeyPool();
 
   startScheduler();
 

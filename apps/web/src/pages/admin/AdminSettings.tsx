@@ -25,6 +25,7 @@ import {
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { formatDateTime } from '@/lib/format';
 import SettingsSectionCard from './settings/SettingsSectionCard';
+import VoiceKeysCard from './settings/VoiceKeysCard';
 import {
   dirtyPatchForSection,
   draftsAfterSectionWrite,
@@ -339,17 +340,21 @@ export default function AdminSettings() {
       ) : (
         <div className='space-y-4'>
           {sections.map((section) => (
-            <SettingsSectionCard
-              key={section.id}
-              section={section}
-              drafts={drafts}
-              saving={busySectionId === section.id}
-              canSave={Object.keys(dirtyPatchForSection(section, drafts)).length > 0}
-              error={sectionError?.sectionId === section.id ? sectionError.message : null}
-              onDraftChange={handleDraftChange}
-              onSave={() => handleSave(section)}
-              onReset={() => setResetTargetId(section.id)}
-            />
+            <div key={section.id} className='space-y-4'>
+              <SettingsSectionCard
+                section={section}
+                drafts={drafts}
+                saving={busySectionId === section.id}
+                canSave={Object.keys(dirtyPatchForSection(section, drafts)).length > 0}
+                error={sectionError?.sectionId === section.id ? sectionError.message : null}
+                onDraftChange={handleDraftChange}
+                onSave={() => handleSave(section)}
+                onReset={() => setResetTargetId(section.id)}
+              />
+              {/* The keys are not catalog settings: they live in their own
+                  encrypted table, with their own endpoints and permission. */}
+              {section.id === 'voice' && <VoiceKeysCard />}
+            </div>
           ))}
         </div>
       )}

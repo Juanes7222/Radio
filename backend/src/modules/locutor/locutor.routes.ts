@@ -12,6 +12,7 @@ import {
   scheduleAudioForDate,
 } from "./audioGeneration.service";
 import { disconnectLiveSource, uploadAudioToAzuraCast } from "../azuracast/playback.service";
+import { purgeAudioBank } from "./audioBankPurge.service";
 import { isOwnAnnouncementLive, playFileAsLive } from "./streamer.service";
 import { asyncHandler } from "../../shared/errors/async-handler";
 import { AppError } from "../../shared/errors/app-error";
@@ -293,6 +294,22 @@ router.post(
     }
 
     res.json(await deleteGeneratedAudios(ids));
+  })
+);
+
+/**
+ * Purga completa del banco anterior: filas, archivos locales, los MP3 de la
+ * biblioteca de AzuraCast y la playlist huérfana. Es destructivo y no se
+ * ejecuta solo; el panel lo confirma antes de llamar aquí.
+ */
+router.post(
+  "/audios/purge",
+  asyncHandler(async (req, res) => {
+    logger.warn("LocutorRoutes", "Audio bank purge requested from the panel", {
+      by: req.session?.email ?? null,
+    });
+
+    res.json(await purgeAudioBank());
   })
 );
 

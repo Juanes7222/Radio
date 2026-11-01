@@ -496,8 +496,8 @@ export default function AnnouncementSettingsPanel() {
           />
         ) : (
           <EmptyNote>
-            No hay ventanas libres con el tamaño mínimo actual. Bájalo en{' '}
-            <span className="text-foreground">Ventana libre mínima</span> o revisa la programación.
+            La programación deja poco aire hoy. Los avisos se sortean sobre el día completo, así que
+            un programa que termine antes libera su hora en el momento.
           </EmptyNote>
         )}
       </div>
@@ -530,26 +530,6 @@ export default function AnnouncementSettingsPanel() {
               max={180}
               disabled={saving}
               onCommit={(minGapMinutes) => void patch({ minGapMinutes })}
-            />
-            <NumberField
-              label="Margen en los bordes"
-              unit="minutos"
-              hint="Un aviso pegado al programa puede pisar su entrada o su salida."
-              value={settings.windowEdgeMarginMinutes}
-              min={0}
-              max={30}
-              disabled={saving}
-              onCommit={(windowEdgeMarginMinutes) => void patch({ windowEdgeMarginMinutes })}
-            />
-            <NumberField
-              label="Ventana libre mínima"
-              unit="minutos"
-              hint="Descarta huecos demasiado cortos, como los de un bloque de seis minutos."
-              value={settings.minWindowMinutes}
-              min={1}
-              max={120}
-              disabled={saving}
-              onCommit={(minWindowMinutes) => void patch({ minWindowMinutes })}
             />
           </div>
         </div>

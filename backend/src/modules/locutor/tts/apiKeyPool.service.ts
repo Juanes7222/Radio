@@ -48,12 +48,39 @@ export interface ApiKeySnapshot {
   lastError: string | null;
 }
 
-function maskKey(key: string): string {
+export function maskKey(key: string): string {
   return key.length <= 4 ? "****" : `****${key.slice(-4)}`;
 }
 
+function normalizeKeys(keys: readonly string[]): string[] {
+  return [...new Set(keys.map((key) => key.trim()).filter(Boolean))];
+}
+
+function createEntry(key: string, index: number): ApiKeyEntry {
+  return {
+    index,
+    key,
+    invalid: false,
+    blockedUntil: null,
+    blockReason: null,
+    inFlight: 0,
+    lastUsedAt: null,
+    lastError: null,
+  };
+}
+
+/** Silent dedupe would hide a configuration mistake that halves the quota. */
+function warnOnRemovedDuplicates(keys: readonly string[], uniqueCount: number): void {
+  if (uniqueCount === keys.length) return;
+
+  logger.warn("ApiKeyPool", "Duplicate API keys removed from the pool", {
+    configured: keys.length,
+    unique: uniqueCount,
+  });
+}
+
 export class ApiKeyPool {
-  private readonly entries: ApiKeyEntry[];
+  private entries: ApiKeyEntry[];
 
   /**
    * Round-robin cursor. Rotating instead of always taking the first free key
@@ -64,25 +91,30 @@ export class ApiKeyPool {
   private cursor = 0;
 
   constructor(keys: string[]) {
-    const unique = [...new Set(keys.map((key) => key.trim()).filter(Boolean))];
+    this.entries = buildEntries(normalizeKeys(keys));
+    warnOnRemovedDuplicates(keys, this.entries.length);
+  }
 
-    this.entries = unique.map((key, index) => ({
-      index,
-      key,
-      invalid: false,
-      blockedUntil: null,
-      blockReason: null,
-      inFlight: 0,
-      lastUsedAt: null,
-      lastError: null,
-    }));
+  /**
+   * Rebuilds the pool from a new list, keeping the park state of the keys that
+   * remain.
+   *
+   * Called after the panel edits the key table. A quota-blocked key that is
+   * still stored keeps its cooldown, a removed key disappears immediately and a
+   * new one starts free, so adding a key takes effect on the next synthesis
+   * instead of on the next restart.
+   */
+  reload(keys: readonly string[]): void {
+    const previous = new Map(this.entries.map((entry) => [entry.key, entry]));
 
-    if (unique.length !== keys.length) {
-      logger.warn("ApiKeyPool", "Duplicate API keys removed from the pool", {
-        configured: keys.length,
-        unique: unique.length,
-      });
-    }
+    this.entries = normalizeKeys(keys).map((key, index) => {
+      const existing = previous.get(key);
+      return existing ? { ...existing, index } : createEntry(key, index);
+    });
+
+    this.cursor = 0;
+
+    warnOnRemovedDuplicates(keys, this.entries.length);
   }
 
   get size(): number {
@@ -160,6 +192,10 @@ export class ApiKeyPool {
   private isFree(entry: ApiKeyEntry, now: number): boolean {
     return !entry.invalid && (entry.blockedUntil === null || entry.blockedUntil <= now);
   }
+}
+
+function buildEntries(keys: string[]): ApiKeyEntry[] {
+  return keys.map((key, index) => createEntry(key, index));
 }
 
 /**

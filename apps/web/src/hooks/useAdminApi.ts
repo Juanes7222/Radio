@@ -62,6 +62,9 @@ import type {
   ScheduleCategory,
   StationSettingsChangesResponse,
   StationSettingsResponse,
+  AudioBankPurgeResult,
+  VoiceKeyOverview,
+  VoiceKeyTestResult,
   NotificationProgram,
   WorkerJob,
   WorkerNodeInfo,
@@ -888,6 +891,18 @@ export function useAdminApi() {
     [request]
   );
 
+  // Full purge of the old bank: rows, local files, the AzuraCast uploads and the
+  // orphan playlist. Slower than a delete because it walks the library.
+  const purgeAudioBank = useCallback(
+    () =>
+      request<AudioBankPurgeResult>({
+        method: 'POST',
+        url: '/admin-api/locutor/audios/purge',
+        timeout: 120000,
+      }),
+    [request]
+  );
+
   const generateLocutorAudio = useCallback(
     (templateId: string) =>
       request({
@@ -1249,6 +1264,43 @@ export function useAdminApi() {
     [request]
   );
 
+  // ── Claves de voz (tabla cifrada) ───────────────────────────
+  // The panel never receives a key, only its last four characters: the value
+  // stays encrypted in the database and the API answers with the masked view.
+  const VOICE_KEYS_BASE = `${SETTINGS_BASE}/voice-keys`;
+
+  const getVoiceKeys = useCallback(
+    () => request<VoiceKeyOverview>({ url: VOICE_KEYS_BASE }),
+    [request]
+  );
+
+  const addVoiceKey = useCallback(
+    (data: { label: string; key: string }) =>
+      request<VoiceKeyOverview>({ method: 'POST', url: VOICE_KEYS_BASE, data }),
+    [request]
+  );
+
+  const deleteVoiceKey = useCallback(
+    (id: string) =>
+      request<VoiceKeyOverview>({
+        method: 'DELETE',
+        url: `${VOICE_KEYS_BASE}/${encodeURIComponent(id)}`,
+      }),
+    [request]
+  );
+
+  // Spends credits on the external provider, so it stays an explicit action and
+  // gets a longer timeout than the rest of the page.
+  const testVoiceKey = useCallback(
+    () =>
+      request<VoiceKeyTestResult>({
+        method: 'POST',
+        url: `${VOICE_KEYS_BASE}/test`,
+        timeout: 60000,
+      }),
+    [request]
+  );
+
   // ── Salud del sistema ─────────────────────────────────────
   const getHealthOverview = useCallback(
     () => request<HealthOverview>({ url: '/admin-api/health/watchdog' }),
@@ -1459,6 +1511,7 @@ export function useAdminApi() {
     getLocutorAudios,
     deleteLocutorAudio,
   bulkDeleteLocutorAudios,
+    purgeAudioBank,
     generateLocutorAudio,
     previewLocutorTemplate,
     getAnnouncementSettings,
@@ -1514,6 +1567,10 @@ export function useAdminApi() {
     updateSettings,
     resetSettings,
     getSettingsChanges,
+    getVoiceKeys,
+    addVoiceKey,
+    deleteVoiceKey,
+    testVoiceKey,
     getAdminUsers,
     createAdminUser,
     updateAdminUser,

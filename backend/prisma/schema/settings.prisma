@@ -15,6 +15,34 @@ model StationSetting {
   @@map("station_settings")
 }
 
+/// Claves de API de proveedores de voz, cifradas con AES-256-GCM.
+/// Viven aparte de `station_settings` porque esa tabla entra completa en cada
+/// respaldo y se sirve desde el panel: aquí el valor nunca se guarda en claro y
+/// el panel solo lee los últimos cuatro caracteres.
+model ProviderApiKey {
+  id String @id @default(uuid())
+
+  /// Proveedor al que pertenece la clave, p.ej. "elevenlabs".
+  provider String
+  /// Nombre que le puso el operador, para distinguir dos cuentas.
+  label String
+
+  /// Valor cifrado, su vector de inicialización y su etiqueta de autenticación,
+  /// los tres en base64. Juntos se descifran o fallan, nunca a medias.
+  ciphertext String
+  iv         String
+  tag        String
+
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  @@index([provider])
+  @@map("provider_api_keys")
+}
+
 /// Quién cambió qué, para reconstruir por ejemplo por qué un umbral bajó.
 /// Una clave marcada `sensitive` en el catálogo guarda un marcador, no el valor.
 model StationSettingChange {

@@ -19,6 +19,14 @@ import { getAnnouncementPolicy, getSettings } from "./settings.service";
  * predica que acabó temprano.
  */
 
+/**
+ * Márgenes del rail del día. Fueron ajustes mientras el muestreo se hacía por
+ * franjas libres; ahora solo deciden cuánto aire deja el dibujo alrededor de un
+ * programa, así que son constantes y no configuración.
+ */
+const WINDOW_EDGE_MARGIN_MINUTES = 3;
+const MIN_WINDOW_MINUTES = 10;
+
 export interface PlannedSlot {
   minuteOfDay: number;
   plannedFor: Date;
@@ -136,8 +144,8 @@ export async function buildPlan(date: Date = new Date()): Promise<PlanResult> {
   const nowMinute = station.hour * 60 + station.minute;
 
   const analysis = await analyzeDay(date, {
-    edgeMarginMinutes: settings.windowEdgeMarginMinutes,
-    minWindowMinutes: settings.minWindowMinutes,
+    edgeMarginMinutes: WINDOW_EDGE_MARGIN_MINUTES,
+    minWindowMinutes: MIN_WINDOW_MINUTES,
   });
 
   const [playedRows, openRows] = await Promise.all([
@@ -261,10 +269,9 @@ export async function replanAnnouncements(date: Date = new Date()): Promise<numb
  * dónde se siembran los avisos: solo explica el día en el panel.
  */
 export async function getDayAnalysis(date: Date = new Date()): Promise<DayAnalysis> {
-  const settings = await getSettings();
   return analyzeDay(date, {
-    edgeMarginMinutes: settings.windowEdgeMarginMinutes,
-    minWindowMinutes: settings.minWindowMinutes,
+    edgeMarginMinutes: WINDOW_EDGE_MARGIN_MINUTES,
+    minWindowMinutes: MIN_WINDOW_MINUTES,
   });
 }
 
@@ -273,10 +280,9 @@ export async function getDayAnalysis(date: Date = new Date()): Promise<DayAnalys
  * job nocturno heredado; el camino de emisión ya no depende de él.
  */
 export async function getHoursWithFreeWindow(date: Date): Promise<Set<number>> {
-  const settings = await getSettings();
   const analysis = await analyzeDay(date, {
-    edgeMarginMinutes: settings.windowEdgeMarginMinutes,
-    minWindowMinutes: settings.minWindowMinutes,
+    edgeMarginMinutes: WINDOW_EDGE_MARGIN_MINUTES,
+    minWindowMinutes: MIN_WINDOW_MINUTES,
   });
 
   const hours = new Set<number>();

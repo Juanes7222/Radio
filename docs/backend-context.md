@@ -366,9 +366,10 @@ node dist/index.js   # then curl http://localhost:18888/health
   llevaba más de un día bloqueada, con la cuenta del locutor conectada y la
   radio en silencio.
 - `streamer.service.ts` reconoce la cuenta por login y por `display_name`
-  (`getAnnouncementStreamerIdentities()`, caché de 5 minutos) y lee usuario y
-  contraseña de `announcement_settings.streamer_user/password` antes que del
-  entorno. Esas dos columnas existían y no las leía nadie.
+  (`getAnnouncementStreamerIdentities()`, caché de 5 minutos) y lee el usuario de
+  `announcements.streamerUser` y la contraseña de
+  `announcement_streamer_credentials`, antes que del entorno. El usuario estaba
+  escrito en la fila anterior y no lo leía nadie.
 - Antes de sintetizar, `playback.job.ts` libera el harbor si lo ocupa la cuenta
   del locutor: un aviso mal cerrado ya no bloquea el resto del día. Dos slots
   no pueden coincidir (`isAnnouncementInFlight()`), y `POST
@@ -404,9 +405,17 @@ node dist/index.js   # then curl http://localhost:18888/health
   persona al aire, martillar cada cinco minutos solo ensucia la bitácora),
   `scheduled_program` reintenta `announcements.programRetries` (3 por defecto) y
   `unknown` se descarta porque no se puede afirmar que la ventana siga libre.
-- Los parámetros nuevos viven en el catálogo de ajustes (`station_settings`),
-  no en `announcement_settings`: el catálogo ya tiene defaults, respaldo de
-  entorno y auditoría. La fila singleton sigue gobernando lo anterior.
+- **La configuración de avisos vive en el catálogo de ajustes**
+  (`station_settings`): activar, presupuesto, franja, topes, reintentos,
+  protecciones, usuario del locutor, instrumentales, silencio final y zona
+  horaria. `getSettings()` arma ese objeto desde el catálogo, así que los jobs
+  no cambiaron una línea y el panel gana auditoría y respaldo de entorno.
+- La tabla `announcement_settings` ya no existe. Quedó reducida a la contraseña
+  del locutor automático, que ahora vive en `announcement_streamer_credentials`:
+  es lo único que no puede estar en una tabla que entra completa en cada respaldo
+  ni se sirve desde el panel. Sus dos márgenes de ventana pasaron a constantes
+  del análisis del día, porque dejaron de ser ajustes al retirar el muestreo por
+  franjas.
 
 ## Motor de voz desde el panel (30 Oct 2026)
 
@@ -424,8 +433,34 @@ node dist/index.js   # then curl http://localhost:18888/health
 - `voice.voiceMap` es `etiqueta=id` separado por coma y se valida al guardar:
   un par mal formado es un 400, no un mapa a medio escribir. Las etiquetas son
   las de las plantillas (`ef_dora`, `em_alex`).
-- Las claves de API siguen en el entorno (`ELEVENLABS_API_KEYS`); la sección 9
-  del diseño, que las mueve cifradas a la base, todavía no está implementada.
+- Las claves de API ya se guardan cifradas en `provider_api_keys`, no en el
+  entorno: ver "Claves de voz cifradas" más abajo.
+
+## Claves de voz cifradas (31 Oct 2026)
+
+- **Tabla aparte, `provider_api_keys`.** No van en `station_settings` porque esa
+  tabla entra completa en el respaldo que sube a R2 y se sirve desde el panel.
+  Cada fila guarda `ciphertext`, `iv` y `tag` (AES-256-GCM, base64) y un
+  `label` que es lo único que se puede leer sin descifrar.
+- **La clave maestra es `SECRETS_ENCRYPTION_KEY`** (32 bytes en hex o base64),
+  fuera de la base a propósito. Sin esa variable no se descifra nada: el panel
+  muestra las claves como ilegibles y hay que volver a pegarlas. No se pierde
+  nada más, porque el respaldo nunca tuvo el secreto en claro.
+- **Endpoints en `/admin-api/settings/voice-keys`.** `GET` con permiso
+  `settings` devuelve la lista enmascarada (`****últimos4`) y el estado de cada
+  clave tomado del pool; `POST` y `DELETE` exigen superadmin, por la misma razón
+  que la retención de respaldos. `POST /test` sintetiza una frase y dice qué
+  motor contestó.
+- **El pool se reconstruye al escribir.** `ApiKeyPool.reload()` conserva el
+  estado de las claves que siguen existiendo (una bloqueada por cuota mantiene
+  su enfriamiento) y descarta de inmediato las retiradas. El caché de saldos se
+  vacía porque está indexado por posición en el pool.
+- **Modo heredado.** Si la tabla está vacía, el pool se arma desde
+  `ELEVENLABS_API_KEYS` y el log lo dice. `pnpm --filter @radio/backend
+  voice-keys:backfill` cifra y copia las del entorno; después la variable se
+  borra de Infisical.
+- Los cambios de claves se registran en `station_setting_changes` con la clave
+  `voice.apiKey.<etiqueta>` y el marcador de redacción, nunca el valor.
 
 ## Backups (SQLite -> Cloudflare R2)
 

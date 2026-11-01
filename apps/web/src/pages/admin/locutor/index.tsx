@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AudioLines, Library, Megaphone, NotebookPen } from 'lucide-react';
 import StatusDashboard from './StatusDashboard';
 import AnnouncementSettings from './AnnouncementSettings';
+import AnnouncementBudget from './AnnouncementBudget';
 import TemplateEditor from './TemplateEditor';
 import AudioBank from './AudioBank';
 import { SectionRail, type RailSection } from './SectionRail';
@@ -75,7 +76,14 @@ export default function LocutorAdminPanel() {
           tabIndex={0}
         >
           {section.id === 'motor' && <StatusDashboard />}
-          {section.id === 'plan' && <AnnouncementSettings />}
+          {section.id === 'plan' && (
+            <div className="space-y-4">
+              <AnnouncementSettings />
+              {/* Budget, window and retries live in the settings catalog, not in
+                  the singleton the rest of this tab still reads. */}
+              <AnnouncementBudget />
+            </div>
+          )}
           {section.id === 'voz' && <TemplateEditor />}
           {section.id === 'banco' && <AudioBank />}
         </div>
