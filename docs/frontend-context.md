@@ -436,4 +436,18 @@ title and one description. Search metadata is now generated per route.
   `og:image` reference that previously pointed at a nonexistent
   `/icon-512x512.png`. `public/og-image.png` (1200x630) has its own byte
   ceiling instead of the icon-set one.
+- **The card is lit by the public indigo, not by the admin amber.** The old
+  export warmed the backdrop with a gold lamp (hue ~45), which is the admin
+  signal-amber and the only warm surface anywhere in the public site; the
+  replacement keeps the microphone and the type untouched and rebuilds the
+  light at hue ~244, the same family as `--primary`. The microphone is cool on
+  its own, so only the glow, the rule and the tagline moved. Contact sheets of
+  the falloff still ended brown where the glow turns neutral, so the
+  conversion tints that neutral light too; a plain hue rotation reintroduces
+  it.
+- **`OG_IMAGE_VERSION` in `seo.config.ts` is a cache key, not a label.** Link
+  previews are cached per full URL for around a month (nginx serves the PNG
+  with `expires 30d`), so a redrawn card keeps showing the old one everywhere
+  until the query string changes. Bump it with the file, and update the three
+  static tags in `index.html` to match.
 

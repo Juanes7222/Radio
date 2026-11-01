@@ -22,7 +22,14 @@ export const LOCALE = 'es_CO';
 
 export const LOCALE_NAME = 'es_La_Voz_de_la_Verdad';
 
-export const DEFAULT_OG_IMAGE_PATH = '/og-image.png';
+/**
+ * Bumped whenever the card is redrawn. Link previews are cached per full URL,
+ * so a platform that already stored the old image (WhatsApp, Facebook) only
+ * fetches the replacement when the URL changes.
+ */
+const OG_IMAGE_VERSION = 2;
+
+export const DEFAULT_OG_IMAGE_PATH = `/og-image.png?v=${String(OG_IMAGE_VERSION)}`;
 
 export const OG_IMAGE_WIDTH = 1200;
 
