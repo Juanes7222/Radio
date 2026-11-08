@@ -36,7 +36,9 @@ export const SOCIAL_LINKS = [
   },
   {
     label: 'Google Play',
-    href: 'https://play.google.com/store/apps/details?id=com.lavozverdad.radio',
+    // The referrer is what Play Console reports under "Ads and referrals", so
+    // installs that start from this tile are not counted as direct traffic.
+    href: 'https://play.google.com/store/apps/details?id=com.lavozverdad.radio&referrer=utm_source%3Dweb%26utm_medium%3Dsocial%26utm_campaign%3Dfooter',
     bg: 'bg-black',
     shadow: 'shadow-black/40',
     icon: <GooglePlayIcon size={32} />, // ajusta tu icono para recibir size

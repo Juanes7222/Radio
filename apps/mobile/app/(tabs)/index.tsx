@@ -60,6 +60,7 @@ import { BACKEND_URL } from '@/constants/api';
 import { Colors, Radii, Spacing, Typography } from '@/constants/theme';
 import { clamp, CONTENT_MAX_WIDTH } from '@/lib/responsive';
 import { formatMediaTitle } from '@/lib/formatMedia';
+import { buildPlayStoreUrl } from '@/lib/playStore';
 import { incrementPlayerRenders, markNowPlayingEvent } from '@/lib/perf';
 import LOGO from '@assets/img/LOGO_COMPLETO_SINFONDO2-opt.png';
 
@@ -77,6 +78,13 @@ const DIAL_MAX_SIZE = 272;
 
 /** Logo authored at 168x72; it follows the screen width between two bounds. */
 const LOGO_ASPECT_RATIO = 168 / 72;
+
+/** Tagged so Play Console attributes the install to a share from the player. */
+const PLAY_STORE_SHARE_URL = buildPlayStoreUrl({
+  source: 'app',
+  medium: 'share',
+  campaign: 'player_share',
+});
 
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
@@ -250,7 +258,7 @@ const [showBible, setShowBible] = useState(false);
   const handleShare = useCallback(async () => {
     // The stream URL is not useful for sharing: the Play Store link promotes
     // the app itself and points Android users to a real install.
-    const appLink = 'https://play.google.com/store/apps/details?id=com.lavozverdad.radio';
+    const appLink = PLAY_STORE_SHARE_URL;
     const message = title
       ? `Estoy escuchando "${title}" de ${artist} en vivo en La Voz de la Verdad.\n\nDescarga la app gratis y escúchala donde quieras:\n${appLink}`
       : `Estoy escuchando La Voz de la Verdad en vivo.\n\nDescarga la app gratis y escúchala donde quieras:\n${appLink}`;

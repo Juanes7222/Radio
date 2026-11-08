@@ -20,7 +20,7 @@ failing on the first listener request.
 
 | Variable | Config file | Purpose |
 | --- | --- | --- |
-| `PUBLIC_URL` | `app.config.ts` | Public backend URL. Normalized to `https://` if no scheme is given. |
+| `PUBLIC_URL` | `app.config.ts` | Public backend URL. Normalized to `https://` if no scheme is given. **Must be the host that answers directly, without a redirect**: it builds the worker upload URL, and axios replays a redirected POST as a GET, so a `www` host that 301s made every upload fail with `Cannot GET /admin-api/workers/upload`. |
 | `PANEL_SECRET` | `app.config.ts` | Shared secret for `/panel-api/*` (`x-panel-secret`) |
 | `JWT_SECRET` | `auth.config.ts` | Signs panel sessions, 12 h TTL |
 | `AZURACAST_URL` | `azuracast.config.ts` | AzuraCast base URL |

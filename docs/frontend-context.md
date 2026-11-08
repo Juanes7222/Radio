@@ -420,10 +420,12 @@ title and one description. Search metadata is now generated per route.
 - `components/layout/useRouteMeta.ts` re-applies the same tags on SPA
   navigation so a link shared after in-app navigation is not mislabelled.
 - Canonical host: `www.lavozverdad.com` and the whole `vozyverdad.com` pair
-  301 to `https://lavozverdad.com` in `scripts/nginx/domains/`. Note that
-  `backend/.env.example` still uses `https://www.lavozverdad.com` for
-  `PUBLIC_URL`; that value feeds the YouTube webhook callback and the worker
-  upload URL, so changing it requires re-registering the callback.
+  301 to `https://lavozverdad.com` in `scripts/nginx/domains/`. `PUBLIC_URL`
+  follows the same rule because it is what the worker POSTs to: a 301 makes
+  axios replay the request as a GET, and every upload died with
+  `Cannot GET /admin-api/workers/upload`. The webhook callback and the worker
+  upload URL are both built from it, so changing it only requires the hub to
+  re-verify the callback, which the subscription cron does when it renews.
 - Body markup is deliberately NOT prerendered. `LegalDocPage` and
   `PageTransition` set framer-motion `initial={{ opacity: 0 }}`, so
   `renderToString` would emit invisible content, and hydrating it would mean
