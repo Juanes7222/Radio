@@ -4,26 +4,9 @@ import { Link } from 'react-router';
 import { Facebook, Radio, CalendarClock, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollReveal } from '@/components/layout/ScrollReveal';
-import { cn } from '@/lib/utils';
 
 interface FacebookLivePlayerProps {
   liveUrl: string | null;
-}
-
-/**
- * A broadcast tally lamp: a lit lens in a dark housing, spilling light onto the
- * wall behind it. It is the signal itself — "we are transmitting" — rather than
- * a play button, which is why it replaces the on-air badge in the poster state.
- */
-function OnAirLamp({ className }: { className?: string }) {
-  return (
-    <div className={cn('relative flex h-16 w-16 items-center justify-center md:h-20 md:w-20', className)} aria-hidden>
-      <div className="pointer-events-none absolute -inset-x-20 -inset-y-16 rounded-full bg-[radial-gradient(closest-side,hsl(var(--tally)/0.4),transparent)] blur-2xl motion-safe:animate-pulse" />
-      <div className="absolute inset-0 rounded-full border border-white/10 bg-black/70 shadow-[inset_0_2px_3px_rgba(0,0,0,0.95)]" />
-      <div className="absolute inset-[7px] rounded-full bg-[radial-gradient(circle_at_36%_32%,hsl(var(--tally)),hsl(var(--tally)/0.62)_44%,hsl(var(--tally)/0.14)_100%)]" />
-      <div className="absolute left-[27%] top-[23%] h-2 w-3.5 rounded-full bg-white/45 blur-[1px]" />
-    </div>
-  );
 }
 
 export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
@@ -133,24 +116,25 @@ export function FacebookLivePlayer({ liveUrl }: FacebookLivePlayerProps) {
                   </>
                 ) : (
                   <>
-                    {/* Poster — the lamp is the announcement; nothing loads from Facebook yet */}
-                    <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-black">
-                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-[radial-gradient(72%_68%_at_50%_38%,hsl(var(--tally)/0.11),transparent_74%)] px-6 text-center md:gap-7">
-                          <OnAirLamp />
-                          <p className="font-display text-3xl leading-tight text-foreground md:text-5xl">
-                            Estás en vivo
-                          </p>
-                          <Button
-                            type="button"
-                            size="lg"
-                            onClick={() => setActivatedUrl(liveUrl)}
-                            className="rounded-full"
-                          >
-                            <Play className="w-4 h-4" aria-hidden />
-                            Ver el video en Facebook
-                          </Button>
-                        </div>
+                    {/* Thin live badge — the broadcast signal, not a billboard.
+                        Nothing loads from Facebook until the button is pressed. */}
+                    <div className="flex items-center justify-center">
+                      <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 py-2 pl-3 pr-2 backdrop-blur-sm">
+                        <span className="relative flex h-2 w-2" aria-hidden>
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-tally opacity-60 motion-reduce:hidden" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-tally" />
+                        </span>
+                        <span className="font-mono text-xs font-bold tracking-widest uppercase text-tally">
+                          En vivo
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActivatedUrl(liveUrl)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <Play className="w-3 h-3" aria-hidden />
+                          Ver video
+                        </button>
                       </div>
                     </div>
                   </>

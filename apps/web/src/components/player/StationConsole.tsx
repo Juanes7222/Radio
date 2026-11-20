@@ -14,6 +14,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { MarqueeTitle } from '@/components/player/MarqueeTitle';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -473,9 +474,10 @@ export function StationConsole({
                           Prédica
                         </span>
                       )}
-                      <h1 className="font-display text-[2rem] md:text-20xl 2xl:text-[3.5rem] font-normal leading-[1.05] tracking-tight text-foreground line-clamp-2 text-center">
-                        {title || 'La Voz de la Verdad'}
-                      </h1>
+                      <MarqueeTitle
+                        text={title || 'La Voz de la Verdad'}
+                        className="font-display text-[2rem] md:text-20xl 2xl:text-[3.5rem] font-normal leading-[1.05] tracking-tight text-foreground text-center"
+                      />
                       <p className="font-mono text-base text-muted-foreground min-h-[24px] text-center">
                         {displayArtist || 'Radio cristiana · Cartago, Colombia'}
                       </p>

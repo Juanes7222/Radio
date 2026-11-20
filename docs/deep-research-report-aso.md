@@ -221,6 +221,8 @@ La séptima, opcional y útil para quien duerme con la radio: el temporizador (`
 
 El orden no es arbitrario: las dos primeras son las que ve quien llega desde una búsqueda, y son las que comunican la promesa (en vivo) y el diferenciador (la Biblia dentro de la app). Las capturas sirven para todas las fichas en español; solo hay que rehacerlas si se abre una ficha en otro idioma.
 
+Las capturas no se toman a mano: `node scripts/aso/capture-screenshots.ts` recorre las pestañas por sus etiquetas de accesibilidad, espera a que cada pantalla se estabilice y escribe los PNG en `images/phoneScreenshots/` comprobando 1080×1920 y quitando el canal alfa. Necesita el emulador con la resolución forzada (`adb shell wm size 1080x1920`), Metro sirviendo el bundle y la app instalada. El APK debug ya compilado queda en `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`, fuera de git por estar en la carpeta `android`; se compiló en una copia del repositorio en ruta corta porque en Windows el enlazado nativo supera el límite de 260 caracteres de ruta.
+
 Qué no debe aparecer: la pantalla de error "Sin datos del servidor", estados vacíos, el diálogo de permisos de alarmas, la pantalla de éxito de la oración como imagen principal, sellos de "la mejor" o de número de descargas, y cualquier texto que prometa descargas sin conexión.
 
 ### Feature graphic y video de la ficha
