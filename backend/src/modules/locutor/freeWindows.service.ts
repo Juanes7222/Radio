@@ -1,8 +1,6 @@
-import axios from "axios";
-import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
 import { getStationDayStart, getStationTime } from "../../shared/utils/date";
-import { STATION_ID } from "../azuracast/azuracast.client";
+import { azuracastApi, STATION_ID } from "../azuracast/azuracast.client";
 
 /**
  * Cálculo de las ventanas libres del día a partir de la programación de
@@ -20,12 +18,6 @@ import { STATION_ID } from "../azuracast/azuracast.client";
  * seis minutos era buena parte de las horas perdidas.
  */
 
-const azApi = axios.create({
-  baseURL: `${config.azuracast.url}/api`,
-  headers: { "X-API-Key": config.azuracast.apiKey },
-  timeout: 10_000,
-});
-
 export const MINUTES_PER_DAY = 1440;
 
 interface AzuraScheduleItem {
@@ -37,7 +29,7 @@ interface AzuraScheduleItem {
   playlist_id?: number;
 }
 
-/** Intervalo libre en minutos desde medianoche, ambos extremos abiertos. */
+/** Free interval in station minutes, with an exclusive end. */
 export interface FreeWindow {
   startMinute: number;
   endMinute: number;
@@ -64,22 +56,21 @@ export interface DayAnalysis {
  * it -1, and subtractBusy drops intervals ending at or before 0. A 22:00 to
  * 24:00 block then vanished and its whole span read as free time.
  */
-function toStationMinute(instant: Date, dayEnd?: Date): number {
+function toStationMinute(instant: Date, timezone?: string, dayEnd?: Date): number {
   if (dayEnd && instant.getTime() >= dayEnd.getTime()) return MINUTES_PER_DAY;
-  const { hour, minute } = getStationTime(instant);
+  const { hour, minute } = getStationTime(instant, timezone);
   return hour * 60 + minute;
 }
 
-async function fetchDaySchedule(date: Date): Promise<AzuraScheduleItem[] | null> {
+async function fetchDaySchedule(start: Date, end: Date): Promise<AzuraScheduleItem[] | null> {
   try {
-    const start = getStationDayStart(date);
-    const end = new Date(start.getTime() + MINUTES_PER_DAY * 60_000 - 1);
-
-    const { data } = await azApi.get(`/station/${STATION_ID}/schedule`, {
+    const { data } = await azuracastApi.get<AzuraScheduleItem[]>(`/station/${STATION_ID}/schedule`, {
       params: { start: start.toISOString(), end: end.toISOString() },
+      timeout: 8_000,
     });
 
-    return Array.isArray(data) ? (data as AzuraScheduleItem[]) : [];
+    if (!Array.isArray(data)) throw new Error("Unexpected station schedule response");
+    return data;
   } catch (err) {
     logger.warn("ScheduleAnalyzer", "Failed to fetch station schedule", {
       error: err instanceof Error ? err.message : String(err),
@@ -96,16 +87,18 @@ async function fetchDaySchedule(date: Date): Promise<AzuraScheduleItem[] | null>
 function toDayInterval(
   start: Date,
   end: Date,
-  dayStart: Date
+  dayStart: Date,
+  dayEnd: Date,
+  timezone?: string
 ): { startMinute: number; endMinute: number } | null {
-  const dayEnd = new Date(dayStart.getTime() + MINUTES_PER_DAY * 60_000);
   const overlapStart = Math.max(start.getTime(), dayStart.getTime());
   const overlapEnd = Math.min(end.getTime(), dayEnd.getTime());
   if (overlapEnd <= overlapStart) return null;
 
   return {
-    startMinute: toStationMinute(new Date(overlapStart)),
-    endMinute: toStationMinute(new Date(overlapEnd), dayEnd),
+    startMinute: toStationMinute(new Date(overlapStart), timezone),
+    endMinute: Math.min(MINUTES_PER_DAY, toStationMinute(new Date(overlapEnd), timezone, dayEnd)
+      + (overlapEnd % 60_000 === 0 ? 0 : 1)),
   };
 }
 
@@ -161,6 +154,7 @@ function applyWindowRules(
 export interface AnalyzeOptions {
   edgeMarginMinutes: number;
   minWindowMinutes: number;
+  timezone?: string;
 }
 
 /**
@@ -173,10 +167,11 @@ export async function analyzeDay(
   date: Date = new Date(),
   options: AnalyzeOptions
 ): Promise<DayAnalysis> {
-  const stationNow = getStationTime(date);
+  const stationNow = getStationTime(date, options.timezone);
   const dayKey = stationNow.dayKey;
-  const dayStart = getStationDayStart(date);
-  const schedule = await fetchDaySchedule(date);
+  const dayStart = getStationDayStart(date, options.timezone);
+  const dayEnd = getStationDayStart(new Date(dayStart.getTime() + 30 * 60 * 60_000), options.timezone);
+  const schedule = await fetchDaySchedule(dayStart, dayEnd);
 
   const busyIntervals: Array<{ startMinute: number; endMinute: number; title: string }> = [];
   let currentProgram: DayAnalysis["currentProgram"] = null;
@@ -189,22 +184,15 @@ export async function analyzeDay(
 
       const start = new Date(item.start_timestamp * 1000);
       const end = new Date(item.end_timestamp * 1000);
-      const interval = toDayInterval(start, end, dayStart);
+      const interval = toDayInterval(start, end, dayStart, dayEnd, options.timezone);
       if (!interval) continue;
 
       const title = (item.title ?? item.name ?? "Programa").trim();
 
-      // Un bloque que termina exactamente en punto no ocupa el minuto inicial
-      // de la hora siguiente: 14:00-15:00 deja libre desde las 15:00.
-      const endsOnHourBoundary = interval.endMinute % 60 === 0;
-      const endMinute =
-        endsOnHourBoundary && interval.endMinute > interval.startMinute
-          ? interval.endMinute - 1
-          : interval.endMinute;
+      const { startMinute, endMinute } = interval;
+      busyIntervals.push({ ...interval, title });
 
-      busyIntervals.push({ ...interval, endMinute, title });
-
-      if (nowMinute >= interval.startMinute && nowMinute <= interval.endMinute) {
+      if (nowMinute >= startMinute && nowMinute < endMinute) {
         if (!currentProgram || endMinute > currentProgram.endsAtMinute) {
           currentProgram = { title, endsAtMinute: endMinute };
         }
@@ -212,7 +200,7 @@ export async function analyzeDay(
     }
   }
 
-  const rawWindows = subtractBusy(busyIntervals);
+  const rawWindows = schedule === null ? [] : subtractBusy(busyIntervals);
   const freeMinutes = rawWindows.reduce(
     (total, window) => total + (window.endMinute - window.startMinute),
     0
@@ -240,6 +228,6 @@ export async function analyzeDay(
  */
 export function isFreeMinuteAt(analysis: DayAnalysis, minuteOfDay: number): boolean {
   return analysis.freeWindows.some(
-    (window) => minuteOfDay >= window.startMinute && minuteOfDay <= window.endMinute
+    (window) => minuteOfDay >= window.startMinute && minuteOfDay < window.endMinute
   );
 }

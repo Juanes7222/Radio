@@ -73,7 +73,7 @@ model AnnouncementSlot {
   plannedFor DateTime @map("planned_for")
   planDate   String   @map("plan_date")
 
-  /// pending | deferred | played | skipped | failed
+  /// pending | running | deferred | played | skipped | failed
   status String @default("pending")
 
   /// Razón del último cambio de estado, legible desde el panel.
@@ -81,6 +81,7 @@ model AnnouncementSlot {
 
   /// Intentos de reevaluación consumidos por el diferimiento.
   retryCount Int @default(0) @map("retry_count")
+  retryAt    DateTime? @map("retry_at")
 
   /// Momento en que terminó de decidirse. Distingue "aún no ha ocurrido" de
   /// "ocurrió y se descartó", que es la diferencia que el operador quiere ver.
@@ -105,7 +106,7 @@ model AnnouncementRunLog {
   slotId      String? @map("slot_id")
   slot        AnnouncementSlot? @relation(fields: [slotId], references: [id])
 
-  /// attempted | blocked_live | blocked_program | played | failed | expired
+  /// streamed | failed | blocked_<reason> | legacy outcomes
   outcome String
 
   /// Veredicto de la comprobación en vivo que habilitó o impidió el aviso.

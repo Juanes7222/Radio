@@ -1,8 +1,5 @@
-import { prisma } from "../../infrastructure/database/prisma";
 import { azuracastApi, STATION_ID } from "./azuracast.client";
 import { logger } from "../../shared/logger/logger";
-import { getStationDayStart } from "../../shared/utils/date";
-import { playFileAsLive } from "../locutor/streamer.service";
 import { uploadMp3ToAzuracast } from "./upload-mp3.service";
 
 /**
@@ -17,74 +14,6 @@ export async function uploadAudioToAzuraCast(filePath: string, filename: string)
     filename,
   });
   return result.fileId;
-}
-
-/**
- * Finds the scheduled audio for the given hour and plays it via the
- * Icecast live streamer connection. Returns true if played.
- */
-export async function playScheduledAnnouncementForHour(hour: number): Promise<boolean> {
-  const today = getStationDayStart();
-
-  const schedule = await prisma.audioSchedule.findFirst({
-    where: {
-      scheduledDate: today,
-      scheduledHour: hour,
-      enabled: true,
-    },
-    include: {
-      audio: true,
-    },
-  });
-
-  if (!schedule || !schedule.audio) {
-    logger.info("PlaybackAzuracast", "No scheduled announcement for this hour", { hour });
-    return false;
-  }
-
-  const audio = schedule.audio;
-
-  if (audio.status !== "ready") {
-    logger.warn("PlaybackAzuracast", "Scheduled audio not ready", {
-      hour,
-      audioId: audio.id,
-      status: audio.status,
-    });
-    return false;
-  }
-
-  const filePath = audio.filepath;
-  if (!filePath) {
-    logger.warn("PlaybackAzuracast", "Scheduled audio has no local file path", {
-      hour,
-      audioId: audio.id,
-    });
-    return false;
-  }
-
-  try {
-    await playFileAsLive(filePath);
-
-    await prisma.audioSchedule.update({
-      where: { id: schedule.id },
-      data: { playedAt: new Date() },
-    });
-
-    logger.info("PlaybackAzuracast", "Played announcement via live streamer", {
-      hour,
-      audioId: audio.id,
-      filePath,
-    });
-
-    return true;
-  } catch (err) {
-    logger.error("PlaybackAzuracast", "Failed to play announcement via streamer", {
-      hour,
-      audioId: audio.id,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return false;
-  }
 }
 
 /**

@@ -107,7 +107,7 @@ export class ApiKeyPool {
    * key that just got parked does not shift the rotation and silently skip the
    * key that comes right after it.
    */
-  reserve(): ApiKeyLease | null {
+  reserve(excluded: ReadonlySet<number> = new Set()): ApiKeyLease | null {
     const now = Date.now();
     if (this.entries.length === 0) return null;
 
@@ -115,7 +115,7 @@ export class ApiKeyPool {
 
     for (let step = 0; step < this.entries.length; step += 1) {
       const entry = this.entries[(start + step) % this.entries.length];
-      if (this.isFree(entry, now) && entry.inFlight === 0) {
+      if (!excluded.has(entry.index) && this.isFree(entry, now) && entry.inFlight === 0) {
         this.cursor = (start + step + 1) % this.entries.length;
         entry.inFlight += 1;
         return new ApiKeyLease(entry);
@@ -127,7 +127,7 @@ export class ApiKeyPool {
     let leastBusy: ApiKeyEntry | null = null;
     for (let step = 0; step < this.entries.length; step += 1) {
       const entry = this.entries[(start + step) % this.entries.length];
-      if (!this.isFree(entry, now)) continue;
+      if (excluded.has(entry.index) || !this.isFree(entry, now)) continue;
       if (!leastBusy || entry.inFlight < leastBusy.inFlight) leastBusy = entry;
     }
 

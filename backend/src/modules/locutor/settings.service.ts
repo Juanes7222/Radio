@@ -56,13 +56,10 @@ function fromEnv(): Omit<AnnouncementSettings, "id" | "updatedAt"> {
  * una migración manual.
  */
 export async function getSettings(): Promise<AnnouncementSettings> {
-  const existing = await prisma.announcementSettings.findUnique({
+  return prisma.announcementSettings.upsert({
     where: { id: SINGLETON_ID },
-  });
-  if (existing) return existing;
-
-  return prisma.announcementSettings.create({
-    data: { id: SINGLETON_ID, ...fromEnv() },
+    create: { id: SINGLETON_ID, ...fromEnv() },
+    update: {},
   });
 }
 
@@ -126,7 +123,15 @@ export async function updateSettings(patch: AnnouncementSettingsPatch): Promise<
   const data: Record<string, unknown> = {};
 
   if ("enabled" in patch) data.enabled = boolOr(patch.enabled, current.enabled);
-  if ("timezone" in patch) data.timezone = textOrNull(patch.timezone, current.timezone) ?? current.timezone;
+  if ("timezone" in patch) {
+    const timezone = textOrNull(patch.timezone, current.timezone) ?? current.timezone;
+    try {
+      new Intl.DateTimeFormat("es-CO", { timeZone: timezone });
+      data.timezone = timezone;
+    } catch {
+      data.timezone = current.timezone;
+    }
+  }
   if ("perHour" in patch) data.perHour = clampInt(patch.perHour, current.perHour, LIMITS.perHour);
   if ("minGapMinutes" in patch) {
     data.minGapMinutes = clampInt(patch.minGapMinutes, current.minGapMinutes, LIMITS.minGapMinutes);
@@ -197,8 +202,8 @@ export async function updateSettings(patch: AnnouncementSettingsPatch): Promise<
 export function toPublicSettings(settings: AnnouncementSettings) {
   return {
     ...settings,
-    streamerUser: settings.streamerUser,
+    streamerUser: settings.streamerUser || config.locutor.streamerUser || null,
     streamerPassword: null,
-    hasStreamerPassword: Boolean(settings.streamerPassword),
+    hasStreamerPassword: Boolean(settings.streamerPassword || config.locutor.streamerPassword),
   };
 }

@@ -28,6 +28,8 @@ export interface SynthesizeParams {
   voice?: string;
   speed?: number;
   outputPath: string;
+  signal?: AbortSignal;
+  primarySignal?: AbortSignal;
 }
 
 export interface SynthesizeResult {
@@ -53,6 +55,8 @@ export async function synthesize({
   voice = config.locutor.tts.defaultVoice,
   speed = config.locutor.tts.defaultSpeed,
   outputPath,
+  signal,
+  primarySignal,
 }: SynthesizeParams): Promise<SynthesizeResult> {
   const trimmed = text.trim();
 
@@ -66,14 +70,21 @@ export async function synthesize({
     );
   }
 
-  const firstChoice = preferredProviderId(voice);
   let lastError: Error | null = null;
 
   for (const provider of PROVIDERS) {
+    signal?.throwIfAborted();
     if (!provider.isAvailable(voice)) continue;
 
+    const providerSignal = provider.id === "elevenlabs" && primarySignal
+      ? (signal ? AbortSignal.any([signal, primarySignal]) : primarySignal)
+      : signal;
     try {
-      const output = await provider.synthesize({ text: trimmed, templateVoice: voice, speed });
+      const output = await provider.synthesize({
+        text: trimmed, templateVoice: voice, speed, signal: providerSignal,
+      });
+      if (output.audio.length === 0) throw new Error("El motor devolvió un audio vacío");
+      signal?.throwIfAborted();
 
       const dir = path.dirname(outputPath);
       await fs.mkdir(dir, { recursive: true });
@@ -84,12 +95,14 @@ export async function synthesize({
         fs.stat(outputPath),
       ]);
 
-      if (provider.id !== firstChoice) {
+      if (duration <= 0) throw new Error("El motor devolvió un MP3 que no se pudo validar");
+
+      if (provider.id === "kokoro" && (lastError || getElevenLabsStatus().keys.length > 0)) {
         fallbackCount += 1;
         logger.warn(LOG, "Falling back to another voice engine", {
-          preferred: firstChoice,
+          preferred: "elevenlabs",
           used: provider.id,
-          reason: lastError?.message,
+          reason: lastError?.message ?? "ElevenLabs no tiene una clave utilizable o una voz asignada a esta plantilla",
           fallbackCount,
         });
       }
@@ -104,6 +117,7 @@ export async function synthesize({
         fileSizeBytes: stat.size,
       };
     } catch (err) {
+      signal?.throwIfAborted();
       lastError = err instanceof Error ? err : new Error(String(err));
       logger.warn(LOG, "Voice engine failed, trying the next one", {
         provider: provider.id,
@@ -151,12 +165,18 @@ async function getAudioDuration(filePath: string): Promise<number> {
       "quiet",
       "-print_format",
       "json",
-      "-show_format",
+      "-select_streams",
+      "a:0",
+      "-show_entries",
+      "stream=codec_name:format=duration",
       filePath,
     ]);
-    const data = JSON.parse(stdout);
-    const duration = data.format?.duration;
-    if (duration) return parseFloat(duration);
+    const data = JSON.parse(stdout) as {
+      streams?: Array<{ codec_name?: string }>;
+      format?: { duration?: string };
+    };
+    const duration = Number(data.format?.duration);
+    if (data.streams?.[0]?.codec_name === "mp3" && Number.isFinite(duration)) return duration;
   } catch {
     logger.warn(LOG, `Could not get duration for ${filePath}, falling back to 0`);
   }
@@ -168,7 +188,12 @@ async function getAudioDuration(filePath: string): Promise<number> {
  * A silence tail gives Liquidsoap a clean handoff back to the
  * auto-DJ when the live harbor source ends, avoiding abrupt cuts.
  */
-export async function padSilenceTail(inputPath: string, outputPath: string, seconds: number): Promise<void> {
+export async function padSilenceTail(
+  inputPath: string,
+  outputPath: string,
+  seconds: number,
+  leadSeconds = 0
+): Promise<void> {
   await execFileAsync("ffmpeg", [
     "-y",
     "-v",
@@ -176,7 +201,10 @@ export async function padSilenceTail(inputPath: string, outputPath: string, seco
     "-i",
     inputPath,
     "-af",
-    `apad=pad_dur=${seconds}`,
+    [
+      `adelay=${Math.round(leadSeconds * 1000)}:all=1`,
+      ...(seconds > 0 ? [`apad=pad_dur=${seconds}`] : []),
+    ].join(","),
     "-c:a",
     "libmp3lame",
     outputPath,
@@ -190,6 +218,7 @@ export interface MixWithBedParams {
   durationSeconds: number;
   bedVolume?: number;
   tailSeconds?: number;
+  leadSeconds?: number;
 }
 
 /**
@@ -204,13 +233,13 @@ export async function mixWithBed({
   durationSeconds,
   bedVolume = 0.15,
   tailSeconds = 3,
+  leadSeconds = 0,
 }: MixWithBedParams): Promise<void> {
-  const totalSeconds = durationSeconds + tailSeconds;
-  const fadeOutStart = Math.max(0, durationSeconds - 0.5);
+  const totalSeconds = leadSeconds + durationSeconds + tailSeconds;
 
   const filter = [
     `[0:a]volume=${bedVolume}[bed];`,
-    `[1:a]afade=t=in:d=0.3,afade=t=out:st=${fadeOutStart}:d=0.5[voice];`,
+    `[1:a]adelay=${Math.round(leadSeconds * 1000)}:all=1[voice];`,
     `[voice][bed]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[out]`,
   ].join("");
 

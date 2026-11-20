@@ -36,8 +36,7 @@ const subscriptions = new Map<number, SubscriptionInfo>();
  * Reads the balance of the account behind a key. This is the only reliable
  * source for when a key comes back after running out of quota, and it is also
  * the number that decides how many keys the station actually needs. It is only
- * called when a quota failure happens or an admin asks for it, because the
- * endpoint is metered too.
+ * called on demand so a quota failure can fall back without another network request.
  */
 async function readSubscription(lease: ApiKeyLease): Promise<SubscriptionInfo> {
   const now = new Date();
@@ -125,14 +124,15 @@ function readFailureDetail(err: unknown): { httpStatus: number | null; status: s
 
   const httpStatus = err.response?.status ?? null;
   const body = decodeErrorBody(err.response?.data);
-  const detail =
-    typeof body === "object" && body !== null ? (body as { detail?: unknown }).detail : undefined;
+  const payload = body as { detail?: unknown; error?: unknown } | null;
+  const detail = payload?.detail ?? payload?.error ?? body;
 
   if (typeof detail === "object" && detail !== null) {
-    const typed = detail as { status?: unknown; message?: unknown };
+    const typed = detail as { code?: unknown; status?: unknown; message?: unknown };
+    const status = typed.code ?? typed.status;
     return {
       httpStatus,
-      status: typeof typed.status === "string" ? typed.status : null,
+      status: typeof status === "string" ? status : null,
       message: typeof typed.message === "string" ? typed.message : fallbackMessage,
     };
   }
@@ -150,7 +150,7 @@ function readFailureDetail(err: unknown): { httpStatus: number | null; status: s
  * falls back to the configured default voice, and a station with neither is
  * not configured for ElevenLabs at all.
  */
-function resolveVoiceId(templateVoice: string | null): string | null {
+export function resolveVoiceId(templateVoice: string | null): string | null {
   const mapped =
     templateVoice === null ? undefined : settings.voiceIdByTemplateVoice[templateVoice];
 
@@ -177,7 +177,8 @@ async function requestAudio(
   lease: ApiKeyLease,
   voiceId: string,
   text: string,
-  speed: number
+  speed: number,
+  signal?: AbortSignal
 ): Promise<Buffer> {
   const response = await axios.post(
     `${settings.baseUrl}/v1/text-to-speech/${encodeURIComponent(voiceId)}` +
@@ -194,33 +195,38 @@ async function requestAudio(
     {
       headers: { "xi-api-key": lease.key, "Content-Type": "application/json" },
       responseType: "arraybuffer",
+      signal,
       timeout: config.locutor.tts.requestTimeoutMs,
     }
   );
 
-  return Buffer.from(response.data);
+  const audio = Buffer.from(response.data);
+  if (audio.length === 0) throw new Error("ElevenLabs devolvió un audio vacío");
+  return audio;
 }
 
 /**
  * Parks the key according to what the failure actually means. Returns the
  * error to throw so the caller can decide whether another key is worth trying.
  */
-async function handleFailure(lease: ApiKeyLease, voiceId: string, err: unknown): Promise<Error> {
-  const { httpStatus, status, message } = readFailureDetail(err);
+function handleFailure(
+  lease: ApiKeyLease,
+  { httpStatus, status, message }: ReturnType<typeof readFailureDetail>
+): Error {
+  const error = new Error(`ElevenLabs (${status ?? httpStatus ?? "red"}): ${message}`);
 
-  if (status === "voice_not_found") {
-    throw new TtsProviderConfigError(
-      `ElevenLabs no reconoce la voz ${voiceId}: ${message}. Revisa ELEVENLABS_VOICE_IDS.`
-    );
+  if (status === "voice_not_found" || status === "voice_access_denied") {
+    logger.warn(LOG, "Voice unavailable for this key", { keyIndex: lease.index, status });
+    return error;
   }
 
-  if (status === "max_character_limit_exceeded") {
-    throw new TtsProviderConfigError(
-      `El texto supera el límite de caracteres de ${settings.modelId}: ${message}`
-    );
+  if (status && ["max_character_limit_exceeded", "text_too_long", "invalid_voice_id",
+    "invalid_output_format", "invalid_voice_settings", "unsupported_model"].includes(status)) {
+    throw new TtsProviderConfigError(error.message);
   }
 
-  if (status === "invalid_api_key" || httpStatus === 401 || httpStatus === 403) {
+  if (status === "invalid_api_key" || status === "missing_permissions" ||
+    (status === null && httpStatus === 401)) {
     lease.block("invalid", message, null);
     logger.error(LOG, "API key rejected, disabling it until the process restarts", {
       keyIndex: lease.index,
@@ -228,24 +234,26 @@ async function handleFailure(lease: ApiKeyLease, voiceId: string, err: unknown):
       httpStatus,
       detail: status,
     });
-    return err instanceof Error ? err : new Error(message);
+    return error;
   }
 
-  if (status === "quota_exceeded" || status === "insufficient_quota") {
-    const subscription = await readSubscription(lease);
-    const until =
-      subscription.resetAt ??
-      new Date(Date.now() + settings.quotaCooldownMinutes * 60_000);
+  if (httpStatus === 402 || status === "quota_exceeded" ||
+    status === "insufficient_quota" || status === "insufficient_credits") {
+    const subscription = subscriptions.get(lease.index);
+    const now = Date.now();
+    const until = subscription?.resetAt && subscription.resetAt.getTime() > now
+      ? subscription.resetAt
+      : new Date(now + settings.quotaCooldownMinutes * 60_000);
 
     lease.block("quota", message, until);
     logger.warn(LOG, "Quota exhausted on this key, moving to the next one", {
       keyIndex: lease.index,
       keyHint: lease.hint,
-      charactersUsed: subscription.charactersUsed,
-      characterLimit: subscription.characterLimit,
+      charactersUsed: subscription?.charactersUsed,
+      characterLimit: subscription?.characterLimit,
       retryAt: until.toISOString(),
     });
-    return err instanceof Error ? err : new Error(message);
+    return error;
   }
 
   const until = new Date(Date.now() + settings.transientCooldownMinutes * 60_000);
@@ -257,7 +265,7 @@ async function handleFailure(lease: ApiKeyLease, voiceId: string, err: unknown):
     detail: status,
     retryAt: until.toISOString(),
   });
-  return err instanceof Error ? err : new Error(message);
+  return error;
 }
 
 export const elevenLabsProvider: TtsProvider = {
@@ -269,7 +277,7 @@ export const elevenLabsProvider: TtsProvider = {
     return pool.availableCount() > 0;
   },
 
-  async synthesize({ text, templateVoice, speed }: TtsSynthesisRequest): Promise<TtsProviderOutput> {
+  async synthesize({ text, templateVoice, speed, signal }: TtsSynthesisRequest): Promise<TtsProviderOutput> {
     const voiceId = resolveVoiceId(templateVoice);
 
     if (!voiceId) {
@@ -280,16 +288,28 @@ export const elevenLabsProvider: TtsProvider = {
 
     let lastError: Error = new Error("ElevenLabs no tiene ninguna API key disponible");
 
+    const triedKeys = new Set<number>();
+    const voices = [...new Set([voiceId, settings.defaultVoiceId].filter(Boolean))];
+
     for (let attempt = 0; attempt < pool.size; attempt += 1) {
-      const lease = pool.reserve();
+      signal?.throwIfAborted();
+      const lease = pool.reserve(triedKeys);
       if (!lease) break;
 
+      triedKeys.add(lease.index);
       try {
-        const audio = await requestAudio(lease, voiceId, text, clampSpeed(speed));
-        lease.succeed();
-        return { audio, voice: `elevenlabs:${voiceId}` };
-      } catch (err) {
-        lastError = await handleFailure(lease, voiceId, err);
+        for (const candidate of voices) {
+          try {
+            const audio = await requestAudio(lease, candidate, text, clampSpeed(speed), signal);
+            lease.succeed();
+            return { audio, voice: `elevenlabs:${candidate}` };
+          } catch (err) {
+            signal?.throwIfAborted();
+            const failure = readFailureDetail(err);
+            lastError = handleFailure(lease, failure);
+            if (failure.status !== "voice_not_found" && failure.status !== "voice_access_denied") break;
+          }
+        }
       } finally {
         lease.release();
       }
@@ -381,10 +401,12 @@ export function getElevenLabsStatus(): ElevenLabsStatus {
  * station needs.
  */
 export async function refreshElevenLabsBalance(): Promise<ElevenLabsBalance> {
+  const checkedKeys = new Set<number>();
   for (let index = 0; index < pool.size; index += 1) {
-    const lease = pool.reserve();
+    const lease = pool.reserve(checkedKeys);
     if (!lease) break;
 
+    checkedKeys.add(lease.index);
     try {
       await readSubscription(lease);
     } finally {

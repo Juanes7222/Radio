@@ -52,15 +52,15 @@ export const SYSTEM_JOB_CATALOG: SystemJobMeta[] = [
   {
     key: "nightly-generation",
     label: "Generación nocturna del locutor",
-    description: "Genera y programa los audios de las próximas 48 horas. Puede tardar varios minutos y consume TTS.",
-    schedule: "02:30",
+    description: "Prepara audios en punto para el banco. Puede tardar varios minutos y consume TTS.",
+    schedule: "manual",
     requiresConfirm: true,
   },
   {
     key: "hourly-check",
     label: "Revisión horaria del locutor",
-    description: "Verifica que la próxima hora tenga audio listo y lo genera si falta.",
-    schedule: "minuto 45 de cada hora",
+    description: "Comprueba y genera en el banco el audio en punto de la próxima hora.",
+    schedule: "manual",
     requiresConfirm: false,
   },
   {
@@ -74,7 +74,7 @@ export const SYSTEM_JOB_CATALOG: SystemJobMeta[] = [
     key: "playback-reschedule",
     label: "Replanificar anuncios",
     description: "Recalcula los horarios aleatorios de anuncios del día. No reproduce nada de inmediato.",
-    schedule: "diario 00:01",
+    schedule: "cada 15 min",
     requiresConfirm: false,
   },
   {

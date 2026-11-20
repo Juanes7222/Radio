@@ -18,7 +18,8 @@ export const locutorConfig = {
   stationName: envOr("STATION_NAME", "Radio"),
   harborHost: envOr("LIQUIDSOAP_HARBOR_HOST", "localhost"),
   harborPort: intEnvOr("LIQUIDSOAP_HARBOR_PORT", 8005),
-  mountPoint: envOr("LIQUIDSOAP_MOUNT_POINT", "/live"),
+  mountPoint: envOr("LIQUIDSOAP_MOUNT_POINT", "/"),
+  harborBufferSeconds: Math.max(0, Math.min(60, intEnvOr("LIQUIDSOAP_HARBOR_BUFFER_SECONDS", 5))),
   streamerUser: envOr("LOCUTOR_STREAMER_USER", ""),
   streamerPassword: envOr("LOCUTOR_STREAMER_PASSWORD", ""),
   bedsDir: envOr("LOCUTOR_BEDS_DIR", "../packages/assets/audio"),
@@ -46,12 +47,12 @@ export const locutorConfig = {
        * all and every synthesis goes straight to Kokoro, which is the
        * behaviour of a station that never set a key.
        */
-      apiKeys: listEnvOr("ELEVENLABS_API_KEYS"),
+      apiKeys: [...listEnvOr("ELEVENLABS_API_KEYS"), ...listEnvOr("ELEVENLABS_API_KEY")],
       modelId: envOr("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"),
       /** Maps an announcement template voice to an ElevenLabs voice id. */
       voiceIdByTemplateVoice: keyValueEnvOr("ELEVENLABS_VOICE_IDS"),
       /** Used when the template voice has no explicit mapping. */
-      defaultVoiceId: envOr("ELEVENLABS_DEFAULT_VOICE_ID", ""),
+      defaultVoiceId: envOr("ELEVENLABS_DEFAULT_VOICE_ID", "").trim(),
       outputFormat: envOr("ELEVENLABS_OUTPUT_FORMAT", "mp3_44100_128"),
       stability: floatEnvOr("ELEVENLABS_STABILITY", 0.5),
       similarityBoost: floatEnvOr("ELEVENLABS_SIMILARITY_BOOST", 0.75),

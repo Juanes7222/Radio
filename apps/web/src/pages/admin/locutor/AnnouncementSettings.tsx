@@ -52,10 +52,14 @@ const REASON: Record<LocutorAnnouncementReason, { label: string; tone: Tone }> =
 };
 
 const OUTCOME: Record<string, { label: string; tone: Tone }> = {
-  blocked_live_streamer: { label: 'Bloqueado: persona en vivo', tone: 'tally' },
+  blocked_live_streamer: { label: 'Bloqueado por fuente en vivo', tone: 'tally' },
   blocked_scheduled_program: { label: 'Bloqueado: programa en curso', tone: 'warning' },
   blocked_unknown: { label: 'Bloqueado: estado desconocido', tone: 'warning' },
+  blocked_clock: { label: 'Diferido por cambio de minuto', tone: 'warning' },
+  blocked_gap: { label: 'Bloqueado por separación mínima', tone: 'warning' },
+  blocked_disabled: { label: 'Avisos deshabilitados', tone: 'muted' },
   attempted: { label: 'Intento', tone: 'info' },
+  streamed: { label: 'Enviado a Liquidsoap', tone: 'success' },
   played: { label: 'Reproducido', tone: 'success' },
   failed: { label: 'Falló', tone: 'tally' },
 };
@@ -514,7 +518,7 @@ export default function AnnouncementSettingsPanel() {
             <NumberField
               label="Avisos por hora"
               unit="de espacio libre"
-              hint="Se reparten entre las ventanas libres, no entre las 24 horas."
+              hint="El plan distribuye los avisos en los minutos libres de cada hora."
               value={settings.perHour}
               min={1}
               max={12}
@@ -663,13 +667,11 @@ export default function AnnouncementSettingsPanel() {
                     })}
                   </span>
                   <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DOT_TONE[outcome.tone]}`} />
-                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                    {outcome.label}
-                    {entry.playingPlaylist && (
-                      <span className="text-faint"> · {entry.playingPlaylist}</span>
-                    )}
-                  </span>
-                  {entry.outcome === 'played' && (
+                  <div className="min-w-0 flex-1 text-sm text-foreground">
+                    <p>{outcome.label}</p>
+                    {entry.detail && <p className="break-words text-xs text-muted-foreground">{entry.detail}</p>}
+                  </div>
+                  {(entry.outcome === 'played' || entry.outcome === 'streamed') && (
                     <CheckCircle2 className="size-3.5 shrink-0 text-success" />
                   )}
                   {entry.outcome === 'failed' && (

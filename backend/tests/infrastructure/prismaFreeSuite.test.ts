@@ -27,17 +27,20 @@ function testFiles(): string[] {
  * that asks for it runs, and the suite never calls those functions. A static
  * import, on the other hand, loads the module when the suite loads it.
  */
-function staticImports(file: string): string[] {
-  const source = ts.createSourceFile(
+function parseSource(file: string): ts.SourceFile {
+  return ts.createSourceFile(
     file,
     readFileSync(file, "utf8"),
     ts.ScriptTarget.Latest,
     true,
     ts.ScriptKind.TS,
   );
+}
+
+function staticImports(source: ts.SourceFile): string[] {
   const specifiers: string[] = [];
   const visit = (node: ts.Node): void => {
-    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+    if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly && ts.isStringLiteral(node.moduleSpecifier)) {
       specifiers.push(node.moduleSpecifier.text);
     }
     if (
@@ -63,20 +66,54 @@ function resolveSpecifier(specifier: string, from: string): string | null {
   return null;
 }
 
-/** Every file the suite loads, following the static imports from the tests. */
-function reachableFiles(): string[] {
-  const seen = new Set<string>();
-  const queue = testFiles();
-  while (queue.length > 0) {
-    const file = queue.pop();
-    if (file === undefined || seen.has(file)) continue;
-    seen.add(file);
-    for (const specifier of staticImports(file)) {
-      const target = resolveSpecifier(specifier, file);
-      if (target !== null) queue.push(target);
+/** Explicit Vitest mocks replace the module for imports reached from that test. */
+function mockedFiles(file: string, source: ts.SourceFile): Set<string> {
+  const mocked = new Set<string>();
+  for (const statement of source.statements) {
+    if (!ts.isExpressionStatement(statement) || !ts.isCallExpression(statement.expression)) continue;
+    const { expression, arguments: [moduleId, factory] } = statement.expression;
+    if (!ts.isPropertyAccessExpression(expression) || !ts.isIdentifier(expression.expression) ||
+      expression.expression.text !== "vi" || expression.name.text !== "mock" ||
+      !moduleId || !ts.isStringLiteral(moduleId) || !factory ||
+      (!ts.isArrowFunction(factory) && !ts.isFunctionExpression(factory))) continue;
+
+    const target = resolveSpecifier(moduleId.text, file);
+    if (target) mocked.add(target);
+  }
+  return mocked;
+}
+
+function reachableImports(): Array<{ file: string; specifier: string }> {
+  const imports: Array<{ file: string; specifier: string }> = [];
+  const parsed = new Map<string, ts.SourceFile>();
+
+  function sourceFor(file: string): ts.SourceFile {
+    const existing = parsed.get(file);
+    if (existing) return existing;
+    const source = parseSource(file);
+    parsed.set(file, source);
+    return source;
+  }
+
+  for (const root of testFiles()) {
+    const mocked = mockedFiles(root, sourceFor(root));
+    const seen = new Set<string>();
+    const queue = [root];
+
+    while (queue.length > 0) {
+      const file = queue.pop();
+      if (file === undefined || seen.has(file)) continue;
+      seen.add(file);
+      for (const specifier of staticImports(sourceFor(file))) {
+        const target = resolveSpecifier(specifier, file);
+        if (target && mocked.has(target)) continue;
+        imports.push({ file, specifier });
+        if (target) queue.push(target);
+      }
     }
   }
-  return [...seen];
+
+  return imports;
 }
 
 /**
@@ -88,14 +125,10 @@ function reachableFiles(): string[] {
 describe("the backend suite", () => {
   it("never loads the Prisma client", () => {
     const offenders: string[] = [];
-    for (const file of reachableFiles()) {
-      for (const specifier of staticImports(file)) {
-        if (
-          specifier === "@prisma/client" ||
-          specifier.replace(/\\/g, "/").endsWith("infrastructure/database/prisma")
-        ) {
-          offenders.push(`${file} -> ${specifier}`);
-        }
+    for (const { file, specifier } of reachableImports()) {
+      if (specifier === "@prisma/client" ||
+        specifier.replace(/\\/g, "/").endsWith("infrastructure/database/prisma")) {
+        offenders.push(`${file} -> ${specifier}`);
       }
     }
 
@@ -104,11 +137,9 @@ describe("the backend suite", () => {
 
   it("never loads the AzuraCast client", () => {
     const offenders: string[] = [];
-    for (const file of reachableFiles()) {
-      for (const specifier of staticImports(file)) {
-        if (specifier.replace(/\\/g, "/").endsWith("azuracast/azuracast.client")) {
-          offenders.push(`${file} -> ${specifier}`);
-        }
+    for (const { file, specifier } of reachableImports()) {
+      if (specifier.replace(/\\/g, "/").endsWith("azuracast/azuracast.client")) {
+        offenders.push(`${file} -> ${specifier}`);
       }
     }
 

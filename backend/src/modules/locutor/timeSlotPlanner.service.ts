@@ -1,5 +1,6 @@
 import { prisma } from "../../infrastructure/database/prisma";
-import { getTemplateForHour } from "./template.service";
+import { getTemplateForHour, renderAnnouncementTemplate } from "./template.service";
+import { resolveVoiceId } from "./tts/elevenLabs.provider";
 import { preferredProviderId } from "./tts.service";
 import {
   getStationDayStart,
@@ -87,12 +88,19 @@ async function findReusableAudio(hour: number, date: Date): Promise<string | und
   previousDate.setDate(previousDate.getDate() - 1);
 
   const template = await getTemplateForHour(hour);
+  const provider = preferredProviderId(template.voice);
+  const voice = provider === "elevenlabs" ? resolveVoiceId(template.voice) : template.voice;
+  const textRendered = renderAnnouncementTemplate(template, { hour24: hour, minutes: 0 });
 
   const candidates = await prisma.generatedAudio.findMany({
     where: {
       hourValue: hour,
       status: "ready",
-      provider: preferredProviderId(template.voice),
+      templateId: template.id,
+      provider,
+      voice: `${provider}:${voice}`,
+      textRendered,
+      generatedAt: { gte: template.updatedAt },
       OR: [{ lastUsedDate: { lt: previousDate } }, { lastUsedDate: null }],
     },
     orderBy: [{ useCount: "asc" }, { generatedAt: "desc" }],

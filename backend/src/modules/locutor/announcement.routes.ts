@@ -2,7 +2,8 @@ import { Router, type Request, type Response } from "express";
 import { prisma } from "../../infrastructure/database/prisma";
 import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { getSettings, toPublicSettings, updateSettings } from "./settings.service";
-import { buildPlan, getDayAnalysis, replanAnnouncements } from "./announcementPlan.service";
+import { buildPlan, getDayAnalysis } from "./announcementPlan.service";
+import { isFreeMinuteAt } from "./freeWindows.service";
 import { evaluateLiveState, fetchScheduledPlaylistNames } from "./liveState.service";
 import { rescheduleAnnouncements } from "./playback.job";
 import { logger } from "../../shared/logger/logger";
@@ -18,7 +19,7 @@ const router = Router();
 router.use(requireAuth, requirePermission("locutor"));
 
 function minuteToClock(minute: number): string {
-  const h = Math.floor(minute / 60) % 24;
+  const h = Math.floor(minute / 60);
   const m = minute % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
@@ -31,7 +32,17 @@ router.get("/settings", async (_req: Request, res: Response) => {
 
 /** Actualización parcial: solo toca los campos presentes en el cuerpo. */
 router.put("/settings", async (req: Request, res: Response) => {
-  const updated = await updateSettings(req.body ?? {});
+  const patch = req.body ?? {};
+  if (typeof patch !== "object" || Array.isArray(patch)) {
+    res.status(400).json({ error: "La configuración debe ser un objeto" });
+    return;
+  }
+
+  const updated = await updateSettings(patch);
+  if (["enabled", "timezone", "perHour", "minGapMinutes", "windowEdgeMarginMinutes", "minWindowMinutes"]
+    .some((key) => Object.prototype.hasOwnProperty.call(patch, key))) {
+    await rescheduleAnnouncements();
+  }
   res.json(toPublicSettings(updated));
 });
 
@@ -45,19 +56,27 @@ router.get("/live-state", async (_req: Request, res: Response) => {
     respectLiveStreamer: settings.respectLiveStreamer,
     respectScheduledPrograms: settings.respectScheduledPrograms,
   });
-  const analysis = await getDayAnalysis();
+  const now = new Date();
+  const analysis = await getDayAnalysis(now, settings);
+  const time = getStationTime(now, settings.timezone);
+  const minuteOfDay = time.hour * 60 + time.minute;
+  const outsideWindow = settings.respectScheduledPrograms && !isFreeMinuteAt(analysis, minuteOfDay);
 
   res.json({
-    wouldAnnounceNow: verdict.allowed,
-    reason: verdict.reason,
-    detail: verdict.detail,
+    wouldAnnounceNow: settings.enabled && verdict.allowed && !outsideWindow,
+    reason: verdict.allowed && outsideWindow ? (analysis.degraded ? "unknown" : "scheduled_program") : verdict.reason,
+    detail: settings.enabled
+      ? (verdict.allowed && outsideWindow
+        ? (analysis.degraded ? "No se pudo confirmar la programación" : "Fuera de una ventana libre de la programación")
+        : verdict.detail)
+      : "Avisos deshabilitados desde el panel",
     liveStreamer: verdict.liveStreamer,
     playingPlaylist: verdict.playingPlaylist,
-    degraded: verdict.degraded,
+    degraded: verdict.degraded || (settings.respectScheduledPrograms && analysis.degraded),
     scheduledProgram: analysis.currentProgram,
     stationTime: {
       dayKey: analysis.dayKey,
-      clock: minuteToClock(getStationTime().hour * 60 + getStationTime().minute),
+      clock: minuteToClock(minuteOfDay),
     },
   });
 });
@@ -119,7 +138,8 @@ router.get("/plan/preview", async (_req: Request, res: Response) => {
 /** Slots persistidos de un día, con su estado. */
 router.get("/plan/slots", async (req: Request, res: Response) => {
   const date = typeof req.query.date === "string" ? req.query.date.trim() : "";
-  const dayKey = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : getStationTime().dayKey;
+  const { timezone } = await getSettings();
+  const dayKey = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : getStationTime(new Date(), timezone).dayKey;
 
   const slots = await prisma.announcementSlot.findMany({
     where: { planDate: dayKey },
@@ -170,16 +190,15 @@ router.get("/run-log", async (req: Request, res: Response) => {
  * siguiente ciclo automático.
  */
 router.post("/plan/rebuild", async (_req: Request, res: Response) => {
-  const count = await replanAnnouncements();
-  const registered = await rescheduleAnnouncements();
+  const count = await rescheduleAnnouncements();
 
-  logger.info("AnnouncementAdmin", "Plan rebuilt manually", { persisted: count, registered });
+  logger.info("AnnouncementAdmin", "Plan rebuilt manually", { slotCount: count });
 
-  res.json({ persisted: count, registered });
+  res.json({ persisted: count, registered: count });
 });
 
 /** Alterna el sistema de avisos sin perder el plan ya calculado. */
-router.post("/toggle", async (req: Request, res: Response) => {
+router.post("/toggle", async (_req: Request, res: Response) => {
   const settings = await getSettings();
   const updated = await updateSettings({ enabled: !settings.enabled });
 

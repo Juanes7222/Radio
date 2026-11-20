@@ -1,433 +1,278 @@
-import cron, { type ScheduledTask } from "node-cron";
+import cron from "node-cron";
 import path from "path";
-import fs from "fs/promises";
+import { mkdtemp, readdir, rm } from "fs/promises";
+import { tmpdir } from "os";
+import type { AnnouncementSlot, Prisma } from "@prisma/client";
 import { prisma } from "../../infrastructure/database/prisma";
-import { renderTemplate, getTemplateForHour } from "./template.service";
-import { synthesize, padSilenceTail, mixWithBed } from "./tts.service";
-import { playFileAsLive, isOwnAnnouncementLive } from "./streamer.service";
-import { evaluateLiveState } from "./liveState.service";
-import { replanAnnouncements } from "./announcementPlan.service";
-import { getSettings } from "./settings.service";
+import { renderAnnouncementTemplate, getTemplateForHour } from "./template.service";
+import { synthesize, padSilenceTail, mixWithBed, type SynthesizeResult } from "./tts.service";
+import { playFileAsLive } from "./streamer.service";
+import { evaluateLiveState, type LiveVerdict } from "./liveState.service";
+import { getDayAnalysis, replanAnnouncements } from "./announcementPlan.service";
+import { getSettings, type AnnouncementSettings } from "./settings.service";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
 import { getStationTime } from "../../shared/utils/date";
 
-/**
- * Ejecución de los avisos de hora.
- *
- * El plan se limita a proponer slots. Cada slot se decide en vivo al momento
- * de ocurrir, y esa decisión es lo que permite cumplir la regla de no
- * interrumpir ningún programa cuando estos no respetan el horario: si una
- * predica termina antes de lo previsto, el estado en vivo deja pasar el aviso;
- * si se alarga, el aviso se difiere en lugar de emitirse encima.
- */
+const MINUTE_MS = 60_000;
+const SLOT_GRACE_MS = 90_000;
+const VOICE_LEAD_SECONDS = 0.8;
+const CONNECTION_ALLOWANCE_SECONDS = 5;
 
-const STREAM_RETRY_DELAY_MS = 1500;
-const REPLAN_INTERVAL_MINUTES = 15;
+let rescheduling: Promise<number> | undefined;
 
-let activeTasks: ScheduledTask[] = [];
-let planDateKey = "";
-let replanInterval: NodeJS.Timeout | null = null;
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function getDateKey(date: Date): string {
-  return getStationTime(date).dayKey;
+export async function rescheduleAnnouncements(): Promise<number> {
+  rescheduling ??= replanAnnouncements().finally(() => { rescheduling = undefined; });
+  return rescheduling;
 }
 
-function destroyActiveTasks(): void {
-  for (const task of activeTasks) {
-    task.destroy();
+export class AnnouncementBlockedError extends Error {
+  constructor(
+    readonly outcome: string,
+    detail: string,
+    readonly verdict?: LiveVerdict
+  ) {
+    super(detail);
   }
-  activeTasks = [];
 }
 
-/**
- * Reconstruye el plan y vuelve a registrar los cron de cada slot. Se llama al
- * arranque, al comenzar el día y de forma periódica, porque un programa que
- * termina antes de lo previsto libera horas que el plan anterior descartó.
- */
-export async function rescheduleAnnouncements(date: Date = new Date()): Promise<number> {
-  const settings = await getSettings();
-  const slotCount = await replanAnnouncements(date);
-
-  destroyActiveTasks();
-  planDateKey = getDateKey(new Date());
-
-  if (!settings.enabled || slotCount === 0) {
-    logger.info("PlaybackJob", "No announcement slots registered", {
-      enabled: settings.enabled,
-      slotCount,
-    });
-    return slotCount;
-  }
-
-  const slots = await prisma.announcementSlot.findMany({
-    where: { planDate: planDateKey, status: "pending" },
-    orderBy: { minuteOfDay: "asc" },
-  });
-
-  for (const slot of slots) {
-    const minute = slot.minuteOfDay;
-    const task = cron.schedule(
-      `${minute % 60} ${Math.floor(minute / 60)} * * *`,
-      () => {
-        runSlot(slot.id).catch((err) => {
-          logger.error("PlaybackJob", "Slot handler failed", {
-            slotId: slot.id,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        });
-      },
-      { timezone: settings.timezone }
-    );
-    activeTasks.push(task);
-  }
-
-  logger.info("PlaybackJob", "Announcement slots registered", {
-    planDate: planDateKey,
-    slotCount: slots.length,
-  });
-
-  return slots.length;
+interface PlayedAnnouncement extends SynthesizeResult {
+  hour: number;
+  minute: number;
+  text: string;
 }
 
-async function recordRun(
-  slotId: string | null,
-  outcome: string,
-  detail?: string,
-  extra?: { playingPlaylist?: string | null; liveStreamer?: string | null; durationMs?: number }
-): Promise<void> {
-  await prisma.announcementRunLog.create({
-    data: {
-      slotId,
-      outcome,
-      detail: detail ?? null,
-      playingPlaylist: extra?.playingPlaylist ?? null,
-      liveStreamer: extra?.liveStreamer ?? null,
-      durationMs: extra?.durationMs ?? null,
-    },
-  });
-}
-
-/**
- * Decide y ejecuta un slot. Si el estado en vivo impide emitir, el slot se
- * difiere y se reevalúa más adelante en lugar de perderse. Al agotar los
- * intentos queda registrado como descartado con su motivo, para que el operador
- * pueda ver por qué no sonó esa hora concreta.
- */
-async function runSlot(slotId: string): Promise<void> {
-  const settings = await getSettings();
-
-  if (!settings.enabled) {
-    await settleSlot(slotId, "skipped", "Deshabilitado desde el panel");
-    return;
-  }
-
-  const slot = await prisma.announcementSlot.findUnique({ where: { id: slotId } });
-  if (!slot || slot.status !== "pending" && slot.status !== "deferred") {
-    logger.info("PlaybackJob", "Slot already settled", { slotId, status: slot?.status });
-    return;
-  }
-
-  if (slot.planDate !== getDateKey(new Date())) {
-    await settleSlot(slotId, "skipped", "Plan de un día anterior");
-    return;
-  }
-
-  const verdict = await evaluateLiveState({
-    respectLiveStreamer: settings.respectLiveStreamer,
-    respectScheduledPrograms: settings.respectScheduledPrograms,
-  });
-
+async function assertLiveWindow(settings: AnnouncementSettings): Promise<void> {
+  const verdict = await evaluateLiveState(settings);
   if (!verdict.allowed) {
-    const nextRetry = slot.retryCount + 1;
-
-    await recordRun(slotId, `blocked_${verdict.reason}`, verdict.detail, {
-      playingPlaylist: verdict.playingPlaylist,
-      liveStreamer: verdict.liveStreamer,
-    });
-
-    if (verdict.reason === "unknown") {
-      // Un fallo de red no es motivo para convertir el slot en reintento: se
-      // descarta, porque no se puede afirmar que la ventana siga libre.
-      await settleSlot(slotId, "failed", verdict.detail);
-      return;
-    }
-
-    if (nextRetry > settings.maxRetries) {
-      await settleSlot(
-        slotId,
-        "skipped",
-        `${verdict.detail} (agotados ${settings.maxRetries} reintentos)`
-      );
-      return;
-    }
-
-    await prisma.announcementSlot.update({
-      where: { id: slotId },
-      data: {
-        status: "deferred",
-        reason: verdict.detail,
-        retryCount: nextRetry,
-      },
-    });
-
-    scheduleRetry(slotId, settings.retryIntervalMinutes * 60_000);
-    logger.info("PlaybackJob", "Slot deferred", {
-      slotId,
-      reason: verdict.reason,
-      retry: nextRetry,
-      ofMax: settings.maxRetries,
-    });
-    return;
-  }
-
-  const played = await generateAndPlayNow();
-  const outcome = played ? "played" : "failed";
-  const reason = played ? "Reproducido" : "No se pudo generar o reproducir el aviso";
-
-  // Only the blocked branch used to write to the bitácora, leaving it empty in the
-  // case that matters most: the notice was allowed out and never sounded.
-  await recordRun(slotId, outcome, reason);
-  await settleSlot(slotId, outcome, reason);
-}
-
-function scheduleRetry(slotId: string, delayMs: number): void {
-  setTimeout(() => {
-    runSlot(slotId).catch((err) => {
-      logger.error("PlaybackJob", "Deferred slot failed", {
-        slotId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    });
-  }, delayMs);
-}
-
-async function settleSlot(slotId: string, status: string, reason: string): Promise<void> {
-  await prisma.announcementSlot.update({
-    where: { id: slotId },
-    data: {
-      status,
-      reason,
-      settledAt: new Date(),
-      ...(status === "played" ? { playedAt: new Date() } : {}),
-    },
-  });
-}
-
-/**
- * Sintetiza el aviso, lo mezcla sobre una base instrumental y lo transmite por
- * el harbor de Liquidsoap como fuente en vivo.
- */
-async function generateAndPlayNow(): Promise<boolean> {
-  const now = getStationTime();
-  const currentHour = now.hour;
-  const currentMinute = now.minute;
-  const settings = await getSettings();
-
-  try {
-    const template = await getTemplateForHour(currentHour);
-
-    const renderedText = renderTemplate(template.textTemplate, {
-      hour24: currentHour,
-      minutes: currentMinute,
-    });
-
-    const filename = `hora_${String(currentHour).padStart(2, "0")}_${String(currentMinute).padStart(2, "0")}_${Date.now()}.mp3`;
-    const filepath = path.join(config.locutor.mediaDir, filename);
-
-    const synthesis = await synthesize({
-      text: renderedText,
-      voice: template.voice,
-      speed: template.speed,
-      outputPath: filepath,
-    });
-
-    logger.info("PlaybackJob", "Generated dynamic announcement", {
-      hour: currentHour,
-      minute: currentMinute,
-      text: renderedText,
-      provider: synthesis.provider,
-      durationMs: synthesis.durationMs,
-    });
-
-    const playablePath = await preparePlayableFile(filepath, synthesis.durationMs, settings);
-
-    await playFileWithRetry(playablePath);
-    await verifyLiveSwitchBack();
-
-    await fs.unlink(filepath).catch(() => {});
-    if (playablePath !== filepath) {
-      await fs.unlink(playablePath).catch(() => {});
-    }
-
-    logger.info("PlaybackJob", "Dynamic announcement played", {
-      hour: currentHour,
-      minute: currentMinute,
-    });
-
-    return true;
-  } catch (err) {
-    logger.error("PlaybackJob", "Failed to generate and play announcement", {
-      hour: currentHour,
-      minute: currentMinute,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return false;
+    throw new AnnouncementBlockedError(`blocked_${verdict.reason}`, verdict.detail, verdict);
   }
 }
 
-async function pickRandomBed(bedsDir: string): Promise<string | null> {
-  try {
-    const entries = await fs.readdir(bedsDir);
-    const beds = entries.filter((name) => /\.(mp3|ogg|m4a|wav)$/i.test(name));
-    if (beds.length === 0) return null;
-    return path.join(bedsDir, beds[Math.floor(Math.random() * beds.length)]);
-  } catch {
-    return null;
-  }
+async function pickRandomBed(bedsDir: string): Promise<string | undefined> {
+  const entries = await readdir(bedsDir, { withFileTypes: true }).catch(() => []);
+  const beds = entries.filter((entry) => entry.isFile() && /\.(mp3|ogg|m4a|wav)$/i.test(entry.name));
+  if (beds.length > 0) return path.join(bedsDir, beds[Math.floor(Math.random() * beds.length)].name);
 }
 
-/**
- * Prepara el archivo que se transmite: voz sobre una base aleatoria cuando hay
- * una disponible, o con silencio añadido al final en caso contrario.
- */
 async function preparePlayableFile(
-  filepath: string,
+  voicePath: string,
+  outputPath: string,
   durationMs: number,
-  settings: Awaited<ReturnType<typeof getSettings>>
-): Promise<string> {
-  const outputPath = path.join(
-    config.locutor.mediaDir,
-    `playable_${Date.now()}_${path.basename(filepath)}`
-  );
-
-  try {
-    const bedPath = await pickRandomBed(settings.bedsDir);
-
-    if (bedPath) {
+  settings: AnnouncementSettings
+): Promise<number> {
+  const tailSeconds = config.locutor.harborBufferSeconds + settings.trailingSilenceSeconds;
+  const bedPath = await pickRandomBed(settings.bedsDir);
+  if (bedPath) {
+    try {
       await mixWithBed({
-        voicePath: filepath,
+        voicePath,
         bedPath,
         outputPath,
         durationSeconds: durationMs / 1000,
         bedVolume: settings.bedVolume,
-        tailSeconds: settings.trailingSilenceSeconds,
+        tailSeconds,
+        leadSeconds: VOICE_LEAD_SECONDS,
       });
-      logger.info("PlaybackJob", "Mixed announcement with instrumental bed", { bedPath });
-      return outputPath;
+      return durationMs + (tailSeconds + VOICE_LEAD_SECONDS) * 1000;
+    } catch (error) {
+      logger.warn("PlaybackJob", "Could not mix the announcement bed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  await padSilenceTail(voicePath, outputPath, tailSeconds, VOICE_LEAD_SECONDS);
+  return durationMs + (tailSeconds + VOICE_LEAD_SECONDS) * 1000;
+}
+
+export async function playAnnouncement(
+  settings: AnnouncementSettings,
+  requestedHour?: number
+): Promise<PlayedAnnouncement> {
+  await assertLiveWindow(settings);
+
+  const directory = await mkdtemp(path.join(tmpdir(), "radio-locutor-"));
+  try {
+    const startedAt = new Date();
+    const stationTime = getStationTime(startedAt, settings.timezone);
+    const { minute } = stationTime;
+    const hour = requestedHour ?? stationTime.hour;
+    const template = await getTemplateForHour(hour, minute, stationTime);
+    const text = renderAnnouncementTemplate(template, { hour24: hour, minutes: minute }, stationTime);
+    const voicePath = path.join(directory, "voice.mp3");
+    const playablePath = path.join(directory, "announcement.mp3");
+    const minuteEndsAt = (Math.floor(startedAt.getTime() / MINUTE_MS) + 1) * MINUTE_MS;
+    const airDelayMs = (config.locutor.harborBufferSeconds + VOICE_LEAD_SECONDS + CONNECTION_ALLOWANCE_SECONDS) * 1000;
+    const synthesisBudgetMs = Math.min(42_000, minuteEndsAt - Date.now() - airDelayMs);
+
+    if (synthesisBudgetMs < 1000) {
+      throw new AnnouncementBlockedError("blocked_clock", "El minuto está por cambiar antes de locutar");
     }
 
-    await padSilenceTail(filepath, outputPath, settings.trailingSilenceSeconds);
-    logger.info("PlaybackJob", "No beds available, padded announcement with silence", {
-      bedsDir: settings.bedsDir,
+    const synthesis = await synthesize({
+      text,
+      voice: template.voice,
+      speed: template.speed,
+      outputPath: voicePath,
+      primarySignal: AbortSignal.timeout(Math.floor(synthesisBudgetMs * 0.65)),
+      signal: AbortSignal.timeout(synthesisBudgetMs),
     });
-    return outputPath;
-  } catch (err) {
-    logger.warn("PlaybackJob", "Failed to prepare playable file, playing raw", {
-      error: err instanceof Error ? err.message : String(err),
+    const durationMs = await preparePlayableFile(voicePath, playablePath, synthesis.durationMs, settings);
+
+    await playFileAsLive(playablePath, durationMs, async () => {
+      const checkedAt = new Date();
+      const latestSettings = await getSettings();
+      if (requestedHour === undefined && !latestSettings.enabled) {
+        throw new AnnouncementBlockedError("blocked_disabled", "Avisos deshabilitados desde el panel");
+      }
+
+      const analysis = latestSettings.respectScheduledPrograms
+        ? await getDayAnalysis(checkedAt, latestSettings)
+        : null;
+      await assertLiveWindow(latestSettings);
+      const readyAt = new Date();
+      if (analysis) {
+        if (analysis.degraded) {
+          throw new AnnouncementBlockedError("blocked_unknown", "No se pudo confirmar la programación antes de emitir");
+        }
+
+        const time = getStationTime(readyAt, latestSettings.timezone);
+        const minuteOfDay = time.hour * 60 + time.minute + (readyAt.getTime() % MINUTE_MS) / MINUTE_MS;
+        const endsAt = minuteOfDay + (durationMs / 1000 + CONNECTION_ALLOWANCE_SECONDS) / 60;
+        const fits = analysis.freeWindows.some((window) =>
+          minuteOfDay >= window.startMinute && endsAt <= window.endMinute
+        );
+        if (time.dayKey !== analysis.dayKey || !fits) {
+          throw new AnnouncementBlockedError("blocked_scheduled_program", "El aviso no cabe en una ventana libre de la programación");
+        }
+      }
+
+      if (latestSettings.timezone !== settings.timezone || readyAt.getTime() + airDelayMs >= minuteEndsAt) {
+        throw new AnnouncementBlockedError("blocked_clock", "La hora cambió durante la preparación del aviso");
+      }
     });
-    return filepath;
-  }
-}
 
-function isRetryableConnectionError(err: unknown): boolean {
-  const error = err as NodeJS.ErrnoException & { message?: string };
-  const code = error?.code ?? "";
-  const message = error?.message ?? "";
-  return (
-    ["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EPIPE"].includes(code) ||
-    /timeout|conexion rechazada/i.test(message)
-  );
-}
-
-async function playFileWithRetry(filePath: string): Promise<void> {
-  try {
-    await playFileAsLive(filePath);
-  } catch (firstErr) {
-    if (!isRetryableConnectionError(firstErr)) throw firstErr;
-
-    logger.warn("PlaybackJob", "Retrying announcement stream", {
-      error: firstErr instanceof Error ? firstErr.message : String(firstErr),
-    });
-    await sleep(STREAM_RETRY_DELAY_MS);
-    await playFileAsLive(filePath);
-  }
-}
-
-/**
- * Tras cerrar el socket, Liquidsoap debe volver al AutoDJ. Si el live se
- * queda activo hay que distinguir dos causas opuestas.
- *
- * El caso peligroso es que un humano haya conectado: la versión anterior
- * llamaba a disconnectLiveSource() sin mirar quién estaba al aire, y eso le
- * cortaba la señal a un DJ y le soltaba el backend. Ahora solo se desconecta
- * cuando el live sigue siendo el propio sistema de anuncios; si hay una
- * persona, el aviso se detiene y se avisa por log para que un humano lo corte
- * desde el panel.
- */
-async function verifyLiveSwitchBack(): Promise<void> {
-  const settleMs = 4000;
-
-  await sleep(settleMs);
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const live = await isOwnAnnouncementLive();
-    if (!live.active) return;
-    await sleep(settleMs);
-  }
-
-  const live = await isOwnAnnouncementLive();
-  if (!live.active) return;
-
-  if (live.humanStreamer) {
-    logger.error(
-      "PlaybackJob",
-      "Human streamer took over during the announcement, leaving the live source untouched",
-      { humanStreamer: live.humanStreamer }
-    );
-    return;
-  }
-
-  logger.warn("PlaybackJob", "Live switch stuck after announcement, disconnecting own source");
-  const { disconnectLiveSource } = await import("../azuracast/playback.service");
-  await disconnectLiveSource();
-}
-
-function startReplanLoop(): void {
-  if (replanInterval) clearInterval(replanInterval);
-  replanInterval = setInterval(() => {
-    rescheduleAnnouncements().catch((err) => {
-      logger.error("PlaybackJob", "Periodic reschedule failed", {
-        error: err instanceof Error ? err.message : String(err),
+    return { ...synthesis, hour, minute, text };
+  } finally {
+    await rm(directory, { recursive: true, force: true }).catch((error: unknown) => {
+      logger.warn("PlaybackJob", "Could not remove the temporary announcement", {
+        error: error instanceof Error ? error.message : String(error),
       });
     });
-  }, REPLAN_INTERVAL_MINUTES * 60_000);
+  }
+}
+
+async function runSlot(slot: AnnouncementSlot, settings: AnnouncementSettings): Promise<void> {
+  const claim = await prisma.announcementSlot.updateMany({
+    where: { id: slot.id, status: slot.status },
+    data: { status: "running", retryAt: new Date() },
+  });
+  if (claim.count === 0) return;
+
+  let outcome = "streamed";
+  let detail: string;
+  let slotUpdate: Prisma.AnnouncementSlotUpdateInput;
+  let verdict: LiveVerdict | undefined;
+  let durationMs: number | undefined;
+
+  try {
+    const cutoff = new Date(Date.now() - settings.minGapMinutes * MINUTE_MS);
+    const recent = await prisma.announcementSlot.findFirst({
+      where: { status: "played", playedAt: { gt: cutoff } },
+      select: { id: true },
+    });
+    if (recent) throw new AnnouncementBlockedError("blocked_gap", "Todavía no se cumple la separación mínima entre avisos");
+
+    const played = await playAnnouncement(settings);
+    durationMs = played.durationMs;
+    const clock = `${String(played.hour).padStart(2, "0")}:${String(played.minute).padStart(2, "0")}`;
+    const provider = played.provider === "elevenlabs" ? "ElevenLabs" : "Kokoro";
+    detail = `${clock} · ${provider} · ${played.text}`;
+    const now = new Date();
+    slotUpdate = { status: "played", playedAt: now, settledAt: now };
+  } catch (error) {
+    detail = error instanceof Error ? error.message : String(error);
+    if (error instanceof AnnouncementBlockedError) {
+      outcome = error.outcome;
+      verdict = error.verdict;
+      const retryAt = new Date(Date.now() + settings.retryIntervalMinutes * MINUTE_MS);
+      const canRetry = outcome !== "blocked_disabled" && slot.retryCount < settings.maxRetries &&
+        getStationTime(retryAt, settings.timezone).dayKey === slot.planDate;
+      slotUpdate = canRetry
+        ? { status: "deferred", retryAt, retryCount: { increment: 1 } }
+        : { status: "skipped", settledAt: new Date() };
+    } else {
+      outcome = "failed";
+      slotUpdate = { status: "failed", settledAt: new Date() };
+    }
+  }
+
+  await prisma.announcementSlot.update({
+    where: { id: slot.id },
+    data: {
+      ...slotUpdate,
+      reason: detail,
+      runs: { create: {
+        outcome,
+        detail,
+        durationMs,
+        playingPlaylist: verdict?.playingPlaylist,
+        liveStreamer: verdict?.liveStreamer,
+      } },
+    },
+  });
+}
+
+export async function runDueAnnouncements(now = new Date()): Promise<void> {
+  const settings = await getSettings();
+  if (!settings.enabled) return;
+
+  const { dayKey } = getStationTime(now, settings.timezone);
+  const cutoff = new Date(now.getTime() - SLOT_GRACE_MS);
+  const staleRunCutoff = new Date(now.getTime() - 5 * MINUTE_MS);
+  await prisma.announcementSlot.updateMany({
+    where: {
+      OR: [
+        { status: { in: ["pending", "deferred"] }, planDate: { lt: dayKey } },
+        { status: "pending", planDate: dayKey, plannedFor: { lt: cutoff } },
+        {
+          status: "running",
+          OR: [
+            { retryAt: { lt: staleRunCutoff } },
+            { retryAt: null, plannedFor: { lt: staleRunCutoff } },
+          ],
+        },
+      ],
+    },
+    data: { status: "skipped", reason: "Venció la ventana de ejecución del aviso", settledAt: now },
+  });
+
+  const slot = await prisma.announcementSlot.findFirst({
+    where: {
+      planDate: dayKey,
+      OR: [
+        { status: "pending", plannedFor: { gte: cutoff, lte: now } },
+        { status: "deferred", retryAt: { lte: now } },
+        { status: "deferred", retryAt: null, plannedFor: { lte: now } },
+      ],
+    },
+    orderBy: [{ retryAt: "asc" }, { plannedFor: "asc" }],
+  });
+
+  if (slot) await runSlot(slot, settings);
 }
 
 export function registerPlaybackJob(): void {
-  rescheduleAnnouncements().catch((err) => {
-    logger.error("PlaybackJob", "Initial reschedule failed", {
-      error: err instanceof Error ? err.message : String(err),
+  const reportError = (error: unknown): void => {
+    logger.error("PlaybackJob", "Announcement scheduler failed", {
+      error: error instanceof Error ? error.message : String(error),
     });
-  });
+  };
 
-  cron.schedule(
-    "1 0 * * *",
-    () => {
-      rescheduleAnnouncements().catch((err) => {
-        logger.error("PlaybackJob", "Daily reschedule failed", {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      });
-    },
-    { timezone: config.locutor.timezone }
-  );
-
-  startReplanLoop();
-
-  logger.info("PlaybackJob", "Announcement scheduler registered", {
-    replanIntervalMinutes: REPLAN_INTERVAL_MINUTES,
+  void rescheduleAnnouncements().catch(reportError);
+  cron.schedule("* * * * *", () => runDueAnnouncements().catch(reportError), { noOverlap: true });
+  cron.schedule("*/15 * * * *", () => rescheduleAnnouncements().then(() => {}).catch(reportError), {
+    noOverlap: true,
   });
 }

@@ -21,13 +21,14 @@ export const kokoroProvider: TtsProvider = {
     return true;
   },
 
-  async synthesize({ text, templateVoice, speed }: TtsSynthesisRequest): Promise<TtsProviderOutput> {
+  async synthesize({ text, templateVoice, speed, signal }: TtsSynthesisRequest): Promise<TtsProviderOutput> {
     try {
       const response = await axios.post(
         `${config.locutor.kokoroUrl}/v1/audio/speech`,
         { model: "kokoro", input: text, voice: templateVoice, speed, response_format: "mp3" },
         {
           responseType: "arraybuffer",
+          signal,
           timeout: config.locutor.tts.requestTimeoutMs,
         }
       );

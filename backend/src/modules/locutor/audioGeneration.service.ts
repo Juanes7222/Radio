@@ -1,8 +1,10 @@
 import path from "path";
-import { unlink } from "fs/promises";
+import { access, unlink } from "fs/promises";
+import { randomUUID } from "crypto";
 import { prisma } from "../../infrastructure/database/prisma";
 import { preferredProviderId, synthesize } from "./tts.service";
-import { getTemplateForHour, renderTemplate } from "./template.service";
+import { getTemplateForHour, renderAnnouncementTemplate } from "./template.service";
+import { resolveVoiceId } from "./tts/elevenLabs.provider";
 import { uploadAudioToAzuraCast } from "../azuracast/playback.service";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
@@ -40,6 +42,7 @@ interface ResolvedGenerationRequest extends GenerationRequest {
   template: AnnouncementTemplate;
   voice: string;
   speed: number;
+  renderedText: string;
 }
 
 /**
@@ -50,24 +53,32 @@ interface ResolvedGenerationRequest extends GenerationRequest {
  * same voice engine.
  */
 export async function generateOrReuseAudio(request: GenerationRequest): Promise<GenerationResult> {
-  const { hour, group } = request;
+  const { hour, group, minutes = 0 } = request;
 
   // The template is resolved first because its voice decides which engine would
   // answer, and that engine is part of the reuse key.
   const template = request.templateId
     ? await prisma.announcementTemplate.findUnique({ where: { id: request.templateId } })
-    : await getTemplateForHour(hour);
+    : await getTemplateForHour(hour, minutes);
 
   if (!template) {
     throw new Error(`Template ${request.templateId} not found`);
   }
 
-  const voice = request.voice || template.voice;
-  const speed = request.speed || template.speed;
+  const voice = request.voice ?? template.voice;
+  const speed = request.speed ?? template.speed;
   const provider = preferredProviderId(voice);
+  const recordedVoice = provider === "elevenlabs" ? resolveVoiceId(voice) : voice;
+  const renderedText = request.text ?? renderAnnouncementTemplate(template, {
+    hour24: hour,
+    minutes,
+    station_name: request.stationName,
+  });
 
-  const existing = await findReusableAudio(hour, group, template.id, provider);
-  if (existing) {
+  const existing = speed === template.speed && recordedVoice
+    ? await findReusableAudio(hour, group, template.id, provider, `${provider}:${recordedVoice}`, renderedText, template.updatedAt)
+    : null;
+  if (existing && await access(existing.filepath).then(() => true, () => false)) {
     logger.info("AudioGeneration", "Reusing existing audio", {
       audioId: existing.id,
       hour,
@@ -88,7 +99,7 @@ export async function generateOrReuseAudio(request: GenerationRequest): Promise<
     };
   }
 
-  return generateNewAudio({ ...request, template, voice, speed });
+  return generateNewAudio({ ...request, minutes, template, voice, speed, renderedText });
 }
 
 /**
@@ -98,7 +109,10 @@ async function findReusableAudio(
   hour: number,
   group: TimeSlotGroup,
   templateId: string,
-  provider: string
+  provider: string,
+  voice: string,
+  textRendered: string,
+  templateUpdatedAt: Date
 ) {
   const today = getStationDayStart();
 
@@ -108,6 +122,9 @@ async function findReusableAudio(
       timeSlotGroup: group,
       templateId,
       provider,
+      voice,
+      textRendered,
+      generatedAt: { gte: templateUpdatedAt },
       status: "ready",
       OR: [{ lastUsedDate: null }, { lastUsedDate: { lt: today } }],
     },
@@ -119,18 +136,8 @@ async function findReusableAudio(
  * Generates a new audio file using TTS.
  */
 async function generateNewAudio(request: ResolvedGenerationRequest): Promise<GenerationResult> {
-  const { template, hour, minutes, group, text, voice, speed } = request;
-  const templateId = template.id;
-
-  const minute = minutes !== undefined ? minutes : 0;
-  const renderedText =
-    text ||
-    renderTemplate(template.textTemplate, {
-      hour24: hour,
-      minutes: minute,
-    });
-
-  const filename = `hora_${String(hour).padStart(2, "0")}_${Date.now()}.mp3`;
+  const { template, hour, minutes = 0, group, renderedText, voice, speed } = request;
+  const filename = `hora_${String(hour).padStart(2, "0")}_${String(minutes).padStart(2, "0")}_${randomUUID()}.mp3`;
   const filepath = path.join(MEDIA_DIR, filename);
 
   const synthesis = await synthesize({
@@ -170,6 +177,7 @@ async function generateNewAudio(request: ResolvedGenerationRequest): Promise<Gen
   logger.info("AudioGeneration", "Generated new audio", {
     audioId: audio.id,
     hour,
+    minute: minutes,
     group,
     provider: synthesis.provider,
     durationMs: synthesis.durationMs,

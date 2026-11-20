@@ -9,6 +9,7 @@ export interface TtsSynthesisRequest {
    */
   templateVoice: string;
   speed: number;
+  signal?: AbortSignal;
 }
 
 export interface TtsProviderOutput {

@@ -68,27 +68,31 @@ const STATION_TIME_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   minute: "2-digit",
 };
 
-let stationTimeFormat: Intl.DateTimeFormat | null = null;
+const stationTimeFormats = new Map<string, Intl.DateTimeFormat>();
 
-function getStationTimeFormat(): Intl.DateTimeFormat {
-  if (stationTimeFormat) return stationTimeFormat;
+function getStationTimeFormat(timezone: string): Intl.DateTimeFormat {
+  const cached = stationTimeFormats.get(timezone);
+  if (cached) return cached;
+
+  let formatter: Intl.DateTimeFormat;
 
   try {
-    stationTimeFormat = new Intl.DateTimeFormat("en-CA", {
+    formatter = new Intl.DateTimeFormat("en-CA", {
       ...STATION_TIME_FORMAT_OPTIONS,
-      timeZone: config.locutor.timezone,
+      timeZone: timezone,
     });
   } catch {
     logger.warn("DateUtils", "Invalid TIMEZONE, falling back to UTC", {
-      timezone: config.locutor.timezone,
+      timezone,
     });
-    stationTimeFormat = new Intl.DateTimeFormat("en-CA", {
+    formatter = new Intl.DateTimeFormat("en-CA", {
       ...STATION_TIME_FORMAT_OPTIONS,
       timeZone: "UTC",
     });
   }
 
-  return stationTimeFormat;
+  stationTimeFormats.set(timezone, formatter);
+  return formatter;
 }
 
 function readPart(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes): number {
@@ -101,8 +105,8 @@ function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-export function getStationTime(date: Date = new Date()): StationTime {
-  const parts = getStationTimeFormat().formatToParts(date);
+export function getStationTime(date: Date = new Date(), timezone = config.locutor.timezone): StationTime {
+  const parts = getStationTimeFormat(timezone).formatToParts(date);
   const year = readPart(parts, "year");
   const month = readPart(parts, "month");
   const day = readPart(parts, "day");
@@ -123,8 +127,8 @@ export function getStationTime(date: Date = new Date()): StationTime {
 }
 
 /** Offset of the station time zone, in milliseconds, at the given instant. */
-function getStationOffsetMs(date: Date): number {
-  const parts = getStationTimeFormat().formatToParts(date);
+function getStationOffsetMs(date: Date, timezone: string): number {
+  const parts = getStationTimeFormat(timezone).formatToParts(date);
   const asUtc = Date.UTC(
     readPart(parts, "year"),
     readPart(parts, "month") - 1,
@@ -141,13 +145,13 @@ function getStationOffsetMs(date: Date): number {
  * canonical `scheduledDate` key so writers and readers agree on the day
  * regardless of the host time zone.
  */
-export function getStationDayStart(date: Date = new Date()): Date {
-  const { year, month, day } = getStationTime(date);
+export function getStationDayStart(date: Date = new Date(), timezone = config.locutor.timezone): Date {
+  const { year, month, day } = getStationTime(date, timezone);
   const utcMidnight = Date.UTC(year, month - 1, day);
 
   let result = new Date(utcMidnight);
   for (let attempt = 0; attempt < 2; attempt++) {
-    result = new Date(utcMidnight - getStationOffsetMs(result));
+    result = new Date(utcMidnight - getStationOffsetMs(result, timezone));
   }
 
   return result;

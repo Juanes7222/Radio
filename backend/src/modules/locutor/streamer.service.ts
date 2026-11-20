@@ -1,230 +1,159 @@
 import net from "net";
-import fs from "fs";
-import axios from "axios";
+import { spawn, type ChildProcess } from "child_process";
+import { randomBytes } from "crypto";
 import { config } from "../../config";
 import { logger } from "../../shared/logger/logger";
-import { STATION_ID } from "../azuracast/azuracast.client";
+import { azuracastApi, STATION_ID } from "../azuracast/azuracast.client";
+import { getSettings, updateSettings } from "./settings.service";
 
-const azApi = axios.create({
-  baseURL: `${config.azuracast.url}/api`,
-  headers: { "X-API-Key": config.azuracast.apiKey },
-});
-
-const HARBOR_HOST = config.locutor.harborHost;
-const HARBOR_PORT = config.locutor.harborPort;
-const MOUNT_POINT = config.locutor.mountPoint;
 const STREAMER_USERNAME = "avsisos_auto";
-const STREAM_TIMEOUT_MS = 30_000;
+const CONNECT_TIMEOUT_MS = 5_000;
+const REQUEST_TIMEOUT_MS = 8_000;
 
-let cachedCredentials: { username: string; password: string } | null = null;
+let playing = false;
 
-function generatePassword(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  for (let i = 0; i < 24; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
-
-interface StreamerDto {
-  id: number;
-  streamer_username: string;
-}
-
-export async function getOrCreateAnnouncementStreamer(): Promise<{
+interface StreamerCredentials {
   username: string;
   password: string;
-}> {
-  if (cachedCredentials) return cachedCredentials;
+}
 
-  if (config.locutor.streamerUser && config.locutor.streamerPassword) {
-    cachedCredentials = {
-      username: config.locutor.streamerUser,
-      password: config.locutor.streamerPassword,
-    };
-    return cachedCredentials;
+async function getOrCreateAnnouncementStreamer(): Promise<StreamerCredentials> {
+  const settings = await getSettings();
+  const username = settings.streamerUser || config.locutor.streamerUser;
+  const password = settings.streamerPassword || config.locutor.streamerPassword;
+
+  if (username && password) return { username, password };
+  if (username || password) {
+    throw new Error("Completa el usuario y la contraseña del locutor en el panel o en el entorno");
   }
 
-  const { data: streamers } = await azApi.get<StreamerDto[]>(`/station/${STATION_ID}/streamers`);
-  const existing = streamers.find((s) => s.streamer_username === STREAMER_USERNAME);
+  const endpoint = `/station/${STATION_ID}/streamers`;
+  const options = { timeout: REQUEST_TIMEOUT_MS };
+  const { data: streamers } = await azuracastApi.get<Array<{ streamer_username: string }>>(endpoint, options);
 
-  if (existing) {
+  if (streamers.some((streamer) => streamer.streamer_username === STREAMER_USERNAME)) {
     throw new Error(
-      'Streamer "avsisos_auto" already exists but no password is configured. ' +
-        "Define LOCUTOR_STREAMER_USER and LOCUTOR_STREAMER_PASSWORD in .env"
+      `El usuario ${STREAMER_USERNAME} ya existe en AzuraCast. Configura su contraseña en Locutor o en LOCUTOR_STREAMER_PASSWORD junto con LOCUTOR_STREAMER_USER.`
     );
   }
 
-  const password = generatePassword();
-  const { data } = await azApi.post<StreamerDto>(`/station/${STATION_ID}/streamers`, {
+  const generatedPassword = randomBytes(24).toString("hex");
+  await azuracastApi.post(endpoint, {
     streamer_username: STREAMER_USERNAME,
-    streamer_password: password,
-    display_name: config.locutor.stationName,
-    comments: "Automatic account for hourly announcements",
+    streamer_password: generatedPassword,
+    display_name: "Locutor automático",
+    comments: "Automatic account for time announcements",
     is_active: true,
     enforce_schedule: false,
-  });
+  }, options);
 
-  cachedCredentials = { username: STREAMER_USERNAME, password };
-
-  logger.info(
-    "LocutorStreamer",
-    `Streamer created: ${STREAMER_USERNAME} (ID ${data.id})`
-  );
-
-  return cachedCredentials;
+  await updateSettings({ streamerUser: STREAMER_USERNAME, streamerPassword: generatedPassword });
+  return { username: STREAMER_USERNAME, password: generatedPassword };
 }
 
-function streamMp3AsLive(username: string, password: string, filePath: string): Promise<void> {
+function streamMp3AsLive(
+  credentials: StreamerCredentials,
+  filePath: string,
+  durationMs: number
+): Promise<void> {
+  const { harborHost, harborPort, mountPoint } = config.locutor;
+  const authorization = Buffer.from(`${credentials.username}:${credentials.password}`).toString("base64");
+
   return new Promise((resolve, reject) => {
-    if (!fs.existsSync(filePath)) {
-      return reject(new Error(`File not found: ${filePath}`));
-    }
+    const socket = net.createConnection({ host: harborHost, port: harborPort, allowHalfOpen: true });
+    let encoder: ChildProcess | undefined;
+    let received = "";
+    let finished = false;
+    let streamTimeout: NodeJS.Timeout | undefined;
+    const connectTimeout = setTimeout(
+      () => finish(new Error(`Liquidsoap no aceptó la conexión en ${harborHost}:${harborPort}${mountPoint}`)),
+      CONNECT_TIMEOUT_MS
+    );
 
-    const fileSize = fs.statSync(filePath).size;
-    const readStream = fs.createReadStream(filePath);
-    const auth = Buffer.from(`${username}:${password}`).toString("base64");
-    const socket = new net.Socket();
-    let serverResponse = "";
-    let closed = false;
-
-    function finish(err?: Error) {
-      if (closed) return;
-      closed = true;
+    function finish(error?: Error): void {
+      if (finished) return;
+      finished = true;
+      clearTimeout(connectTimeout);
+      clearTimeout(streamTimeout);
       socket.destroy();
-      readStream.destroy();
-      if (err) reject(err);
+      if (encoder && encoder.exitCode === null) encoder.kill();
+      if (error) reject(error);
       else resolve();
     }
 
-    socket.connect(HARBOR_PORT, HARBOR_HOST, () => {
-      logger.info("LocutorStreamer", "Connected to harbor, sending headers");
-
-      const headers = [
-        `SOURCE ${MOUNT_POINT} HTTP/1.0`,
-        `Content-Type: audio/mpeg`,
-        `Authorization: Basic ${auth}`,
-        `Content-Length: ${fileSize}`,
-        `Ice-Public: 0`,
-        `Ice-Name: Automatic Locutor`,
-      ].join("\r\n");
-
-      socket.write(headers + "\r\n\r\n");
-
-      readStream.pipe(socket, { end: true });
-      logger.info("LocutorStreamer", "Streaming MP3...", { sizeBytes: fileSize });
+    socket.once("connect", () => {
+      socket.write([
+        `SOURCE ${mountPoint} HTTP/1.0`,
+        "Content-Type: audio/mpeg",
+        `Authorization: Basic ${authorization}`,
+        "Ice-Public: 0",
+        "Ice-Name: Locutor automatico",
+        "",
+        "",
+      ].join("\r\n"));
     });
 
-    socket.on("data", (data: Buffer) => {
-      const text = data.toString("utf8").trim();
-      serverResponse += text;
-      logger.info("LocutorStreamer", "Server response", { text });
-    });
+    socket.on("data", (chunk: Buffer) => {
+      if (encoder) return;
+      received += chunk.toString("utf8");
+      const lineEnd = received.indexOf("\n");
+      if (lineEnd === -1) {
+        if (received.length > 4096) finish(new Error("Respuesta inválida de Liquidsoap"));
+        return;
+      }
 
-    readStream.on("error", (err) => finish(err));
+      const status = received.slice(0, lineEnd).trim();
+      if (!/^HTTP\/\d\.\d 200(?:\s|$)/.test(status) && status !== "OK2") {
+        finish(new Error(`Liquidsoap rechazó la fuente en ${mountPoint}: ${status.slice(0, 100)}`));
+        return;
+      }
 
-    readStream.on("end", () => {
-      logger.info("LocutorStreamer", "File fully read, socket will close");
-    });
+      clearTimeout(connectTimeout);
+      streamTimeout = setTimeout(
+        () => finish(new Error("Liquidsoap no recibió el audio completo a tiempo")),
+        durationMs + CONNECT_TIMEOUT_MS
+      );
+      logger.info("LocutorStreamer", "Harbor accepted the announcement source", { mountPoint });
 
-    socket.on("close", () => {
-      logger.info("LocutorStreamer", "Connection closed", {
-        serverResponse: serverResponse.slice(0, 300) || "(empty)",
+      const ffmpeg = spawn("ffmpeg", [
+        "-nostdin", "-v", "error", "-re", "-i", filePath,
+        "-map", "0:a:0", "-c:a", "copy", "-write_xing", "0", "-f", "mp3", "pipe:1",
+      ], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+      encoder = ffmpeg;
+
+      ffmpeg.stdout.pipe(socket, { end: false });
+      ffmpeg.stdout.once("error", finish);
+      ffmpeg.once("error", finish);
+      ffmpeg.once("close", (code) => {
+        if (finished) return;
+        if (code !== 0) {
+          finish(new Error(`FFmpeg no pudo transmitir el aviso (código ${code ?? "desconocido"})`));
+          return;
+        }
+        socket.end(() => finish());
       });
-
-      if (closed) return;
-      closed = true;
-
-      if (serverResponse.includes("200") || serverResponse.includes("OK2")) {
-        resolve();
-      } else if (serverResponse.includes("401") || serverResponse.includes("403")) {
-        reject(new Error(`Authentication failed: ${serverResponse.slice(0, 200)}`));
-      } else if (serverResponse.includes("404")) {
-        reject(
-          new Error(
-            `Mount point "${MOUNT_POINT}" does not exist: ${serverResponse.slice(0, 200)}`
-          )
-        );
-      } else {
-        // Some Liquidsoap versions do not send any response; if the
-        // connection closed cleanly after piping, assume it worked.
-        resolve();
-      }
     });
 
-    socket.on("error", (err: NodeJS.ErrnoException) => {
-      logger.error("LocutorStreamer", "Socket error", {
-        error: err.message,
-        code: err.code,
-      });
-      if (closed) return;
-      closed = true;
-      readStream.destroy();
-      if (err.code === "ECONNREFUSED") {
-        reject(
-          new Error(
-            `Connection refused to ${HARBOR_HOST}:${HARBOR_PORT}. Check LIQUIDSOAP_HARBOR_PORT`
-          )
-        );
-      } else {
-        reject(err);
-      }
+    socket.once("end", () => finish(new Error("Liquidsoap cerró la conexión antes de terminar el aviso")));
+    socket.once("close", () => finish(new Error("Se cerró la conexión con Liquidsoap antes de terminar el aviso")));
+    socket.once("error", (error) => {
+      finish(new Error(`Conexión con Liquidsoap en ${harborHost}:${harborPort}${mountPoint}: ${error.message}`));
     });
-
-    const timeout = setTimeout(() => {
-      if (!closed) {
-        logger.warn("LocutorStreamer", "Timeout 30s", {
-          serverResponse: serverResponse.slice(0, 200) || "(empty)",
-        });
-        finish(new Error("Timeout: server did not respond within 30s"));
-      }
-    }, STREAM_TIMEOUT_MS);
-
-    socket.on("close", () => clearTimeout(timeout));
   });
 }
 
-export async function playFileAsLive(filePath: string): Promise<void> {
-  const creds = await getOrCreateAnnouncementStreamer();
-  logger.info("LocutorStreamer", "Using streamer", {
-    username: creds.username,
-  });
-  await streamMp3AsLive(creds.username, creds.password, filePath);
-}
-
-/**
- * Estado del live con el nombre de quien lo ocupa.
- *
- * La distinción importa porque el aviso y un DJ humano usan el mismo mount: si
- * el sistema no puede decir quién está al aire, su única reacción segura sería
- * asumir, y asumir mal significa cortar a una persona.
- */
-export interface LiveOwnership {
-  active: boolean;
-  humanStreamer: string | null;
-}
-
-export async function isOwnAnnouncementLive(): Promise<LiveOwnership> {
+export async function playFileAsLive(
+  filePath: string,
+  durationMs: number,
+  beforeConnect: () => Promise<void>
+): Promise<void> {
+  if (playing) throw new Error("Ya hay un aviso en curso");
+  playing = true;
   try {
-    const { data } = await azApi.get(`/nowplaying/${STATION_ID}`, { timeout: 8000 });
-    const active = data?.live?.is_live === true;
-    const name = typeof data?.live?.streamer_name === "string" ? data.live.streamer_name : null;
-
-    if (!active || name === null) {
-      return { active, humanStreamer: null };
-    }
-
-    const normalize = (value: string) => value.toLowerCase().trim();
-    const isOwn = normalize(name) === normalize(STREAMER_USERNAME);
-
-    return { active, humanStreamer: isOwn ? null : name };
-  } catch (err) {
-    logger.warn("LocutorStreamer", "Failed to read live ownership", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    // Ante la duda se considera que hay una persona al aire: cortar el stream
-    // de un DJ es mucho peor que dejar un aviso sin finalizar.
-    return { active: true, humanStreamer: "desconocido" };
+    const credentials = await getOrCreateAnnouncementStreamer();
+    await beforeConnect();
+    await streamMp3AsLive(credentials, filePath, durationMs);
+  } finally {
+    playing = false;
   }
 }

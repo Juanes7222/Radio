@@ -25,8 +25,7 @@ import {
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 /** Station day of year (1 = January 1st), used to rotate templates. */
-function getDayIndex(): number {
-  const { year, month, day } = getStationTime();
+function getDayIndex({ year, month, day }: ReturnType<typeof getStationTime>): number {
   const startOfYear = Date.UTC(year, 0, 0);
   return Math.round((Date.UTC(year, month - 1, day) - startOfYear) / DAY_IN_MS);
 }
@@ -39,17 +38,21 @@ function getDayIndex(): number {
  * and the planner need it, and the planner also needs the template voice to
  * know which voice engine would answer for that hour.
  */
-export async function getTemplateForHour(hour: number): Promise<AnnouncementTemplate> {
+export async function getTemplateForHour(
+  hour: number,
+  minute = 0,
+  stationTime = getStationTime()
+): Promise<AnnouncementTemplate> {
   const templates = await prisma.announcementTemplate.findMany({
     where: { type: "hourly", active: true },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
 
   if (templates.length === 0) {
     throw new Error("No active hourly templates found");
   }
 
-  const index = (hour + getDayIndex()) % templates.length;
+  const index = (hour + minute + getDayIndex(stationTime)) % templates.length;
   return templates[index];
 }
 
@@ -67,8 +70,11 @@ export interface RenderVariables {
  * from the resolved instant, so a template that uses them describes a real
  * clock reading instead of an hour with the minutes missing.
  */
-export function renderTemplate(template: string, variables: RenderVariables = {}): string {
-  const stationTime = getStationTime();
+export function renderTemplate(
+  template: string,
+  variables: RenderVariables = {},
+  stationTime = getStationTime()
+): string {
 
   const hour24 = resolveHour24(variables.hour24, stationTime.hour);
   const minutes = resolveMinutes(variables.minutes, stationTime.minute);
@@ -102,13 +108,38 @@ export function renderTemplate(template: string, variables: RenderVariables = {}
   }
 
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
-    const value = merged[key];
+    const value = Object.prototype.hasOwnProperty.call(merged, key) ? merged[key] : undefined;
     if (value === undefined || value === null) {
       logger.warn("TemplateService", "Unknown template variable", { key, template });
       return "";
     }
     return value;
   });
+}
+
+export function renderAnnouncementTemplate(
+  template: Pick<AnnouncementTemplate, "type" | "textTemplate">,
+  variables: RenderVariables = {},
+  stationTime = getStationTime()
+): string {
+  let text = template.textTemplate;
+  const hasFullTime = /\{\{(?:time_text|time_sentence|time_bare)\}\}/.test(text);
+  const hasMinute = /\{\{(?:minutes|minutes_text)\}\}/.test(text);
+  const hasHour = /\{\{(?:hour|hour24|hour_text)\}\}/.test(text);
+
+  if (template.type === "hourly" && !hasFullTime) {
+    if (hasHour && !hasMinute) {
+      text = text
+        .replace(/\b(son las|es la)\s+\{\{hour_text\}\}(?:\s+en punto)?/gi,
+          (phrase) => phrase[0] === phrase[0].toUpperCase() ? "{{time_sentence}}" : "{{time_text}}")
+        .replace(/\{\{(?:hour|hour24|hour_text)\}\}(?:\s+en punto)?(\s+\{\{period\}\})?/g,
+          "{{time_bare}}");
+    } else if (!hasHour) {
+      text = `${text.trim()} {{time_sentence}}.`;
+    }
+  }
+
+  return renderTemplate(text, variables, stationTime);
 }
 
 function resolveHour24(value: string | number | undefined, fallback: number): number {

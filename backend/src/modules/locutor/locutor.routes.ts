@@ -1,9 +1,11 @@
 import { Router } from "express";
 import path from "path";
+import { randomUUID } from "crypto";
 import { prisma } from "../../infrastructure/database/prisma";
 import { getTtsStatus, preferredProviderId, synthesize } from "./tts.service";
 import { refreshElevenLabsBalance } from "./tts/elevenLabs.provider";
-import { getTemplateForHour, renderTemplate } from "./template.service";
+import { renderAnnouncementTemplate, type RenderVariables } from "./template.service";
+import { getSettings } from "./settings.service";
 import { getAudioStats } from "./timeSlotPlanner.service";
 import {
   deleteGeneratedAudios,
@@ -12,7 +14,7 @@ import {
   scheduleAudioForDate,
 } from "./audioGeneration.service";
 import { uploadAudioToAzuraCast } from "../azuracast/playback.service";
-import { playFileAsLive } from "./streamer.service";
+import { AnnouncementBlockedError, playAnnouncement } from "./playback.job";
 import { runNightlyGeneration } from "./nightly.job";
 import { asyncHandler } from "../../shared/errors/async-handler";
 import { AppError } from "../../shared/errors/app-error";
@@ -193,7 +195,9 @@ router.post(
       throw new AppError(404, "Template not found");
     }
 
-    const customFilename = `custom_${Date.now()}.mp3`;
+    const { timezone } = await getSettings();
+    const time = getStationTime(new Date(), timezone);
+    const customFilename = `custom_${randomUUID()}.mp3`;
     const outputPath = path.join(MEDIA_DIR, customFilename);
 
     const audio = await prisma.generatedAudio.create({
@@ -208,12 +212,21 @@ router.post(
       },
     });
 
+    const input: unknown = req.body?.variables;
+    const variables: RenderVariables = {};
+    if (input && typeof input === "object" && !Array.isArray(input)) {
+      for (const [key, value] of Object.entries(input)) {
+        if (typeof value === "string" || typeof value === "number" && Number.isFinite(value)) {
+          variables[key] = value;
+        }
+      }
+    }
+
     res.status(202).json({ audioId: audio.id, message: "Generation started" });
 
-    // Background generation
     void (async () => {
       try {
-        const text = renderTemplate(template.textTemplate, req.body.variables || {});
+        const text = renderAnnouncementTemplate(template, variables, time);
         const synthesis = await synthesize({
           text,
           voice: template.voice,
@@ -372,26 +385,30 @@ router.get(
 router.post(
   "/generate-now/:hour",
   asyncHandler(async (req, res) => {
-    const hour = parseInt(String(req.params.hour), 10);
-    if (isNaN(hour) || hour < 0 || hour > 23) {
+    const rawHour = req.params.hour;
+    const hour = Number(rawHour);
+    if (typeof rawHour !== "string" || !/^\d{1,2}$/.test(rawHour) || hour > 23) {
       throw new AppError(400, "Invalid hour (0-23)");
     }
 
-    const result = await generateOrReuseAudio({
-      hour,
-      minutes: new Date().getMinutes(),
-      group: getGroupForHour(hour),
-    });
+    const requestedMinute: unknown = req.body?.minutes;
+    if (requestedMinute !== undefined &&
+      (typeof requestedMinute !== "number" || !Number.isInteger(requestedMinute) || requestedMinute < 0 || requestedMinute > 59)) {
+      throw new AppError(400, "El minuto debe estar entre 0 y 59");
+    }
 
-    const today = getStationDayStart();
+    const { timezone } = await getSettings();
+    const minutes = requestedMinute ?? getStationTime(new Date(), timezone).minute;
+    const result = await generateOrReuseAudio({ hour, minutes, group: getGroupForHour(hour) });
 
-    await scheduleAudioForDate(result.audioId, today, hour);
+    if (minutes === 0) await scheduleAudioForDate(result.audioId, getStationDayStart(), hour);
 
     res.json({
       success: true,
       audioId: result.audioId,
       filename: result.filename,
       hour,
+      minute: minutes,
       wasReused: result.wasReused,
       provider: result.provider,
       voice: result.voice,
@@ -400,57 +417,24 @@ router.post(
   })
 );
 
-// --- FORCE PLAYBACK NOW ---
-
 router.post(
   "/play-now/:hour",
   asyncHandler(async (req, res) => {
-    const hour = parseInt(String(req.params.hour), 10);
-    if (isNaN(hour) || hour < 0 || hour > 23) {
+    const rawHour = req.params.hour;
+    const hour = Number(rawHour);
+    if (typeof rawHour !== "string" || !/^\d{1,2}$/.test(rawHour) || hour > 23) {
       throw new AppError(400, "Invalid hour (0-23)");
     }
 
-    const now = new Date();
-    const minute = getStationTime(now).minute;
-
-    const template = await getTemplateForHour(hour);
-
-    const renderedText = renderTemplate(template.textTemplate, {
-      hour24: hour,
-      minutes: minute,
-    });
-
-    const filename = `hora_${String(hour).padStart(2, "0")}_${String(minute).padStart(2, "0")}_${now.getTime()}.mp3`;
-    const filepath = path.join(config.locutor.mediaDir, filename);
-
-    const synthesis = await synthesize({
-      text: renderedText,
-      voice: template.voice,
-      speed: template.speed,
-      outputPath: filepath,
-    });
-
     try {
-      await playFileAsLive(filepath);
-
-      res.json({
-        success: true,
-        hour,
-        minute,
-        text: renderedText,
-        provider: synthesis.provider,
-        voice: synthesis.voice,
-        durationMs: synthesis.durationMs,
-        file: filepath,
-        message: "Announcement generated and played via live streamer",
+      const played = await playAnnouncement(await getSettings(), hour);
+      res.json({ success: true, ...played, message: "Aviso enviado a Liquidsoap" });
+    } catch (error) {
+      if (error instanceof AnnouncementBlockedError) throw new AppError(409, error.message);
+      logger.error("LocutorRoutes", "Manual announcement failed", {
+        error: error instanceof Error ? error.message : String(error),
       });
-    } catch (err) {
-      throw new AppError(500, JSON.stringify({
-        success: false,
-        hour,
-        reason: "streamer_failed",
-        error: err instanceof Error ? err.message : String(err),
-      }));
+      throw new AppError(502, "No se pudo generar o enviar el aviso a Liquidsoap");
     }
   })
 );
@@ -517,21 +501,21 @@ router.post(
     const textTemplate = typeof req.body?.text_template === "string" ? req.body.text_template : "";
     const templateId = typeof req.body?.template_id === "string" ? req.body.template_id : null;
 
-    let template = textTemplate;
+    let template = { type: "hourly", textTemplate };
     if (templateId) {
       const found = await prisma.announcementTemplate.findUnique({ where: { id: templateId } });
       if (!found) throw new AppError(404, "Template not found");
-      template = found.textTemplate;
+      template = found;
     }
 
-    if (template.trim().length === 0) {
+    if (template.textTemplate.trim().length === 0) {
       throw new AppError(400, "Provide text_template or template_id");
     }
 
     res.json({
       samples: PREVIEW_SAMPLES.map((sample) => ({
         label: sample.label,
-        text: renderTemplate(template, {
+        text: renderAnnouncementTemplate(template, {
           hour24: sample.hour24,
           minutes: sample.minutes,
         }),

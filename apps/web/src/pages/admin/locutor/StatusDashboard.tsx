@@ -40,19 +40,22 @@ function engineLamp(status: LocutorStatus): string {
   if (tts.preferredProvider === 'elevenlabs' && tts.elevenLabs.availableKeys > 0) {
     return 'bg-success';
   }
-  if (tts.elevenLabs.configured) return 'bg-warning';
+  if (tts.elevenLabs.keys.length > 0) return 'bg-warning';
   return 'bg-faint/40';
 }
 
 function engineVerdict(status: LocutorStatus): string {
   const { tts } = status;
   if (tts.preferredProvider === 'elevenlabs' && tts.elevenLabs.availableKeys > 0) {
-    return 'ElevenLabs responde hoy';
+    return 'ElevenLabs tiene claves disponibles';
   }
   if (tts.elevenLabs.configured) {
-    return 'ElevenLabs sin keys: el motor de reserva Kokoro lleva la voz';
+    return 'ElevenLabs sin claves disponibles. Kokoro queda como respaldo.';
   }
-  return 'Kokoro responde hoy: sin API keys configuradas';
+  if (tts.elevenLabs.keys.length > 0) {
+    return 'Falta asociar una voz de ElevenLabs. Kokoro queda como respaldo.';
+  }
+  return 'Kokoro disponible como respaldo. Falta la clave de ElevenLabs.';
 }
 
 /**
