@@ -7,13 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ResponsiveTable } from '@/components/admin/ResponsiveTable';
 import {
   Select,
   SelectContent,
@@ -254,7 +254,10 @@ export default function AdminYouTube() {
           ) : visibleJobs.length === 0 ? (
             <p className="py-6 text-center text-sm text-faint">No hay jobs en este estado.</p>
           ) : (
-            <Table>
+            <ResponsiveTable
+              label="Jobs de procesamiento de YouTube"
+              columns={['Video', 'Estado', 'Intentos', 'Deadline', 'Siguiente reintento', 'Último error', 'Acción']}
+            >
               <TableHeader>
                 <TableRow>
                   <TableHead>Video</TableHead>
@@ -314,7 +317,7 @@ export default function AdminYouTube() {
                   );
                 })}
               </TableBody>
-            </Table>
+            </ResponsiveTable>
           )}
         </CardContent>
       </Card>
@@ -336,7 +339,10 @@ export default function AdminYouTube() {
           ) : workers.length === 0 ? (
             <p className="py-6 text-center text-sm text-faint">No hay workers registrados.</p>
           ) : (
-            <Table>
+            <ResponsiveTable
+              label="Workers conectados"
+              columns={['Nombre', 'Estado', 'Versión', 'Jobs activos', 'Máx. concurrentes', 'Último visto']}
+            >
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
@@ -359,7 +365,7 @@ export default function AdminYouTube() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </ResponsiveTable>
           )}
         </CardContent>
       </Card>

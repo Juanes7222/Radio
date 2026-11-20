@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ResponsiveTable } from '@/components/admin/ResponsiveTable';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -111,7 +111,10 @@ function ChangesTable({
           Todavía no hay cambios. Cada guardado desde el panel queda anotado aquí.
         </p>
       ) : (
-        <Table>
+        <ResponsiveTable
+          label="Historial de cambios de ajustes"
+          columns={['Ajuste', 'Antes', 'Ahora', 'Autor', 'Fecha']}
+        >
           <TableHeader>
             <TableRow>
               <TableHead>Ajuste</TableHead>
@@ -132,7 +135,7 @@ function ChangesTable({
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+        </ResponsiveTable>
       )}
     </section>
   );

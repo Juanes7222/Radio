@@ -28,6 +28,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
+import { SegmentedControl } from '@/components/admin/SegmentedControl';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import type { AdminPlaylist, MediaFile } from '@radio/types';
 import axios from 'axios';
@@ -135,6 +136,7 @@ export default function AdminUpload() {
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = (e: React.DragEvent) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); };
   const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files.length > 0) addToQueue(e.dataTransfer.files); };
+  const openPicker = () => (mode === 'folder' ? folderInputRef : fileInputRef).current?.click();
 
   const updateItem = (id: string, patch: Partial<QueueItem>) => setQueue((prev) => prev.map((item) => item.id === id ? { ...item, ...patch } : item));
 
@@ -277,26 +279,35 @@ export default function AdminUpload() {
       {/* Zona de selección */}
       <Card className="overflow-hidden">
         <CardContent className="space-y-5 p-5 sm:p-6">
-          {/* Segmented control */}
-          <div className="inline-flex rounded-full border border-border bg-sunken p-1">
-            <button type="button" onClick={() => setMode('files')} className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all active:scale-[0.97] ${mode === 'files' ? 'bg-card text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'}`}>
-              <Files className="h-3.5 w-3.5" /> Archivos
-            </button>
-            <button type="button" onClick={() => setMode('folder')} className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all active:scale-[0.97] ${mode === 'folder' ? 'bg-card text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'}`}>
-              <FolderTree className="h-3.5 w-3.5" /> Carpeta completa
-            </button>
-          </div>
+          <SegmentedControl
+            label="Modo de selección"
+            value={mode}
+            options={[
+              { value: 'files', label: 'Archivos' },
+              { value: 'folder', label: 'Carpeta completa' },
+            ]}
+            onChange={setMode}
+          />
 
           {/* Drop zone — cinta abierta */}
           <div
+            role="button"
+            tabIndex={0}
+            aria-label={mode === 'folder' ? 'Seleccionar una carpeta de audio' : 'Seleccionar archivos de audio'}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onClick={() => (mode === 'folder' ? folderInputRef : fileInputRef).current?.click()}
-            className={`group relative cursor-pointer select-none overflow-hidden rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200 ease-out-expo active:scale-[0.99] ${isDragging ? 'scale-[1.01] border-primary bg-primary/5' : 'border-border bg-sunken/50 hover:border-primary/30 hover:bg-card'}`}
+            onClick={openPicker}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openPicker();
+              }
+            }}
+            className={`group relative cursor-pointer select-none overflow-hidden rounded-2xl border-2 border-dashed p-8 text-center transition-[transform,border-color,background-color] duration-200 ease-out-expo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card active:scale-[0.99] ${isDragging ? 'scale-[1.01] border-primary bg-primary/5' : 'border-border bg-sunken/50 hover:border-primary/30 hover:bg-card'}`}
           >
-            <input ref={fileInputRef} type="file" accept="audio/*" multiple className="hidden" onChange={(e) => e.target.files && addToQueue(e.target.files)} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
-            <input ref={folderInputRef} type="file" accept="audio/*" multiple {...({ webkitdirectory: '' } as React.InputHTMLAttributes<HTMLInputElement>)} className="hidden" onChange={(e) => e.target.files && addToQueue(e.target.files)} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
+            <input ref={fileInputRef} type="file" accept="audio/*" multiple className="sr-only" tabIndex={-1} onChange={(e) => e.target.files && addToQueue(e.target.files)} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
+            <input ref={folderInputRef} type="file" accept="audio/*" multiple {...({ webkitdirectory: '' } as React.InputHTMLAttributes<HTMLInputElement>)} className="sr-only" tabIndex={-1} onChange={(e) => e.target.files && addToQueue(e.target.files)} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
             <div className="flex flex-col items-center gap-3">
               <span className={`grid h-12 w-12 place-items-center rounded-2xl border bg-card shadow-sm ring-1 ring-border transition-colors ${isDragging ? 'border-primary/30 bg-primary/10' : ''}`}>
                 {mode === 'folder' ? <FolderOpen className="h-6 w-6 text-primary" /> : <Upload className="h-6 w-6 text-primary" />}

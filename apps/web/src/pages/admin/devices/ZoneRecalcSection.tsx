@@ -10,7 +10,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ResponsiveTable } from '@/components/admin/ResponsiveTable';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import { toast } from 'sonner';
@@ -171,7 +172,10 @@ export default function ZoneRecalcSection({ onRecalc }: { onRecalc?: () => void 
             </div>
             {recalcResult.changes.length > 0 ? (
               <div className="overflow-hidden rounded-lg border border-border bg-card">
-                <Table>
+                <ResponsiveTable
+                  label="Recálculo de zonas horarias"
+                  columns={['Dispositivo', 'Antes', 'Después', 'Fuente']}
+                >
                   <TableHeader className="bg-sunken">
                     <TableRow className="border-border">
                       <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">Dispositivo</TableHead>
@@ -190,7 +194,7 @@ export default function ZoneRecalcSection({ onRecalc }: { onRecalc?: () => void 
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                </ResponsiveTable>
                 {recalcResult.changes.length > 20 && <p className="px-3 py-2 text-center font-mono text-xs text-faint">…y {recalcResult.changes.length - 20} más</p>}
               </div>
             ) : (

@@ -15,7 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ResponsiveTable } from '@/components/admin/ResponsiveTable';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AdminPagination } from '@/components/ui-custom/AdminPagination';
@@ -97,7 +98,10 @@ function PushHistoryTable({ logs, onSelect }: { logs: PushNotificationLog[]; onS
   if (logs.length === 0) return <p className="py-10 text-center text-sm text-faint">Aún no se han enviado notificaciones personalizadas.</p>;
   return (
     <div className="overflow-hidden rounded-xl border border-border">
-      <Table>
+      <ResponsiveTable
+        label="Historial de notificaciones push"
+        columns={['Fecha', 'Título', 'Audiencia', 'Env.', 'Fallos']}
+      >
         <TableHeader className="bg-sunken">
           <TableRow className="border-border hover:bg-sunken">
             <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">Fecha</TableHead>
@@ -131,7 +135,7 @@ function PushHistoryTable({ logs, onSelect }: { logs: PushNotificationLog[]; onS
             ))}
           </AnimatePresence>
         </TableBody>
-      </Table>
+      </ResponsiveTable>
     </div>
   );
 }

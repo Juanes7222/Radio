@@ -7,13 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ResponsiveTable } from '@/components/admin/ResponsiveTable';
 import {
   Select,
   SelectContent,
@@ -365,7 +365,10 @@ export default function AdminUsers() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <ResponsiveTable
+                label="Usuarios con acceso al panel"
+                columns={['Usuario', 'Rol', 'Permisos', 'Estado', 'Último acceso', 'Acciones']}
+              >
                 <TableHeader>
                   <TableRow>
                     <TableHead>Usuario</TableHead>
@@ -475,7 +478,7 @@ export default function AdminUsers() {
                     );
                   })}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </div>
           )}
         </CardContent>

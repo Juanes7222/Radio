@@ -4,13 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ResponsiveTable } from '@/components/admin/ResponsiveTable';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { formatChapters, stationDayKey } from '@/lib/format';
 import type { BibleReadingHistoryEntry } from '@radio/types';
@@ -186,7 +186,10 @@ export default function AdminReadingHistory() {
               No hay lecturas registradas en este período. Ejecuta una rotación bíblica para ver el historial.
             </p>
           ) : (
-            <Table>
+            <ResponsiveTable
+              label="Historial de lecturas bíblicas"
+              columns={['Fecha', 'Programa', 'Capítulos', 'Estado', 'Colocados']}
+            >
               <TableHeader>
                 <TableRow>
                   <TableHead>Fecha</TableHead>
@@ -225,7 +228,7 @@ export default function AdminReadingHistory() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </ResponsiveTable>
           )}
         </CardContent>
       </Card>

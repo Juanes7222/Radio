@@ -4,13 +4,13 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ResponsiveTable } from '@/components/admin/ResponsiveTable';
 import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -38,7 +38,7 @@ const UNPLAYABLE_STATUSES = new Set(['error', 'expired']);
 
 const PROVIDER_LABELS: Record<string, { label: string; color: string }> = {
   elevenlabs: { label: 'ElevenLabs', color: 'bg-success/10 text-success border-success/20' },
-  kokoro: { label: 'Kokoro', color: 'bg-info/10 text-info border-info/20' },
+  kokoro: { label: 'Kokoro', color: 'bg-warning/10 text-warning border-warning/30' },
 };
 
 /**
@@ -356,7 +356,11 @@ export default function AudioBank() {
           </p>
         )}
 
-        <Table>
+        <ResponsiveTable
+          label="Banco de audios generados"
+          columns={['', 'Archivo', 'Texto generado', 'Voz', 'Duración', 'Estado', 'Acciones']}
+          headerControls
+        >
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-11 pl-4">
@@ -499,7 +503,7 @@ export default function AudioBank() {
               })
             )}
           </TableBody>
-        </Table>
+        </ResponsiveTable>
       </div>
 
       {/* Fixed player bar. A docked native player keeps the table's column

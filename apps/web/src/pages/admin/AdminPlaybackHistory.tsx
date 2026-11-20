@@ -12,13 +12,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ResponsiveTable } from '@/components/admin/ResponsiveTable';
+import { SegmentedControl } from '@/components/admin/SegmentedControl';
 import { AdminPagination } from '@/components/ui-custom/AdminPagination';
 import { useAdminApi } from '@/hooks/useAdminApi';
 import { formatClock, stationDayKey } from '@/lib/format';
@@ -218,24 +219,18 @@ export default function AdminPlaybackHistory() {
 
       <Card className="border-border bg-muted/60">
         <CardContent className="p-4 flex flex-col gap-3 lg:flex-row lg:items-end">
-          <div className="flex gap-1 p-1 rounded-lg bg-card border border-border w-fit">
-            {(['log', 'audios'] as Tab[]).map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={tab === value}
-                onClick={() => {
-                  setTab(value);
-                  setPage(1);
-                }}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  tab === value ? 'bg-primary text-primary-foreground' : 'text-faint hover:text-foreground'
-                }`}
-              >
-                {value === 'log' ? 'Reproducciones' : 'Por audio'}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Vista del historial"
+            value={tab}
+            options={[
+              { value: 'log', label: 'Reproducciones' },
+              { value: 'audios', label: 'Por audio' },
+            ]}
+            onChange={(value) => {
+              setTab(value);
+              setPage(1);
+            }}
+          />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end flex-1">
             <label className="flex flex-col gap-1">
@@ -328,7 +323,11 @@ export default function AdminPlaybackHistory() {
             </CardTitle>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent
+          role="tabpanel"
+          aria-label={tab === 'log' ? 'Reproducciones' : 'Por audio'}
+          tabIndex={0}
+        >
           {loading ? (
             <div className="space-y-3">
               {[...Array(8)].map((_, index) => (
@@ -343,7 +342,10 @@ export default function AdminPlaybackHistory() {
               cada 5 minutos y conserva {MAX_WINDOW_DAYS} días.
             </p>
           ) : tab === 'log' ? (
-            <Table>
+            <ResponsiveTable
+              label="Historial de reproducciones"
+              columns={['Momento', 'Audio', 'Playlist', 'Duración']}
+            >
               <TableHeader>
                 <TableRow>
                   <TableHead>Momento</TableHead>
@@ -375,9 +377,12 @@ export default function AdminPlaybackHistory() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </ResponsiveTable>
           ) : (
-            <Table>
+            <ResponsiveTable
+              label="Historial de reproducciones por audio"
+              columns={['Audio', 'Reproducciones', 'Primera', 'Última']}
+            >
               <TableHeader>
                 <TableRow>
                   <TableHead>Audio</TableHead>
@@ -403,7 +408,7 @@ export default function AdminPlaybackHistory() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </ResponsiveTable>
           )}
 
           {!loading && total > 0 && (

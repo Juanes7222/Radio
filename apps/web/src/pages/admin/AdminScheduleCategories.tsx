@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAdminApi } from '@/hooks/useAdminApi';
+import { ConfirmDialog } from '@/components/ui-custom/ConfirmDialog';
+import { toast } from 'sonner';
 import type { ScheduleCategory } from '@radio/types';
 
 const ICON_OPTIONS: { value: string; label: string }[] = [
@@ -66,6 +68,7 @@ export default function AdminScheduleCategories() {
   const [actionId, setActionId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ScheduleCategory | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ScheduleCategory | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
@@ -156,11 +159,13 @@ export default function AdminScheduleCategories() {
   };
 
   const handleDelete = async (category: ScheduleCategory) => {
-    if (!confirm(`¿Eliminar la categoría "${category.name}"? Esta acción no se puede deshacer.`)) return;
     setActionId(category.id);
     try {
       await deleteScheduleCategory(category.id);
       await load();
+      setDeleteTarget(null);
+    } catch {
+      toast.error('No se pudo eliminar la categoría. Inténtalo de nuevo.');
     } finally {
       setActionId(null);
     }
@@ -387,7 +392,7 @@ export default function AdminScheduleCategories() {
                       size="icon"
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       disabled={actionId === category.id}
-                      onClick={() => handleDelete(category)}
+                      onClick={() => setDeleteTarget(category)}
                       title="Eliminar"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -399,6 +404,16 @@ export default function AdminScheduleCategories() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={deleteTarget ? `¿Eliminar la categoría "${deleteTarget.name}"?` : 'Eliminar categoría'}
+        description="Esta acción no se puede deshacer. Los programas que usen esta categoría dejarán de clasificarse automáticamente."
+        confirmLabel="Eliminar"
+        loading={deleteTarget !== null && actionId === deleteTarget.id}
+        onConfirm={() => { if (deleteTarget) void handleDelete(deleteTarget); }}
+      />
     </div>
   );
 }

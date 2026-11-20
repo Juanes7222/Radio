@@ -103,7 +103,7 @@ export default function AdminLogin() {
               disabled={isLoading}
               className={`flex items-center justify-center gap-3 w-full rounded-lg border px-6 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 isLoading ? 'pointer-events-none opacity-50' : ''
-              } bg-white text-slate-900 hover:bg-gray-100 border-gray-300`}
+              } google-signin`}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path

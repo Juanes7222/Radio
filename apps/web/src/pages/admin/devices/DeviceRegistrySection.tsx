@@ -14,7 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ResponsiveTable } from '@/components/admin/ResponsiveTable';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AdminPagination } from '@/components/ui-custom/AdminPagination';
 import { useAdminApi } from '@/hooks/useAdminApi';
@@ -237,7 +238,10 @@ export default function DeviceRegistrySection() {
           <p className="py-12 text-center text-sm text-faint">{program ? 'No hay dispositivos suscritos a ese programa.' : 'No hay dispositivos registrados todavía.'}</p>
         ) : (
           <div className="overflow-x-auto">
-            <Table>
+            <ResponsiveTable
+              label="Dispositivos registrados"
+              columns={['Dispositivo', 'Plataforma', 'App', 'Zona', 'Suscripciones', 'FCM', 'Visto']}
+            >
               <TableHeader className="bg-sunken/50">
                 <TableRow className="border-border hover:bg-sunken/50">
                   <TableHead className="font-mono text-[11px] uppercase tracking-widest text-faint">Dispositivo</TableHead>
@@ -271,7 +275,7 @@ export default function DeviceRegistrySection() {
                   ))}
                 </AnimatePresence>
               </TableBody>
-            </Table>
+            </ResponsiveTable>
           </div>
         )}
         {data && data.rows.length > 0 && <div className="border-t border-border p-3"><AdminPagination page={page} totalPages={totalPages} onPageChange={setPage} label={`${data.total} dispositivos · Página ${page} de ${Math.max(1, totalPages)}`} /></div>}
