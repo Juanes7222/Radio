@@ -1,0 +1,43 @@
+// Minimal product telemetry. It lives in the same SQLite database as the
+// devices so retention can be computed without an external analytics service,
+// and it deliberately stores no personal data: a device identifier, the app
+// version, the platform and the calendar day.
+
+// One row per device and station day. Keeping the day instead of a timestamp
+// makes the upsert idempotent and the retention query a plain set operation.
+model DeviceActivity {
+  id         String   @id @default(uuid())
+  // No relation on purpose: the app can report before the device is
+  // registered, and a telemetry ping must never fail because of a missing row.
+  deviceId   String   @map("device_id")
+  // Station calendar day, YYYY-MM-DD.
+  day        String
+  appVersion String?  @map("app_version")
+  platform   String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([deviceId, day])
+  @@index([day])
+  @@map("device_activity")
+}
+
+// Unhandled JavaScript failures, grouped by fingerprint instead of stored per
+// occurrence. Native crashes and ANRs are not visible from JavaScript and are
+// covered by Android Vitals in Play Console.
+model AppError {
+  id          String   @id @default(uuid())
+  fingerprint String   @unique
+  message     String
+  stack       String?
+  appVersion  String?  @map("app_version")
+  platform    String?
+  // Last device that reported this failure. Used for triage only, not as an
+  // identity: the same failure can come from several devices.
+  deviceId    String?  @map("device_id")
+  occurrences Int      @default(1)
+  firstSeenAt DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at")
+
+  @@index([lastSeenAt])
+  @@map("app_errors")
+}

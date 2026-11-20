@@ -36,7 +36,9 @@ pruebas de `dist/` fallen o se salten.
 | | `tests/artwork/` | Que el interruptor de portadas llegue a todas las superficies. |
 | `apps/mobile` | `tests/design/` | Paleta y contraste AA, tipografía, movimiento y motion reducido, haptics, objetivos de 48dp, estados de carga, copy en tuteo. |
 | | `tests/sse/` | Polyfill de SSE del now-playing. |
+| | `tests/telemetry/` | Día de estación del ping diario y deduplicación de errores por sesión. |
 | `backend` | `tests/settings/` | Caché, validación, servicio, rutas vistas y orden de arranque. |
+| | `tests/telemetry/` | Retención por cohortes, agrupación de fallos y SQL de la migración. |
 | | `tests/bible/`, `tests/catalog/` | Semilla y servicio del catálogo. |
 | | `tests/infrastructure/` | Que la suite pura nunca cargue el cliente Prisma. |
 | | `tests/shared/` | Utilidades puras: paginación, escape HTML, título desde nombre de archivo, slug. |

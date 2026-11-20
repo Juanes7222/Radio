@@ -26,6 +26,7 @@ import { ensureNotificationChannels, registerDevice, updateFCMToken } from '@/li
 import { NoticeOverlay } from '@/components/NoticeOverlay';
 import { PerfOverlay } from '@/components/PerfOverlay';
 import { initPerf, markStartupStage } from '@/lib/perf';
+import { installErrorReporting, reportAppOpen } from '@/lib/telemetryClient';
 import { StationEventSource } from '@/lib/ssePolyfill';
 
 // Polyfill global EventSource para useAzuraCast (packages/api usa EventSource global)
@@ -38,6 +39,8 @@ if (typeof globalThis.EventSource === 'undefined') {
 
 SplashScreen.preventAutoHideAsync();
 initPerf();
+// Installed before the first render so a failure during startup is reported.
+installErrorReporting();
 
 // registerPlaybackService debe ejecutarse una sola vez en toda la vida del proceso.
 // Fast Refresh re-ejecuta este módulo y sin guard provocaría
@@ -77,6 +80,9 @@ export default function RootLayout() {
         // Android needs the channel before the push token is fetched and before
         // the permission prompt can appear.
         await ensureNotificationChannels();
+        // Telemetry is independent of the first frame and the audio: it runs in
+        // the background and never delays the splash.
+        void reportAppOpen();
         // Device registration is not required for first frame or audio.
         // It runs in the background so slow networks or missing push
         // services never delay the splash. Failures retry on next cold

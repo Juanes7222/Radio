@@ -25,6 +25,8 @@ import prayerRouter from "./modules/prayer/prayer.routes";
 import feedbackRouter from "./modules/feedback/feedback.routes";
 import feedbackAdminRouter from "./modules/feedback/feedback.admin.routes";
 import devicesRouter from "./modules/devices/devices.routes";
+import { telemetryPublicRouter } from "./modules/telemetry/public.routes";
+import { telemetryAdminRouter } from "./modules/telemetry/admin.routes";
 import internalTestRouter from "./modules/internal/internalTest.routes";
 import scheduleCategoriesRouter from "./modules/schedule/category.routes";
 import programCatalogAdminRouter from "./modules/notifications/programCatalog.routes";
@@ -154,6 +156,8 @@ export function createApp(): Express {
   app.use("/api/notification-programs", programCatalogPublicRouter);
   app.use("/api/devices", devicesRouter);
   app.use("/admin-api/devices", devicesAdminRouter);
+  app.use("/api/telemetry", telemetryPublicRouter);
+  app.use("/admin-api/telemetry", telemetryAdminRouter);
   app.use("/admin-api/listeners", listenerHistoryRouter);
   app.use("/admin-api/rotations", rotationRouter);
   app.use("/admin-api/programs", programsRouter);
