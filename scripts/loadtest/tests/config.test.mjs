@@ -49,6 +49,20 @@ describe("loadConfig", () => {
     assert.throws(() => loadConfig(), /K6_ORIGIN_URL/);
   });
 
+  it("rejects IPv6 and private loopback addresses in origin mode", async () => {
+    process.env.K6_PATH = "origin";
+    const { loadConfig } = await import("../config.js");
+
+    process.env.K6_ORIGIN_URL = "http://[::1]:3000";
+    assert.throws(() => loadConfig(), /K6_ORIGIN_URL/);
+
+    process.env.K6_ORIGIN_URL = "http://192.168.1.10:3000";
+    assert.throws(() => loadConfig(), /K6_ORIGIN_URL/);
+
+    process.env.K6_ORIGIN_URL = "http://10.0.0.5:3000";
+    assert.throws(() => loadConfig(), /K6_ORIGIN_URL/);
+  });
+
   it("names the missing variable in the error", async () => {
     process.env.K6_PATH = "edge";
     delete process.env.K6_BASE_URL;

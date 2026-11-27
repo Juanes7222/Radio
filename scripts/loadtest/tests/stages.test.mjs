@@ -55,4 +55,15 @@ describe("buildEndpointThresholds", () => {
       "http_req_duration{endpoint:/api/schedule}": ["p(95)<2000"],
     });
   });
+
+  it("generates keys that the scenario tags actually emit", async () => {
+    const { PUBLIC_ENDPOINTS, endpointTags } = await import("../lib/endpoints.js");
+    const thresholds = buildEndpointThresholds(PUBLIC_ENDPOINTS);
+
+    for (const endpoint of PUBLIC_ENDPOINTS) {
+      const tags = endpointTags(endpoint);
+      assert.ok(`http_req_duration{endpoint:${tags.endpoint}}` in thresholds);
+      assert.equal(tags.name, endpoint.name);
+    }
+  });
 });

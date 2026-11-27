@@ -31,8 +31,10 @@ export default function () {
       surface: "admin",
     });
     check(response, {
-      [`${endpoint.name} is authorized`]: (result) =>
+      [`${endpoint.name} response is credible`]: (result) =>
         result.status === 200 || (config.path === "edge" && result.status === 429),
+      [`${endpoint.name} is not an auth failure`]: (result) =>
+        result.status !== 401 && result.status !== 403,
     });
   }
   sleep(2);

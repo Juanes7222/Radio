@@ -31,6 +31,16 @@ export const PUBLIC_ENDPOINTS = Object.freeze([
 ]);
 
 /**
+ * Tags an endpoint consistently with the per-endpoint threshold keys.
+ *
+ * @param {PublicEndpoint} endpoint
+ * @returns {{ endpoint: string, name: string }}
+ */
+export function endpointTags(endpoint) {
+  return { endpoint: endpoint.path.split("?")[0], name: endpoint.name };
+}
+
+/**
  * Unique Host per VU: the backend cache key includes Host/X-Forwarded-Host.
  *
  * @param {number} vuId

@@ -32,17 +32,20 @@ describe("buildWritePayload", () => {
 });
 
 describe("cleanup statements", () => {
-  it("deletes only rows carrying the marker", () => {
+  it("deletes only rows carrying the marker inside one transaction", () => {
     const statements = cleanupStatements("1795740799515");
-    assert.equal(statements.length, 3);
-    assert.match(statements[0], /DELETE FROM prayer_requests WHERE request LIKE '%1795740799515%';/);
-    assert.match(statements[1], /DELETE FROM feedback_messages WHERE mensaje LIKE '%1795740799515%';/);
-    assert.match(statements[2], /DELETE FROM devices WHERE deviceId LIKE 'k6-1795740799515%';/);
+    assert.equal(statements.length, 5);
+    assert.equal(statements[0], "BEGIN TRANSACTION;");
+    assert.match(statements[1], /DELETE FROM prayer_requests WHERE request LIKE '%1795740799515%';/);
+    assert.match(statements[2], /DELETE FROM feedback_messages WHERE mensaje LIKE '%1795740799515%';/);
+    assert.match(statements[3], /DELETE FROM devices WHERE deviceId LIKE 'k6-1795740799515%';/);
+    assert.equal(statements[4], "COMMIT;");
   });
 
   it("escapes a quote and rejects LIKE wildcards in the marker", () => {
     assert.equal(escapeSqlLiteral("o'brien"), "o''brien");
     assert.throws(() => cleanupStatements("100%"), /marker/);
+    assert.throws(() => cleanupStatements("100_1"), /marker/);
   });
 });
 

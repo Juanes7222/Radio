@@ -46,6 +46,7 @@ Capacity profiles take their VU budget exclusively from `--vus-max`
 | `K6_WORKER_SECRET` | Shared secret for worker endpoints. |
 | `K6_PANEL_SECRET` | Shared secret for `/panel-api`. Exported only in the operator's process, never written to disk. |
 | `K6_RTT_MEDIAN_MS` | Median RTT measured from the operator machine, printed in the correlation report. |
+| `K6_BASELINE_RESTARTS` | PM2 restart count observed before the window; restarts above it are reported as an event. |
 | `K6_EMAIL_CHECK_COMMAND` | Read-only command that prints the effective `PRAYER_EMAIL_RECIPIENTS` value; empty output allows writes. |
 
 `origin` needs a temporary firewall rule on the VPS that allows the

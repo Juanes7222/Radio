@@ -40,6 +40,22 @@ describe("parseK6Points", () => {
       "throttled_requests",
     ]);
   });
+
+  it("parses the RFC3339 timestamps that k6 actually emits", () => {
+    const points = parseK6Points([
+      '{"type":"Point","metric":"http_req_duration","data":{"time":"2026-11-26T12:00:00Z","value":100}}',
+    ]);
+
+    assert.equal(points[0].time, Date.parse("2026-11-26T12:00:00Z"));
+  });
+
+  it("drops points with an invalid timestamp", () => {
+    const points = parseK6Points([
+      '{"type":"Point","metric":"http_req_duration","data":{"time":"not-a-date","value":100}}',
+    ]);
+
+    assert.deepEqual(points, []);
+  });
 });
 
 describe(" correlate", () => {
@@ -71,6 +87,19 @@ describe(" correlate", () => {
     assert.equal(rows[0].restarts, 0);
     assert.equal(rows[1].p95Ms, 500);
     assert.equal(rows[1].restarts, 1);
+  });
+
+  it("captures generator evidence from iteration duration and dropped iterations", () => {
+    const points = parseK6Points([
+      point("http_req_duration", 1_000, 100),
+      point("iteration_duration", 1_100, 2500),
+      point("dropped_iterations", 1_200, 2),
+    ]);
+
+    const rows = correlate(points, []);
+
+    assert.equal(rows[0].iterationDurationMs, 2500);
+    assert.equal(rows[0].droppedIterations, 2);
   });
 });
 
@@ -105,13 +134,15 @@ describe("findSaturation", () => {
 describe("renderReport", () => {
   it("includes the RTT note and a table with both halves", () => {
     const rows = [
-      { minute: 0, p95Ms: 100, errorRate: 0, cpuPct: 30, memAvailablePct: 50, rps: 10, restarts: 0, stage: "0" },
+      { minute: 0, p95Ms: 100, errorRate: 0, cpuPct: 30, memAvailablePct: 50, rps: 10, restarts: 0, stage: "0", droppedIterations: 0, iterationDurationMs: 200 },
     ];
     const report = renderReport(rows, 42, { minute: 0, reason: "p95 > 2000 ms" });
 
     assert.match(report, /RTT/);
     assert.match(report, /\| p95 \(ms\) \| errors \| rps \|/);
     assert.match(report, /\| CPU % \| mem available % \| restarts \|/);
+    assert.match(report, /dropped iterations/);
+    assert.match(report, /iteration p95/);
     assert.match(report, /42 ms/);
     assert.match(report, /p95 > 2000 ms/);
   });

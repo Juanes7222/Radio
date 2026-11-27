@@ -81,8 +81,10 @@ $samples = 1..10 | ForEach-Object {
 $env:K6_RTT_MEDIAN_MS = [string][math]::Round((($samples[4] + $samples[5]) / 2) * 1000)
 ```
 
-`edge` incluye ese RTT; `origin` incluye solo el trayecto hasta el puerto
-directo, sin nginx. La mediana en milisegundos se usa al correlacionar.
+Ese número es el RTT de `edge`: incluye TLS y nginx. `origin` entra al puerto
+directo y no tiene una medición equivalente, así que el valor no se resta de la
+curva de `origin`; se reporta como contexto del camino `edge`. La mediana en
+milisegundos se usa al correlacionar.
 
 **7. Preparar la comprobación de correos.** En la VPS, volcar el valor efectivo
 que ve el proceso; con la variable vaciada el archivo queda vacío:
@@ -136,7 +138,11 @@ $env:K6_ORIGIN_URL = "http://<IP_PUBLICA_DE_LA_VPS>:<PUERTO_REAL>"
 $env:K6_WORKER_SECRET = "<valor-leido-de-Infisical>"
 $env:K6_PANEL_SECRET = "<valor-leido-de-Infisical>"
 $env:K6_ADMIN_TOKEN = "<stdout-del-comando-anterior>"
+$env:K6_BASELINE_RESTARTS = "<restarts-anotado-en-el-paso-3>"
 ```
+
+El token dura una hora. Si la ventana se acerca a ese tiempo, volver a ejecutar
+el comando de mint justo antes de los perfiles que usan el panel.
 
 `JWT_SECRET`, `WORKER_AUTH_SECRET` y `PANEL_SECRET` no se escriben en disco; los
 dos secretos de protocolo viajan como variables de entorno del proceso porque
@@ -167,16 +173,21 @@ $edgeMarker = (Select-String -Path reports/writes-edge.log -Pattern 'K6_MARKER=(
 $originMarker = (Select-String -Path reports/writes-origin.log -Pattern 'K6_MARKER=(\d+)').Matches[0].Groups[1].Value
 Remove-Item Env:K6_ALLOW_WRITES
 
-pnpm load:capacity --vus-max 800
-pnpm load:capacity:mixed --vus-max 800
+pnpm load:capacity --path origin --vus-max 800
+pnpm load:capacity:mixed --path origin --vus-max 800
 ```
 
+La capacidad se mide en `origin`: en `edge` el `limit_req` de nginx dominaría la
+curva y no diría nada del backend. Para comparar la forma de la curva con el
+limitador, ejecutar después, como medición separada y con otro nombre de
+reporte, `pnpm load:capacity --path edge --vus-max 800`.
+
 Si la curva de RPS sigue creciendo a 800 VUs en `origin`, repetir **los dos**
-perfiles de capacidad:
+perfiles de capacidad en `origin`:
 
 ```powershell
-pnpm load:capacity --vus-max 1600 --instances 2
-pnpm load:capacity:mixed --vus-max 1600 --instances 2
+pnpm load:capacity --path origin --vus-max 1600 --instances 2
+pnpm load:capacity:mixed --path origin --vus-max 1600 --instances 2
 ```
 
 Cada JSON lleva el id de instancia en el nombre (`-i1-`, `-i2-`);
@@ -222,8 +233,9 @@ sqlite3 /var/www/radio/backend/prisma/dev.db < <(node scripts/loadtest/lib/clean
 sqlite3 /var/www/radio/backend/prisma/dev.db < <(node scripts/loadtest/lib/cleanup.mjs <MARCEDGE>)
 ```
 
-Ejecutar las tres sentencias de cada marcador en una sola transacción. Verificar
-con tres consultas que queden cero filas:
+`cleanup.mjs` ya incluye `BEGIN TRANSACTION;` y `COMMIT;`, así que las tres
+sentencias de cada marcador se ejecutan de forma atómica. Verificar con tres
+consultas que queden cero filas:
 
 ```bash
 sqlite3 /var/www/radio/backend/prisma/dev.db "SELECT COUNT(*) FROM prayer_requests WHERE request LIKE '%<MARCADOR>%'; SELECT COUNT(*) FROM feedback_messages WHERE mensaje LIKE '%<MARCADOR>%'; SELECT COUNT(*) FROM devices WHERE deviceId LIKE 'k6-<MARCADOR>%';"
@@ -300,8 +312,10 @@ El primer escalón saturado es el primero en que ocurre cualquiera de: p95 >
 memoria disponible < 10 %, RPS sin crecer al subir de escalón, `restarts` por
 encima de la línea base, o iteraciones descartadas en el generador.
 
-Los umbrales iniciales (`p(95) < 1500` en `origin`, `< 1500` en `edge`,
-`http_req_failed < 0.01`) son punto de partida. Tras la primera referencia se
-recalibran con criterio y el cambio se registra aquí. Los `429` de `limit_req`
+Los umbrales iniciales implementados son `p(95) < 1500` en ambos caminos y
+`http_req_failed < 0.01`; el objetivo de `p(95) < 800` en `origin` que propone el
+plan queda como recalibración pendiente de la primera medición de referencia y
+debe registrarse aquí cuando se ajuste. Tras esa primera referencia los umbrales
+se recalibran con criterio. Los `429` de `limit_req`
 en `edge` son limitación de nginx, nunca fallo del backend: se excluyen del
 coste del backend y se reportan por separado.

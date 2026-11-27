@@ -7,7 +7,7 @@ import { requestWithTags } from "../lib/http.js";
 import { makeAdminHeaders, makeWorkerHeaders } from "../lib/auth.js";
 import { DEFAULT_THRESHOLDS, buildEndpointThresholds } from "../lib/thresholds.js";
 import { summarize } from "../lib/summary.js";
-import { PUBLIC_ENDPOINTS } from "../lib/endpoints.js";
+import { PUBLIC_ENDPOINTS, endpointTags } from "../lib/endpoints.js";
 import { buildStages, stageKindFor, GRACEFUL_RAMP_DOWN } from "../lib/stages.js";
 
 const config = loadConfig();
@@ -49,7 +49,7 @@ function callForIteration() {
     const endpoint = PUBLIC_ENDPOINTS[bucket % PUBLIC_ENDPOINTS.length];
     return {
       url: `${baseUrl}${endpoint.path}`,
-      tags: { path: config.path, endpoint: endpoint.name, surface: "public" },
+      tags: { path: config.path, ...endpointTags(endpoint), surface: "public" },
       expectedStatus: endpoint.expectedStatus,
       headers: {},
     };

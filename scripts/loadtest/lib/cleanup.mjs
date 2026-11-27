@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const MARKER_PATTERN = /^[A-Za-z0-9_-]+$/;
+const MARKER_PATTERN = /^[0-9]+$/;
 
 /**
  * @param {string} value
@@ -20,13 +20,15 @@ export function escapeSqlLiteral(value) {
  */
 export function cleanupStatements(marker) {
   if (!MARKER_PATTERN.test(marker)) {
-    throw new Error("marker must contain only letters, digits, '-' and '_'");
+    throw new Error("marker must contain only digits");
   }
   const value = escapeSqlLiteral(marker);
   return [
+    "BEGIN TRANSACTION;",
     `DELETE FROM prayer_requests WHERE request LIKE '%${value}%';`,
     `DELETE FROM feedback_messages WHERE mensaje LIKE '%${value}%';`,
     `DELETE FROM devices WHERE deviceId LIKE 'k6-${value}%';`,
+    "COMMIT;",
   ];
 }
 

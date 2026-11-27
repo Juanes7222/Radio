@@ -6,7 +6,7 @@ import { loadConfig } from "../config.js";
 import { requestWithTags } from "../lib/http.js";
 import { DEFAULT_THRESHOLDS, buildEndpointThresholds } from "../lib/thresholds.js";
 import { summarize } from "../lib/summary.js";
-import { PUBLIC_ENDPOINTS } from "../lib/endpoints.js";
+import { PUBLIC_ENDPOINTS, endpointTags } from "../lib/endpoints.js";
 import { buildStages, stageKindFor, GRACEFUL_RAMP_DOWN } from "../lib/stages.js";
 
 const config = loadConfig();
@@ -37,7 +37,7 @@ export default function () {
   const endpoint = PUBLIC_ENDPOINTS[__ITER % PUBLIC_ENDPOINTS.length];
   const response = requestWithTags(`${baseUrl}${endpoint.path}`, {}, {
     path: config.path,
-    endpoint: endpoint.name,
+    ...endpointTags(endpoint),
     surface: "public",
   });
   check(response, {

@@ -23,9 +23,14 @@ export function parseK6Points(input) {
     if (event.type !== "Point" || !event.data) {
       continue;
     }
+    const rawTime = event.data.time;
+    const time = typeof rawTime === "string" ? Date.parse(rawTime) : Number(rawTime);
+    if (!Number.isFinite(time)) {
+      continue;
+    }
     points.push({
       metric: String(event.metric),
-      time: Number(event.data.time),
+      time,
       value: Number(event.data.value),
       tags: event.data.tags ?? {},
     });
@@ -87,6 +92,7 @@ function average(values) {
  * @property {number} memAvailablePct
  * @property {number} restarts
  * @property {number} droppedIterations
+ * @property {number} iterationDurationMs
  */
 
 /**
@@ -108,12 +114,12 @@ export function correlate(points, samples) {
     return timestamp >= from && timestamp <= to;
   });
 
-  /** @type {Map<number, { durations: number[], failures: number[], requests: number, throttled: number, dropped: number, stage: string }>} */
+  /** @type {Map<number, { durations: number[], failures: number[], iterations: number[], requests: number, throttled: number, dropped: number, stage: string }>} */
   const buckets = new Map();
   for (const point of points) {
     const key = Math.floor(point.time / MINUTE_MS) * MINUTE_MS;
     if (!buckets.has(key)) {
-      buckets.set(key, { durations: [], failures: [], requests: 0, throttled: 0, dropped: 0, stage: "0" });
+      buckets.set(key, { durations: [], failures: [], iterations: [], requests: 0, throttled: 0, dropped: 0, stage: "0" });
     }
     const bucket = buckets.get(key);
     if (point.tags.stage !== undefined) {
@@ -126,6 +132,8 @@ export function correlate(points, samples) {
       bucket.failures.push(point.value);
     } else if (point.metric === "throttled_requests") {
       bucket.throttled += point.value;
+    } else if (point.metric === "iteration_duration") {
+      bucket.iterations.push(point.value);
     } else if (point.metric === "dropped_iterations") {
       bucket.dropped += point.value;
     }
@@ -146,6 +154,7 @@ export function correlate(points, samples) {
       memAvailablePct: average(matching.map((sample) => sample.mem_available_kb / sample.mem_total_kb)),
       restarts: matching.length === 0 ? 0 : Math.max(...matching.map((sample) => sample.restarts)),
       droppedIterations: bucket.dropped,
+      iterationDurationMs: percentile(bucket.iterations, 0.95),
     });
   }
   return rows;
@@ -203,12 +212,15 @@ export function renderReport(rows, rttMedianMs, saturation) {
       ? `Primer escalón saturado: minuto ${saturation.minute} (${saturation.reason}).`
       : "No se detectó saturación con los criterios configurados.",
     "",
-    "| minute | stage | p95 (ms) | errors | rps | CPU % | mem available % | restarts |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    "| minute | stage | p95 (ms) | errors | rps | CPU % | mem available % | restarts | dropped iterations | iteration p95 (ms) |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
   ];
   for (const row of rows) {
+    const minuteLabel = Number.isFinite(row.minute)
+      ? new Date(row.minute).toISOString()
+      : String(row.minute);
     lines.push(
-      `| ${new Date(row.minute).toISOString()} | ${row.stage} | ${row.p95Ms.toFixed(1)} | ${(row.errorRate * 100).toFixed(2)}% | ${row.rps.toFixed(2)} | ${row.cpuPct.toFixed(1)} | ${(row.memAvailablePct * 100).toFixed(1)}% | ${row.restarts} |`
+      `| ${minuteLabel} | ${row.stage} | ${row.p95Ms.toFixed(1)} | ${(row.errorRate * 100).toFixed(2)}% | ${row.rps.toFixed(2)} | ${row.cpuPct.toFixed(1)} | ${(row.memAvailablePct * 100).toFixed(1)}% | ${row.restarts} | ${row.droppedIterations ?? 0} | ${(row.iterationDurationMs ?? 0).toFixed(1)} |`
     );
   }
   return `${lines.join("\n")}\n`;

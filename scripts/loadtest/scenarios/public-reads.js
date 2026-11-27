@@ -8,6 +8,7 @@ import { summarize } from "../lib/summary.js";
 import {
   PUBLIC_ENDPOINTS,
   CACHE_TTL_SECONDS,
+  endpointTags,
   cacheTagFor,
   hostForVu,
   forwardedIpForVu,
@@ -47,7 +48,7 @@ function perVuHeaders() {
 function readEndpoint(endpoint, headers, cacheTag) {
   const response = requestWithTags(`${baseUrl}${endpoint.path}`, { headers }, {
     path: config.path,
-    endpoint: endpoint.name,
+    ...endpointTags(endpoint),
     cache: cacheTag,
   });
   check(response, {

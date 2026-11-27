@@ -10,7 +10,7 @@
  */
 
 const VALID_PATHS = /** @type {const} */ (["edge", "origin"]);
-const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "::", "0.0.0.0"]);
 
 /**
  * Reads one path's URL and refuses to run when that path is not configured.
@@ -34,8 +34,8 @@ export function loadConfig() {
   const value = process.env[variableName] ?? "";
   assertUsableUrl(value, variableName);
 
-  if (path === "origin" && LOOPBACK_HOSTS.has(new URL(value).hostname.toLowerCase())) {
-    throw new Error(`${variableName} must be the public IP of the VPS, not a loopback address`);
+  if (path === "origin" && isPrivateOrLoopback(new URL(value).hostname)) {
+    throw new Error(`${variableName} must be the public IP of the VPS, not a loopback or private address`);
   }
 
   return {
@@ -43,6 +43,30 @@ export function loadConfig() {
     originUrl: path === "origin" ? value : (process.env.K6_ORIGIN_URL ?? ""),
     path,
   };
+}
+
+/**
+ * @param {string} hostname
+ * @returns {boolean}
+ */
+function isPrivateOrLoopback(hostname) {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (LOOPBACK_HOSTS.has(host)) {
+    return true;
+  }
+  const octets = host.split(".").map(Number);
+  if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return false;
+  }
+  const [first, second] = octets;
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 169 && second === 254)
+  );
 }
 
 /**
