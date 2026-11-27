@@ -79,6 +79,7 @@ async function main() {
   mkdirSync("reports", { recursive: true });
 
   const instances = args.instances ?? 1;
+  process.env.K6_INSTANCES = String(instances);
   const timestamp = timestampNow();
   const children = [];
   let stopped = false;
