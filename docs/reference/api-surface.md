@@ -17,7 +17,7 @@ listener: no station credentials, no internal ids beyond what the client needs.
 | --- | --- | --- | --- |
 | GET | `/nowplaying` | public | Cached now-playing payload |
 | GET | `/search` | public | Library search for song requests |
-| GET | `/schedule` | public | Requires `start` and `end`; categories merged in |
+| GET | `/schedule` | public | Defaults `start`/`end` to the Bogotá dates for today and six days ahead (one week) |
 | GET | `/schedule/categories` | public | Cached category list |
 | GET | `/station/:stationId/art/:artId` | public | Tries three candidate art ids, `404` if none resolve |
 | POST | `/requests/:songId` | public | Proxies the request to AzuraCast |
@@ -29,7 +29,7 @@ listener: no station credentials, no internal ids beyond what the client needs.
 | --- | --- | --- | --- |
 | GET | `/api/bible/reading/today` | public | `null` when no rotation ran today |
 | GET | `/api/bible/translations` | public | Published translations only |
-| GET | `/api/bible/books` | public | Requires `translation` |
+| GET | `/api/bible/books` | public | Defaults `translation` to `RVR1960` |
 | GET | `/api/bible/chapters` | public | Requires book |
 | GET | `/api/bible/chapter` | public | Verses of one chapter |
 | GET | `/api/bible/search` | public | Full-text search |
@@ -47,10 +47,10 @@ listener: no station credentials, no internal ids beyond what the client needs.
 | PUT | `/api/prayer/:id` | JWT `prayer` | Answer and estado |
 | DELETE | `/api/prayer/:id` | JWT `prayer` | Delete one |
 | POST | `/api/feedback` | public | Validated; `consent: true` required |
-| GET | `/api/feedback` | JWT `feedback` | Paginated inbox with counts |
-| PUT | `/api/feedback/:id` | JWT `feedback` | Estado only |
-| POST | `/api/feedback/:id/read` | JWT `feedback` | Unread marker |
-| DELETE | `/api/feedback/:id` | JWT `feedback` | Delete |
+| GET | `/admin-api/feedback` | JWT `feedback` | Paginated inbox with counts |
+| PUT | `/admin-api/feedback/:id` | JWT `feedback` | Estado only |
+| POST | `/admin-api/feedback/:id/read` | JWT `feedback` | Unread marker |
+| DELETE | `/admin-api/feedback/:id` | JWT `feedback` | Delete |
 | POST | `/api/devices` | public | Registers `deviceId`, updates token and subscriptions |
 | PUT | `/api/devices/:deviceId/token` | deviceId | FCM token |
 | PUT | `/api/devices/:deviceId/subscriptions` | deviceId | Program subscriptions |
@@ -58,10 +58,12 @@ listener: no station credentials, no internal ids beyond what the client needs.
 | GET | `/api/notification-programs` | public | Programs the app offers as subscriptions |
 | GET | `/api/health/public` | public | `{ status, checkedAt }` only |
 
-Prayer and feedback admin endpoints share the public mount prefix. They are
+Prayer admin endpoints still share the public `/api/prayer` mount and are
 guarded per route, not by `router.use`, so a new public route added to the same
 file is not accidentally protected — and a new admin route is not accidentally
-open. Check the guard on the line you edit.
+open. Feedback admin endpoints live in their own `/admin-api/feedback` router,
+guarded with `router.use(requireAuth, requirePermission("feedback"))`. Check the
+guard on the line you edit.
 
 ## `/admin-api/auth`, `/admin-api/users`
 
@@ -82,7 +84,7 @@ Login is rate limited to 30 attempts per 10 minutes per IP.
 
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| GET | `/admin-api/nowplaying` | JWT `schedule` | Narrow passthrough for the panel status provider; station status itself is `/panel-api/status` |
+| GET | `/admin-api/nowplaying` | JWT only | Narrow passthrough for the panel status provider; no permission beyond authentication, and station status itself is `/panel-api/status` |
 | GET | `/admin-api/schedule-categories` | JWT `schedule.categories` | |
 | POST/PUT/DELETE | `/admin-api/schedule-categories[/:id]` | JWT `schedule.categories` | |
 | GET | `/admin-api/listeners/history` | JWT `dashboard` | Listener samples for the dashboard chart |
