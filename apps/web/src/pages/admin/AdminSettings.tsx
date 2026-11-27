@@ -342,7 +342,9 @@ export default function AdminSettings() {
         </Card>
       ) : (
         <div className='space-y-4'>
-          {sections.map((section) => (
+          {/* Mantenimiento tiene su propia página: un interruptor con
+              confirmación y una vista previa no caben en esta lista genérica. */}
+          {sections.filter((section) => section.id !== 'maintenance').map((section) => (
             <div key={section.id} className='space-y-4'>
               <SettingsSectionCard
                 section={section}

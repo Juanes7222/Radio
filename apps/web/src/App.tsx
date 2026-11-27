@@ -8,7 +8,6 @@ import {
 } from '@/components/ui-custom';
 import { useGlobalAudio } from '@/hooks/useGlobalAudio';
 import { getSocialLinksWithLiveStatus } from '@/utils/socialLinks';
-import MaintenancePage from '@/pages/MaintenancePage';
 
 const SongRequest = lazy(() => import('@/components/player/SongRequest').then(m => ({ default: m.SongRequest })));
 const NoticeOverlay = lazy(() => import('@/components/notices/NoticeOverlay').then(m => ({ default: m.NoticeOverlay })) );
@@ -39,11 +38,6 @@ function App() {
 
   const closeRequests = useCallback(() => setShowRequests(false), [setShowRequests]);
   const openRequests = useCallback(() => setShowRequests(true), [setShowRequests]);
-
-  const MAINTENANCE = import.meta.env.VITE_MAINTENANCE === 'true';
-  if (MAINTENANCE) {
-    return <MaintenancePage />;
-  }
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-background text-foreground selection:bg-primary selection:text-primary-foreground">

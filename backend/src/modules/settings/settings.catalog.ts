@@ -13,6 +13,52 @@ import type { SettingDefinition, SettingSectionId, SettingValue } from "./settin
  * message; a tolerant reader and a strict writer are two different jobs.
  */
 export const SETTINGS_CATALOG = {
+  "maintenance.enabled": {
+    key: "maintenance.enabled",
+    section: "maintenance",
+    label: "Modo mantenimiento",
+    description:
+      "Con esto activo, la web y la app muestran solo la pantalla de mantenimiento. El panel sigue funcionando para que puedas apagarlo.",
+    type: "boolean",
+    defaultValue: false,
+    envFallback: () => boolEnvOr("MAINTENANCE_MODE", false),
+    parse: parseBoolean,
+    format: String,
+  },
+  "maintenance.title": {
+    key: "maintenance.title",
+    section: "maintenance",
+    label: "Título de la pantalla",
+    description:
+      "Encabezado grande de la pantalla de mantenimiento. Debe poder leerse en una sola línea de pensamiento: qué está pasando.",
+    type: "text",
+    defaultValue: "Estamos afinando la señal",
+    parse: parseRequiredText,
+    format: String,
+  },
+  "maintenance.message": {
+    key: "maintenance.message",
+    section: "maintenance",
+    label: "Mensaje principal",
+    description:
+      "Texto que explica el mantenimiento. Dos o tres frases alcanzan; el oyente necesita saber que la emisora vuelve.",
+    type: "text",
+    defaultValue:
+      "Estamos realizando mejoras para brindarte una mejor experiencia de escucha. Volveremos pronto con la señal al aire. ¡Gracias por tu paciencia!",
+    parse: parseRequiredText,
+    format: String,
+  },
+  "maintenance.footerNote": {
+    key: "maintenance.footerNote",
+    section: "maintenance",
+    label: "Nota al pie",
+    description:
+      "Línea pequeña bajo el mensaje, por ejemplo dónde seguir las novedades. Déjala vacía para no mostrarla.",
+    type: "text",
+    defaultValue: "Si el problema persiste, contáctanos en redes sociales.",
+    parse: parseText,
+    format: String,
+  },
   "health.emailEnabled": {
     key: "health.emailEnabled",
     section: "health",
@@ -442,6 +488,11 @@ export const SETTING_SECTIONS: ReadonlyArray<{
   description: string;
 }> = [
   {
+    id: "maintenance",
+    label: "Mantenimiento",
+    description: "La pantalla que ve el oyente cuando la emisora está fuera de línea.",
+  },
+  {
     id: "identity",
     label: "Emisora",
     description: "Datos que cambian cómo se leen las horas del sistema.",
@@ -494,6 +545,17 @@ function parseProvider(raw: string): string {
 /** Texto sin recortar el contenido, salvo los espacios de los extremos. */
 function parseText(raw: string): string {
   return raw.trim();
+}
+
+/**
+ * A blank screen is a worse answer than the generic one, so the title and the
+ * message of the maintenance screen cannot be saved empty. The footer note is
+ * optional on purpose: an empty note means "do not render it".
+ */
+function parseRequiredText(raw: string): string {
+  const value = raw.trim();
+  if (!value) throw new Error(`Required text is empty: "${raw}"`);
+  return value;
 }
 
 /**

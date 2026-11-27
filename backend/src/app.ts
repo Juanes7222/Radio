@@ -44,6 +44,7 @@ import logsRouter from "./modules/systemLogs/logs.routes";
 import systemJobsRouter from "./modules/systemJobs/systemJobs.routes";
 import backupsRouter from "./modules/backups/backups.routes";
 import playbackRouter from "./modules/playback/playback.routes";
+import maintenanceRouter from "./modules/maintenance/maintenance.routes";
 import { healthAdminRouter, healthPublicRouter } from "./modules/health/health.routes";
 import { settingsRouter } from "./modules/settings/settings.routes";
 import { voiceKeysRouter } from "./modules/settings/voiceKeys.routes";
@@ -130,6 +131,7 @@ export function createApp(): Express {
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
   app.use("/api", publicRouter);
+  app.use("/api/maintenance", maintenanceRouter);
   app.use("/admin-api/auth", authRouter);
   app.use("/admin-api/users", usersRouter);
   app.use("/admin-api/djs", djRouter);

@@ -12,6 +12,7 @@ import App from './App.tsx'
 import { AdminAuthProvider } from './hooks/index.ts'
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext.tsx'
 import { PublicLayout } from './components/layout/PublicLayout.tsx'
+import { MaintenanceGate } from './components/layout/MaintenanceGate.tsx'
 import { Toaster } from './components/ui/sonner.tsx'
 import { RouteFallback } from './components/RouteFallback.tsx'
 
@@ -55,6 +56,7 @@ const AdminUsers = lazy(() => import('./pages/admin/AdminUsers.tsx'))
 const AdminBackups = lazy(() => import('./pages/admin/AdminBackups.tsx'))
 const AdminHealth = lazy(() => import('./pages/admin/AdminHealth.tsx'))
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings.tsx'))
+const AdminMaintenance = lazy(() => import('./pages/admin/AdminMaintenance.tsx'))
 const AdminPlaybackHistory = lazy(() => import('./pages/admin/AdminPlaybackHistory.tsx'))
 const AdminLive = lazy(() => import('./pages/admin/AdminLive.tsx'))
 
@@ -68,8 +70,10 @@ createRoot(document.getElementById('root')!).render(
               <Toaster richColors position="bottom-center" />
               <Suspense fallback={<RouteFallback />}>
                 <Routes>
-                {/* Rutas Publicas con Layout (incluye MiniPlayer) */}
-                <Route element={<PublicLayout />}>
+                {/* Rutas Publicas con Layout (incluye MiniPlayer). El gate
+                    antecede al layout: durante un mantenimiento no se monta ni
+                    el reproductor ni la navegación. */}
+                <Route element={<MaintenanceGate><PublicLayout /></MaintenanceGate>}>
                   <Route path="/" element={<App />} />
                   <Route path="/programacion" element={<ProgramacionPage />} />
                   <Route path="/opiniones" element={<OpinionesPage />} />
@@ -116,6 +120,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="backups" element={<AdminBackups />} />
                   <Route path="health" element={<AdminHealth />} />
                   <Route path="settings" element={<AdminSettings />} />
+                  <Route path="maintenance" element={<AdminMaintenance />} />
                   <Route path="playback-history" element={<AdminPlaybackHistory />} />
                   <Route path="users" element={<AdminUsers />} />
                 </Route>

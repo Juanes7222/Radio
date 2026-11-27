@@ -3,6 +3,8 @@ export type { UseAzuraCastProps, UseAzuraCastReturn, SongRequestResult } from '.
 export { mergeConsecutiveScheduleItems } from './schedule';
 export { fetchBibleSearch, isBibleSearchResponse, splitBibleText } from './bible';
 export type { BibleTextSegment } from './bible';
+export { fetchMaintenanceStatus, isMaintenanceStatus } from './maintenance';
+export type { MaintenanceCheck } from './maintenance';
 export {
   fetchRequestableSongs,
   fetchSchedule,

@@ -2,7 +2,26 @@ import { motion } from 'framer-motion';
 import { AppFooter } from '@/components/ui-custom';
 import { Radio, AlertCircle } from 'lucide-react';
 
-export default function MaintenancePage() {
+export interface MaintenancePageProps {
+  title: string;
+  message: string;
+  /** The small line under the message. An empty note is not rendered. */
+  footerNote: string;
+  stationName?: string;
+}
+
+/**
+ * The whole public site while the station is offline. The copy comes from the
+ * settings catalog, so the operator can change it from the panel without a
+ * deploy; the layout and the motion are the existing design and stay fixed.
+ */
+export default function MaintenancePage({
+  title,
+  message,
+  footerNote,
+  stationName = 'La Voz de la Verdad',
+}: MaintenancePageProps) {
+  const note = footerNote.trim();
 
   return (
     <div className="min-h-[100dvh] flex flex-col font-sans overflow-x-hidden transition-colors duration-300 bg-background text-foreground selection:bg-primary/30">
@@ -59,10 +78,9 @@ export default function MaintenancePage() {
             aria-hidden="true" 
           />
 
-          <h1 className="font-display text-[2rem] md:text-[2.25rem] font-normal tracking-tight leading-[1.15] mb-4 text-foreground">
-            Estamos afinando<br />
+          <h1 className="font-display text-[2rem] md:text-[2.25rem] font-normal tracking-tight leading-[1.15] mb-4 text-balance">
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-foreground via-primary to-foreground">
-              la señal
+              {title}
             </span>
           </h1>
 
@@ -83,21 +101,22 @@ export default function MaintenancePage() {
             ))}
           </div>
 
-          <p className="text-base leading-relaxed max-w-[44ch] mx-auto mb-8 text-muted-foreground">
-            Estamos realizando mejoras para brindarte una mejor experiencia de escucha.
-            Volveremos pronto con la señal al aire. ¡Gracias por tu paciencia!
+          <p className="text-base leading-relaxed max-w-[44ch] mx-auto text-balance text-muted-foreground">
+            {message}
           </p>
 
-          <p className="flex items-center justify-center gap-2 text-xs opacity-80 text-muted-foreground">
-            <AlertCircle size={14} strokeWidth={2} aria-hidden="true" />
-            Si el problema persiste, contáctanos en redes sociales.
-          </p>
+          {note && (
+            <p className="mt-8 flex items-center justify-center gap-2 text-xs opacity-80 text-muted-foreground">
+              <AlertCircle size={14} strokeWidth={2} aria-hidden="true" />
+              {note}
+            </p>
+          )}
 
         </motion.article>
       </main>
 
       <div className="relative z-10 border-t border-border/50 mt-auto">
-        <AppFooter stationName="La Voz de la Verdad" />
+        <AppFooter stationName={stationName} />
       </div>
     </div>
   );

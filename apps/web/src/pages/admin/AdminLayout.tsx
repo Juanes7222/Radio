@@ -27,6 +27,7 @@ MessageSquare,
   Cog,
   DatabaseBackup,
   Settings,
+  Wrench,
   Users,
   HeartPulse,
   History,
@@ -102,6 +103,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Ajustes',
     items: [
+      { to: '/admin/maintenance', label: 'Mantenimiento', icon: Wrench, permission: 'settings' },
       { to: '/admin/settings', label: 'Ajustes', icon: Settings, permission: 'settings' },
     ],
   },

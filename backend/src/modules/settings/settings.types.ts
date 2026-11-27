@@ -1,6 +1,7 @@
 export type SettingFieldType = "number" | "boolean" | "text" | "emailList";
 
 export type SettingSectionId =
+  | "maintenance"
   | "identity"
   | "health"
   | "announcements"

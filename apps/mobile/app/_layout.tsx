@@ -5,7 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StyleSheet } from 'react-native';
+import { AppState, StyleSheet } from 'react-native';
 import TrackPlayer from 'react-native-track-player';
 import { useFonts, Fraunces_600SemiBold, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
 import {
@@ -24,6 +24,10 @@ import { PrayerAnswersProvider } from '@/hooks/usePrayerAnswers';
 import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
 import { ensureNotificationChannels, registerDevice, updateFCMToken } from '@/lib/device';
 import { NoticeOverlay } from '@/components/NoticeOverlay';
+import { MaintenanceScreen } from '@/components/MaintenanceScreen';
+import { fetchMaintenanceStatus } from '@radio/api';
+import { BACKEND_URL } from '@/constants/api';
+import type { MaintenanceStatus } from '@radio/types';
 import { PerfOverlay } from '@/components/PerfOverlay';
 import { initPerf, markStartupStage } from '@/lib/perf';
 import { installErrorReporting, reportAppOpen } from '@/lib/telemetryClient';
@@ -68,11 +72,15 @@ export default function RootLayout() {
     IBMPlexMono_500Medium,
   });
   const [appIsReady, setAppIsReady] = useState(false);
+  const [maintenance, setMaintenance] = useState<MaintenanceStatus | null>(null);
 
   useNotificationNavigation();
 
   useEffect(() => {
     async function prepareApp() {
+      // The check runs alongside the audio bootstrap and never throws: an
+      // unavailable backend answers `unknown`, which renders the app.
+      const maintenanceCheck = fetchMaintenanceStatus(BACKEND_URL, 2500);
       try {
         markStartupStage('fonts_loaded');
         await initTrackPlayer();
@@ -93,6 +101,11 @@ export default function RootLayout() {
       } catch (e) {
         console.warn('Error durante la inicializacion:', e);
       } finally {
+        // The splash hides only after the answer: the maintenance screen is the
+        // first frame, not something that replaces the app one tick later.
+        const check = await maintenanceCheck;
+        if (check.state === 'enabled') setMaintenance(check.status);
+
         setAppIsReady(true);
         await SplashScreen.hideAsync();
         markStartupStage('splash_hidden');
@@ -102,6 +115,21 @@ export default function RootLayout() {
       prepareApp();
     }
   }, [fontsLoaded]);
+
+  // Coming back to the app is the moment to notice that a maintenance window
+  // started or ended while it was in the background. There is no polling.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+
+      void fetchMaintenanceStatus(BACKEND_URL, 2500).then((check) => {
+        if (check.state === 'enabled') setMaintenance(check.status);
+        if (check.state === 'disabled') setMaintenance(null);
+      });
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     const sub = Notifications.addPushTokenListener((tokenData) => {
@@ -124,19 +152,23 @@ export default function RootLayout() {
       <ReducedMotionConfig mode={ReduceMotion.System} />
       <BottomSheetModalProvider>
         <SafeAreaProvider>
-          <FacebookLiveProvider>
-            <PrayerAnswersProvider>
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: Colors.background },
-                }}
-              >
-                <Stack.Screen name="(tabs)" />
-              </Stack>
-              <NoticeOverlay />
-            </PrayerAnswersProvider>
-          </FacebookLiveProvider>
+          {maintenance ? (
+            <MaintenanceScreen status={maintenance} />
+          ) : (
+            <FacebookLiveProvider>
+              <PrayerAnswersProvider>
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: Colors.background },
+                  }}
+                >
+                  <Stack.Screen name="(tabs)" />
+                </Stack>
+                <NoticeOverlay />
+              </PrayerAnswersProvider>
+            </FacebookLiveProvider>
+          )}
           <PerfOverlay />
           <StatusBar style="light" />
         </SafeAreaProvider>
