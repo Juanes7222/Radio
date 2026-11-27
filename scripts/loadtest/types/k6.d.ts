@@ -9,6 +9,8 @@ declare const process: {
   exitCode?: number;
 };
 
+declare const __VU: number;
+
 declare class URL {
   constructor(input: string);
   protocol: string;
@@ -25,6 +27,7 @@ declare module "k6/http" {
     status: number;
     body: string | null;
     headers: Record<string, string>;
+    timings: { duration: number };
     json(): Record<string, unknown>;
   }
 
@@ -49,6 +52,11 @@ declare module "k6/http" {
 declare module "k6/metrics" {
   export class Counter {
     constructor(name: string);
+    add(value: number, tags?: Record<string, string>): void;
+  }
+
+  export class Trend {
+    constructor(name: string, isTime?: boolean);
     add(value: number, tags?: Record<string, string>): void;
   }
 }
