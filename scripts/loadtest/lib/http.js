@@ -22,13 +22,36 @@ http.setResponseCallback(http.expectedStatuses({ min: 200, max: 399 }, 429));
  * @param {Record<string, string>} tags
  */
 export function requestWithTags(url, params, tags) {
-  const mergedParams = {
-    ...params,
-    tags: { ...(params.tags ?? {}), ...tags },
-  };
-  const response = http.get(url, mergedParams);
-  if (response.status === 429) {
-    throttledRequests.add(1, withThrottleTag(tags, response.status));
-  }
+  const response = http.get(url, withCallerTags(params, tags));
+  countThrottle(response.status, tags);
   return response;
+}
+
+/**
+ * Sends a POST with caller tags and the same throttle accounting as GET.
+ *
+ * @param {string} url
+ * @param {unknown} body
+ * @param {HttpParams} params
+ * @param {Record<string, string>} tags
+ */
+export function postWithTags(url, body, params, tags) {
+  const response = http.post(url, body, withCallerTags(params, tags));
+  countThrottle(response.status, tags);
+  return response;
+}
+
+/**
+ * @param {HttpParams} params
+ * @param {Record<string, string>} tags
+ */
+function withCallerTags(params, tags) {
+  return { ...params, tags: { ...(params.tags ?? {}), ...tags } };
+}
+
+/** @param {number} status @param {Record<string, string>} tags */
+function countThrottle(status, tags) {
+  if (status === 429) {
+    throttledRequests.add(1, withThrottleTag(tags, status));
+  }
 }

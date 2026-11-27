@@ -10,6 +10,7 @@ declare const process: {
 };
 
 declare const __VU: number;
+declare const __ITER: number;
 
 declare class URL {
   constructor(input: string);

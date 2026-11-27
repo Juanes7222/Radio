@@ -1,9 +1,11 @@
-import { spawn } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.js";
 import { parseRunArgs, reportFilename } from "./lib/cli.js";
+import { isEmailRecipientsEmpty, writeGuardFailure } from "./lib/guards.js";
+import { readFeedbackCategory } from "./lib/feedback-category.mjs";
 
 const harnessDir = dirname(fileURLToPath(import.meta.url));
 const stopFile = join(harnessDir, ".stop");
@@ -33,6 +35,30 @@ async function main() {
     delete process.env.K6_VUS;
   } else if (args.vus !== undefined) {
     process.env.K6_VUS = String(args.vus);
+  }
+
+  if (args.profile === "public-writes") {
+    const guardFailure = writeGuardFailure(process.env);
+    if (guardFailure) {
+      fail(guardFailure.message, guardFailure.code);
+    }
+    let recipients;
+    try {
+      recipients = execSync(process.env.K6_EMAIL_CHECK_COMMAND, {
+        encoding: "utf8",
+        timeout: 15000,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (error) {
+      fail(`Email guard command failed: ${error.message ?? String(error)}`, 3);
+    }
+    if (!isEmailRecipientsEmpty(recipients ?? "")) {
+      fail(
+        "PRAYER_EMAIL_RECIPIENTS is not empty in radio-backend. Empty it in Infisical and run pm2 restart radio-backend before the maintenance window.",
+        3
+      );
+    }
+    process.env.K6_FEEDBACK_CATEGORY = readFeedbackCategory("SUGERENCIA");
   }
 
   const config = loadConfig();

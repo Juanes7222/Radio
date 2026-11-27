@@ -51,6 +51,23 @@ operator's public IP on the real backend port. Confirm the port with
 `ss -lntp | grep node` and verify with `curl.exe` before measuring. No SSH
 tunnel: it adds a hop and corrupts the latency measurement.
 
+## Guarded writes
+
+`public-writes` starts only when `K6_ALLOW_WRITES=1` and
+`K6_EMAIL_CHECK_COMMAND` is set. The check command must print the effective
+value of `PRAYER_EMAIL_RECIPIENTS` from the `radio-backend` process; empty
+output means the variable was emptied in Infisical and the backend was
+restarted. Without both guards the orchestrator exits 2 or 3 before starting
+k6, so no report is written. `K6_FEEDBACK_CATEGORY` is resolved from
+`packages/types/src/feedback.ts` by the orchestrator, because k6 cannot import
+a TypeScript package directly.
+
+Each prayer insert upserts a `Device` and broadcasts an SSE event. Both count
+as load: open admin panels will receive false petitions during the window.
+Use `node scripts/loadtest/lib/cleanup.mjs <K6_MARKER>` to print the three
+DELETE statements, then run them in a single `sqlite3` transaction on the VPS.
+The marker is printed by `run.mjs` at the start of every run.
+
 ## Throttling and the stop switch
 
 k6 assigns request tags before the response arrives, so a 429 cannot
