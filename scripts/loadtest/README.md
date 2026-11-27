@@ -51,6 +51,20 @@ operator's public IP on the real backend port. Confirm the port with
 `ss -lntp | grep node` and verify with `curl.exe` before measuring. No SSH
 tunnel: it adds a hop and corrupts the latency measurement.
 
+## Static secrets and the admin token
+
+Run `scripts/loadtest/auth/mint-admin-token.mjs` **inside the VPS**, with the
+`radio-backend` environment loaded. It picks an active admin account with
+`dashboard`, `feedback` and `youtube` permissions, signs a short-lived HS256
+token with `sub` and `tv`, and prints only the token to stdout. Copy that token
+to `K6_ADMIN_TOKEN` on the operator machine. `JWT_SECRET`,
+`WORKER_AUTH_SECRET` and `PANEL_SECRET` never leave the VPS. The panel reloads
+permissions from the user row on every request, so a 401 means wrong `sub`/`tv`
+and a 403 means the chosen row lacks a permission.
+
+`run.mjs` refuses to start `admin-reads`, `worker-reads` or `capacity-mixed`
+without the required secrets and exits 4.
+
 ## Guarded writes
 
 `public-writes` starts only when `K6_ALLOW_WRITES=1` and

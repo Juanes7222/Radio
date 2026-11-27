@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.js";
 import { parseRunArgs, reportFilename } from "./lib/cli.js";
-import { isEmailRecipientsEmpty, writeGuardFailure } from "./lib/guards.js";
+import { isEmailRecipientsEmpty, secretGuardFailure, writeGuardFailure } from "./lib/guards.js";
 import { readFeedbackCategory } from "./lib/feedback-category.mjs";
 
 const harnessDir = dirname(fileURLToPath(import.meta.url));
@@ -35,6 +35,11 @@ async function main() {
     delete process.env.K6_VUS;
   } else if (args.vus !== undefined) {
     process.env.K6_VUS = String(args.vus);
+  }
+
+  const secretFailure = secretGuardFailure(args.profile, process.env);
+  if (secretFailure) {
+    fail(secretFailure.message, secretFailure.code);
   }
 
   if (args.profile === "public-writes") {

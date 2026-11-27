@@ -25,6 +25,33 @@ export function writeGuardFailure(env) {
 }
 
 /**
+ * Validates the static secrets a profile needs before k6 starts.
+ *
+ * @param {string} profile
+ * @param {Record<string, string | undefined>} env
+ * @returns {{ code: number, message: string } | null}
+ */
+export function secretGuardFailure(profile, env) {
+  /** @type {string[]} */
+  const required =
+    profile === "admin-reads"
+      ? ["K6_ADMIN_TOKEN"]
+      : profile === "worker-reads"
+        ? ["K6_WORKER_SECRET", "K6_PANEL_SECRET"]
+        : profile === "capacity-mixed"
+          ? ["K6_ADMIN_TOKEN", "K6_WORKER_SECRET", "K6_PANEL_SECRET"]
+          : [];
+  const missing = required.filter((name) => (env[name] ?? "").trim().length === 0);
+  if (missing.length === 0) {
+    return null;
+  }
+  return {
+    code: 4,
+    message: `${profile} requires ${missing.join(", ")}. Mint or export the secrets before starting k6.`,
+  };
+}
+
+/**
  * The check command prints the effective recipient list to stdout.
  *
  * @param {string} commandOutput
