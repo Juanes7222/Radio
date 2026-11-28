@@ -19,11 +19,27 @@ package manager is pnpm 10.11.0 and the task runner is Turborepo.
 | `pnpm test:design` | Only the design guardrails of web and mobile |
 | `pnpm design:review` | Reviews the current diff, then prints the manual checklist |
 | `pnpm verify` | `typecheck` → `test` → `design:review`, in that order |
+| `pnpm load:smoke` | k6 smoke against the selected path (`--path edge\|origin`) |
+| `pnpm load:reads` | Cheap public reads with a cold/warm cache split |
+| `pnpm load:search` | Isolated `/api/search` cost with a hot cache |
+| `pnpm load:writes` | Guarded prayer and feedback writes (`K6_ALLOW_WRITES=1`) |
+| `pnpm load:admin` | Panel reads with a static admin JWT |
+| `pnpm load:workers` | Worker and panel protocol reads with static secrets |
+| `pnpm load:capacity` | Staged pure public capacity (`--vus-max N`) |
+| `pnpm load:capacity:mixed` | Staged representative public/admin/worker mix |
+| `pnpm load:test` | Local `node:test` checks of the harness logic |
+| `pnpm load:typecheck` | `checkJs` static check of the k6 scenario files |
 
 `pnpm design:review` accepts `--base <ref>`, `--json` and `--strict`. It only
 checks added lines, so pre-existing debt in a file does not fail your change.
 Exit codes: `0` clean, `1` errors (or warnings under `--strict`), `2` tool or git
 failure.
+
+The `pnpm load:*` scripts delegate to `scripts/loadtest/run.mjs` and require a
+native k6 binary on `PATH` (`k6 version`); k6 is not an npm dependency. Run them
+only inside a maintenance window as described in
+`docs/runbooks/load-testing.md`. `load:test` and `load:typecheck` are safe to run
+anywhere and do not generate traffic.
 
 ## Backend
 

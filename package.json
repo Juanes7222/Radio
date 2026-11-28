@@ -14,7 +14,17 @@
     "verify": "pnpm run typecheck && pnpm run test && pnpm run design:review",
     "dev:web": "turbo dev --filter=@radio/web",
     "dev:mobile": "turbo dev --filter=@radio/mobile",
-    "dev:backend": "turbo dev --filter=radio-admin-backend"
+    "dev:backend": "turbo dev --filter=radio-admin-backend",
+    "load:smoke": "node scripts/loadtest/run.mjs smoke",
+    "load:reads": "node scripts/loadtest/run.mjs public-reads",
+    "load:writes": "node scripts/loadtest/run.mjs public-writes",
+    "load:admin": "node scripts/loadtest/run.mjs admin-reads",
+    "load:workers": "node scripts/loadtest/run.mjs worker-reads",
+    "load:capacity": "node scripts/loadtest/run.mjs capacity",
+    "load:capacity:mixed": "node scripts/loadtest/run.mjs capacity-mixed",
+    "load:search": "node scripts/loadtest/run.mjs search-isolated",
+    "load:test": "node --test scripts/loadtest/tests/*.test.mjs",
+    "load:typecheck": "tsc --noEmit -p scripts/loadtest/tsconfig.json"
   },
   "devDependencies": {
     "react": "19.2.3",

@@ -161,3 +161,7 @@ graphify-out/
 
 .superpowers
 .gradle/
+
+# k6 load-test output and stop switch
+/reports/
+/scripts/loadtest/.stop

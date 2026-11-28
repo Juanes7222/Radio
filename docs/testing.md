@@ -16,6 +16,8 @@ propósito.
 | `pnpm verify` | Typecheck, tests y revisión de diseño, en ese orden. |
 | `pnpm --filter @radio/web run test tests/design` | Un directorio concreto de un workspace. |
 | `pnpm --filter @radio/web run test tests/design/tokens.test.ts` | Un archivo concreto. |
+| `pnpm load:test` | `node:test` de la lógica pura del arnés de carga (configuración, escalones, correlación, guardas). |
+| `pnpm load:typecheck` | Chequeo estático con `checkJs` de los scripts `.js` de k6. |
 
 `pnpm test` pasa por Turbo. Solo `@radio/web` declara que su tarea `test`
 depende de `build`, porque `tests/perf/` y `tests/catalog/buildOutput.test.ts`
@@ -156,3 +158,14 @@ Flujo recomendado para un agente:
 - Un cambio de UI debe agregar o extender un test en `tests/design/` del
   workspace correspondiente. Un cambio de backend, un test de comportamiento en
   el módulo.
+
+## Pruebas de carga
+
+Las pruebas de carga no sustituyen a Vitest ni a los guardarraíles de diseño.
+responden a otra pregunta: cuánta carga soporta la emisora y qué recurso se
+agota primero. El arnés vive en `scripts/loadtest/`; sus pruebas locales
+(`pnpm load:test` y `pnpm load:typecheck`) verifican la lógica y la sintaxis sin
+lanzar tráfico. La medición real contra producción se hace con k6 OSS desde la
+PC del operador, siguiendo `docs/runbooks/load-testing.md` en una ventana de
+mantenimiento. Los `checks` de los escenarios solo validan que la respuesta sea
+creíble; no son tests funcionales.
